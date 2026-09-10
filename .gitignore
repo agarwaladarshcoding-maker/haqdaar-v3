@@ -1,0 +1,12 @@
+.env
+logs/
+audio/
+data_cache/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+node_modules/
+.agent/
+.DS_Store
+haqdaar-v2-brain/.obsidian/workspace*.json
