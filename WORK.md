@@ -176,6 +176,12 @@ complete keypad call in the simulator, which is the `v1-keypad` demoable product
 >    copy it, do not create `brain/`.** Map rev 27 permits either name.
 > 2. `AGENTS.md` already exists at the repo root and is correct. **Do not rewrite it.** Add
 >    `CLAUDE.md` that imports it, per the step.
+> 3. `.gitignore` and a git repo already exist and are correct — **add to `.gitignore`, never
+>    replace it.** A real `.env` already exists at the repo root with a live key in it:
+>    **do not read it, do not print it, do not copy it, do not overwrite it.** `.env.example`
+>    is a separate new file and must contain **only empty placeholders**:
+>    `GROQ_API_KEY=` · `SARVAM_API_KEY=` · `TWILIO_ACCOUNT_SID=` · `TWILIO_AUTH_TOKEN=` ·
+>    `NGROK_DOMAIN=`.
 >
 > Everything else in Step 0 stands: `pyproject.toml` (Python 3.11), the `Makefile` with
 > `run · sim · test · demo-fixture · pipeline · smoke`, `.env.example`, the `.gitignore` entries,
@@ -189,8 +195,11 @@ complete keypad call in the simulator, which is the `v1-keypad` demoable product
 
 **Verify:**
 ```bash
+cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
 make test              # expect: 10 passed (not 1 — Step 11's tests already exist here)
 ls Makefile pyproject.toml .env.example CLAUDE.md
+git status --porcelain | grep -i '^..\s*\.env$' && echo "STOP: .env is exposed" || echo ".env safe"
+grep -c gsk_ .env.example || true    # expect 0 — no real key in the example file
 ```
 
 **Watch for:** `make test` must find the venv's pytest. If the Makefile hardcodes `python3`, it
