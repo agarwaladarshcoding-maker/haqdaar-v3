@@ -1,257 +1,348 @@
-# WORK.md — the running dispatch file
+# WORK.md — what to do next
 
-**This file is the handshake between you, Antigravity (Gemini), and Claude Code.**
-It is not part of the vault and is not governed by `RULES.md`. It is the operational layer:
+This file is the handshake between **you**, **Antigravity (Gemini)** and **Claude Code (me)**.
+It is not part of the vault. `RULES.md` does not govern it. It holds the running plan:
 what to run next, what to paste where, and what already happened.
-
-## How we use it
 
 | Who | Does what |
 |---|---|
-| **You** | Paste the work orders below into Antigravity. Run the verify commands. Write anything you did outside this file into **§8 What I did extra**. |
-| **Antigravity (Gemini)** | Writes the code for exactly one step at a time. Never touches this file. |
-| **Claude Code (me)** | Reads §8 + reruns the verify commands, reviews the step, updates §2 and §6, and writes the next work order. |
+| **You** | Make the branch. Paste the prompt into Antigravity. Run the check commands. Do the things only a human can do (§3). Write anything off-script into §8. |
+| **Antigravity** | Writes code for one step. Nothing else. Never touches this file. |
+| **Claude Code (me)** | Reads §8, reruns your checks, reviews the step, updates §1 and §6, writes the next prompt. |
 
-**Rule:** one step in flight at a time. Do not paste work order N+1 until N is reviewed.
-**Rule:** if you change anything by hand — a key, a file, a decision, a path — put one line in §8.
-Anything not in this file or on disk, I do not know about.
-
-## 👉 Start here every morning: `work/<today>.md`
-
-**This file is the plan. `work/` is your day.** Open the dated file, work top to bottom, tick boxes.
-Anything needing your hands — an account, a phone, a card, a decision — is there, not here.
+**Your day lives in `work/<today>.md`.** This file is the plan. That file is today.
 
 | File | What it is |
 |---|---|
-| [`work/2026-09-10.md`](work/2026-09-10.md) | **Closed 11 Sep** — git, venv, FileVault, Groq key. Nothing outstanding |
-| [`work/2026-09-11.md`](work/2026-09-11.md) | **← TODAY** — Steps 0, 1, 2 + the remaining accounts + the phone call |
-| [`work/TEMPLATE.md`](work/TEMPLATE.md) | Copy to `work/<date>.md` for a new day |
-
-At the end of each day, tell me what merged and what slipped. I write the next day's file, and
-update §2 and §6 here.
+| [`work/2026-09-10.md`](work/2026-09-10.md) | **Closed.** Git, venv, FileVault, Groq key. Nothing left. |
+| [`work/2026-09-11.md`](work/2026-09-11.md) | **← today.** Steps 0, 1, 2 + the last keys + the phone call. |
+| [`work/TEMPLATE.md`](work/TEMPLATE.md) | Copy to `work/<date>.md` for a new day. |
 
 ---
 
-## 1 · Where the truth lives
+## 0 · The rules
 
-- **Binding governance:** `haqdaar-v2-brain/RULES.md`
-- **Sole source of truth for decisions:** `haqdaar-v2-brain/maps/wayfinder-map.md` (currently **rev 27**).
-  `maps/history/` is version support only — gaps in it are not findings (D9).
-- **Docs the agents read:** `haqdaar-v2-brain/docs/` — `build-plan.md`, `architecture.md`,
-  `interfaces.md`, `review.md`, `today.md`, `data-contract.md`, `test-plan.md`
-- **You edit** `source-docs/`, then run `python3 sync_vault.py --sync`. Never hand-edit the vault.
+**R1 · One caller at a time.** v1 serves **one person on one phone**. Build nothing for many
+callers — no queues, no worker pools, no concurrency tuning, no load tests. Serving a crowd needs
+resources we do not have, and every hour spent there is an hour the call itself does not get.
+Map rev 27 already lists "one caller at a time" as an accepted risk, so this matches the vault.
+*If a step starts drifting toward concurrency, stop it. Tell me and I will cut it.*
 
-> **Path note:** `build-plan.md` and `today.md` were written for a repo where the vault sits at
-> `brain/`. Here it sits at `haqdaar-v2-brain/`. Rev 27 allows both. Every prompt below already
-> uses the correct local path — use them verbatim rather than the ones inside the docs.
+**R2 · Every step gets its own branch.** Always `git checkout -b step-NN` **before** you paste
+anything into Antigravity. Never let an agent write on `main`. A bad run is then one
+`git checkout .` away from gone.
 
----
+**R3 · One step in flight.** Do not paste prompt N+1 until step N is reviewed and merged.
 
-## 2 · Current state — verified 2026-09-11
+**R4 · `.env` never gets committed.** It is in `.gitignore`. Check with `git status` if unsure.
 
-**Decisions: all closed.** D1 Groq free tier · D2 D-day **14 Sep** · D3 minimax planner, day one
-· D4/D5/D6 restored · D8 lazy tiered audio pool · D9 map source-of-truth. D7 is a measurement
-Step 14 produces, not an open question. **Nothing is waiting on you to decide.**
+**R5 · Anything you do by hand goes in §8.** A key, a hand edit, a decision, a command that
+failed. If it is not in this file or on disk, I do not know it happened.
 
-**Vault:** clean. 65 source files synced (27 tickets, 23 maps, 13 docs, 4 briefs), 0 dirty.
+**R6 · You edit `source-docs/`, then run `python3 sync_vault.py --sync`.** Never hand-edit the
+vault. Agents read the vault, so an unsynced edit means they build against old docs.
 
-**Environment (all of 10 Sep's setup is closed):** git repo live on `main` · `.venv` on Python 3.11,
-`pytest -q` -> **10 passed** · FileVault on · laptop-sleep setting ruled N/A by you, replaced by
-`caffeinate -dimsu make run` in the demo runbook · **`GROQ_API_KEY` in `.env`, verified live**
-(8,000 TPM / 1,000 RPD / 200K TPD per model — measured, not read off the docs page).
-**Still owed: Sarvam, Twilio, ngrok, Plivo.** Twilio + ngrok are the only ones blocking a step you
-could otherwise start today (Step 1).
-
-**Code that exists and passes:**
-
-| Path | Lines | Step | State |
-|---|---|---|---|
-| `haqdaar/contracts/types.py` | 204 | 2 (part) | types + markers present, **`log_schema.py` missing** |
-| `haqdaar/contracts/tunables.py` | 50 | 2 (part) | both caps present |
-| `haqdaar/audio/pool.py` | 232 | 11 | tier 0 pin + mmap/LRU + tier-2 behind flag |
-| `haqdaar/data/corpus.py` | 346 | 11 | load verifies existence + digest, returns RenderKey |
-| `haqdaar/data/pipeline/p6_snapshot.py` | 484 | 11 | writes the five snapshot files |
-| `tests/test_corpus.py` | 422 | 11 | **10 passed** — all 7 hard constraints covered |
-
-**Code that does not exist yet:** `server.py` · `sim.py` · `contracts/log_schema.py` ·
-`engine/` (filter, planner, terminals, call) · `model/` · `audio/telephony/twilio.py` ·
-`audio/ear.py` `mouth.py` `turn.py` · `data/log.py` · `fixtures/` · `Makefile` ·
-`pyproject.toml` · `.env.example` · `snapshots/` · `data_cache/` · `audio/`
-
-**So:** Step 11 is built and unit-tested, but **Steps 0–10 are not**, and Step 11's real
-*"Done when"* (`make pipeline` end to end, sim against the real snapshot) cannot run until they are.
-The build went out of order. That is recoverable and no work is wasted — but the queue in §6
-puts it back in order.
-
----
-
-## 3 · Two things to settle before the next work order  — ✅ **BOTH CLOSED 10 Sep**
-
-*Kept for the record only. Neither blocks anything; skip to §6.*
-
-### 3a · Git — ✅ done, `main` has 3 commits
-
-~~This folder is **not a git repo**.~~ The build plan's entire loop is *branch per step → review →
-merge*, and its safety property is that a bad Antigravity run is one `git checkout .` away from
-gone. Without it, an agent that misreads a step overwrites 1,761 working lines with no undo.
-You do not need GitHub for this — a local repo gives you the whole safety net.
-
-```bash
-cd /Users/adarshagarwala/Documents/haqdaar-v2
-git init -b main
-printf '.env\nlogs/\naudio/\ndata_cache/\n.venv/\n__pycache__/\n*.py[cod]\n.pytest_cache/\nnode_modules/\n.agent/\n.DS_Store\nhaqdaar-v2-brain/.obsidian/workspace*.json\n' > .gitignore
-git add -A && git commit -m "baseline: vault rev 27, step 11 code, 10 tests passing"
-```
-
-**If you say no to git,** say so in §8 and I will rewrite every work order to snapshot the tree
-into `_backup/<step>/` with `rsync` before Antigravity starts. It is worse, but it works.
-
-### 3b · Python — ✅ done, `.venv` on 3.11, `pytest -q` -> 10 passed
-
-~~`python3` is Homebrew **3.14** and has no pytest. Your 10 tests only pass under
-`/Library/Frameworks/Python.framework/Versions/3.14/bin/pytest`. The build plan pins **3.11**,
-which you have at `/opt/homebrew/bin/python3.11`. Fix it once:
-
-```bash
-cd /Users/adarshagarwala/Documents/haqdaar-v2
-/opt/homebrew/bin/python3.11 -m venv .venv
-source .venv/bin/activate
-pip install -U pip
-pip install fastapi 'uvicorn[standard]' websockets httpx pydantic python-dotenv pyyaml pytest pytest-asyncio
-pytest -q          # expect: 10 passed
-```
-
-~~Fix it once.~~ **Still true and still the one thing you must remember: run
-`source .venv/bin/activate` in every terminal, including Antigravity's.**
-
----
-
-## 4 · The loop, per step
-
-1. **You:** `git checkout -b step-NN` (after 3a)
-2. **You → Antigravity:** paste the work order from §6.
-3. **You:** run the **Verify** commands in the work order. Paste real output into §8 if it differs.
-4. **You → Claude Code:** paste the review block from §7 with `N` filled in.
-5. **On "safe to merge: yes":**
-   ```bash
-   git checkout main && git merge --no-ff step-NN -m "step NN: <name>"
-   ```
-6. **You:** tell me it merged. I update §2 and §6.
-
----
-
-## 5 · Command cheat sheet
-
+**R7 · Every terminal starts with:**
 ```bash
 cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
-
-pytest -q                             # tests
-python3 -m py_compile sync_vault.py   # lint / syntax
-python3 sync_vault.py --status        # vault parity — expect 0 dirty
-python3 sync_vault.py --sync          # after ANY edit to source-docs/
-python3 sync_vault.py --watch         # auto-sync daemon while you write docs
 ```
 
-**After editing anything in `source-docs/`, run `--sync` before you dispatch an agent.**
-Agents read the vault, not `source-docs/`. Skip the sync and they build against stale docs.
+> **Path note:** `build-plan.md` and `today.md` were written for a repo with the vault at `brain/`.
+> Here it sits at `haqdaar-v2-brain/`. Rev 27 allows both names. **The prompts in §4 already use the
+> right path — paste them as they are**, do not copy the ones inside the docs.
 
 ---
 
-## 6 · The queue
+## 1 · Where we stand — 11 Sep
 
-Order is **0 → 2 → 3 → 4 → 5 → 6**, then the pipeline steps. This is the shortest path to a
-complete keypad call in the simulator, which is the `v1-keypad` demoable product. **Step 1
-(telephony smoke) is unblocked only once Twilio + ngrok exist** — see §6a; it can slot in any time.
+### Done
+- **Git repo** on `main`. Baseline commit holds the vault and all working code.
+- **`.venv` on Python 3.11.** `pytest -q` → **10 passed**.
+- **FileVault on.** Laptop-sleep setting ruled not needed by you — the laptop stays open and
+  plugged in for the demo. `caffeinate -dimsu make run` covers it on the day.
+- **Groq key** in `.env` and tested live. **8,000 tokens/min · 1,000 requests/day · 200K tokens/day**
+  per model. Steps 8, 9 and 14 are unblocked. Three findings in §9.
+- **Vault clean.** 65 files synced, 0 dirty. Map rev 27.
+- **All decisions closed.** D1 Groq · D2 D-day 14 Sep · D3 minimax planner · D4/D5/D6 restored ·
+  D8 lazy audio pool · D9 map is source of truth. D7 is a number Step 14 measures, not a question.
+  **Nothing waits on you to decide.**
+
+### Code that exists and passes
+| Path | Lines | Step | State |
+|---|---|---|---|
+| `haqdaar/contracts/types.py` | 204 | 2 (part) | types + markers there, **`log_schema.py` missing** |
+| `haqdaar/contracts/tunables.py` | 50 | 2 (part) | both caps there |
+| `haqdaar/audio/pool.py` | 232 | 11 | tier 0 pin + mmap/LRU + tier 2 behind a flag |
+| `haqdaar/data/corpus.py` | 346 | 11 | load checks the file exists + digest, returns RenderKey |
+| `haqdaar/data/pipeline/p6_snapshot.py` | 484 | 11 | writes the five snapshot files |
+| `tests/test_corpus.py` | 422 | 11 | **10 passed** — all 7 hard rules covered |
+
+### Code that does not exist yet
+`server.py` · `sim.py` · `contracts/log_schema.py` · `engine/` (filter, planner, terminals, call) ·
+`model/` · `audio/telephony/twilio.py` · `audio/ear.py` `mouth.py` `turn.py` · `data/log.py` ·
+`fixtures/` · `Makefile` · `pyproject.toml` · `.env.example` · `snapshots/` · `data_cache/` · `audio/`
+
+### The one problem to know about
+Step 11 got built before Steps 0–10. The code is fine and none of it is wasted, but Step 11 cannot
+prove its real "Done when" (`make pipeline` end to end) until the pipeline exists. §6 puts the
+order back.
+
+### Still owed by you
+Sarvam · Twilio · ngrok · Plivo. **Twilio + ngrok are the only ones blocking a step you could
+start today.** Details in §3a.
+
+---
+
+## 2 · What to do next — in this order
+
+| # | Do this | Where |
+|---|---|---|
+| **1** | `git checkout -b step-00`, paste the **Step 0** prompt into Antigravity | §4, Step 0 |
+| **2** | **While it runs:** open the Twilio and ngrok accounts | §3a |
+| **3** | Run the Step 0 check commands | §4, Step 0 |
+| **4** | Paste the review block into me with `N = 0` | §5 |
+| **5** | On "safe to merge: yes" → merge, then `git checkout -b step-01` | §4, Step 1 |
+| **6** | Do the phone call by hand — this is the one only you can do | §3b |
+| **7** | Review Step 1, merge, then `git checkout -b step-02` | §4, Step 2 |
+| **8** | Review Step 2, merge, then `git tag v1-skeleton` | — |
+
+**Merge command, same every time:**
+```bash
+git checkout main && git merge --no-ff step-NN -m "step NN: <name>"
+```
+
+**If the day runs out:** getting Step 0 merged and the phone call working is a good day. Step 2
+can move to 12 Sep without hurting anything.
+
+---
+
+## 3 · Only you can do this
+
+Antigravity cannot open an account, hold a phone, or make a judgement call. This section is
+everything that needs your hands.
+
+### 3a · Keys and accounts
+
+| Service | State | Blocks | Goes in `.env` as |
+|---|---|---|---|
+| **Groq** | ✅ **done 11 Sep**, tested live | ~~Steps 8, 9, 14~~ | `GROQ_API_KEY` |
+| **Twilio** | ❌ **do this today** | Step 1, Step 12 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` |
+| **ngrok** | ❌ **do this today** | Step 1, Step 12 | `NGROK_DOMAIN` |
+| **Sarvam** | ❌ needed by 12 Sep | Steps 10, 13 | `SARVAM_API_KEY` |
+| **Plivo** | background, no rush | nothing before the demo | — |
+
+**Twilio (~15 min).** Sign up. You get free trial credit. Buy a **US number with Voice**.
+Copy the Account SID and Auth Token from the console home page into `.env`.
+*The trial adds a short notice before your greeting. Fine for building.*
+
+**ngrok (~5 min).** Sign up → install → `ngrok config add-authtoken <token>` → copy your free
+static domain into `.env` as `NGROK_DOMAIN`.
+
+**Sarvam (~10 min).** Dashboard → API key → `.env`. Note the free credit balance.
+*You no longer need the concurrent-stream limit — R1 means one caller, so it does not matter.*
+
+**Plivo (fire and forget).** Udyam certificate (Aadhaar + PAN) → Plivo signup, India region →
+upload → submit. Then forget it until after the demo.
+
+**After adding any key:**
+```bash
+git status --porcelain | grep -i '\.env$' && echo "STOP — .env is exposed" || echo ".env is safe"
+```
+
+### 3b · Manual tests — things no test suite can prove
+
+**M1 · The phone call (Step 1). The single most important thing you do this week.**
+
+```bash
+# Terminal A
+cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
+make run
+
+# Terminal B
+ngrok http --url=$NGROK_DOMAIN 8000
+```
+
+Then: Twilio console → your number → **Voice → A call comes in → Webhook** →
+`https://<NGROK_DOMAIN>/answer`, method **HTTP POST** → Save.
+
+Now dial the number from your phone.
+
+| Check | What you should see or hear | Result |
+|---|---|---|
+| Trial notice, then a tone | a 1-second beep | |
+| Terminal A prints `mark tone_end` | | |
+| Press **1** → Terminal A prints `dtmf 1` | | |
+| Press **9** → the call ends | | |
+| Seconds from dial to tone | count it out loud | |
+
+**Ratify on this call:** `keepCallAlive="false"`. If calls drop at connect, flip it to `true` and
+add `streamTimeout="600"`. **Put whichever one you land on in the commit message.**
+
+**Skip the three-phones test.** T19 asked for it. **R1 cancels it** — v1 serves one caller, so the
+number would change nothing we build. In the results table write **"ruled out of scope (R1)"**,
+not "not measured".
+
+**M2 · The console call (after Step 6).** `make sim`, then play all three personas by hand.
+All three must reach `closing_farewell`. This is the first moment the thing is visibly a product.
+
+**M3 · Listen to the audio (after Step 13).** Automated tests prove a file plays. Only your ears
+prove it sounds like a person and says the right words in Marathi and Hindi.
+
+**M4 · The demo dry run (13 Sep).** Full call, phone in hand, start to finish, timed. Run
+`caffeinate -dimsu make run` so the laptop cannot sleep mid-call.
+
+### 3c · Judgement calls you owe, with dates
+
+| By when | Call to make |
+|---|---|
+| **13 Sep** | Pay Twilio ~$20 to remove the trial notice before the demo, or live with it? |
+| **After Step 1** | `keepCallAlive` — `false` unless the call drops at connect (see M1) |
+| **After Step 14** | If the model is slower than 500 ms, the 1.2 s response clock moves — not the provider (§9 item 11) |
+
+---
+
+## 4 · Prompts for Antigravity
+
+**Before every one of these:** `git checkout -b step-NN` (**R2**). Paste the block between the
+lines exactly as written.
 
 ### ▶ NEXT — Step 0 · Repo and rules
 
-**Paste into Antigravity:**
+```
+git checkout -b step-00
+```
 
 > Implement **Step 0** of `haqdaar-v2-brain/docs/build-plan.md`. Follow `AGENTS.md`.
 > Read `haqdaar-v2-brain/docs/architecture.md` §4 before writing code.
-> Do nothing outside this step.
+> Work only on branch `step-00`. Do nothing outside this step.
 >
-> Two local deviations from the step text, both already ratified — apply them:
+> Three local changes to the step text, all already agreed — apply them:
 > 1. The vault is already vendored at `haqdaar-v2-brain/`, not `brain/`. **Do not move it, do not
 >    copy it, do not create `brain/`.** Map rev 27 permits either name.
 > 2. `AGENTS.md` already exists at the repo root and is correct. **Do not rewrite it.** Add
->    `CLAUDE.md` that imports it, per the step.
-> 3. `.gitignore` and a git repo already exist and are correct — **add to `.gitignore`, never
->    replace it.** A real `.env` already exists at the repo root with a live key in it:
->    **do not read it, do not print it, do not copy it, do not overwrite it.** `.env.example`
->    is a separate new file and must contain **only empty placeholders**:
+>    `CLAUDE.md` that imports it, as the step says.
+> 3. A git repo and a `.gitignore` already exist and are correct — **add lines to `.gitignore`,
+>    never replace it.** A real `.env` also exists at the repo root with a live API key in it:
+>    **do not read it, do not print it, do not copy it, do not overwrite it.** `.env.example` is a
+>    separate new file and must hold **only empty placeholders**:
 >    `GROQ_API_KEY=` · `SARVAM_API_KEY=` · `TWILIO_ACCOUNT_SID=` · `TWILIO_AUTH_TOKEN=` ·
->    `NGROK_DOMAIN=`.
+>    `NGROK_DOMAIN=`
 >
-> Everything else in Step 0 stands: `pyproject.toml` (Python 3.11), the `Makefile` with
-> `run · sim · test · demo-fixture · pipeline · smoke`, `.env.example`, the `.gitignore` entries,
-> and the empty package tree from architecture §4 — including `audio/` as a **flat top-level pool**,
+> Everything else in Step 0 stands: `pyproject.toml` (Python 3.11), the `Makefile` with targets
+> `run · sim · test · demo-fixture · pipeline · smoke`, `.env.example`, the `.gitignore` lines, and
+> the empty package tree from architecture §4 — including `audio/` as a **flat top-level pool**,
 > never nested under `snapshots/`.
+>
+> The Makefile must call `python -m pytest`, not `python3`. The system `python3` is 3.14 and has no
+> pytest; the project venv is 3.11.
+>
+> **This project serves one phone caller at a time.** Add no queueing, no worker pool, no
+> concurrency settings anywhere.
 >
 > Do not touch `haqdaar/contracts/`, `haqdaar/audio/pool.py`, `haqdaar/data/corpus.py`,
 > `haqdaar/data/pipeline/p6_snapshot.py` or `tests/test_corpus.py` — those are built and passing.
 >
 > Finish by running `make test` and pasting its real output.
 
-**Verify:**
+**Then run these yourself:**
 ```bash
 cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
-make test              # expect: 10 passed (not 1 — Step 11's tests already exist here)
+make test                                  # expect: 10 passed (not 1 — Step 11's tests exist here)
 ls Makefile pyproject.toml .env.example CLAUDE.md
-git status --porcelain | grep -i '^..\s*\.env$' && echo "STOP: .env is exposed" || echo ".env safe"
-grep -c gsk_ .env.example || true    # expect 0 — no real key in the example file
+grep -c gsk_ .env.example                  # expect: 0 — no real key in the example file
+git status --porcelain | grep -i '\.env$' && echo "STOP" || echo ".env safe"
 ```
 
-**Watch for:** `make test` must find the venv's pytest. If the Makefile hardcodes `python3`, it
-will pick up 3.14 and fail — tell Antigravity to use `python -m pytest` inside the activated venv.
+**Watch for:** if `make test` says "no module named pytest", the Makefile hardcoded `python3`.
+Tell Antigravity to use `python -m pytest`.
 
 ---
 
-### Step 2 · Contracts, tunables, fixture  *(queued)*
+### Step 1 · Telephony smoke call  *(needs Twilio + ngrok first)*
 
-Two thirds of this is already built. What is missing:
-- `haqdaar/contracts/log_schema.py` — never written
-- `fixtures/` — 5 schemes (S1–S6 roles), 3 personas, 9 utterances, ~10 correct-duration audio stubs
-- the S6 rejection test (missing Marathi `summary` must fail the build gate)
+```
+git checkout -b step-01
+```
 
-**Also fix here — a finding from my review, not from the plan:** the top-level `contracts/`
-package (`contracts/types.py`, `contracts/tunables.py`, `contracts/__init__.py`) is a star-import
-shim onto `haqdaar.contracts`. Architecture §4 puts contracts at `haqdaar/contracts/` and nowhere
-else. Every runtime module currently imports the shim (`from contracts import tunables`), which
-only resolves because the repo root is on `sys.path` — it will break the moment `pyproject.toml`
-from Step 0 makes this an installed package. It also makes the standing review check
-*"filter.py, planner.py, terminals.py import only `contracts/`"* ambiguous, right before you
-write those three files. Delete the shim and rewrite the ~8 import lines to `haqdaar.contracts`.
-I will write this into the work order when Step 0 merges.
+> Implement **Step 1** of `haqdaar-v2-brain/docs/build-plan.md`. Follow `AGENTS.md`.
+> Read `haqdaar-v2-brain/docs/architecture.md` and tickets `T19`, `T14`, `T05` in
+> `haqdaar-v2-brain/tickets/` before writing code.
+> Work only on branch `step-01`. Do nothing outside this step.
+>
+> Files: `server.py` (`/health`, `/answer` returning the Stream XML as `text/xml`, `/stream`
+> accepting the WebSocket) · `haqdaar/audio/telephony/twilio.py` (parse `connected`, `start`,
+> `media`, `dtmf`, `mark`, `stop`; build outbound `media`, `mark`, `clear`) · `tools/tone.py`.
+>
+> Behaviour: on `start`, send a 1-second 440 Hz tone as one `media` message, then a `mark` named
+> `tone_end`. Print every inbound mark and digit. Digit `9` closes the socket.
+>
+> Hard rules:
+> - Outbound media carries **no WAV header**.
+> - The stream URL takes **no query string**.
+> - The word "twilio" may appear **only** under `haqdaar/audio/telephony/`.
+> - Use `keepCallAlive="false"`.
+> - **One caller at a time.** No session registry, no queue, no concurrency handling.
+> - Load keys with `python-dotenv` only. Never print or log a secret.
+>
+> Finish by running `pytest tests/test_twilio_codec.py` and pasting its real output. The live dial
+> test is done by a human, not by you.
 
-### Step 3 · Filter (pure) · Step 4 · Planner (minimax) · Step 5 · Terminals  *(queued)*
-Three pure modules, `contracts/` imports only, one test file each. These are the highest-value,
-lowest-risk steps for an agent — no I/O, no network, fully specified, test-provable.
-
-### Step 6 · Log, call loop, console sim  *(queued)*
-Ends with all three personas reaching `closing_farewell` in `make sim`. **This is the first moment
-the system is visibly a product.**
-
-### Steps 7–10 · Scraper → derivation → translate/gates → render  *(queued)*
-Needs `GROQ_API_KEY` and `SARVAM_API_KEY`. Caches to `data_cache/` so re-runs are free — and the
-throttle is not optional: rev 27 puts this pass and the runtime on the same free-tier limit.
-
-### Step 11 · **already built** — needs re-verification against real data once 7–10 run
-### Step 12 · `v1-keypad` — **the demoable milestone.** If time runs short, stop here.
-
-### 6a · Accounts blocking later steps
-
-| Service | Blocks | Env var |
-|---|---|---|
-| ~~Groq~~ **done 11 Sep** | ~~Steps 8, 9, 14~~ — **unblocked** | `GROQ_API_KEY` ✅ in `.env` |
-| Sarvam | Steps 10, 13 | `SARVAM_API_KEY` |
-| Twilio + ngrok | Step 1, Step 12 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `NGROK_DOMAIN` |
-
-`.env` never leaves the laptop. After `git init`, confirm `git status` never lists it.
+**Then:** run `pytest -q`, then do **manual test M1** in §3b. Record the results there.
 
 ---
 
-## 7 · Review block — paste into Claude Code after every step
+### Step 2 · Contracts, tunables, fixture  →  tag `v1-skeleton`
+
+```
+git checkout -b step-02
+```
+
+> Implement **Step 2** of `haqdaar-v2-brain/docs/build-plan.md`. Follow `AGENTS.md`.
+> Read `haqdaar-v2-brain/docs/interfaces.md` in full and tickets `T17`, `T16`, `T10`, `T06` in
+> `haqdaar-v2-brain/tickets/` before writing code.
+> Work only on branch `step-02`. Do nothing outside this step.
+>
+> Two thirds of this step already exists. `haqdaar/contracts/types.py` and
+> `haqdaar/contracts/tunables.py` are built and correct — **read them, do not rewrite them.**
+> Add only what is missing.
+>
+> **1 · Delete the shim.** There is a second `contracts/` package at the repo root
+> (`contracts/types.py`, `contracts/tunables.py`, `contracts/__init__.py`) that only star-imports
+> `haqdaar.contracts`. Architecture §4 puts contracts at `haqdaar/contracts/` and nowhere else.
+> **Delete the whole top-level `contracts/` folder** and rewrite every import that used it
+> (about 8 lines, all `from contracts import ...`) to `from haqdaar.contracts import ...`.
+> It only works today because the repo root is on `sys.path`; `pyproject.toml` from Step 0 breaks it.
+>
+> **2 · Write `haqdaar/contracts/log_schema.py`** — the schema `T16` names. Step 6's LOG needs it.
+>
+> **3 · Build `fixtures/`** exactly as `T17` §4 describes: 5 schemes with the S1–S6 roles, 3
+> personas, 9 utterances (one per persona per language), and about 10 audio stubs — correct-length
+> silence, named by render key — so the turn clock can be tested before a phone line exists.
+> **S6 is missing its Marathi `summary` and the build gate must reject it.** Write that as a test.
+>
+> Hard rules:
+> - **No logic in `contracts/`** — types and numbers only.
+> - Numbers live in `tunables.py`, never inline.
+> - Signatures follow `interfaces.md`, and **if `interfaces.md` and `T17` disagree, `T17` wins**.
+> - The fixture and `T08`'s offline test base are **the same artifact — do not build two.**
+>
+> Finish by running `make test` and pasting its real output. Every fixture record must load into
+> its record type with no validation error, and the S6 row must be rejected.
+
+**Then:**
+```bash
+make test
+python -c "import contracts" 2>&1 | grep -q "No module" && echo "shim gone — good" || echo "shim still there"
+```
+On a passing review:
+```bash
+git checkout main && git merge --no-ff step-02 -m "step 02: contracts, tunables, fixture"
+git tag v1-skeleton
+```
+
+---
+
+## 5 · Review block — paste into Claude Code after every step
 
 ```
 Review Step N of haqdaar-v2-brain/docs/build-plan.md.
@@ -275,71 +366,118 @@ D. v1 safety — no "eligible/qualify/entitled/you will get/you can get" (or प
    before a non-exact terminal's preamble; no free model text reaches Engine; a scheme failing a
    hard box (state, gender, social_category) is never spoken.
 E. Secrets — no key or token in code, tests, fixtures or history.
+F. One caller (R1) — no queue, worker pool, session registry or concurrency setting was added.
 
 End with: "safe to merge: yes" or "safe to merge: no" plus the blocking items.
-Then update WORK.md §2 and §6.
+Then update WORK.md §1 and §6.
+```
+
+---
+
+## 6 · The rest of the queue
+
+Order: **0 → 1 → 2 → 3 → 4 → 5 → 6**, then the pipeline steps. This is the shortest path to a
+full keypad call in the simulator, which is `v1-keypad` — a demoable product on its own.
+
+| Step | What | State |
+|---|---|---|
+| 0 | Repo skeleton, Makefile, pyproject | **next** |
+| 1 | Telephony smoke call | needs Twilio + ngrok |
+| 2 | Contracts, log schema, fixture → tag `v1-skeleton` | queued |
+| 3 | Filter (pure) | queued |
+| 4 | Planner (minimax) | queued |
+| 5 | Terminals | queued |
+| 6 | Log, call loop, console sim | **first moment it looks like a product** |
+| 7–10 | Scraper → derivation → translate/gates → render | needs Groq ✅ + Sarvam |
+| 11 | Audio pool + corpus | **already built**, recheck against real data after 7–10 |
+| 12 | `v1-keypad` | **the demo milestone. If time runs short, stop here.** |
+
+**Steps 3, 4 and 5 are the best agent work in the whole plan** — pure functions, no network,
+no I/O, fully specified, provable by tests. If Antigravity is idle, that is where to point it.
+
+**Step 7 (scraper) needs no keys and does not depend on Steps 3–6.** It can run on `step-07` in
+parallel while you review something else.
+
+---
+
+## 7 · Commands
+
+```bash
+cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
+
+pytest -q                             # tests
+make test                             # same, once Step 0 lands
+python3 sync_vault.py --status        # vault check — expect 0 dirty
+python3 sync_vault.py --sync          # after ANY edit to source-docs/
+python3 sync_vault.py --watch         # auto-sync while you write docs
+
+git checkout -b step-NN               # ALWAYS before pasting a prompt (R2)
+git checkout .                        # undo everything an agent just did
+git checkout main && git merge --no-ff step-NN -m "step NN: <name>"
+
+caffeinate -dimsu make run            # demo day — laptop cannot sleep while this runs
 ```
 
 ---
 
 ## 8 · What I did extra  ← *you write here, I read it every turn*
 
-Append a dated line for anything you did outside a work order: a hand edit, a key created, a
-decision made, a step you ran differently, a command that failed. Do not delete old lines.
+Add a dated line for anything outside a prompt: a hand edit, a key, a decision, a command that
+failed. Do not delete old lines.
 
 ```
 2026-09-10 — created WORK.md (empty)
 2026-09-10 — git init -b main + .gitignore; baseline commit (vault rev 27, step 11, 10 tests)
 2026-09-10 — .venv built on /opt/homebrew/bin/python3.11; deps installed; pytest -q -> 10 passed
 2026-09-10 — FileVault confirmed On
-2026-09-11 — YOU: ruled the "never sleep on power" setting N/A. The demo runs off this laptop,
-             lid open and plugged in, never unattended. Accepted. Replaced in the runbook by
-             `caffeinate -dimsu make run`, which needs no setting changed and no undo.
+2026-09-11 — YOU: ruled the "never sleep on power" setting not needed. The laptop stays open and
+             plugged in for the demo, never unattended. Accepted. Replaced in the runbook by
+             `caffeinate -dimsu make run`, which changes no setting and needs no undo.
 2026-09-11 — YOU: created the Groq key and handed it over. I wrote it to .env (chmod 600).
              git check-ignore confirms .env is ignored; git status has never listed it.
 2026-09-11 — I called the Groq API with it: HTTP 200 on openai/gpt-oss-120b and -20b.
              Measured off live headers: 8,000 TPM / 1,000 RPD / 200K TPD per model.
-             Findings in work/2026-09-10.md and in §9 below (items 9-11). Cost: 6 calls.
-2026-09-11 — ⚠️ The key was pasted into a chat transcript, so treat it as disclosed. It is a
-             free-tier key with no card attached, so the blast radius is a spent quota, not a
-             bill — fine to build on all week. Rotate it at console.groq.com after the demo,
-             or now if you would rather (it is a 30-second job and only .env changes).
+             Findings in work/2026-09-10.md and §9 items 9-11. Cost: 6 calls.
+2026-09-11 — ⚠️ The key was pasted into a chat transcript, so treat it as public. It is a free-tier
+             key with no card, so the worst case is a spent quota, not a bill — fine to build on
+             all week. Rotate it at console.groq.com after the demo, or now if you prefer. 30
+             seconds, and only .env changes.
+2026-09-11 — YOU: ruled R1 — one caller at a time, no concurrency work in v1. This cancels T19's
+             three-phones measurement. Recorded as a scope ruling, not as a gap. See §0 and §3b.
+2026-09-11 — YOU: asked for simpler words in everything I write. This file was rewritten for it.
 ```
 
 ---
 
-## 9 · Open findings from my codebase review (2026-09-10)
+## 9 · Open findings
 
-1. **Build order was skipped** — Step 11 landed before Steps 0–10. Queue in §6 corrects it. No
-   code is wasted; Step 11 just cannot prove its real *Done when* until the pipeline exists.
-2. **Top-level `contracts/` shim deviates from architecture §4** and breaks under packaging.
-   Scheduled for removal in Step 2. Detail in §6.
-3. **`haqdaar/contracts/log_schema.py` is missing** — required by Step 2, and Step 6's LOG
-   depends on it.
-4. **No venv; default `python3` is 3.14 with no pytest** while the plan pins 3.11. Fix in §3b.
-5. **Not a git repo** — no rollback under an agent that writes code. Fix in §3a.
-6. **`.gitignore` is missing** `.env`, `logs/`, `audio/`, `data_cache/`, `.venv/`. Step 0 covers it;
-   the §3a command sets it now so `.env` is never exposed.
-7. **`sync_vault.py` glob was widened** for `source-docs/briefs/` and now preserves existing
+1. **Build order got skipped** — Step 11 landed before Steps 0–10. §6 fixes the order. No code
+   wasted; Step 11 just cannot prove its real "Done when" until the pipeline exists.
+2. **The top-level `contracts/` shim breaks under packaging.** Architecture §4 puts contracts at
+   `haqdaar/contracts/` only. Deleted in Step 2 — it is in the prompt.
+3. **`haqdaar/contracts/log_schema.py` is missing.** Step 2 writes it; Step 6's LOG needs it.
+4. ~~No venv~~ — **fixed 10 Sep.**
+5. ~~Not a git repo~~ — **fixed 10 Sep.**
+6. ~~`.gitignore` missing~~ — **fixed 10 Sep.** `.env` has never been exposed.
+7. **`sync_vault.py`'s glob was widened** for `source-docs/briefs/` and now keeps existing
    frontmatter. Working, 0 dirty. Noted so nobody "fixes" it back.
-9. **`gpt-oss` on Groq are reasoning models — Step 14 must send `reasoning_effort: "low"`.**
-   Measured 11 Sep. A plain call returns **empty `content`** with the whole budget spent on a hidden
-   `reasoning` field; with `reasoning_effort: "medium"` plus `response_format: json_object`, Groq
-   returns `json_validate_failed` with an empty `failed_generation` on **both** models. Under
-   [[tickets/T18]] that is a model failure, and two drop the call to keypad-only. `low` + JSON mode
-   returned valid three-field JSON in ~520–570 ms. **This is a correctness requirement, not tuning —
-   and `reasoning_effort` belongs in `tunables.py` beside the model id, not inline.**
-10. **The free tier's binding cap is 1,000 requests/day, not TPM.** At ~250 tokens per model call,
-   8,000 TPM is ~32 calls/min ≈ 10–16 concurrent callers — **rev 27's "6,000 TPM is one and a half
-   phone calls" was arithmetic against a full-history prompt the design no longer sends.** Runtime
-   concurrency is not the risk. **Step 8's pipeline is** — one uncached derivation pass over the full
-   corpus can spend a large slice of the day's 1,000, and a second run doubles it. Throttle + a
-   working `data_cache/` are load-bearing, and re-runs must be free.
-11. **D7 has its first data point and it is marginally over budget.** [[tickets/T14]]'s 300–500 ms was
-   priced against Gemini Flash-Lite; Groq measured **518 ms (20b)** and **573 ms (120b)**, one cold
-   sample each over home wifi. **Not a verdict — Step 14's bake-off reports p50/p95 and D7 stays
-   open.** Go in expecting to look at the 1.2 s response clock, and instrument timing from the first
-   bake-off run rather than bolting it on after.
-12. **Clean:** all 7 hard constraints on Corpus/pool hold, boto3 imports lazily inside the tier-2
-   branch, `corpus.py` never imports `pool.py`, and the frozen `Corpus` interface is verbatim —
+8. **Clean:** all 7 hard rules on Corpus and pool hold, boto3 imports lazily inside the tier-2
+   branch, `corpus.py` never imports `pool.py`, and the frozen `Corpus` interface is exact —
    11 methods, none added, none renamed.
+9. **The Groq `gpt-oss` models think before they answer, and the default returns nothing.**
+   Measured 11 Sep. A plain call came back with **empty `content`** — the whole token budget went to
+   a hidden `reasoning` field. With `reasoning_effort: "medium"` plus `response_format: json_object`,
+   Groq returned a hard `json_validate_failed` error on **both** models. Under T18 that counts as a
+   model failure, and two of those drop the call to keypad-only. `reasoning_effort: "low"` plus JSON
+   mode returned clean three-field JSON in about 520–570 ms. **Step 14 must send `low`, and
+   `reasoning_effort` belongs in `tunables.py` next to the model id, not inline.**
+10. **The Groq limit that bites is 1,000 requests per day, not tokens per minute.** At ~250 measured
+   tokens per call, 8,000 TPM is far more than one caller will ever use (**R1**), so runtime is not
+   at risk. **Step 8's pipeline is.** One uncached pass over the full scheme corpus can spend a big
+   slice of the day's 1,000, and a second pass doubles it. **The throttle and a working `data_cache/`
+   are load-bearing. Re-runs must be free.**
+11. **D7 has its first number and it is a little over budget.** T14 priced the model call at
+   300–500 ms against Gemini Flash-Lite. Groq measured **518 ms (20b)** and **573 ms (120b)** — one
+   cold sample each, over home wifi. **Not a verdict.** Step 14's 30-utterance bake-off reports p50
+   and p95, and D7 stays open until then. Go in expecting to move the 1.2 s response clock, and time
+   the bake-off from its first run rather than adding timing later.
