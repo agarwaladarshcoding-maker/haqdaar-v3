@@ -10,13 +10,22 @@ what to run next, what to paste where, and what already happened.
 | **Antigravity** | Writes code for one step. Nothing else. Never touches this file. |
 | **Claude Code (me)** | Reads §8, reruns your checks, reviews the step, updates §1 and §6, writes the next prompt. |
 
-**Your day lives in `work/<today>.md`.** This file is the plan. That file is today.
+**Your day lives in two files, one per folder.** This file is the plan. Those two are today.
+
+| Folder | Who acts | What is in it |
+|---|---|---|
+| [`work-adarsh/`](work-adarsh/) | **you** | accounts, the phone call, decisions, merges — hands only |
+| [`work-with-tools/`](work-with-tools/) | **Antigravity + me** | the prompt to paste, the check to run, the review block |
 
 | File | What it is |
 |---|---|
-| [`work/2026-09-10.md`](work/2026-09-10.md) | **Closed.** Git, venv, FileVault, Groq key. Nothing left. |
-| [`work/2026-09-11.md`](work/2026-09-11.md) | **← today.** Steps 0, 1, 2 + the last keys + the phone call. |
-| [`work/TEMPLATE.md`](work/TEMPLATE.md) | Copy to `work/<date>.md` for a new day. |
+| [`work-adarsh/2026-09-10.md`](work-adarsh/2026-09-10.md) | **Closed.** Git, venv, FileVault, Groq key. Nothing left. |
+| [`work-adarsh/2026-09-11.md`](work-adarsh/2026-09-11.md) | **← today, your hands.** Accounts, and 5 min per merge. |
+| [`work-with-tools/2026-09-11.md`](work-with-tools/2026-09-11.md) | **← today, the tool.** Six orders: Steps 0, 2, 3, 4, 5, and 7 in parallel. |
+| `*/TEMPLATE.md` | Copy both to `<date>.md` for a new day. |
+
+**Open `work-with-tools/` first** — paste the first prompt so a tool is busy — then work down
+`work-adarsh/` while it runs.
 
 ---
 
@@ -95,24 +104,29 @@ start today.** Details in §3a.
 
 ## 2 · What to do next — in this order
 
+**11 Sep is a tool-heavy day** — you said Antigravity is doing the work. So **Step 1 is pulled
+out of today**: it needs a Twilio account, an ngrok tunnel and your thumb on a dial pad. Nothing
+else waits on it. Today runs **0 → 2 → 3 → 4 → 5**, with **7 in parallel**. Full orders, with every
+prompt written out, are in [`work-with-tools/2026-09-11.md`](work-with-tools/2026-09-11.md).
+
 | # | Do this | Where |
 |---|---|---|
-| **1** | `git checkout -b step-00`, paste the **Step 0** prompt into Antigravity | §4, Step 0 |
-| **2** | **While it runs:** open the Twilio and ngrok accounts | §3a |
-| **3** | Run the Step 0 check commands | §4, Step 0 |
-| **4** | Paste the review block into me with `N = 0` | §5 |
-| **5** | On "safe to merge: yes" → merge, then `git checkout -b step-01` | §4, Step 1 |
-| **6** | Do the phone call by hand — this is the one only you can do | §3b |
-| **7** | Review Step 1, merge, then `git checkout -b step-02` | §4, Step 2 |
-| **8** | Review Step 2, merge, then `git tag v1-skeleton` | — |
+| **1** | `git checkout -b step-00`, paste the **Step 0** prompt | tool file, order 1 |
+| **2** | **While it runs:** open Twilio, ngrok and Sarvam | §3a |
+| **3** | Verify → review with `N = 0` → merge | §5 |
+| **4** | Step 2 → verify → review `N = 2` → merge → `git tag v1-skeleton` | tool file, order 2 |
+| **5** | Step 3 (Filter) → merge. **Start Step 7 in a second window now.** | tool file, orders 3 and P |
+| **6** | Step 4 (Planner) → merge | tool file, order 4 |
+| **7** | Step 5 (Terminals) → merge | tool file, order 5 |
+| **8** | **Step 1 and the phone call move to 12 Sep** — the day you have Twilio + 30 free minutes | §3b |
 
 **Merge command, same every time:**
 ```bash
 git checkout main && git merge --no-ff step-NN -m "step NN: <name>"
 ```
 
-**If the day runs out:** getting Step 0 merged and the phone call working is a good day. Step 2
-can move to 12 Sep without hurting anything.
+**If the day runs out:** Steps 0, 2 and 3 merged is a good day. Steps 4 and 5 move to 12 Sep and
+cost nothing. **Step 1 must not slip past 12 Sep** — Step 12, the demo, is built on it.
 
 ---
 
@@ -126,8 +140,8 @@ everything that needs your hands.
 | Service | State | Blocks | Goes in `.env` as |
 |---|---|---|---|
 | **Groq** | ✅ **done 11 Sep**, tested live | ~~Steps 8, 9, 14~~ | `GROQ_API_KEY` |
-| **Twilio** | ❌ **do this today** | Step 1, Step 12 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` |
-| **ngrok** | ❌ **do this today** | Step 1, Step 12 | `NGROK_DOMAIN` |
+| **Twilio** | ❌ **today, ~15 min** — blocks nothing today, blocks 12 Sep | Step 1, Step 12 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` |
+| **ngrok** | ❌ **today, ~5 min** — same | Step 1, Step 12 | `NGROK_DOMAIN` |
 | **Sarvam** | ❌ needed by 12 Sep | Steps 10, 13 | `SARVAM_API_KEY` |
 | **Plivo** | background, no rush | nothing before the demo | — |
 
@@ -382,11 +396,11 @@ full keypad call in the simulator, which is `v1-keypad` — a demoable product o
 | Step | What | State |
 |---|---|---|
 | 0 | Repo skeleton, Makefile, pyproject | **next** |
-| 1 | Telephony smoke call | needs Twilio + ngrok |
+| 1 | Telephony smoke call | **moved to 12 Sep** — needs Twilio + ngrok + your hands |
 | 2 | Contracts, log schema, fixture → tag `v1-skeleton` | queued |
-| 3 | Filter (pure) | queued |
-| 4 | Planner (minimax) | queued |
-| 5 | Terminals | queued |
+| 3 | Filter (pure) | **dispatched 11 Sep** |
+| 4 | Planner (minimax) | **dispatched 11 Sep** |
+| 5 | Terminals | **dispatched 11 Sep** |
 | 6 | Log, call loop, console sim | **first moment it looks like a product** |
 | 7–10 | Scraper → derivation → translate/gates → render | needs Groq ✅ + Sarvam |
 | 11 | Audio pool + corpus | **already built**, recheck against real data after 7–10 |
@@ -437,7 +451,7 @@ failed. Do not delete old lines.
              git check-ignore confirms .env is ignored; git status has never listed it.
 2026-09-11 — I called the Groq API with it: HTTP 200 on openai/gpt-oss-120b and -20b.
              Measured off live headers: 8,000 TPM / 1,000 RPD / 200K TPD per model.
-             Findings in work/2026-09-10.md and §9 items 9-11. Cost: 6 calls.
+             Findings in work-adarsh/2026-09-10.md and §9 items 9-11. Cost: 6 calls.
 2026-09-11 — ⚠️ The key was pasted into a chat transcript, so treat it as public. It is a free-tier
              key with no card, so the worst case is a spent quota, not a bill — fine to build on
              all week. Rotate it at console.groq.com after the demo, or now if you prefer. 30
@@ -445,6 +459,11 @@ failed. Do not delete old lines.
 2026-09-11 — YOU: ruled R1 — one caller at a time, no concurrency work in v1. This cancels T19's
              three-phones measurement. Recorded as a scope ruling, not as a gap. See §0 and §3b.
 2026-09-11 — YOU: asked for simpler words in everything I write. This file was rewritten for it.
+2026-09-11 — Split work/ into two dated folders: work-adarsh/ (your hands only) and
+             work-with-tools/ (prompts, checks, review). Old work/ files moved with git mv,
+             nothing lost. Re-cut 11 Sep as a tool-heavy day: Step 1 pulled out to 12 Sep
+             because it needs an account and a phone; today runs 0 -> 2 -> 3 -> 4 -> 5 with 7
+             in parallel. Prompts for Steps 3, 4, 5 and 7 written out in full.
 ```
 
 ---
