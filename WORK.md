@@ -23,8 +23,8 @@ Anything needing your hands — an account, a phone, a card, a decision — is t
 
 | File | What it is |
 |---|---|
-| [`work/2026-09-10.md`](work/2026-09-10.md) | **Tonight** — 30 min: git init, venv, laptop settings |
-| [`work/2026-09-11.md`](work/2026-09-11.md) | **Tomorrow** — Steps 0, 1, 2 + all the accounts + the phone call |
+| [`work/2026-09-10.md`](work/2026-09-10.md) | **Closed 11 Sep** — git, venv, FileVault, Groq key. Nothing outstanding |
+| [`work/2026-09-11.md`](work/2026-09-11.md) | **← TODAY** — Steps 0, 1, 2 + the remaining accounts + the phone call |
 | [`work/TEMPLATE.md`](work/TEMPLATE.md) | Copy to `work/<date>.md` for a new day |
 
 At the end of each day, tell me what merged and what slipped. I write the next day's file, and
@@ -47,13 +47,20 @@ update §2 and §6 here.
 
 ---
 
-## 2 · Current state — verified 2026-09-10 23:50
+## 2 · Current state — verified 2026-09-11
 
 **Decisions: all closed.** D1 Groq free tier · D2 D-day **14 Sep** · D3 minimax planner, day one
 · D4/D5/D6 restored · D8 lazy tiered audio pool · D9 map source-of-truth. D7 is a measurement
 Step 14 produces, not an open question. **Nothing is waiting on you to decide.**
 
 **Vault:** clean. 65 source files synced (27 tickets, 23 maps, 13 docs, 4 briefs), 0 dirty.
+
+**Environment (all of 10 Sep's setup is closed):** git repo live on `main` · `.venv` on Python 3.11,
+`pytest -q` -> **10 passed** · FileVault on · laptop-sleep setting ruled N/A by you, replaced by
+`caffeinate -dimsu make run` in the demo runbook · **`GROQ_API_KEY` in `.env`, verified live**
+(8,000 TPM / 1,000 RPD / 200K TPD per model — measured, not read off the docs page).
+**Still owed: Sarvam, Twilio, ngrok, Plivo.** Twilio + ngrok are the only ones blocking a step you
+could otherwise start today (Step 1).
 
 **Code that exists and passes:**
 
@@ -78,11 +85,13 @@ puts it back in order.
 
 ---
 
-## 3 · Two things to settle before the next work order
+## 3 · Two things to settle before the next work order  — ✅ **BOTH CLOSED 10 Sep**
 
-### 3a · Git — my recommendation: `git init` locally, now
+*Kept for the record only. Neither blocks anything; skip to §6.*
 
-This folder is **not a git repo**. The build plan's entire loop is *branch per step → review →
+### 3a · Git — ✅ done, `main` has 3 commits
+
+~~This folder is **not a git repo**.~~ The build plan's entire loop is *branch per step → review →
 merge*, and its safety property is that a bad Antigravity run is one `git checkout .` away from
 gone. Without it, an agent that misreads a step overwrites 1,761 working lines with no undo.
 You do not need GitHub for this — a local repo gives you the whole safety net.
@@ -97,9 +106,9 @@ git add -A && git commit -m "baseline: vault rev 27, step 11 code, 10 tests pass
 **If you say no to git,** say so in §8 and I will rewrite every work order to snapshot the tree
 into `_backup/<step>/` with `rsync` before Antigravity starts. It is worse, but it works.
 
-### 3b · Python — you have no venv, and the wrong interpreter is default
+### 3b · Python — ✅ done, `.venv` on 3.11, `pytest -q` -> 10 passed
 
-`python3` is Homebrew **3.14** and has no pytest. Your 10 tests only pass under
+~~`python3` is Homebrew **3.14** and has no pytest. Your 10 tests only pass under
 `/Library/Frameworks/Python.framework/Versions/3.14/bin/pytest`. The build plan pins **3.11**,
 which you have at `/opt/homebrew/bin/python3.11`. Fix it once:
 
@@ -112,7 +121,8 @@ pip install fastapi 'uvicorn[standard]' websockets httpx pydantic python-dotenv 
 pytest -q          # expect: 10 passed
 ```
 
-**Run `source .venv/bin/activate` in every terminal from now on, including Antigravity's.**
+~~Fix it once.~~ **Still true and still the one thing you must remember: run
+`source .venv/bin/activate` in every terminal, including Antigravity's.**
 
 ---
 
@@ -224,7 +234,7 @@ throttle is not optional: rev 27 puts this pass and the runtime on the same free
 
 | Service | Blocks | Env var |
 |---|---|---|
-| Groq | Steps 8, 9, 14 | `GROQ_API_KEY` |
+| ~~Groq~~ **done 11 Sep** | ~~Steps 8, 9, 14~~ — **unblocked** | `GROQ_API_KEY` ✅ in `.env` |
 | Sarvam | Steps 10, 13 | `SARVAM_API_KEY` |
 | Twilio + ngrok | Step 1, Step 12 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `NGROK_DOMAIN` |
 
@@ -270,6 +280,21 @@ decision made, a step you ran differently, a command that failed. Do not delete 
 
 ```
 2026-09-10 — created WORK.md (empty)
+2026-09-10 — git init -b main + .gitignore; baseline commit (vault rev 27, step 11, 10 tests)
+2026-09-10 — .venv built on /opt/homebrew/bin/python3.11; deps installed; pytest -q -> 10 passed
+2026-09-10 — FileVault confirmed On
+2026-09-11 — YOU: ruled the "never sleep on power" setting N/A. The demo runs off this laptop,
+             lid open and plugged in, never unattended. Accepted. Replaced in the runbook by
+             `caffeinate -dimsu make run`, which needs no setting changed and no undo.
+2026-09-11 — YOU: created the Groq key and handed it over. I wrote it to .env (chmod 600).
+             git check-ignore confirms .env is ignored; git status has never listed it.
+2026-09-11 — I called the Groq API with it: HTTP 200 on openai/gpt-oss-120b and -20b.
+             Measured off live headers: 8,000 TPM / 1,000 RPD / 200K TPD per model.
+             Findings in work/2026-09-10.md and in §9 below (items 9-11). Cost: 6 calls.
+2026-09-11 — ⚠️ The key was pasted into a chat transcript, so treat it as disclosed. It is a
+             free-tier key with no card attached, so the blast radius is a spent quota, not a
+             bill — fine to build on all week. Rotate it at console.groq.com after the demo,
+             or now if you would rather (it is a 30-second job and only .env changes).
 ```
 
 ---
@@ -288,6 +313,24 @@ decision made, a step you ran differently, a command that failed. Do not delete 
    the §3a command sets it now so `.env` is never exposed.
 7. **`sync_vault.py` glob was widened** for `source-docs/briefs/` and now preserves existing
    frontmatter. Working, 0 dirty. Noted so nobody "fixes" it back.
-8. **Clean:** all 7 hard constraints on Corpus/pool hold, boto3 imports lazily inside the tier-2
+9. **`gpt-oss` on Groq are reasoning models — Step 14 must send `reasoning_effort: "low"`.**
+   Measured 11 Sep. A plain call returns **empty `content`** with the whole budget spent on a hidden
+   `reasoning` field; with `reasoning_effort: "medium"` plus `response_format: json_object`, Groq
+   returns `json_validate_failed` with an empty `failed_generation` on **both** models. Under
+   [[tickets/T18]] that is a model failure, and two drop the call to keypad-only. `low` + JSON mode
+   returned valid three-field JSON in ~520–570 ms. **This is a correctness requirement, not tuning —
+   and `reasoning_effort` belongs in `tunables.py` beside the model id, not inline.**
+10. **The free tier's binding cap is 1,000 requests/day, not TPM.** At ~250 tokens per model call,
+   8,000 TPM is ~32 calls/min ≈ 10–16 concurrent callers — **rev 27's "6,000 TPM is one and a half
+   phone calls" was arithmetic against a full-history prompt the design no longer sends.** Runtime
+   concurrency is not the risk. **Step 8's pipeline is** — one uncached derivation pass over the full
+   corpus can spend a large slice of the day's 1,000, and a second run doubles it. Throttle + a
+   working `data_cache/` are load-bearing, and re-runs must be free.
+11. **D7 has its first data point and it is marginally over budget.** [[tickets/T14]]'s 300–500 ms was
+   priced against Gemini Flash-Lite; Groq measured **518 ms (20b)** and **573 ms (120b)**, one cold
+   sample each over home wifi. **Not a verdict — Step 14's bake-off reports p50/p95 and D7 stays
+   open.** Go in expecting to look at the 1.2 s response clock, and instrument timing from the first
+   bake-off run rather than bolting it on after.
+12. **Clean:** all 7 hard constraints on Corpus/pool hold, boto3 imports lazily inside the tier-2
    branch, `corpus.py` never imports `pool.py`, and the frozen `Corpus` interface is verbatim —
    11 methods, none added, none renamed.
