@@ -97,9 +97,11 @@ cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
 | `haqdaar/data/corpus.py` | 346 | 11 | load checks the file exists + digest, returns RenderKey |
 | `haqdaar/data/pipeline/p6_snapshot.py` | 484 | 11 | writes the five snapshot files |
 | `tests/test_corpus.py` | 422 | 11 | **10 passed** — all 7 hard rules covered |
+| `haqdaar/engine/filter.py` | — | 3 | merged into `main` 12 Sep · `tests/test_filter.py` **10 passed** |
+| `haqdaar/engine/planner.py` | 260 | 4 | merged into `main` 12 Sep · `tests/test_planner.py` **14 passed** |
 
 ### Code that does not exist yet
-`server.py` · `sim.py` · `engine/` (filter, planner, terminals, call) · `model/` ·
+`server.py` · `sim.py` · `engine/` (terminals, call) · `model/` ·
 `audio/telephony/twilio.py` · `audio/ear.py` `mouth.py` `turn.py` · `data/log.py` · `data_cache/`
 
 ### The one problem to know about
@@ -432,9 +434,9 @@ full keypad call in the simulator, which is `v1-keypad` — a demoable product o
 | 0 | Repo skeleton, Makefile, pyproject | **merged** 11 Sep |
 | 1 | Telephony smoke call | **moved to 12 Sep** — needs Twilio + ngrok + your hands |
 | 2 | Contracts, log schema, fixture → tag `v1-skeleton` | **merged + tagged** 11 Sep. `v1-skeleton` on the merge commit, local only |
-| 3 | Filter (pure) | **← next, clear to start.** Nothing landed from the 11 Sep dispatch, no `filter.py` on disk |
-| 4 | Planner (minimax) | dispatched 11 Sep — **nothing landed yet**, no `planner.py` on disk |
-| 5 | Terminals | dispatched 11 Sep — **nothing landed yet**, no `terminals.py` on disk |
+| 3 | Filter (pure) | **merged** 12 Sep. Review: safe to merge, 0 blockers |
+| 4 | Planner (minimax) | **merged** 12 Sep, `--no-ff`. Review: safe to merge, 0 blockers. `pytest -q` → 43 passed on merged `main` |
+| 5 | Terminals | **← next, clear to start.** Prompt is written; carry-forward §9 12 must go in it |
 | 6 | Log, call loop, console sim | **first moment it looks like a product** |
 | 7–10 | Scraper → derivation → translate/gates → render | needs Groq ✅ + Sarvam |
 | 11 | Audio pool + corpus | **already built**, recheck against real data after 7–10 |
@@ -501,6 +503,24 @@ failed. Do not delete old lines.
              nothing lost. Re-cut 11 Sep as a tool-heavy day: Step 1 pulled out to 12 Sep
              because it needs an account and a phone; today runs 0 -> 2 -> 3 -> 4 -> 5 with 7
              in parallel. Prompts for Steps 3, 4, 5 and 7 written out in full.
+2026-09-12 — Reviewed Step 3 (filter). Verdict safe to merge, no blockers. Ran it myself:
+             pytest tests/test_filter.py -> 10 passed; pytest -q -> 29 passed; py_compile clean;
+             sync --status -> 0 dirty. Checks that returned nothing, as they should: `~` (no NOT
+             masks) and `[<>]=?|int\(|float\(` (no numbers, no comparisons) in filter.py.
+             Imports are only contracts/. T17 signatures exact. No secrets, no concurrency (R1).
+2026-09-12 — ⚠️ `step-03` has NO commits — both files are untracked. Merging the branch before
+             `git add` merges nothing. The exact commands are in work-adarsh/2026-09-11.md.
+2026-09-12 — Step 3 review threw up two carry-forwards; both are written into the Step 4 and
+             Step 5 prompts in work-with-tools/2026-09-11.md so they cannot be lost. See §9 12-13.
+2026-09-12 — Step 3 is committed and merged after all: `main` sits on `step 03: filter`. The
+             earlier "no commits" warning is stale — struck.
+2026-09-12 — Reviewed Step 4 (planner). Verdict safe to merge, no blockers. Ran it myself:
+             pytest tests/test_planner.py -> 14 passed; pytest -q on merged main -> 43 passed;
+             py_compile clean; sync --status -> 0 dirty. Four stops match log_schema strings
+             exactly, widen ladder is soft-box only with a skipped rung under test, hard boxes
+             never widened, all numbers read from tunables.py. No secrets, no concurrency (R1).
+2026-09-12 — Merged `step-04` into `main` with --no-ff (670bead). No tag — `v1-skeleton` stays
+             on the Step 2 merge.
 ```
 
 ---
@@ -537,3 +557,38 @@ failed. Do not delete old lines.
    cold sample each, over home wifi. **Not a verdict.** Step 14's 30-utterance bake-off reports p50
    and p95, and D7 stays open until then. Go in expecting to move the 1.2 s response clock, and time
    the bake-off from its first run rather than adding timing later.
+12. **`survivors()` does not obey the speaking rule — only `speakable()` does.** Found while
+   reviewing Step 3. If a caller names a state no scheme carries, the filter throws that answer
+   away (correct — `T09 §6`, an out-of-set code is treated as `UNKNOWN` and appends no mask). But
+   that leaves **all five fixture schemes as survivors**, and `speakable()` says **none** of them
+   may be read out. So a terminal that reads `survivors()` and speaks the names would name schemes
+   from the wrong state. **Step 5's terminals must run every survivor through `speakable()` before
+   naming it.** Build-plan Step 4's speaking-rule exception does not cover this, because the box was
+   asked, not unasked. Already written into the Step 5 prompt.
+13. **An out-of-set answer is never re-asked.** Same root. The rejected value still sits in the box
+   vector as plain text, so the Planner sees the box as *answered* and skips it forever. T09 §6 says
+   it must be "handed to the ladder as a re-ask". **Step 4 must read a box as `UNKNOWN` when its
+   value is not in `corpus.values(box)`** — or the turn that writes the vector must. Pick one and
+   test it. Already written into the Step 4 prompt.
+14. **Clean, Step 3:** no NOT masks, no numbers, no comparisons, imports only `contracts/`,
+   `NEAREST_CAP` read from `tunables.py`, T17 signatures exact, nothing from a later step started,
+   no secrets anywhere, and no queue, pool, registry or concurrency setting (**R1** holds).
+15. **`architecture.md` §4 contradicts itself about what `planner.py` may import.** §4 says
+   `filter.py`, `planner.py` and `terminals.py` import *"nothing but `contracts/`"*, but §7.3's
+   ratification of minimax says it is *"~15 lines over a `Filter` that already exists"* — which
+   only works if the Planner calls `Filter`. **T17 §2 is the binding seam and it is narrower:**
+   *"`Planner` and `Filter` take no Audio, no Model and no Log."* `planner.py` imports
+   `engine/filter.py` and nothing else outside `contracts/`, which satisfies T17. Read §4 as
+   *nothing outside the pure core*. Recorded so nobody "fixes" the import away and duplicates
+   `Filter`, and so Step 5's terminals get the same reading.
+16. **`Widen(box)` does not say whether the box is *the* drop or *the last* drop.** The ladder is
+   monotone (T18 §1), so at rung 2 the dropped set is `{income_band, age}` but the Planner can
+   only return `Widen("age")`. The current code returns the last rung reached. If Step 6's loop
+   drops only the named box it still converges — the next call returns `Widen("income_band")` —
+   but it costs a turn against the 8-turn cap. **Step 6 must apply `Widen(box)` cumulatively over
+   the fixed order, not as a single box.** Decide it in the Step 6 prompt; no code change owed now.
+17. **Clean, Step 4:** four stop strings match `log_schema.py` exactly, hard boxes are never
+   widened, `STOP_SURVIVORS` / `MAX_TURNS` / `MAX_QUESTIONS` / `KEYPAD_CARDINALITY_MAX` all read
+   from `tunables.py` with nothing inline, the speaking-rule exception is under test, out-of-set
+   answers re-ask (closes §9 13 for the Planner side), nothing from Step 5 started, no secrets,
+   and no queue, pool, registry or concurrency setting (**R1** holds).
