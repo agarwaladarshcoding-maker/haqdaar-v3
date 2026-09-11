@@ -17,8 +17,8 @@ import re
 import struct
 from typing import Any, Mapping
 
-from contracts import tunables
-from contracts.types import (
+from haqdaar.contracts import tunables
+from haqdaar.contracts.types import (
     ANY,
     BoxId,
     Lang,

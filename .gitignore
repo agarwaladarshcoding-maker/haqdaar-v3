@@ -12,3 +12,4 @@ node_modules/
 haqdaar-v2-brain/.obsidian/workspace*.json
 brain/.obsidian/workspace*.json
 !haqdaar/audio/
+!fixtures/audio/
