@@ -24,8 +24,8 @@ import re
 import struct
 from typing import Any, Mapping, Sequence
 
-from contracts import tunables
-from contracts.types import (
+from haqdaar.contracts import tunables
+from haqdaar.contracts.types import (
     ANY,
     HARD_BOXES,
     SCHEME_CHUNKS,
@@ -103,6 +103,59 @@ def apply_alias_uniqueness_gate(
     return updated_schemes, filtered_alias_map
 
 
+class BuildGateError(Exception):
+    """Raised when a scheme fails snapshot build gates (05-DATA-CONTRACT §3, T17 §2)."""
+    pass
+
+
+def validate_readback_completeness(scheme: Mapping[str, Any]) -> tuple[bool, str | None]:
+    """Gate 3: Read-back completeness - all 6 chunks in 3 languages (T15, T17 §2).
+
+    Returns (True, None) if all 6 chunks (name, summary, benefit_text,
+    who_can_apply, documents, how_to_apply) are present and non-empty
+    across all 3 languages ('en', 'hi', 'mr').
+    Otherwise returns (False, error_reason).
+    """
+    chunks = scheme.get("chunks")
+    scheme_id = scheme.get("scheme_id", "UNKNOWN")
+    if not isinstance(chunks, dict):
+        return False, f"Scheme {scheme_id} missing 'chunks' dictionary"
+
+    for lang in ("en", "hi", "mr"):
+        lang_chunks = chunks.get(lang)
+        if not isinstance(lang_chunks, dict):
+            return False, f"Scheme {scheme_id} missing chunks for language '{lang}'"
+        for chunk_name in SCHEME_CHUNKS:
+            val = lang_chunks.get(chunk_name)
+            if not val or not str(val).strip():
+                return False, f"Scheme {scheme_id} missing '{chunk_name}' chunk in language '{lang}'"
+
+    return True, None
+
+
+def apply_readback_completeness_gate(
+    schemes: Sequence[Mapping[str, Any]],
+    strict: bool = False,
+) -> tuple[list[dict[str, Any]], list[tuple[dict[str, Any], str]]]:
+    """Applies Gate 3 across a sequence of schemes.
+
+    Returns:
+        (accepted_schemes, rejected_schemes_with_reasons)
+    If strict=True and any scheme fails Gate 3, raises BuildGateError.
+    """
+    accepted: list[dict[str, Any]] = []
+    rejected: list[tuple[dict[str, Any], str]] = []
+    for s in schemes:
+        ok, reason = validate_readback_completeness(s)
+        if ok:
+            accepted.append(dict(s))
+        else:
+            rejected.append((dict(s), reason or "failed Gate 3"))
+            if strict:
+                raise BuildGateError(f"Gate 3 rejection: {reason}")
+    return accepted, rejected
+
+
 def derive_keypad_bands(
     schemes: list[dict[str, Any]],
     box: str,
@@ -157,6 +210,7 @@ def build_snapshot(
     snapshots_dir: str | Path | None = None,
     audio_dir: str | Path | None = None,
     render_stubs: bool = True,
+    enforce_readback_gate: bool = False,
 ) -> str:
     """Build a complete snapshot adhering to 05-DATA-CONTRACT.md §2.
 
@@ -179,6 +233,12 @@ def build_snapshot(
     snap_dir = snapshots_path / snapshot_id
     snap_dir.mkdir(parents=True, exist_ok=True)
     audio_path.mkdir(parents=True, exist_ok=True)
+
+    if enforce_readback_gate:
+        for s in schemes_data:
+            ok, reason = validate_readback_completeness(s)
+            if not ok:
+                raise BuildGateError(f"Gate 3 rejected scheme {s.get('scheme_id')}: {reason}")
 
     # 1. Alias uniqueness gate
     schemes, alias_map = apply_alias_uniqueness_gate(schemes_data)
@@ -300,7 +360,7 @@ def build_snapshot(
 
     # 6. Build templates.json and collect manifest render_keys
     # Fixed lines: 46 lines, plus value chips (values expanded)
-    from contracts.types import FIXED_LINE_IDS
+    from haqdaar.contracts.types import FIXED_LINE_IDS
 
     templates: dict[str, Any] = {}
 

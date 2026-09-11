@@ -1,0 +1,82 @@
+{
+  "2b82e840b42c98170b197193799b5337a6e06f70056d6fe19528d8beffce9deb": {
+    "digest": "f6d99929bbc4a83d2c4e93d7f21c9df29d0ac8bebb925fed9229e57c7f623853",
+    "size": 72960,
+    "path": "2b82e840b42c98170b197193799b5337a6e06f70056d6fe19528d8beffce9deb.ulaw",
+    "line_id": "greeting_trilingual",
+    "duration_s": 9.0,
+    "lang": "hi"
+  },
+  "8237b01cac4674a4244d1731c072f7a68ddff9efabf39a5a0b6932a060f71ac4": {
+    "digest": "f01209fae986446b8bd2333d3a88468711829118be196dbd14fc7a5d9f7363f0",
+    "size": 20960,
+    "path": "8237b01cac4674a4244d1731c072f7a68ddff9efabf39a5a0b6932a060f71ac4.ulaw",
+    "line_id": "opener_prompt",
+    "duration_s": 2.5,
+    "lang": "hi"
+  },
+  "273c1d96a41858639c231b1be2bfd721f9433ad1bfdd523322487bbff1e39cfb": {
+    "digest": "11915797f024e523835790a230ceb85e05937db7ea3e2322c3cd15583753de79",
+    "size": 16960,
+    "path": "273c1d96a41858639c231b1be2bfd721f9433ad1bfdd523322487bbff1e39cfb.ulaw",
+    "line_id": "q_income_band",
+    "duration_s": 2.0,
+    "lang": "hi"
+  },
+  "15da7eb133581c8de04f38b5e435ef6ef8c3f8eaf1f542045e9c9a006112228f": {
+    "digest": "6fb390fd841ec57b79da51cb17581b7f6d8fb07333a99c449309a352bd7a28fa",
+    "size": 8960,
+    "path": "15da7eb133581c8de04f38b5e435ef6ef8c3f8eaf1f542045e9c9a006112228f.ulaw",
+    "line_id": "bundle_confirm_intro",
+    "duration_s": 1.0,
+    "lang": "hi"
+  },
+  "76d6b94fec58450fb781b83a2d14333d4a9ac26a1b6f2d8236339526f414caab": {
+    "digest": "11915797f024e523835790a230ceb85e05937db7ea3e2322c3cd15583753de79",
+    "size": 16960,
+    "path": "76d6b94fec58450fb781b83a2d14333d4a9ac26a1b6f2d8236339526f414caab.ulaw",
+    "line_id": "confirm_yn_suffix",
+    "duration_s": 2.0,
+    "lang": "hi"
+  },
+  "c6560d29df338830a4ef54a1bf65e69703fee67b2688cce948dfcc1c837516f6": {
+    "digest": "f01209fae986446b8bd2333d3a88468711829118be196dbd14fc7a5d9f7363f0",
+    "size": 20960,
+    "path": "c6560d29df338830a4ef54a1bf65e69703fee67b2688cce948dfcc1c837516f6.ulaw",
+    "line_id": "silence_presence",
+    "duration_s": 2.5,
+    "lang": "hi"
+  },
+  "79f3146760808a113a18b85b2846713caad0f7d089139de5546cc3ab9663e967": {
+    "digest": "11915797f024e523835790a230ceb85e05937db7ea3e2322c3cd15583753de79",
+    "size": 16960,
+    "path": "79f3146760808a113a18b85b2846713caad0f7d089139de5546cc3ab9663e967.ulaw",
+    "line_id": "results_exact_preamble",
+    "duration_s": 2.0,
+    "lang": "hi"
+  },
+  "34eb74fe74e2fbc740c485c55f6ec20b52a1605ea60bbdf7f398e29d44831d31": {
+    "digest": "11915797f024e523835790a230ceb85e05937db7ea3e2322c3cd15583753de79",
+    "size": 16960,
+    "path": "34eb74fe74e2fbc740c485c55f6ec20b52a1605ea60bbdf7f398e29d44831d31.ulaw",
+    "line_id": "closing_farewell",
+    "duration_s": 2.0,
+    "lang": "hi"
+  },
+  "60f6bbf1148646494fba7bb5b3dd389cc7cca77244aeeb4ddb3973d1c7ff39f5": {
+    "digest": "23b18af5c114431e21999e94551e3fcac1daab8988f9a0b2a67b317ec4a7ac86",
+    "size": 12960,
+    "path": "60f6bbf1148646494fba7bb5b3dd389cc7cca77244aeeb4ddb3973d1c7ff39f5.ulaw",
+    "line_id": "s1_chunk_name_en",
+    "duration_s": 1.5,
+    "lang": "en"
+  },
+  "dc48e28c61053162409ea30b10fc22bb47d77648b854beb9100397eee1db20ef": {
+    "digest": "fe406d63437dae94d84699de8e44a83070b668dc9ef257da2edded4763938473",
+    "size": 28960,
+    "path": "dc48e28c61053162409ea30b10fc22bb47d77648b854beb9100397eee1db20ef.ulaw",
+    "line_id": "s1_chunk_summary_en",
+    "duration_s": 3.5,
+    "lang": "en"
+  }
+}

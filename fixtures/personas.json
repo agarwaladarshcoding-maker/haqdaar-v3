@@ -1,0 +1,53 @@
+[
+  {
+    "persona_id": "P1",
+    "name": "Sunita Devi",
+    "demographics": {
+      "category": "agriculture",
+      "state": "BIHAR",
+      "gender": "female",
+      "social_category": "SC",
+      "age": 30,
+      "income_band": 75000,
+      "occupation": "farmer"
+    },
+    "target_scheme": "S1",
+    "expected_stop": "survivors_le_4",
+    "expected_turns": 4,
+    "role": "Happy path. Answers all boxes, narrows cleanly to S1 as sole survivor."
+  },
+  {
+    "persona_id": "P2",
+    "name": "Ramesh Kumar",
+    "demographics": {
+      "category": "agriculture",
+      "state": "BIHAR",
+      "gender": "male",
+      "social_category": "GEN",
+      "age": 45,
+      "income_band": 600000,
+      "occupation": "farmer"
+    },
+    "target_scheme": null,
+    "expected_stop": "zero_survivors",
+    "expected_nearest": [
+      "S1",
+      "S2"
+    ],
+    "role": "Dead-end ladder. Narrows to 0 survivors, executes full widening ladder to reach labelled nearest."
+  },
+  {
+    "persona_id": "P3",
+    "name": "Anil Patil",
+    "demographics": {
+      "category": "agriculture",
+      "state": "BIHAR"
+    },
+    "door_a_alias": "kcc",
+    "expected_candidates": [
+      "S1",
+      "S5"
+    ],
+    "role": "Door A opener. Mentions scheme alias directly at turn 0/1; triggers 2-candidate disambiguation."
+  }
+]

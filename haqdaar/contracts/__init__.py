@@ -1,3 +1,3 @@
-from haqdaar.contracts import tunables, types
+from haqdaar.contracts import log_schema, tunables, types
 
-__all__ = ["tunables", "types"]
+__all__ = ["log_schema", "tunables", "types"]

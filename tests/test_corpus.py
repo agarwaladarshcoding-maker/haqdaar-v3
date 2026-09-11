@@ -22,8 +22,8 @@ import sys
 import tempfile
 import pytest
 
-from contracts import tunables
-from contracts.types import (
+from haqdaar.contracts import tunables
+from haqdaar.contracts.types import (
     ANY,
     RenderKey,
     compute_render_key,

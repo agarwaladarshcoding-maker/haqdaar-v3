@@ -184,6 +184,8 @@ class Unclear:
 
 
 ModelTurnResult = Union[Answer, Clarify, Repeat, Meta, Unclear]
+# T17 §3 names this type `TurnResult`; T17 wins over any other spelling.
+TurnResult = ModelTurnResult
 
 
 def compute_render_key(

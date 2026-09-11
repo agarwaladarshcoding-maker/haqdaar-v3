@@ -1,0 +1,197 @@
+[
+  {
+    "utterance_id": "P1_EN",
+    "persona_id": "P1",
+    "lang": "en",
+    "transcript": "I am a female farmer in Bihar looking for agriculture schemes.",
+    "expected_stamps": [
+      {
+        "box": "category",
+        "value": "agriculture",
+        "span": "agriculture"
+      },
+      {
+        "box": "state",
+        "value": "BIHAR",
+        "span": "Bihar"
+      },
+      {
+        "box": "gender",
+        "value": "female",
+        "span": "female"
+      },
+      {
+        "box": "occupation",
+        "value": "farmer",
+        "span": "farmer"
+      }
+    ]
+  },
+  {
+    "utterance_id": "P1_HI",
+    "persona_id": "P1",
+    "lang": "hi",
+    "transcript": "मैं बिहार की एक महिला किसान हूँ और मुझे कृषि योजना चाहिए।",
+    "expected_stamps": [
+      {
+        "box": "category",
+        "value": "agriculture",
+        "span": "कृषि"
+      },
+      {
+        "box": "state",
+        "value": "BIHAR",
+        "span": "बिहार"
+      },
+      {
+        "box": "gender",
+        "value": "female",
+        "span": "महिला"
+      },
+      {
+        "box": "occupation",
+        "value": "farmer",
+        "span": "किसान"
+      }
+    ]
+  },
+  {
+    "utterance_id": "P1_MR",
+    "persona_id": "P1",
+    "lang": "mr",
+    "transcript": "मी बिहारमधील एक महिला शेतकरी आहे आणि मला कृषी योजना हवी आहे.",
+    "expected_stamps": [
+      {
+        "box": "category",
+        "value": "agriculture",
+        "span": "कृषी"
+      },
+      {
+        "box": "state",
+        "value": "BIHAR",
+        "span": "बिहार"
+      },
+      {
+        "box": "gender",
+        "value": "female",
+        "span": "महिला"
+      },
+      {
+        "box": "occupation",
+        "value": "farmer",
+        "span": "शेतकरी"
+      }
+    ]
+  },
+  {
+    "utterance_id": "P2_EN",
+    "persona_id": "P2",
+    "lang": "en",
+    "transcript": "I am a farmer from Bihar with annual income of six lakh rupees.",
+    "expected_stamps": [
+      {
+        "box": "state",
+        "value": "BIHAR",
+        "span": "Bihar"
+      },
+      {
+        "box": "occupation",
+        "value": "farmer",
+        "span": "farmer"
+      },
+      {
+        "box": "income_band",
+        "value": ">500000",
+        "span": "six lakh"
+      }
+    ]
+  },
+  {
+    "utterance_id": "P2_HI",
+    "persona_id": "P2",
+    "lang": "hi",
+    "transcript": "मैं बिहार का एक किसान हूँ और मेरी सालाना आय छह लाख रुपये है।",
+    "expected_stamps": [
+      {
+        "box": "state",
+        "value": "BIHAR",
+        "span": "बिहार"
+      },
+      {
+        "box": "occupation",
+        "value": "farmer",
+        "span": "किसान"
+      },
+      {
+        "box": "income_band",
+        "value": ">500000",
+        "span": "छह लाख"
+      }
+    ]
+  },
+  {
+    "utterance_id": "P2_MR",
+    "persona_id": "P2",
+    "lang": "mr",
+    "transcript": "मी बिहारमधील शेतकरी असून माझे वार्षिक उत्पन्न सहा लाख रुपये आहे.",
+    "expected_stamps": [
+      {
+        "box": "state",
+        "value": "BIHAR",
+        "span": "बिहार"
+      },
+      {
+        "box": "occupation",
+        "value": "farmer",
+        "span": "शेतकरी"
+      },
+      {
+        "box": "income_band",
+        "value": ">500000",
+        "span": "सहा लाख"
+      }
+    ]
+  },
+  {
+    "utterance_id": "P3_EN",
+    "persona_id": "P3",
+    "lang": "en",
+    "transcript": "I want to apply for Kisan Credit Scheme.",
+    "door_a_alias": "kcc",
+    "expected_stamps": [
+      {
+        "box": "scheme",
+        "value": "S1",
+        "span": "Kisan Credit Scheme"
+      }
+    ]
+  },
+  {
+    "utterance_id": "P3_HI",
+    "persona_id": "P3",
+    "lang": "hi",
+    "transcript": "मुझे किसान क्रेडिट योजना के बारे में जानकारी चाहिए।",
+    "door_a_alias": "kcc",
+    "expected_stamps": [
+      {
+        "box": "scheme",
+        "value": "S1",
+        "span": "किसान क्रेडिट योजना"
+      }
+    ]
+  },
+  {
+    "utterance_id": "P3_MR",
+    "persona_id": "P3",
+    "lang": "mr",
+    "transcript": "मला किसान क्रेडिट योजनेबद्दल माहिती हवी आहे.",
+    "door_a_alias": "kcc",
+    "expected_stamps": [
+      {
+        "box": "scheme",
+        "value": "S1",
+        "span": "किसान क्रेडिट"
+      }
+    ]
+  }
+]

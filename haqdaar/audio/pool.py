@@ -17,8 +17,8 @@ import os
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from contracts import tunables
-from contracts.types import RenderKey
+from haqdaar.contracts import tunables
+from haqdaar.contracts.types import RenderKey
 
 
 class AudioPool:
