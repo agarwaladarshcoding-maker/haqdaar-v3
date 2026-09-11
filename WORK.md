@@ -62,7 +62,7 @@ cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
 
 ---
 
-## 1 · Where we stand — 11 Sep
+## 1 · Where we stand — 11 Sep (night)
 
 ### Done
 - **Git repo** on `main`. Baseline commit holds the vault and all working code.
@@ -75,6 +75,11 @@ cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
   Twilio keys do not prove a voice number was bought — check that before Step 1.
 - **Groq key** in `.env` and tested live. **8,000 tokens/min · 1,000 requests/day · 200K tokens/day**
   per model. Steps 8, 9 and 14 are unblocked. Three findings in §9.
+- **Step 2 merged and tagged** (11 Sep night). `step-02` → `main`, `--no-ff`. Root `contracts/`
+  shim deleted, `log_schema.py` written, `fixtures/` built, Gate 3 added to `p6_snapshot.py`.
+  Three conformance breaks found and fixed in review. `make test` → **19 passed** on merged `main`.
+  **`v1-skeleton` tagged on the merge commit.** The tag already existed on the Step 0 commit —
+  placed a step early — and was moved. It is local only; nothing was pushed.
 - **Vault clean.** 65 files synced, 0 dirty. Map rev 27.
 - **All decisions closed.** D1 Groq · D2 D-day 14 Sep · D3 minimax planner · D4/D5/D6 restored ·
   D8 lazy audio pool · D9 map is source of truth. D7 is a number Step 14 measures, not a question.
@@ -83,22 +88,44 @@ cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
 ### Code that exists and passes
 | Path | Lines | Step | State |
 |---|---|---|---|
-| `haqdaar/contracts/types.py` | 204 | 2 (part) | types + markers there, **`log_schema.py` missing** |
-| `haqdaar/contracts/tunables.py` | 50 | 2 (part) | both caps there |
+| `haqdaar/contracts/types.py` | 206 | 2 | types + markers + input union; `TurnResult` name added (T17) |
+| `haqdaar/contracts/tunables.py` | 50 | 2 | both caps there |
+| `haqdaar/contracts/log_schema.py` | 125 | 2 | T16 line schema; struck flag + unratified stops removed |
+| `fixtures/` | — | 2 | 5 schemes + bad S6 · 3 personas · 9 utterances · 10 μ-law stubs |
+| `tests/test_step2.py` | — | 2 | **9 passed** — shim gone, S6 rejected, fixtures load |
 | `haqdaar/audio/pool.py` | 232 | 11 | tier 0 pin + mmap/LRU + tier 2 behind a flag |
 | `haqdaar/data/corpus.py` | 346 | 11 | load checks the file exists + digest, returns RenderKey |
 | `haqdaar/data/pipeline/p6_snapshot.py` | 484 | 11 | writes the five snapshot files |
 | `tests/test_corpus.py` | 422 | 11 | **10 passed** — all 7 hard rules covered |
 
 ### Code that does not exist yet
-`server.py` · `sim.py` · `contracts/log_schema.py` · `engine/` (filter, planner, terminals, call) ·
-`model/` · `audio/telephony/twilio.py` · `audio/ear.py` `mouth.py` `turn.py` · `data/log.py` ·
-`fixtures/` · `Makefile` · `pyproject.toml` · `.env.example` · `snapshots/` · `data_cache/` · `audio/`
+`server.py` · `sim.py` · `engine/` (filter, planner, terminals, call) · `model/` ·
+`audio/telephony/twilio.py` · `audio/ear.py` `mouth.py` `turn.py` · `data/log.py` · `data_cache/`
 
 ### The one problem to know about
 Step 11 got built before Steps 0–10. The code is fine and none of it is wasted, but Step 11 cannot
 prove its real "Done when" (`make pipeline` end to end) until the pipeline exists. §6 puts the
 order back.
+
+### The SILENCE question — closed
+**SILENCE is the seventh LOG `class`. T16 was amended; the code did not move.** `log_schema.py`
+said seven, T16 §2 enumerated six, and `architecture.md:147` and `:252` both assumed SILENCE lines
+get written. Two sources and the code against one, and T16's own argument for NOISE — a line is
+owed or turn accounting is not auditable from the LOG alone — applies to the silence ladder word
+for word. So the spec lost. `source-docs/T16-amendment-silence-class.md`, synced to the vault.
+
+**It is a non-cap line:** it carries `silence_n` (the rung: 1, 2, 3) and leaves `turn_n` unchanged.
+NOISE counts a turn; SILENCE never did, so T14's cap arithmetic is untouched. Step 6 inherits
+seven classes and the `silence_n` field.
+
+**Nothing waits on you. Step 3 is clear to start.**
+
+Two things deliberately left alone, carried as debt:
+- `compute_render_key()` lives in `contracts/types.py:189` — live logic in the one directory that
+  is supposed to hold none. Pre-existing from the out-of-order Step 11, not from Step 2, so moving
+  it is Step 11's recheck (§6 row 11), not Step 2's. Recorded, not fixed.
+- `CallCloseRecord.mode` puts keypad-only on the closing line; T18 corrects T16 and says
+  keypad-only is a **mode** that writes its own one-off line on entry. Owed before Step 6.
 
 ### Still owed by you
 **ngrok** (`NGROK_DOMAIN`, blocks Step 1 + Step 12) · a **Twilio voice number** (keys are in,
@@ -402,12 +429,12 @@ full keypad call in the simulator, which is `v1-keypad` — a demoable product o
 
 | Step | What | State |
 |---|---|---|
-| 0 | Repo skeleton, Makefile, pyproject | **next** |
+| 0 | Repo skeleton, Makefile, pyproject | **merged** 11 Sep |
 | 1 | Telephony smoke call | **moved to 12 Sep** — needs Twilio + ngrok + your hands |
-| 2 | Contracts, log schema, fixture → tag `v1-skeleton` | queued |
-| 3 | Filter (pure) | **dispatched 11 Sep** |
-| 4 | Planner (minimax) | **dispatched 11 Sep** |
-| 5 | Terminals | **dispatched 11 Sep** |
+| 2 | Contracts, log schema, fixture → tag `v1-skeleton` | **merged + tagged** 11 Sep. `v1-skeleton` on the merge commit, local only |
+| 3 | Filter (pure) | **← next, clear to start.** Nothing landed from the 11 Sep dispatch, no `filter.py` on disk |
+| 4 | Planner (minimax) | dispatched 11 Sep — **nothing landed yet**, no `planner.py` on disk |
+| 5 | Terminals | dispatched 11 Sep — **nothing landed yet**, no `terminals.py` on disk |
 | 6 | Log, call loop, console sim | **first moment it looks like a product** |
 | 7–10 | Scraper → derivation → translate/gates → render | needs Groq ✅ + Sarvam |
 | 11 | Audio pool + corpus | **already built**, recheck against real data after 7–10 |
@@ -415,6 +442,9 @@ full keypad call in the simulator, which is `v1-keypad` — a demoable product o
 
 **Steps 3, 4 and 5 are the best agent work in the whole plan** — pure functions, no network,
 no I/O, fully specified, provable by tests. If Antigravity is idle, that is where to point it.
+
+**Steps 3–5 now have a fixture to test against.** `fixtures/` is the T17 §4 artifact and, per T17,
+is the same artifact as T08's offline test base — do not let an agent build a second one.
 
 **Step 7 (scraper) needs no keys and does not depend on Steps 3–6.** It can run on `step-07` in
 parallel while you review something else.
