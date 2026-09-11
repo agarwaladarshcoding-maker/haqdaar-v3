@@ -10,3 +10,5 @@ node_modules/
 .agent/
 .DS_Store
 haqdaar-v2-brain/.obsidian/workspace*.json
+brain/.obsidian/workspace*.json
+!haqdaar/audio/
