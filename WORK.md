@@ -69,6 +69,10 @@ cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
 - **`.venv` on Python 3.11.** `pytest -q` → **10 passed**.
 - **FileVault on.** Laptop-sleep setting ruled not needed by you — the laptop stays open and
   plugged in for the demo. `caffeinate -dimsu make run` covers it on the day.
+- **Step 0 merged** (11 Sep night). `step-00` → `main`, `--no-ff`, pushed. `make test` → 10 passed.
+  Repo now has `Makefile`, `pyproject.toml`, `.env.example`, `CLAUDE.md` and the §4 package tree.
+- **Keys in `.env`:** Groq ✅ · Sarvam ✅ · Twilio SID + token ✅ · **ngrok domain still missing.**
+  Twilio keys do not prove a voice number was bought — check that before Step 1.
 - **Groq key** in `.env` and tested live. **8,000 tokens/min · 1,000 requests/day · 200K tokens/day**
   per model. Steps 8, 9 and 14 are unblocked. Three findings in §9.
 - **Vault clean.** 65 files synced, 0 dirty. Map rev 27.
@@ -97,8 +101,9 @@ prove its real "Done when" (`make pipeline` end to end) until the pipeline exist
 order back.
 
 ### Still owed by you
-Sarvam · Twilio · ngrok · Plivo. **Twilio + ngrok are the only ones blocking a step you could
-start today.** Details in §3a.
+**ngrok** (`NGROK_DOMAIN`, blocks Step 1 + Step 12) · a **Twilio voice number** (keys are in,
+the number is unverified) · Plivo/Udyam (blocks nothing this week). Sarvam and Twilio keys are done.
+Details in §3a.
 
 ---
 
@@ -109,11 +114,13 @@ out of today**: it needs a Twilio account, an ngrok tunnel and your thumb on a d
 else waits on it. Today runs **0 → 2 → 3 → 4 → 5**, with **7 in parallel**. Full orders, with every
 prompt written out, are in [`work-with-tools/2026-09-11.md`](work-with-tools/2026-09-11.md).
 
+**Step 0 is done and merged.** The next thing to paste is **Step 2**.
+
 | # | Do this | Where |
 |---|---|---|
-| **1** | `git checkout -b step-00`, paste the **Step 0** prompt | tool file, order 1 |
-| **2** | **While it runs:** open Twilio, ngrok and Sarvam | §3a |
-| **3** | Verify → review with `N = 0` → merge | §5 |
+| ~~1~~ | ~~Step 0~~ — **merged 11 Sep night** | tool file, order 1 |
+| ~~2~~ | ~~Twilio / Sarvam keys~~ — **in `.env`**; ngrok still missing | §3a |
+| ~~3~~ | ~~Review `N = 0` → merge~~ — **done** | §5 |
 | **4** | Step 2 → verify → review `N = 2` → merge → `git tag v1-skeleton` | tool file, order 2 |
 | **5** | Step 3 (Filter) → merge. **Start Step 7 in a second window now.** | tool file, orders 3 and P |
 | **6** | Step 4 (Planner) → merge | tool file, order 4 |
