@@ -1,0 +1,18 @@
+# Roster of scheme slugs for myScheme scraper (Step 7)
+# Each slug corresponds to https://www.myscheme.gov.in/schemes/<slug>
+# Slugs have been tested against myscheme.gov.in.
+# Substitutions for dead/unresolving slugs are noted in comments.
+
+schemes:
+  - slug: pm-kisan # Pradhan Mantri Kisan Samman Nidhi
+  - slug: kcc # Kisan Credit Card (substituted for kisan-credit-scheme / kisan-credit-card, which 404s)
+  - slug: smam # Sub-mission On Agriculture Mechanization (substituted for sfts / small-farmer-tractor-subsidy, which 404s)
+  - slug: ab-pmjay # Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana (substituted for pmjay, which 404s)
+  - slug: pmmy # Pradhan Mantri Mudra Yojana
+  - slug: apy # Atal Pension Yojana
+  - slug: pm-svanidhi # PM Street Vendor’s AtmaNirbhar Nidhi
+  - slug: pmay-g # Pradhan Mantri Awaas Yojana - Gramin (substituted for pradhan-mantri-awas-yojana-gramin, which 404s)
+  - slug: pmegp # Prime Minister's Employment Generation Programme
+  - slug: pmfby # Pradhan Mantri Fasal Bima Yojna
+  - slug: day-nrlm # Deendayal Antyodaya Yojana - National Rural Livelihoods Mission
+  - slug: naps # National Apprenticeship Promotion Scheme
