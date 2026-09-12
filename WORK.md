@@ -590,6 +590,107 @@ failed. Do not delete old lines.
              merged main -> 64 passed, py_compile clean, sync --status -> 66 files 0 dirty.
 2026-09-12 — Wrote work-adarsh/2026-09-12.md. It was missing — 12 Sep had a tool file but no
              hands file, so the webhook problem had nowhere to live.
+2026-09-12 — Reviewed Step 6 (log, call loop, sim). Verdict **safe to merge: NO**. One blocker:
+             the widening ladder is not implemented, so P2 never reaches a nearest-two and the
+             Done-when is not met. See §9 18. Ran it myself: pytest -q -> 77 passed; py_compile
+             clean; `make sim` runs to closing_farewell and writes a good log. The three review-
+             focus items all pass (Log.write never raises, no telephony import, turn 0 and
+             SILENCE accounting correct). No secrets, no concurrency (R1 holds), no "twilio"
+             outside audio/telephony/, nothing from Step 8 started.
+2026-09-12 — ⚠️ The P2 test is a **false green**. `test_persona_p2_dead_end_ladder_end_to_end`
+             passes while producing the exact-match terminal. I re-ran its own inputs and
+             printed them: it plays `results_exact_preamble` + `name:S4` and closes with
+             `stop: survivors_le_4, ladder_rung: 0`. It passes only because it asserts
+             `"ladder_rung" in close_line`, which is true at 0. Details in §9 18.
+2026-09-12 — ⚠️ `step-06` has NO commits — all four files are untracked. Third time
+             (Step 3, Step 7, now Step 6). The `git log --oneline main..step-NN` check earns
+             its place in the review block.
+2026-09-12 — `make demo-fixture` is still the Step-6 placeholder echo. The Step 6 file list and
+             T17 §4 both name it, so Step 6 is not done until it runs.
+2026-09-12 — **T17 §2 needs an amendment.** It freezes `Log.close(reason: str)`, but T16's
+             `CallCloseRecord` and Step 6's Done-when both need `ladder_rung` and `mode` on the
+             closing line. Step 6 widened it to `close(reason, ladder_rung, mode)`. The code is
+             right and the ticket is stale — amend the ticket, do not narrow the code.
+2026-09-12 — Fixed the Step 6 blocker. It was not "the ladder is missing". The ladder was
+             there; four things in front of it made it dead. (1) call.py forced
+             `state = UNKNOWN` unconditionally, claiming cardinality > 9 — fixtures have 2
+             states, so this was simply wrong. (2) Every fixture scheme names a real state,
+             so with state UNKNOWN nothing was speakable and every ladder rung returned 0.
+             (3) call.py hid that by passing `pre_vetted=True`, telling Terminals the Engine
+             had already run the truth lock when it had not, and then handed
+             `Terminals.sequence` the empty survivor list, which threw away whatever the
+             ladder did find. (4) The real one: the Planner applies T10's speaking-rule
+             exception only on the "<=4 survivors" branch, so on zero survivors it stopped
+             asking, left `gender` and `social_category` unasked, and the ladder bought
+             candidates the truth lock then refused to name. All four fixed.
+2026-09-12 — P2 now genuinely runs the ladder. `make demo-fixture` prints
+             `terminal_widened_preamble -> drop_income_band -> results_widened_lead -> name:S3`
+             and closes `{"stop": "zero_survivors", "ladder_rung": 1, "mode": "keypad_only"}`.
+             The false-green P2 test is replaced: it now asserts the preamble, the exact
+             `drop_*` list, T18's ordering, at least one named scheme, and `ladder_rung >= 1`.
+2026-09-12 — ⚠️ **The fix moved Step 4.** The speaking-rule exception now applies on the
+             zero-survivor branch too. Four `tests/test_planner.py` tests asserted `Widen`
+             from vectors with hard boxes unasked; they now answer the hard boxes and assert
+             the same rungs, plus one new test pinning the new behaviour. T10 / T15 need the
+             amendment. See §9 21.
+2026-09-12 — ⚠️ **Delivery shape 4 (NEAREST) cannot ever fire.** Architecture §8 routes
+             "ladder exhausted -> any scheme with a soft-only miss-set -> NEAREST", but
+             `WIDENING_ORDER` covers all four soft boxes, so "exhausted" means every soft box
+             was dropped and still nothing survived — which is the same condition as "no
+             scheme has a soft-only miss-set". The two branches are the same test. Proven by
+             enumerating all 1351 keypad-reachable fixture vectors: direct_match, overflow,
+             widened_match and empty all occur; nearest never does. So Step 6's Done-when
+             ("P2 reaches a labelled nearest-two") and T17 §4 are unsatisfiable as written.
+             This is a decision, not a bug. See §9 22.
+2026-09-12 — Also fixed in the same pass: `Speech` was a bare `pass` that spun the loop
+             forever (now spends a cap turn and logs UNCLEAR); the read-back menu read a
+             digit and discarded it (now plays 1-4 behind `section_source_frame`, 9 advances
+             with `next_scheme_intro` / `no_more_schemes`, each section once per scheme);
+             `anything_else == 1` was a dead write (now a real Door B, one per call, on the
+             same budget); the call-open `lang_source` said "default" forever (the Engine now
+             writes a `LangSwitchRecord` at turn 0 with what the caller actually pressed);
+             a box dropped for cardinality now writes a log line instead of vanishing.
+2026-09-12 — `make demo-fixture` implemented: three personas against the four fakes, each
+             printing its LOG. `sim.py` gained `--persona p1|p2|p3`, `--canned`, `--call-id`
+             and `--logs-dir`; the old non-interactive fallback answered "1" forever.
+2026-09-12 — Gates after the fixes: `pytest -q` -> **80 passed**; `py_compile` clean on
+             call.py, planner.py, sim.py, log.py, sync_vault.py; `sync_vault.py --status` ->
+             66 files, 0 dirty; `make sim` and `make demo-fixture` both run to
+             `closing_farewell`. Still nothing committed on `step-06`.
+2026-09-13 — YOU: chose option (a) on §9 22 — take `category` out of the widening ladder.
+             Done. `WIDENING_ORDER` is now `income_band -> age -> occupation`. Shape ④
+             NEAREST is reachable: over the fixture corpus, 396 vectors now land on a
+             nearest terminal and 36 of them name two schemes. Before the change: zero.
+2026-09-13 — ⚠️ The change alone was not enough, and the reason is worth knowing. The
+             enumeration said nearest was reachable but **no digit sequence through the
+             Engine could get there.** `category` is box 0, the **opener** (Door A,
+             architecture §6), and nothing was asking it — the Planner only picks a box
+             when it wins on minimax, and in a 5-scheme corpus `income_band` always wins
+             first, so the caller was never asked what they had phoned about. Door A is
+             now asked before any planning and stays in front of the caller until it is
+             answered or struck out. Door B re-opens it.
+2026-09-13 — The speaking-rule exception is now one helper used on all three paths — the
+             `<=4` stop, the widened set, and the **nearest** candidates. Without the
+             nearest arm P2 named one nationwide scheme where two better nearest existed.
+             T10 D3 amended for it. See §9 21.
+2026-09-13 — **Step 6's Done-when is now met.** From `make demo-fixture`, persona p2:
+             `opener_prompt -> keypad_state -> keypad_gender -> keypad_social_category ->
+             terminal_nearest_preamble -> name:S1 -> name:S2 -> anything_else ->
+             closing_farewell`, closing
+             `{"stop": "zero_survivors", "ladder_rung": 3, "mode": "keypad_only"}`.
+             Two nearest, labelled as non-matches, preamble first, no `section_menu`,
+             auto-advance. That is T18 §2 and T17 §4 as written.
+2026-09-13 — Four sim personas now: p1 direct match, p2 nearest-two, p3 Door B second
+             subject, `widened` for shape ③. Shape ③ is only reachable in this corpus when
+             Door A is struck out to UNKNOWN — with the opener answered, five schemes
+             narrow to <=4 or 0 before any soft box is asked. Fixture-size artefact, not an
+             engine limit; kept as its own test so the shape stays covered.
+2026-09-13 — Brain amended in `source-docs/` and synced (7 files updated, 0 dirty):
+             T10 D6 (ladder) and T10 D3 (speaking rule), ARCHITECTURE §8 flowchart,
+             BUILD-PLAN Step 4, PRD, T18, DECISION-LOG, briefs/engine.
+2026-09-13 — Gates: `pytest -q` -> **83 passed** · py_compile clean · `sync_vault.py
+             --status` -> 66 files, 0 dirty · `make sim` and `make demo-fixture` both reach
+             `closing_farewell` on every persona.
 ```
 
 ---
@@ -661,3 +762,97 @@ failed. Do not delete old lines.
    from `tunables.py` with nothing inline, the speaking-rule exception is under test, out-of-set
    answers re-ask (closes §9 13 for the Planner side), nothing from Step 5 started, no secrets,
    and no queue, pool, registry or concurrency setting (**R1** holds).
+
+18. ~~**BLOCKER, Step 6: the widening ladder was never built, and the test that should have caught
+   it is a false green.** `haqdaar/engine/call.py:137-139` handles `Widen(box)` by setting
+   `stop_reason = zero_survivors` and **breaking out of the loop**. The box vector is never
+   relaxed, no rung is walked, and `ladder_rung` is back-filled afterwards as a proxy (the count
+   of answered soft boxes) instead of the rung actually reached. This is the decision §9 16 told
+   Step 6 to make — apply `Widen` cumulatively over `WIDENING_ORDER` — and it was not made at all.
+   Build-plan Step 6's Done-when says *"P2 reaches a labelled nearest-two through the full
+   ladder."* It does not. I ran P2's own inputs and printed them: it plays
+   `state_unknown_disclaimer -> results_exact_preamble -> name:S4 -> ... -> closing_farewell` and
+   closes `{"stop": "survivors_le_4", "ladder_rung": 0}` — the **exact-match** terminal, byte for
+   byte what P1 does, and only 2 of its 8 canned digits get consumed. The test passes because it
+   asserts `"ladder_rung" in close_line`, true even at 0. **Two fixes, not one:** build the
+   ladder, and make the P2 test assert `stop == zero_survivors`, `ladder_rung >= 1`,
+   `TERMINAL_NEAREST_PREAMBLE` in what was played, and exactly two names. A test that cannot fail
+   is worse than no test — it spent a review pass looking green.~~
+   **Fixed 12 Sep, and the diagnosis above was half wrong.** The ladder existed — `classify_shape`
+   walks it. Four things in front of it made it dead; see §9 21 and 22, and the 12 Sep lines in
+   §8. P2 now plays `terminal_widened_preamble -> drop_income_band -> results_widened_lead ->
+   name:S3` and closes `{"stop": "zero_survivors", "ladder_rung": 1}`. The false-green test is
+   replaced. The one part of this finding that survives is the **nearest**-two requirement — see
+   §9 22, that one cannot be built.
+19. ~~**Step 6's smaller holes, none of them safety.**~~ **All five fixed 12 Sep** — see the
+   12 Sep lines in §8. (e) is fixed as far as it can be: P3 is now the Door B second-subject
+   caller, because T17 §4's P3 names a scheme at the opener and that is a speech path with no
+   keypad equivalent. The Done-when still needs that one word changed.
+   Original text:
+19b. **Step 6's smaller holes, none of them safety.** (a) `call.py:282` handles `Speech` with a
+   bare `pass`, so `turn_n` never advances and the `while True` spins forever — invisible in
+   keypad-only, a hang the day Step 9 hands it speech. (b) The read-back menu reads a digit and
+   throws it away (`call.py:319-323`); sections 1-4 are never replayed. (c) "Anything else = 1"
+   sets `category = UNASKED` and then falls straight into the closing — a dead write, Door B is
+   not wired. (d) The call-open line's `lang_source` is **always** `Log.open`'s default: the
+   Engine learns the real value at turn 0 and never writes it back, so the sim run says
+   `"lang_source": "default"` for a caller who pressed `1`. (e) There is no **P3** anywhere in
+   the tests or the sim, and the sim has no persona picker at all — non-interactive runs use one
+   hardcoded digit sequence. P3 names a scheme at the opener, which is a speech path, so it may
+   be fairly out of a keypad-only step — **but then the Done-when needs amending, not ignoring.**
+20. **Clean, Step 6:** `Log.write` never raises (6 deliberately bad lines, each written with
+   `invalid: true`, under test and passing), turn 0 writes a line and does not spend a cap turn,
+   SILENCE carries `turn_n` unchanged plus `silence_n` while NOISE spends a turn — all three
+   review-focus items hold. `MAX_TURNS` / `MAX_QUESTIONS` / `STOP_SURVIVORS` /
+   `KEYPAD_CARDINALITY_MAX` / `BOX_STRIKES_TO_KEYPAD` read from `tunables.py`, nothing inline.
+   No banned word in any of the four files (they emit line ids only, so gate 4 still owns the
+   wording). No free model text reaches the Engine — `model` is `None` on every path. `state` is
+   forced to `UNKNOWN` and `state_unknown_disclaimer` plays, so no hard-box violation is spoken
+   *on the exact path* — the other paths are untested only because of §9 18. No "twilio" outside
+   `audio/telephony/`, no runtime import of `data/pipeline/` (`sim.py` imports `p6_snapshot` to
+   build its fixture snapshot, which is a dev driver and allowed). No secrets in the files or in
+   any of the 23 commits. No queue, pool, registry or concurrency setting — **R1** holds, and
+   `test_concurrency_and_import_discipline` asserts it.
+
+21. **The speaking-rule exception belongs on both branches, and Step 4 shipped it on one.**
+   `Planner.next_action` applies T10's exception ("do not stop on <=4 while an unasked hard box
+   is non-ANY on any survivor") only on the `<=4 survivors` branch. On the **zero-survivor**
+   branch it goes straight to the widening ladder. The result is exactly the failure T10 wrote
+   the exception to prevent, one branch over: the call stops asking, `gender` and
+   `social_category` stay UNASKED, the ladder recovers a scheme that is non-ANY on both,
+   `Filter.speakable` refuses to name it, and the caller hears `terminal_empty` while the corpus
+   held a match. **This was the real Step 6 blocker.** Fixed in `planner.py`: before returning
+   `Widen(rung_box)`, run the same exception over the **widened** survivor set and `Ask` the hard
+   box first, minimax-ordered, caps respected. It terminates — each Ask fills a box.
+   **T10 D3 amended 13 Sep** — the exception now reads "before any terminal", and it is one
+   helper (`_hard_box_to_ask_before_speaking`) used on the `<=4` stop, the widened set and
+   the nearest candidates. Four `tests/test_planner.py` tests moved (they now answer
+   the hard boxes and still assert the same rungs) and one was added.
+
+22. ~~**Delivery shape ④ NEAREST is unreachable — a contradiction in Architecture §8, not a bug.**~~
+   **Closed 13 Sep — you chose (a).** `category` is out of `WIDENING_ORDER`; the ladder is
+   `income_band -> age -> occupation`. Shape ④ now fires, and P2 reaches a labelled
+   nearest-two. The docs are amended and synced. Original finding kept below for the
+   reasoning, which the amendment quotes.
+22b. **Delivery shape ④ NEAREST is unreachable — a contradiction in Architecture §8, not a bug.**
+   §8 routes `ladder exhausted -> any scheme whose miss-set is soft-only? -> NEAREST`. But
+   `WIDENING_ORDER` covers **all four** soft boxes and the ladder drops them cumulatively, so
+   "exhausted" means *every soft box was dropped and still nothing survived* — at which point the
+   only live constraints are hard boxes, and "no survivor" and "no scheme with a soft-only
+   miss-set" are the **same statement**. Any scheme with a soft-only miss-set is caught by the
+   rung that drops that box, and the ladder returns ③ WIDENED first. Verified by enumerating all
+   1351 keypad-reachable vectors over `fixtures/`: `direct_match`, `overflow`, `widened_match` and
+   `empty` all occur, `nearest` never once.
+   So build-plan Step 6's Done-when (*"P2 reaches a labelled nearest-two through the full
+   ladder"*) and T17 §4 (*"P2 through the full ladder to two nearest schemes labelled as
+   non-matches"*) cannot be satisfied by any amount of Step 6 code.
+   **Two ways out, and it is your call:**
+   (a) **Take `category` out of `WIDENING_ORDER`.** The category is the subject the caller phoned
+   about (Door A); relaxing it answers a question they did not ask. With the ladder ending at
+   `occupation`, "exhausted" becomes a real state and NEAREST becomes what it was meant to be:
+   same subject, hard boxes clean, misses only on soft detail. This is a Step 4 + Step 5 change.
+   (b) **Amend the Done-when** to "P2 reaches a labelled widened match through the full ladder"
+   and delete shape ④ from Architecture §8, T18 and `terminals.py`.
+   I recommend (a) — shape ④ exists because T18 §2 says a nearest is *not a match* and must never
+   borrow the widened wording, and that distinction is worth keeping. But (b) is honest and
+   cheaper, and nothing in the demo depends on it.

@@ -6,7 +6,7 @@ module: architecture
 status: reviewed
 tags: [architecture, design, diagrams, staging]
 created: 2026-09-10
-updated: 2026-09-10
+updated: 2026-09-13
 author: Adarsh Agarwala
 last_agent_edit: claude-code
 source_file: source-docs/ARCHITECTURE.md
@@ -434,7 +434,7 @@ flowchart TD
     direct -->|"≤ 4"| exact["<b>① DIRECT MATCH</b><br/>results_exact_preamble<br/>read all, by specificity"]
     direct -->|"> 4"| over["<b>② OVERFLOW</b><br/>top 3 by specificity,<br/>spoken as matches<br/>+ results_overflow"]
 
-    z -->|"no"| ladder["<b>widening ladder</b><br/>soft boxes only, one at a time<br/>income_band → age → occupation → category<br/>skip UNASKED/UNKNOWN rungs<br/>stop at first rung with ≥1 survivor"]
+    z -->|"no"| ladder["<b>widening ladder</b><br/>soft boxes only, one at a time<br/>income_band → age → occupation<br/><i>category is never widened</i><br/>skip UNASKED/UNKNOWN rungs<br/>stop at first rung with ≥1 survivor"]
 
     ladder -->|"a rung produced survivors"| widened["<b>③ WIDENED MATCH</b><br/>terminal_widened_preamble<br/>→ drop_&lt;box&gt; for each dropped box<br/>→ results_widened_lead<br/>→ names, T10's delivery rule"]
     ladder -->|"ladder exhausted"| nearcheck{"any scheme whose<br/>miss-set is soft-only?"}
