@@ -329,3 +329,32 @@ def test_survivor_and_tally_pure_dict_corpus(fixtures_data):
     assert len(tallies) == len(schemes)
     assert tallies[0] == 2  # S1 matches both category and state
 
+
+
+def test_speakable_when_hard_box_is_any_on_every_scheme(tmp_path, monkeypatch):
+    """A hard box that no scheme constrains has an empty closed set. That is
+    "ANY everywhere", not "unvetted". Before 13 Sep this refused every scheme in
+    such a corpus — e.g. an all-nationwide corpus with no `state` values."""
+    schemes = [
+        {"scheme_id": f"N{i}", "state": "ANY", "category": "agriculture",
+         "gender": "ANY", "social_category": "ANY", "age": "ANY",
+         "income_band": inc, "occupation": "ANY"}
+        for i, inc in enumerate(("30000", "75000"))
+    ]
+    snap_dir = tmp_path / "snap"
+    audio_dir = tmp_path / "audio"
+    snap_dir.mkdir()
+    audio_dir.mkdir()
+    monkeypatch.setattr(tunables, "SNAPSHOTS_DIR", str(snap_dir))
+    monkeypatch.setattr(tunables, "AUDIO_DIR", str(audio_dir))
+    snap_id = build_snapshot(
+        schemes_data=schemes, snapshot_id="all_any_hard",
+        snapshots_dir=snap_dir, audio_dir=audio_dir, render_stubs=True,
+    )
+    c = Corpus.load(snap_id)
+    for box in HARD_BOXES:
+        assert c.values(box) == ()
+
+    bv = {b: UNASKED for b in SEVEN_BOXES}
+    assert speakable(0, bv, c)
+    assert speakable(1, bv, c)

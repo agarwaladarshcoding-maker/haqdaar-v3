@@ -499,6 +499,70 @@ def test_widened_match_when_door_a_is_struck_out(corpus, tmp_path):
     ]
 
 
+def test_widened_match_with_door_a_answered(tmp_path, monkeypatch):
+    """Shape 3 on the normal road: the caller names their subject, answers two
+    soft boxes, and the second answer leaves nothing. One rung recovers it.
+
+    fixtures/ is too small for this (five schemes narrow to <=4 or 0 before a
+    second soft box is ever asked), so this builds a corpus where it is not:
+    income_band 30000 holds farmers and weavers, only 75000 holds potters, and
+    every hard box is ANY. Planner asks income_band, then occupation; the caller
+    says 30000 and potter; dropping income_band brings the potters back.
+    """
+    schemes = []
+    for inc, occ, copies in (("30000", "farmer", 3), ("30000", "weaver", 3), ("75000", "potter", 6)):
+        for _ in range(copies):
+            schemes.append({
+                "scheme_id": f"G{len(schemes)}", "state": "ANY", "category": "agriculture",
+                "gender": "ANY", "social_category": "ANY", "age": "ANY",
+                "income_band": inc, "occupation": occ,
+            })
+    schemes.append({
+        "scheme_id": "H0", "state": "ANY", "category": "handloom",
+        "gender": "ANY", "social_category": "ANY", "age": "ANY",
+        "income_band": "ANY", "occupation": "ANY",
+    })
+    snap_dir = tmp_path / "gsnap"
+    audio_dir = tmp_path / "gaudio"
+    snap_dir.mkdir()
+    audio_dir.mkdir()
+    monkeypatch.setattr(tunables, "SNAPSHOTS_DIR", str(snap_dir))
+    monkeypatch.setattr(tunables, "AUDIO_DIR", str(audio_dir))
+    snap_id = build_snapshot(
+        schemes_data=schemes, snapshot_id="test_widened_door_a",
+        snapshots_dir=snap_dir, audio_dir=audio_dir, render_stubs=True,
+    )
+    c = Corpus.load(snap_id)
+    assert c.values("income_band") == ("30000", "75000")
+    assert c.values("occupation") == ("farmer", "potter", "weaver")
+
+    audio = MockAudio(inputs=[
+        Digit("1"),    # Turn 0 (hi)
+        Digit("1"),    # opener: category -> agriculture (answered, not struck out)
+        Digit("1"),    # income_band -> 30000
+        Digit("2"),    # occupation -> potter
+        Digit("9"), Digit("9"), Digit("9"), Digit("9"),   # read-back
+        Digit("2"),    # anything else -> no
+    ])
+    log = Log.open("test_widened_door_a", snap_id, logs_dir=tmp_path)
+    Engine.run_call(audio, None, c, log)
+
+    played = audio.played
+    assert "opener_prompt" in played
+    assert TERMINAL_WIDENED_PREAMBLE in played
+    drops = [t for t in played if t.startswith("drop_")]
+    assert drops == ["drop_income_band"]
+    names = [t for t in played if t.startswith("name:")]
+    assert names and all(c.scheme_id(int(n.split(":")[1][1:])) for n in names)
+    assert played.index(TERMINAL_WIDENED_PREAMBLE) < played.index(RESULTS_WIDENED_LEAD) < played.index(names[0])
+
+    lines = [json.loads(l) for l in open(tmp_path / "test_widened_door_a.jsonl")]
+    assert not [l for l in lines if l.get("class") == "UNCLEAR"]
+    assert [l for l in lines if l.get("box") == "category" and l.get("value") == "agriculture"]
+    assert lines[-1]["stop"] == STOP_ZERO_SURVIVORS
+    assert lines[-1]["ladder_rung"] == 1
+
+
 def test_category_is_never_widened(corpus, tmp_path):
     """T10 D6 as amended: the ladder is income_band -> age -> occupation only."""
     from haqdaar.contracts.types import WIDENING_ORDER as WO
@@ -566,7 +630,7 @@ def test_state_drops_to_unknown_only_when_it_will_not_fit_a_keypad(tmp_path, mon
 
     assert STATE_UNKNOWN_DISCLAIMER in audio.played
     named = {t.split(":", 1)[1] for t in audio.played if t.startswith("name:")}
-    assert "WNAT" in named or not named
+    assert "WNAT" in named, "the nationwide scheme was not named"
     assert not {n for n in named if n.startswith("W") and n != "WNAT"}, (
         "a state-specific scheme was named to a caller whose state is UNKNOWN"
     )
