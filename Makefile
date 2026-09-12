@@ -11,8 +11,14 @@ run:
 sim:
 	$(PYTHON) -m haqdaar.sim
 
+# T17 §4: a whole call against the four fakes, printing the LOG. One run per
+# keypad-only persona, so an interface break shows up on day one, not day nine.
+# Log.open appends, and these call ids are fixed, so clear the demo logs first.
 demo-fixture:
-	@echo "demo-fixture target (implemented in Step 6)"
+	@rm -rf logs/demo
+	@for p in p1 p2 p3 widened; do \
+		$(PYTHON) -m haqdaar.sim --persona $$p --canned --call-id demo_$$p --logs-dir logs/demo || exit 1; \
+	done
 
 pipeline-scrape:
 	$(PYTHON) -m haqdaar.data.pipeline.p1_scrape
