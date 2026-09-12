@@ -691,6 +691,29 @@ failed. Do not delete old lines.
 2026-09-13 — Gates: `pytest -q` -> **83 passed** · py_compile clean · `sync_vault.py
              --status` -> 66 files, 0 dirty · `make sim` and `make demo-fixture` both reach
              `closing_farewell` on every persona.
+2026-09-13 — **T17 §2 amended** and synced: `Log.close(reason, ladder_rung=None, mode=None)`.
+             Both new args are optional, so the frozen `Log.close(reason)` still works.
+             The last open item from the Step 6 review is closed.
+2026-09-13 — ⚠️ **Found and fixed a Step 3 bug that would have hit Step 8 hard.**
+             `Filter.speakable` treated a hard box with an *empty* closed set as "not ANY"
+             and refused the scheme. An empty set means every scheme is ANY on that box.
+             So in any corpus where, say, every scheme is nationwide (`state: ANY`), **no
+             scheme could ever be spoken** — every call would end on `terminal_empty`. The
+             real myScheme corpus is mostly central schemes, so this was likely to be the
+             first thing Step 8's data ran into. One-line fix plus a regression test.
+2026-09-13 — ⚠️ The same bug hid a **false-green test**: the wide-state test asserted
+             `"WNAT" in named or not named`, which passes when nothing is named. Tightened.
+             All three new or tightened tests fail on the old filter and pass on the fixed one.
+2026-09-13 — Shape ③ (widened match) now proven with Door A **answered**, not only struck
+             out — on a purpose-built 13-scheme corpus, since `fixtures/` is too small to
+             need a second soft question. Test: `test_widened_match_with_door_a_answered`.
+2026-09-13 — Gates: `pytest -q` -> **85 passed** · py_compile clean · sync --status 0 dirty ·
+             `make demo-fixture` reaches `closing_farewell` on all four personas.
+2026-09-13 — Step 8 prompt edited in work-with-tools/2026-09-12.md: branch from `main` (the
+             old bare `git checkout -b step-08` would have based it on step-06, which is
+             checked out), record `category` cardinality (Door A needs <=9 to be asked), and
+             note that `ANY` on an entire hard box is valid. **Step 8: green**, once PR #1
+             is merged.
 ```
 
 ---
