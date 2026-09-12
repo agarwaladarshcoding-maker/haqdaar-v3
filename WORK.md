@@ -62,7 +62,10 @@ cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
 
 ---
 
-## 1 · Where we stand — 11 Sep (night)
+## 1 · Where we stand — 12 Sep
+
+*Plain-words version of this whole section, for anyone coming back cold:*
+[`work-with-tools/2026-09-12-summary.md`](work-with-tools/2026-09-12-summary.md)
 
 ### Done
 - **Git repo** on `main`. Baseline commit holds the vault and all working code.
@@ -71,8 +74,12 @@ cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
   plugged in for the demo. `caffeinate -dimsu make run` covers it on the day.
 - **Step 0 merged** (11 Sep night). `step-00` → `main`, `--no-ff`, pushed. `make test` → 10 passed.
   Repo now has `Makefile`, `pyproject.toml`, `.env.example`, `CLAUDE.md` and the §4 package tree.
-- **Keys in `.env`:** Groq ✅ · Sarvam ✅ · Twilio SID + token ✅ · **ngrok domain still missing.**
-  Twilio keys do not prove a voice number was bought — check that before Step 1.
+- **Keys in `.env`:** Groq ✅ · Sarvam ✅ · Twilio SID + token ✅ · **ngrok domain ✅ (12 Sep)** ·
+  **Twilio voice number ✅ (12 Sep).** All verified live, not just present:
+  ngrok `attire-divorcee-spousal.ngrok-free.dev` resolves to live ngrok IPs; the Twilio API returns
+  **+1 424 799 0057**, voice-capable, on an `active` **Trial** account. **Step 1 is unblocked.**
+  ⚠️ But the number's **voice webhook points at `/`, not `/answer`** — Twilio will 404 on every
+  call until you change it in the console. One-line fix, in `work-adarsh/2026-09-12.md`.
 - **Groq key** in `.env` and tested live. **8,000 tokens/min · 1,000 requests/day · 200K tokens/day**
   per model. Steps 8, 9 and 14 are unblocked. Three findings in §9.
 - **Step 2 merged and tagged** (11 Sep night). `step-02` → `main`, `--no-ff`. Root `contracts/`
@@ -99,10 +106,18 @@ cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
 | `tests/test_corpus.py` | 422 | 11 | **10 passed** — all 7 hard rules covered |
 | `haqdaar/engine/filter.py` | — | 3 | merged into `main` 12 Sep · `tests/test_filter.py` **10 passed** |
 | `haqdaar/engine/planner.py` | 260 | 4 | merged into `main` 12 Sep · `tests/test_planner.py` **14 passed** |
+| `haqdaar/engine/terminals.py` | 448 | 5 | merged into `main` 12 Sep (ed69912) · `tests/test_terminals.py` passing |
+| `haqdaar/data/pipeline/p1_scrape.py` | 376 | 7 | **merged** 12 Sep (e43207f) · `tests/test_scrape.py` passing · 12 schemes fetched |
+| `haqdaar/data/pipeline/schemes.yaml` | 18 | 7 | **merged** 12 Sep · 12 slugs, 4 substituted for dead links, each noted in a comment |
+
+**`pytest -q` on the working tree → 64 passed.**
 
 ### Code that does not exist yet
-`server.py` · `sim.py` · `engine/` (terminals, call) · `model/` ·
-`audio/telephony/twilio.py` · `audio/ear.py` `mouth.py` `turn.py` · `data/log.py` · `data_cache/`
+`server.py` · `sim.py` · `engine/call.py` · `model/` ·
+`audio/telephony/twilio.py` · `audio/ear.py` `mouth.py` `turn.py` · `data/log.py` ·
+`data/pipeline/p2_derive.py`
+
+`data_cache/` now exists — 12 scraped schemes, gitignored, rebuilt from cache in ~30s.
 
 ### The one problem to know about
 Step 11 got built before Steps 0–10. The code is fine and none of it is wasted, but Step 11 cannot
@@ -120,7 +135,7 @@ for word. So the spec lost. `source-docs/T16-amendment-silence-class.md`, synced
 NOISE counts a turn; SILENCE never did, so T14's cap arithmetic is untouched. Step 6 inherits
 seven classes and the `silence_n` field.
 
-**Nothing waits on you. Step 3 is clear to start.**
+**Nothing waits on you. Step 6 is clear to start.**
 
 Two things deliberately left alone, carried as debt:
 - `compute_render_key()` lives in `contracts/types.py:189` — live logic in the one directory that
@@ -130,9 +145,14 @@ Two things deliberately left alone, carried as debt:
   keypad-only is a **mode** that writes its own one-off line on entry. Owed before Step 6.
 
 ### Still owed by you
-**ngrok** (`NGROK_DOMAIN`, blocks Step 1 + Step 12) · a **Twilio voice number** (keys are in,
-the number is unverified) · Plivo/Udyam (blocks nothing this week). Sarvam and Twilio keys are done.
-Details in §3a.
+**Nothing blocks any step any more.** ngrok and the Twilio voice number both landed 12 Sep and I
+verified both against the live APIs. What is left is one console click and one manual test:
+
+1. **Change the Twilio voice webhook to `/answer`** (2 min, console) — otherwise Step 1's call 404s.
+2. **Make the phone call (M1)** once Step 1's `server.py` exists.
+3. Plivo/Udyam — background, blocks nothing this week.
+
+Details in §3a and `work-adarsh/2026-09-12.md`.
 
 ---
 
@@ -176,9 +196,9 @@ everything that needs your hands.
 | Service | State | Blocks | Goes in `.env` as |
 |---|---|---|---|
 | **Groq** | ✅ **done 11 Sep**, tested live | ~~Steps 8, 9, 14~~ | `GROQ_API_KEY` |
-| **Twilio** | ❌ **today, ~15 min** — blocks nothing today, blocks 12 Sep | Step 1, Step 12 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` |
-| **ngrok** | ❌ **today, ~5 min** — same | Step 1, Step 12 | `NGROK_DOMAIN` |
-| **Sarvam** | ❌ needed by 12 Sep | Steps 10, 13 | `SARVAM_API_KEY` |
+| **Twilio** | ✅ **done 12 Sep**, verified live — +1 424 799 0057, voice ✅, account `active` **Trial** | ~~Step 1, Step 12~~ | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_US_PHONE_NUMBER` |
+| **ngrok** | ✅ **done 12 Sep**, DNS resolves — `attire-divorcee-spousal.ngrok-free.dev` | ~~Step 1, Step 12~~ | `NGROK_DOMAIN` |
+| **Sarvam** | ✅ **done**, key in `.env` | ~~Steps 10, 13~~ | `SARVAM_API_KEY` |
 | **Plivo** | background, no rush | nothing before the demo | — |
 
 **Twilio (~15 min).** Sign up. You get free trial credit. Buy a **US number with Voice**.
@@ -213,9 +233,13 @@ ngrok http --url=$NGROK_DOMAIN 8000
 ```
 
 Then: Twilio console → your number → **Voice → A call comes in → Webhook** →
-`https://<NGROK_DOMAIN>/answer`, method **HTTP POST** → Save.
+`https://attire-divorcee-spousal.ngrok-free.dev/answer`, method **HTTP POST** → Save.
 
-Now dial the number from your phone.
+⚠️ **As of 12 Sep it is set to the bare root `/`, which our server does not answer.** I read that
+straight off the Twilio API. Change it to `/answer` before you dial or every call 404s.
+`voice_method` is already POST — only the URL is wrong.
+
+Now dial **+1 424 799 0057** from your phone.
 
 | Check | What you should see or hear | Result |
 |---|---|---|
@@ -422,6 +446,13 @@ End with: "safe to merge: yes" or "safe to merge: no" plus the blocking items.
 Then update WORK.md §1 and §6.
 ```
 
+**Before you paste the merge line, always check the branch actually has commits:**
+```bash
+git log --oneline main..step-NN     # if this is empty, the merge will merge nothing
+```
+This has bitten twice — Step 3 on 11 Sep and Step 7 on 12 Sep. Both times the files were
+untracked and the branch was empty.
+
 ---
 
 ## 6 · The rest of the queue
@@ -432,13 +463,14 @@ full keypad call in the simulator, which is `v1-keypad` — a demoable product o
 | Step | What | State |
 |---|---|---|
 | 0 | Repo skeleton, Makefile, pyproject | **merged** 11 Sep |
-| 1 | Telephony smoke call | **moved to 12 Sep** — needs Twilio + ngrok + your hands |
+| 1 | Telephony smoke call | **unblocked 12 Sep** — Twilio number ✅ + ngrok ✅ verified. Needs `server.py` written, the webhook fixed to `/answer`, and your hands |
 | 2 | Contracts, log schema, fixture → tag `v1-skeleton` | **merged + tagged** 11 Sep. `v1-skeleton` on the merge commit, local only |
 | 3 | Filter (pure) | **merged** 12 Sep. Review: safe to merge, 0 blockers |
 | 4 | Planner (minimax) | **merged** 12 Sep, `--no-ff`. Review: safe to merge, 0 blockers. `pytest -q` → 43 passed on merged `main` |
-| 5 | Terminals | **← next, clear to start.** Prompt is written; carry-forward §9 12 must go in it |
-| 6 | Log, call loop, console sim | **first moment it looks like a product** |
-| 7–10 | Scraper → derivation → translate/gates → render | needs Groq ✅ + Sarvam |
+| 5 | Terminals | **merged** 12 Sep, `--no-ff`, ed69912. Review: safe to merge, 3 fixes applied in review |
+| 6 | Log, call loop, console sim | **← next, clear to start.** The single highest-value merge left — first moment it looks like a product |
+| 7 | Scraper | **merged** 12 Sep, `--no-ff`, e43207f. Review: safe to merge, 0 blockers. `pytest -q` → 64 passed on merged `main`. 12 schemes in `data_cache/raw/` |
+| 8–10 | Derivation → translate/gates → render | needs Groq ✅ + Sarvam ✅. Step 8 is today's second order |
 | 11 | Audio pool + corpus | **already built**, recheck against real data after 7–10 |
 | 12 | `v1-keypad` | **the demo milestone. If time runs short, stop here.** |
 
@@ -521,6 +553,43 @@ failed. Do not delete old lines.
              never widened, all numbers read from tunables.py. No secrets, no concurrency (R1).
 2026-09-12 — Merged `step-04` into `main` with --no-ff (670bead). No tag — `v1-skeleton` stays
              on the Step 2 merge.
+2026-09-12 — Reviewed Step 5 (terminals). Safe to merge, 3 fixes applied during review (fail-closed
+             naming, OVERFLOW_READ_CAP moved into tunables.py, no fabricated scheme ids). Merged
+             --no-ff as ed69912.
+2026-09-12 — Reviewed Step 7 (scraper). Verdict safe to merge, 0 blockers, all six checks PASS.
+             Ran it myself: `make pipeline-scrape` -> 12 schemes, all cached <1 day, all on
+             myscheme.gov.in, all four required blocks non-empty (4 of 12 have empty exclusions,
+             which is allowed). `pytest -q` -> 64 passed. py_compile clean. sync --status -> 0
+             dirty. No "twilio" anywhere in haqdaar/ or tests/. No runtime import of
+             data/pipeline/. data_cache/ ignored and never listed by git status.
+2026-09-12 — ⚠️ `step-07` has NO commits — all three files are untracked. Merging the branch
+             merges nothing. Same trap as Step 3 on 11 Sep. Commit lines are Order 0 of
+             work-with-tools/2026-09-12.md. Adding a `git log --oneline main..step-NN` check to
+             the review block so this cannot happen a third time.
+2026-09-12 — Wrote work-with-tools/2026-09-12.md (Order 0 commit Step 7, Order 1 Step 6, Order 2
+             Step 8) and work-with-tools/2026-09-12-summary.md — a plain-words account of what is
+             built, what each file does, what the thing can do today, and when it actually works.
+2026-09-12 — YOU: added NGROK_DOMAIN and TWILIO_US_PHONE_NUMBER to .env. I verified both live,
+             not just present: dig resolves attire-divorcee-spousal.ngrok-free.dev to five ngrok
+             IPs, and the Twilio API returns +1 424 799 0057, voice-capable, account `active`,
+             type Trial. Step 1 and Step 12 are unblocked. §1, §3a and §6 updated.
+2026-09-12 — ⚠️ The Twilio number's voice webhook is
+             `https://attire-divorcee-spousal.ngrok-free.dev/` — the bare ROOT, not `/answer`.
+             voice_method is POST, which is right; only the path is wrong. Every call will 404
+             until you change it in the console. Written up as the one blocker in
+             work-adarsh/2026-09-12.md. Read off the live Twilio API, not guessed.
+2026-09-12 — I hand-fixed .env line 7. It read `TWILIO_US_PHONE_NUMBER = +1424...` with spaces
+             around the `=`. python-dotenv tolerates that; a shell does not — `set -a; . ./.env`
+             printed `command not found: TWILIO_US_PHONE_NUMBER` and left the variable empty. The
+             §3b Step 1 recipe sources .env in a shell, so it would have bitten mid-call. Spaces
+             stripped from every line, re-sourced, both variables read correctly. chmod 600 kept,
+             git status still does not list .env. Added TWILIO_US_PHONE_NUMBER to .env.example.
+2026-09-12 — Committed and merged Step 7. git add the three untracked files + Makefile +
+             pyproject + .env.example -> e12b246 on step-07, merged --no-ff into main as e43207f.
+             The "step-07 has no commits" warning above is now stale — struck. `pytest -q` on
+             merged main -> 64 passed, py_compile clean, sync --status -> 66 files 0 dirty.
+2026-09-12 — Wrote work-adarsh/2026-09-12.md. It was missing — 12 Sep had a tool file but no
+             hands file, so the webhook problem had nowhere to live.
 ```
 
 ---
