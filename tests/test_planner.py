@@ -263,9 +263,14 @@ def test_widen_ladder_rung_1_income_band(corpus):
     # In fixture, S3 requires category=handloom, state=KARNATAKA, age=35, income_band=75000.
     # If caller answered income_band=30000 (mismatch), age=35 (match):
     # Dropping income_band at rung 1 immediately recovers S3!
+    # Hard boxes are answered: a widened candidate whose miss-set holds an
+    # unasked hard box is never speakable, so the planner asks that box before
+    # it widens (T10 speaking-rule exception, applied to the widened set).
     bv = {
         "category": "handloom",
         "state": "KARNATAKA",
+        "gender": "ALL",
+        "social_category": "ALL",
         "age": "35",
         "income_band": "30000",
     }
@@ -284,6 +289,8 @@ def test_widen_ladder_rung_2_age(corpus):
     bv = {
         "category": "handloom",
         "state": "KARNATAKA",
+        "gender": "ALL",
+        "social_category": "ALL",
         "age": "30",
         "income_band": "30000",
     }
@@ -296,44 +303,72 @@ def test_widen_ladder_rung_2_age(corpus):
 def test_widen_ladder_skips_unasked_or_unknown_rungs(corpus):
     """Widening ladder skips rungs over UNASKED or UNKNOWN boxes rather than counting them.
 
-    Order: income_band -> age -> occupation -> category.
-    If income_band is answered (mismatched), age is UNASKED, occupation is UNKNOWN, and category is answered:
+    Order: income_band -> age -> occupation.
+    income_band is answered and mismatched, age is UNASKED, occupation is
+    answered and mismatched:
     Rung 1: drop income_band -> still 0 survivors.
     age is UNASKED -> skipped (not counted, no mask to drop).
-    occupation is UNKNOWN -> skipped (not counted, no mask to drop).
-    Next rung: category -> dropping category recovers survivors!
-    Returns Widen("category").
+    Next rung: occupation -> dropping it recovers survivors.
     """
-    # S1, S2, S4, S5 are state=BIHAR, category=agriculture.
-    # S3 is state=KARNATAKA, category=handloom.
-    # If state=BIHAR and category=handloom: 0 survivors.
-    # Also answer income_band=75000 (which misses S1/S2 in BIHAR).
-    # age is UNASKED, occupation is UNKNOWN.
+    # S3 is the only KARNATAKA agriculture scheme (75000, farmer). income_band
+    # and occupation both miss it, and S4 (ANY on everything) is BIHAR, so
+    # nothing survives.
     bv = {
-        "state": "BIHAR",
-        "category": "handloom",
-        "income_band": "75000",
+        "category": "agriculture",
+        "state": "KARNATAKA",
+        "gender": "female",
+        "social_category": "SC",
+        "income_band": "50000",
         "age": UNASKED,
-        "occupation": UNKNOWN,
+        "occupation": "weaver",
     }
     assert len(Filter.survivors(bv, corpus)) == 0
 
     act = next_action(bv, corpus)
     assert isinstance(act, Widen)
-    # Rungs for age and occupation were skipped; category produced >= 1 survivor
-    assert act.box == "category"
+    # Rung 1 (income_band) did not recover anything on its own, age was skipped
+    assert act.box == "occupation"
 
 
-def test_widen_never_drops_hard_boxes(corpus):
-    """Hard boxes (state, gender, social_category) are walls and never widened."""
-    # When category is handloom and state is BIHAR: 0 survivors.
-    # Widening drops category (soft box) and recovers BIHAR schemes.
-    # State is never dropped to recover S3.
-    bv = {"category": "handloom", "state": "BIHAR"}
+def test_widen_never_drops_hard_boxes_or_category(corpus):
+    """Hard boxes are walls. `category` is soft but is never widened either.
+
+    T10 D6 as amended 13 Sep: the ladder is income_band -> age -> occupation.
+    `category` is the subject the caller phoned about (Door A), so relaxing it
+    would answer a question they did not ask — and with it in the ladder,
+    "ladder exhausted" and "no scheme with a soft-only miss-set" collapse into
+    the same condition, which made delivery shape 4 (Nearest) unreachable.
+    """
+    assert "category" not in WIDENING_ORDER
+    assert not set(WIDENING_ORDER) & HARD_BOXES
+
+    # category=handloom in BIHAR: 0 survivors, and no soft box is answered, so
+    # there is no rung to walk. The call stops on zero survivors and the
+    # terminal becomes Nearest or Empty — it never drops the subject.
+    bv = {
+        "category": "handloom",
+        "state": "BIHAR",
+        "gender": "female",
+        "social_category": "SC",
+    }
+    assert len(Filter.survivors(bv, corpus)) == 0
     act = next_action(bv, corpus)
-    assert isinstance(act, Widen)
-    assert act.box == "category"
-    assert act.box not in HARD_BOXES
+    assert isinstance(act, Stop)
+    assert act.reason == STOP_ZERO_SURVIVORS
+
+
+def test_zero_survivors_asks_hard_box_the_nearest_would_need(corpus):
+    """The speaking-rule exception also guards the Nearest terminal.
+
+    With gender and social_category unasked, the nearest candidates are gagged
+    by Filter.speakable() and the caller would hear an empty terminal over a
+    corpus that held two near misses. The planner asks the hard box first.
+    """
+    bv = {"category": "handloom", "state": "BIHAR"}
+    assert len(Filter.survivors(bv, corpus)) == 0
+    act = next_action(bv, corpus)
+    assert isinstance(act, Ask)
+    assert act.box in HARD_BOXES
 
 
 def test_minimax_scoring_and_tie_breaking(corpus):
@@ -407,3 +442,23 @@ def test_planner_class_interface(corpus):
     res = Planner.next_action({}, corpus)
     assert isinstance(res, Ask)
     assert res.box == "income_band"
+
+
+def test_widen_asks_unasked_hard_box_before_widening(corpus):
+    """A widened candidate is only worth buying if it can be spoken.
+
+    S3 (category=handloom, state=KARNATAKA) is recovered by dropping
+    income_band, but it is non-ANY on gender and social_category. With those
+    hard boxes unasked the truth lock would refuse to name it and the terminal
+    would collapse to Empty. The planner asks the hard box first.
+    """
+    bv = {
+        "category": "handloom",
+        "state": "KARNATAKA",
+        "age": "35",
+        "income_band": "30000",
+    }
+    assert len(Filter.survivors(bv, corpus)) == 0
+    act = next_action(bv, corpus)
+    assert isinstance(act, Ask)
+    assert act.box in HARD_BOXES

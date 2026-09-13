@@ -144,7 +144,8 @@ branch's history · numbers live in `contracts/tunables.py`, not inline.
   - **The speaking-rule exception:** do **not** stop on "≤4" while an unasked hard box is non-`ANY`
     on any survivor. **Ask that box first**, or the call stops holding schemes it is not allowed to
     speak.
-  - **`Widen`:** soft boxes only, one at a time, **`income_band → age → occupation → category`**,
+  - **`Widen`:** soft boxes only, one at a time, **`income_band → age → occupation`**
+    (**amended 13 Sep 2026: `category` is never widened** — see [[09-DECISION-LOG]]),
     skipping rungs over UNASKED/UNKNOWN boxes (they appended no mask, so there is nothing to widen),
     **stopping at the first rung producing ≥1 survivor.**
 - **Done when:** `pytest tests/test_planner.py` covers **all four stops** and the full ladder,
