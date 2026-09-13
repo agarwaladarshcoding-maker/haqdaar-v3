@@ -590,6 +590,20 @@ failed. Do not delete old lines.
              merged main -> 64 passed, py_compile clean, sync --status -> 66 files 0 dirty.
 2026-09-12 — Wrote work-adarsh/2026-09-12.md. It was missing — 12 Sep had a tool file but no
              hands file, so the webhook problem had nowhere to live.
+2026-09-12 — Reviewed Step 8 (derivation), night of 12 Sep. Verdict: safe to merge NO, 2 blockers.
+             Ran it myself: `make pipeline-extract` -> 12 schemes, 36/36 cache hits, 0 calls.
+             Every non-ANY facet quote is found word for word in the eligibility text (checked
+             again with a plain `quote in text`). `pytest -q` -> 74 passed (70 + 4 new).
+             py_compile clean. sync --status -> 0 dirty. No twilio, no secrets, no pool (R1).
+2026-09-12 — Step 8 review fixed 7 small things, no model call spent: `level` "Central" ->
+             "CENTRAL" (contract); "ALL" removed from the closed sets (ANY is the only sentinel);
+             fake "<slug> yojana / scheme / portal" alias padding removed (a thin scheme now fails
+             loudly, as T07 says); the >=3-schemes alias rule got its own dial
+             ALIAS_CATEGORY_WORD_MIN instead of borrowing ALIAS_FLOOR; retries, timeouts, waits
+             and the 300-char slice moved to tunables.py; the ~35-word cap is checked in code;
+             the quote invariant now runs before any file is written. Not committed.
+2026-09-12 — ⚠️ `step-08` has NO commits — all Step 8 work is untracked or unstaged. Third time.
+             Blocker list and commit lines are in work-adarsh/2026-09-12.md.
 ```
 
 ---
@@ -661,3 +675,22 @@ failed. Do not delete old lines.
    from `tunables.py` with nothing inline, the speaking-rule exception is under test, out-of-set
    answers re-ask (closes §9 13 for the Planner side), nothing from Step 5 started, no secrets,
    and no queue, pool, registry or concurrency setting (**R1** holds).
+18. **Step 8 blocker — model aliases point callers at the wrong scheme.** The alias prompt gave
+   *"pm kisan loan"* as an example, and the model copied it onto other schemes: APY has
+   `pm kisan loan` (hi and mr), SMAM has `pm कisan मशीन`, PMFBY has `pm kisan insurance` /
+   `pm kisan bima`. Door A string-matches aliases before the model, so a caller asking for
+   PM-KISAN can be offered APY. Also junk: DAY-NRLM hi `शहरी …` (urban, for a rural mission),
+   PMAY-G mr `pm awas ग्रीष्म` (summer). **Fix:** drop the named example from the prompt, delete
+   `data_cache/extract/*_aliases.json`, re-run (12 calls), and read the aliases by eye once.
+19. **Step 8 blocker — `age` and `income_band` are one number with no direction.** APY is
+   stored `age=18` (its minimum), so its upper limit is lost; NAPS is stored `age=35` (a maximum).
+   The Filter cannot tell which. The data contract §1C says numbers are stored exact as a min and
+   a max, and `p6_snapshot.derive_keypad_bands` already reads `{"min": .., "max": ..}`. **Fix:**
+   ask for `{"min", "max"}` with a quote each, keep the quote check, delete
+   `data_cache/extract/*_facets.json`, re-run (12 calls). Do 18 and 19 in one re-run: 24 calls.
+20. **Step 8 non-blockers, for later.** (a) The cache key is `sha + task` only, so a changed
+   prompt or model id silently reuses old answers — that is why 18 and 19 need a manual delete.
+   (b) The occupation cut filters a hand-written 7-value seed list by what the corpus uses; it
+   meets T07's rule but cannot find a value outside the seed. Fine at 12 schemes, cardinality 3.
+   (c) `level` and `department` are hardcoded (all 12 are central, so true today). (d) HI/MR
+   section chunks are empty — Step 9 fills them.
