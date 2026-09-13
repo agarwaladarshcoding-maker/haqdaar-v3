@@ -49,3 +49,23 @@ VOICE_IDS: dict[str, str] = {
 # Directories and paths
 AUDIO_DIR: str = os.environ.get("AUDIO_DIR", "audio")
 SNAPSHOTS_DIR: str = os.environ.get("SNAPSHOTS_DIR", "snapshots")
+RAW_CACHE_DIR: str = os.environ.get("RAW_CACHE_DIR", "data_cache/raw")
+EXTRACT_CACHE_DIR: str = os.environ.get("EXTRACT_CACHE_DIR", "data_cache/extract")
+DERIVED_DIR: str = os.environ.get("DERIVED_DIR", "data_cache/derived")
+
+# Groq model and extraction pipeline (06-BUILD-PLAN.md Step 8)
+GROQ_MODEL: str = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
+GROQ_REASONING_EFFORT: str = os.environ.get("GROQ_REASONING_EFFORT", "low")
+GROQ_POLITE_DELAY_S: float = float(os.environ.get("GROQ_POLITE_DELAY_S", 2.0))
+SUMMARY_WORD_TARGET: int = int(os.environ.get("SUMMARY_WORD_TARGET", 35))
+SUMMARY_WORD_TOLERANCE: int = int(os.environ.get("SUMMARY_WORD_TOLERANCE", 10))
+GROQ_MAX_RETRIES: int = int(os.environ.get("GROQ_MAX_RETRIES", 6))
+GROQ_TIMEOUT_S: float = float(os.environ.get("GROQ_TIMEOUT_S", 45.0))
+GROQ_RETRY_SLEEP_S: float = float(os.environ.get("GROQ_RETRY_SLEEP_S", 2.0))
+GROQ_429_DEFAULT_WAIT_S: float = float(os.environ.get("GROQ_429_DEFAULT_WAIT_S", 5.0))
+GROQ_429_MIN_WAIT_S: float = float(os.environ.get("GROQ_429_MIN_WAIT_S", 1.0))
+GROQ_429_PAD_S: float = float(os.environ.get("GROQ_429_PAD_S", 1.5))
+ALIAS_BENEFITS_CHARS: int = int(os.environ.get("ALIAS_BENEFITS_CHARS", 300))
+# An alias on this many schemes or more is a category word and is dropped from all (T12)
+ALIAS_CATEGORY_WORD_MIN: int = int(os.environ.get("ALIAS_CATEGORY_WORD_MIN", 3))
+

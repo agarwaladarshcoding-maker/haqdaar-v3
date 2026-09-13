@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run sim test demo-fixture pipeline smoke pipeline-scrape
+.PHONY: run sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract
 
 test:
 	$(PYTHON) -m pytest
@@ -16,6 +16,10 @@ demo-fixture:
 
 pipeline-scrape:
 	$(PYTHON) -m haqdaar.data.pipeline.p1_scrape
+
+pipeline-extract:
+	$(PYTHON) -m haqdaar.data.pipeline.p2_derive
+
 
 pipeline:
 	@echo "pipeline target (implemented in Step 11)"
