@@ -1,12 +1,25 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract
+.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract
 
 test:
 	$(PYTHON) -m pytest
 
+# Everything the server prints also goes to logs/server.log (Claude reads it).
+# Starts the cloudflared tunnel and points the number at it. Backup: TUNNEL=ngrok make run
 run:
-	$(PYTHON) -m uvicorn haqdaar.server:app --host 0.0.0.0 --port 8000
+	@mkdir -p logs
+	@$(PYTHON) -m tools.tunnel | tee -a logs/server.log
+	NGROK_DOMAIN=$$($(PYTHON) -m tools.tunnel --host) PYTHONUNBUFFERED=1 $(PYTHON) -m uvicorn haqdaar.server:app --host 0.0.0.0 --port 8000 2>&1 | tee -a logs/server.log
+
+# Last calls on the phone line, with any warnings the provider logged.
+calls:
+	$(PYTHON) -m tools.calls
+
+# Backup: ring your phone (CALL_ME_NUMBER in .env, or TO=+91...). Needs make run.
+# Uses the live tunnel; HOST=<address> to aim at another server.
+call:
+	NGROK_DOMAIN=$${HOST:-$$($(PYTHON) -m tools.tunnel --host)} $(PYTHON) -m tools.call_me $(TO)
 
 sim:
 	$(PYTHON) -m haqdaar.sim
