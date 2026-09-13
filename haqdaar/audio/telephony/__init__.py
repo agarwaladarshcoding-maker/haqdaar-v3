@@ -24,6 +24,9 @@ from haqdaar.audio.telephony.twilio import (
     build_mark,
     build_clear,
     build_stream_twiml,
+    place_call,
+    point_number_at,
+    recent_calls,
 )
 
 __all__ = [
@@ -45,4 +48,7 @@ __all__ = [
     "build_mark",
     "build_clear",
     "build_stream_twiml",
+    "place_call",
+    "point_number_at",
+    "recent_calls",
 ]

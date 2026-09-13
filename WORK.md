@@ -767,6 +767,11 @@ failed. Do not delete old lines.
              `haqdaar/audio/telephony/twilio.py` (parse 6 inbound, build 3 outbound, twilio isolation preserved),
              `tools/tone.py` (8 kHz μ-law pure python tone generator), `haqdaar/contracts/tunables.py`
              telephony tunables added. `tests/test_twilio_codec.py` 10 tests passed; `pytest -q` -> 108 passed.
+2026-09-13 — Lost keys fixed. Cause: ngrok carried ~50% real time US->India, keys late, backlog
+             dropped at hang-up (31921). Cloudflare quick tunnel: 2 real calls, ~100% real time,
+             all keys live. `make run` now starts cloudflared + points the number at it
+             (`tools/tunnel.py`, `point_number_at` in telephony); `TUNNEL=ngrok` is the backup.
+             US server (Codespace, Virginia) tried, parked for v2 — see §9 28. 109 passed.
 ```
 
 ---
@@ -970,3 +975,12 @@ failed. Do not delete old lines.
    and SMAM lose their category, and a Door A category answer barely narrows anything. Fix: let
    the category quote match eligibility OR benefits (still verbatim, still in code), delete the
    facets cache, re-run (12 calls).
+
+28. **Parked for v2: run the server in the US, near Twilio.** 13 Sep: laptop in India behind ngrok
+   got only half the audio; Cloudflare tunnel fixed it for keypad calls. A US server was tried
+   (free GitHub Codespace, Virginia, same area as Twilio) but not tested — the public port was never
+   opened, so the call got "application error". **v2 must retest it before Step 13**: live speech
+   is far less forgiving than keys. Plan kept in `.agent/NOTES.md`: servers B (US alone) and
+   C (US + cloudflared), same 1-2-3-4-5-9 call on each, compare key delay and packets per second.
+   Also note: the Cloudflare quick-tunnel address changes on every restart and has no uptime
+   promise; `tools/tunnel.py` handles the change, ngrok is the fallback.

@@ -231,3 +231,58 @@ def build_stream_twiml(stream_url: str, keep_call_alive: bool = False) -> str:
         f"  </Connect>\n"
         f"</Response>"
     )
+
+
+def _api(path: str, data: dict[str, str] | None = None, opener: Any = None) -> dict[str, Any]:
+    """Call the provider REST API with keys from the environment. Never logs secrets."""
+    import os
+    import urllib.parse
+    import urllib.request
+
+    sid = os.environ["TWILIO_ACCOUNT_SID"]
+    token = os.environ["TWILIO_AUTH_TOKEN"]
+    body = urllib.parse.urlencode(data).encode() if data is not None else None
+    req = urllib.request.Request(
+        f"https://api.twilio.com/2010-04-01/Accounts/{sid}/{path}", data=body
+    )
+    auth = base64.b64encode(f"{sid}:{token}".encode()).decode()
+    req.add_header("Authorization", f"Basic {auth}")
+    with (opener or urllib.request.urlopen)(req) as resp:
+        return json.loads(resp.read())
+
+
+def place_call(to_number: str, answer_url: str, opener: Any = None) -> str:
+    """Ask the line to ring `to_number`; when picked up it fetches `answer_url`. Returns call SID."""
+    import os
+
+    form = {
+        "To": to_number,
+        "From": os.environ["TWILIO_US_PHONE_NUMBER"],
+        "Url": answer_url,
+        "Method": "POST",
+    }
+    return _api("Calls.json", form, opener)["sid"]
+
+
+def recent_calls(limit: int = 5) -> list[dict[str, Any]]:
+    """Last calls, newest first, each with its provider warnings under "notices"."""
+    calls = _api(f"Calls.json?PageSize={limit}")["calls"]
+    for c in calls:
+        c["notices"] = _api(f"Calls/{c['sid']}/Notifications.json")["notifications"]
+    return calls
+
+
+def point_number_at(answer_url: str) -> str:
+    """Set the line's own number to fetch `answer_url` when someone dials in. Returns the old URL."""
+    import os
+    import urllib.parse
+
+    number = urllib.parse.quote(os.environ["TWILIO_US_PHONE_NUMBER"])
+    found = _api(f"IncomingPhoneNumbers.json?PhoneNumber={number}")["incoming_phone_numbers"]
+    if not found:
+        raise RuntimeError("line number not found on this account")
+    old = found[0]["voice_url"]
+    if old != answer_url:
+        _api(f"IncomingPhoneNumbers/{found[0]['sid']}.json",
+             {"VoiceUrl": answer_url, "VoiceMethod": "POST"})
+    return old

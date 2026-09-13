@@ -282,3 +282,25 @@ def test_websocket_stream_tone_and_dtmf(capsys: pytest.CaptureFixture[str]) -> N
     assert "mark tone_end" in captured
     assert "dtmf 1" in captured
     assert "dtmf 9" in captured
+
+
+def test_place_call_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    from haqdaar.audio.telephony import place_call
+    import io
+    import urllib.parse
+
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC_x")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "tok")
+    monkeypatch.setenv("TWILIO_US_PHONE_NUMBER", "+14240000000")
+    seen = {}
+
+    def fake_open(req):
+        seen["req"] = req
+        return io.BytesIO(b'{"sid": "CA_new"}')
+
+    assert place_call("+910000000000", "https://d.example/answer", fake_open) == "CA_new"
+    req = seen["req"]
+    assert req.full_url.endswith("/Accounts/AC_x/Calls.json")
+    form = urllib.parse.parse_qs(req.data.decode())
+    assert form["To"] == ["+910000000000"]
+    assert form["Url"] == ["https://d.example/answer"]

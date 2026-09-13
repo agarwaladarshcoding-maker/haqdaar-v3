@@ -18,7 +18,8 @@ Each entry says: what was added, what was changed, and what the project can do a
   schemes, reads out what matches, and writes a log of every turn (Step 6).
 - Pick the next question that cuts the list down fastest (Step 4), drop schemes that don't fit (Step 3),
   and choose how to end the call (Step 5).
-- `pytest -q` → **108 passed**.
+- Take a real phone call through a Cloudflare tunnel, with every key arriving on time (Step 1).
+- `pytest -q` → **109 passed**.
 
 **It cannot yet:**
 - Run full voice dialogue over the phone call (waiting on speech model, TTS audio, and live dial verification).
@@ -82,6 +83,59 @@ Each entry says: what was added, what was changed, and what the project can do a
 ---
 
 ## 3 · Log — newest first
+
+### 13 Sep · keys fixed: Cloudflare tunnel instead of ngrok
+- **Why keys went missing:** ngrok could only carry half the audio from the US to India, so keys arrived late and were lost at hang-up.
+- **Fix:** the Cloudflare tunnel. Two real calls: all audio on time, every key live, no stalls.
+- **Added:** `make run` now starts the Cloudflare tunnel by itself and points the phone number at it.
+  `make call` uses the same address. Backup: `TUNNEL=ngrok make run`. New file `tools/tunnel.py`.
+- **Tried and parked for v2:** a US server (free GitHub Codespace in Virginia, near Twilio). The call gave
+  "application error" because the port was never made public. Not needed now; v2 needs it for live speech (Step 13+).
+  The test machine is stopped and deletes itself within 24 h.
+- `pytest -q` → 109 passed.
+
+### 13 Sep · why keys go missing — found
+**Cause:** the internet path from the phone company (in the US) to your laptop (in India, through
+ngrok) carries only about half the audio in real time. Everything queues up. Keys arrive late —
+your second "1" came 9 s late — and when you hang up, whatever is still in the queue is thrown
+away. That is where your 2s went. Same rate on both calls (about 50%).
+**Not the cause:** our code. A fake call through the same ngrok link got 4 of 4 keys and all audio.
+**Added:** the log now warns `!! falling behind: audio arrives X s late`.
+**Fix, your pick:** run the server on a small US machine next to the phone company (needed anyway
+once speech comes in, Step 13), or first try a different tunnel for a 5-minute check.
+
+### 13 Sep · second call: keys 2 and 3 lost
+**What happened:** beep and `mark tone_end` fine. Then the line stalled: no sound reached the
+server for about 15 s. Key 1 and the hang-up arrived together at the very end; 2 and 3 never came.
+The provider logged 31921 (socket dropped, no clean close). `Error 130` was only Ctrl+C.
+**Changed:** the log now says when nothing arrives for over 1 s, the audio clock when a key comes
+in, and whether the call closed cleanly or dropped. `make calls` no longer crashes on that warning.
+**Next:** one more call to see where the stall is.
+
+### 13 Sep · first real call worked + a call log
+**Result:** the line rang your phone (13 Sep, 44 s, completed). The provider logged one warning:
+`keepCallAlive` is not a real setting on `<Stream>`, so it is ignored. The call still ends when
+the socket closes, which is what we wanted. **Your call:** drop the setting, or keep it as harmless.
+**Added:** `make run` now shows one line per call event with the time (answer, start, tone sent,
+mark, key pressed, closed) and copies everything to `logs/server.log`, so Claude can read it.
+`make calls` lists the last calls and any warnings. `pytest -q` → 109 passed.
+**Still to record:** seconds from dial to beep, and the three-phones test.
+
+### 13 Sep · backup: the line can ring you
+**Added:** `make call` (`tools/call_me.py`). It asks the phone line to ring your number
+(`CALL_ME_NUMBER` in `.env`, or `make call TO=+91...`). When you pick up, you get the same beep.
+Needs `make run` and ngrok up. `pytest -q` → 109 passed.
+
+### 13 Sep · Step 1 checked by Claude
+**Result:** the code is good. `pytest -q` → 108 passed. I also started the real server and played a
+fake call against it: `/answer` sends the right XML, the tone goes out (8000 bytes, no header),
+`mark tone_end`, `dtmf 1`, `dtmf 9` print, and 9 closes the line. "twilio" shows up only in the
+telephony folder.
+**Still missing:** the real phone call (M1). Until then, do not merge. After the call, write into
+the commit message whether `keepCallAlive="false"` worked, the seconds from dial to tone, and the
+three-phones result.
+**Small things, not blocking:** if `NGROK_DOMAIN` is empty the stream URL breaks (it is set in
+`.env` now). The beep encoder is off by one step on 55 of ~9,400 sample values — you can't hear it.
 
 ### 13 Sep · Step 1 implemented (Telephony smoke call)
 **Added:**
