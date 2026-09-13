@@ -88,7 +88,7 @@ Filter.miss_set(box_vector, corpus, ix)    -> frozenset[BoxId]
 | Clause | Ticket |
 |---|---|
 | **Specificity, not tally, orders survivors.** Every survivor holds every answered box by construction, so their tallies are **identical** — tally only works at zero survivors. **Specificity = the count of non-`ANY` boxes matched on.** Without it, *the top of every list is the most generic scheme in the corpus, on every call* | [[tickets/T10]] D5 |
-| **Widening: soft boxes only, one at a time, `income_band → age → occupation → category`** — least-trusted first, the caller's stated need last. **A trust order, not an efficiency one** | [[tickets/T10]] D6 · [[tickets/T18]] 1 |
+| **Widening: soft boxes only, one at a time, `income_band → age → occupation`** — least-trusted first. **`category` is never widened** (amended 13 Sep 2026): the caller's stated need is not a constraint to relax. **A trust order, not an efficiency one** | [[tickets/T10]] D6 · [[tickets/T18]] 1 |
 | **Stop at the first rung producing ≥1 survivor.** *Every rung discards a fact the caller stated; discarding more than necessary is a larger misstatement of what was matched on* | [[tickets/T18]] 1 |
 | **Rungs over UNASKED/UNKNOWN soft boxes are skipped, not counted** — they appended no mask, so there is nothing to widen. At most 4 rungs; typically 1–2 run | [[tickets/T18]] 1 |
 | **Widening can never reintroduce a hard-box violation**, by construction | [[tickets/T18]] 1 |

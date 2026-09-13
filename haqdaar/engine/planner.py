@@ -130,6 +130,87 @@ def _minimax_score(
     return elimination / turns
 
 
+def _cap_stop(
+    turn_count: Optional[int],
+    question_count: Optional[int],
+    box_vector: Mapping[BoxId, ValueCode],
+    corpus: Any,
+) -> Optional[Stop]:
+    """Return the Stop a budget cap forces, or None if there is room to ask."""
+    if turn_count is not None and turn_count >= tunables.MAX_TURNS:
+        return Stop(STOP_MAX_TURNS)
+    eff_q = (
+        question_count
+        if question_count is not None
+        else _inferred_questions(box_vector, corpus)
+    )
+    if eff_q >= tunables.MAX_QUESTIONS:
+        return Stop(STOP_MAX_QUESTIONS)
+    return None
+
+
+def _hard_box_to_ask_before_speaking(
+    candidates: Sequence[int],
+    box_vector: Mapping[BoxId, ValueCode],
+    corpus: Any,
+) -> Optional[BoxId]:
+    """The speaking-rule exception, as one rule for every terminal.
+
+    T10 D4 states it for the "<=4 survivors" stop: do not stop while an unasked
+    hard box is non-ANY on any survivor, "or the call stops holding schemes it
+    is not allowed to speak". The reason has nothing to do with how the
+    candidates were obtained. A widened match and a nearest are held under the
+    same truth lock (`Filter.speakable`), so leaving a hard box unasked gags
+    them too, and the caller hears an empty terminal over a corpus that held
+    something. Applied to whichever set the terminal is about to speak.
+
+    Returns the box to ask (minimax order, ties on snapshot order), or None.
+    """
+    if not candidates:
+        return None
+    unasked_non_any_hard = [
+        h
+        for h in SEVEN_BOXES
+        if h in HARD_BOXES
+        and _is_askable(h, box_vector.get(h), corpus)
+        and any(_is_scheme_non_any(s, h, corpus) for s in candidates)
+    ]
+    if not unasked_non_any_hard:
+        return None
+    best = unasked_non_any_hard[0]
+    best_score = -1.0
+    for h in unasked_non_any_hard:
+        score = _minimax_score(h, candidates, box_vector, corpus)
+        if score > best_score:
+            best_score = score
+            best = h
+    return best
+
+
+def _nearest_candidates(
+    box_vector: Mapping[BoxId, ValueCode],
+    corpus: Any,
+) -> list[int]:
+    """Schemes the Nearest terminal could speak: miss-set holds no hard box.
+
+    Deliberately does NOT apply Filter.speakable(). An unasked hard box is not
+    a miss, so a scheme can look like a nearest candidate here and still be
+    ungagged only after that box is asked. That is exactly the gap
+    _hard_box_to_ask_before_speaking() exists to close.
+    """
+    total = 0
+    if corpus is not None and hasattr(corpus, "_scheme_ids"):
+        total = len(corpus._scheme_ids)
+    elif corpus is not None and hasattr(corpus, "scheme_id"):
+        while corpus.scheme_id(total) != "":
+            total += 1
+    return [
+        ix
+        for ix in range(total)
+        if not Filter.miss_set(box_vector, corpus, ix).intersection(HARD_BOXES)
+    ]
+
+
 def _inferred_questions(box_vector: Mapping[BoxId, ValueCode], corpus: Any) -> int:
     """Count questions asked so far from box_vector (opener is turn 0, not question 0)."""
     count = 0
@@ -162,14 +243,36 @@ def next_action(
             b for b in WIDENING_ORDER if _is_answered(b, box_vector.get(b), corpus)
         ]
         if not answered_soft:
+            # No rung to walk. The terminal is Nearest or Empty, so the
+            # speaking-rule exception is the only thing left to check.
+            gag = _hard_box_to_ask_before_speaking(
+                _nearest_candidates(box_vector, corpus), box_vector, corpus
+            )
+            if gag is not None:
+                capped = _cap_stop(turn_count, question_count, box_vector, corpus)
+                return capped if capped is not None else Ask(gag)
             return Stop(STOP_ZERO_SURVIVORS)
 
         dropped: set[BoxId] = set()
         for rung_box in answered_soft:
             dropped.add(rung_box)
             test_vector = {k: v for k, v in box_vector.items() if k not in dropped}
-            if len(Filter.survivors(test_vector, corpus)) >= 1:
+            widened = Filter.survivors(test_vector, corpus)
+            if len(widened) >= 1:
+                gag = _hard_box_to_ask_before_speaking(widened, box_vector, corpus)
+                if gag is not None:
+                    capped = _cap_stop(turn_count, question_count, box_vector, corpus)
+                    return capped if capped is not None else Ask(gag)
                 return Widen(rung_box)
+
+        # The ladder found nothing. The terminal will be Nearest or Empty, and
+        # the same rule applies to the nearest candidates.
+        gag = _hard_box_to_ask_before_speaking(
+            _nearest_candidates(box_vector, corpus), box_vector, corpus
+        )
+        if gag is not None:
+            capped = _cap_stop(turn_count, question_count, box_vector, corpus)
+            return capped if capped is not None else Ask(gag)
 
         return Stop(STOP_ZERO_SURVIVORS)
 

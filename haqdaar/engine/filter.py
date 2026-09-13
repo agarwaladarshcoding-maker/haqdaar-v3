@@ -256,7 +256,13 @@ def speakable(scheme, box_vector=None, corpus=None, *, vector=None):
             is_any = False
             if corpus is not None and not isinstance(corpus, dict) and hasattr(corpus, "values"):
                 vals = corpus.values(box)
-                if vals:
+                if not vals:
+                    # An empty closed set means no scheme in the snapshot is
+                    # non-ANY on this box, so there is nothing to vet. Treating
+                    # it as "not ANY" refused every scheme in a corpus where the
+                    # box is universally ANY (e.g. all-nationwide `state`).
+                    is_any = True
+                elif vals:
                     all_set = True
                     for v in vals:
                         m = _get_mask(corpus, box, v)

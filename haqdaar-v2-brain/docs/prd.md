@@ -6,7 +6,7 @@ module: general
 status: reviewed
 tags: [prd, product, scope, acceptance, staging]
 created: 2026-09-10
-updated: 2026-09-10
+updated: 2026-09-13
 author: Adarsh Agarwala
 last_agent_edit: claude-code
 source_file: source-docs/PRD.md
@@ -163,7 +163,7 @@ never transmitted.
 | Door B | Opener fills what it can, confirmed once as a bundle. Then question turns: `state` spoken, the rest keypad |
 | Planner | Minimax elimination ÷ expected turns; hard boxes first only while they still split the set |
 | Stopping | ≤4 survivors · no box splits · **8 turns** · **6 questions** · zero survivors |
-| **Widening** | **In scope.** Soft boxes only, one at a time, `income_band → age → occupation → category`, stopping at the first rung with ≥1 survivor |
+| **Widening** | **In scope.** Soft boxes only, one at a time, `income_band → age → occupation`, stopping at the first rung with ≥1 survivor. **`category` is never widened** (amended 13 Sep 2026) |
 | Endings | direct match · overflow (top 3) · **widened match** · nearest (≤2, summary only) · empty |
 | Help keys | `#` repeat · `*` language · `0` don't-know/none-of-these |
 | Failures | Silence ladder 6/6/6 · box-level keypad drop · call-level keypad-only on 2 model failures or 1 unrecovered ASR socket |

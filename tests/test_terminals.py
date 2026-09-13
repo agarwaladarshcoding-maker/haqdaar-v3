@@ -387,24 +387,44 @@ def test_classify_shape_and_end_to_end_dispatch(fixtures_data, corpus):
     assert seq_p1[0] == RESULTS_EXACT_PREAMBLE
     assert "name:S1" in seq_p1
 
-    # Widened match: handloom in BIHAR for female SC
-    # Initial survivors: 0. Widening ladder drops category -> matches S1, S2, S4
+    # Widened match: agriculture in KARNATAKA for female SC on the wrong income.
+    # Initial survivors: 0. Rung 1 drops income_band -> S3 comes back.
     widened_vec = {
+        "state": "KARNATAKA",
+        "gender": "female",
+        "social_category": "SC",
+        "category": "agriculture",
+        "income_band": "30000",
+    }
+    shape_w, survs_w, drops_w = classify_shape(box_vector=widened_vec, corpus=corpus)
+    assert shape_w == DELIVERY_WIDENED_MATCH
+    assert drops_w == ["income_band"]
+    assert len(survs_w) >= 1
+
+    seq_w = render_terminal(box_vector=widened_vec, corpus=corpus)
+    assert seq_w[0] == TERMINAL_WIDENED_PREAMBLE
+    assert "drop_income_band" in seq_w
+    assert RESULTS_WIDENED_LEAD in seq_w
+    assert "name:S3" in seq_w
+
+    # `category` is never widened (T10 D6 as amended 13 Sep). handloom in BIHAR
+    # has no match and no soft box to relax, so the terminal is Nearest, not a
+    # widened match that quietly answered a different question.
+    subject_vec = {
         "state": "BIHAR",
         "gender": "female",
         "social_category": "SC",
         "category": "handloom",
     }
-    shape_w, survs_w, drops_w = classify_shape(box_vector=widened_vec, corpus=corpus)
-    assert shape_w == DELIVERY_WIDENED_MATCH
-    assert drops_w == ["category"]
-    assert len(survs_w) >= 1
+    shape_s, survs_s, drops_s = classify_shape(box_vector=subject_vec, corpus=corpus)
+    assert shape_s == DELIVERY_NEAREST
+    assert drops_s == []
+    assert len(survs_s) == tunables.NEAREST_CAP
 
-    seq_w = render_terminal(box_vector=widened_vec, corpus=corpus)
-    assert seq_w[0] == TERMINAL_WIDENED_PREAMBLE
-    assert "drop_category" in seq_w
-    assert RESULTS_WIDENED_LEAD in seq_w
-    assert "name:S1" in seq_w
+    seq_s = render_terminal(box_vector=subject_vec, corpus=corpus)
+    assert seq_s[0] == TERMINAL_NEAREST_PREAMBLE
+    assert "drop_category" not in seq_s
+    assert SECTION_MENU not in seq_s
 
     # Nearest delivery: rendered directly or via shape override
     p2_vec = personas["P2"]["demographics"]

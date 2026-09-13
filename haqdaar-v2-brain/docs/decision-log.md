@@ -6,7 +6,7 @@ module: architecture
 status: reviewed
 tags: [decisions, supersession, traceability, staging]
 created: 2026-09-10
-updated: 2026-09-10
+updated: 2026-09-13
 author: Adarsh Agarwala
 last_agent_edit: claude-code
 source_file: source-docs/MAP-done.md
@@ -29,7 +29,7 @@ Read with [[RULES.md]] §6: *if a decision invalidates an earlier note, the old 
 | Original | Superseded by | What changed |
 |---|---|---|
 | map rev 2 — *"widen the last mask and retry once"* | [[tickets/T09]] 5 | **Widening by recency is unsafe** — if the last box was `state`, it manufactures schemes the caller is geographically barred from. Replaced by a **soft-only** ladder |
-| [[tickets/T09]] — *"an order T10 supplies"* | [[tickets/T10]] D6 | The order is **`income_band → age → occupation → category`** — least-trusted first |
+| [[tickets/T09]] — *"an order T10 supplies"* | [[tickets/T10]] D6 | The order is **`income_band → age → occupation`** — least-trusted first. **Amended 13 Sep 2026: `category` was removed from the ladder.** It is the subject the caller phoned about (Door A), so relaxing it answers a question they did not ask — and with it in the ladder, *ladder exhausted* and *no scheme with a soft-only miss-set* are the same condition, which made delivery shape ④ Nearest unreachable in every corpus |
 | [[tickets/T10]] D6 — *"stop the moment ≥2 schemes are speakable"* | [[tickets/T18]] 1 | **Stop at the first rung producing ≥1 survivor.** *Every rung discards a fact the caller stated* |
 | [[tickets/T10]] D4 — three stops | [[tickets/T18]] 1 | **Zero survivors is a fourth stop, named separately in the LOG** — a reader must tell *nothing was left* from *no question helped* |
 | [[tickets/T06]] — *"a turn is one AND instruction"* | [[tickets/T09]] 2 | **One pass, one word retained per turn.** Masks are kept, not folded |

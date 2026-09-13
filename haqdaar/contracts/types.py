@@ -33,8 +33,13 @@ SEVEN_BOXES: tuple[BoxId, ...] = (
 )
 
 HARD_BOXES: frozenset[BoxId] = frozenset({"state", "gender", "social_category"})
-# Widening order (T10 D6): income_band -> age -> occupation -> category
-WIDENING_ORDER: tuple[BoxId, ...] = ("income_band", "age", "occupation", "category")
+# Widening order (T10 D6, amended 13 Sep): income_band -> age -> occupation.
+# `category` is a soft box but it is NOT widened. It is the subject the caller
+# phoned about (Door A); dropping it answers a question they did not ask, and
+# with it in the ladder "ladder exhausted" and "no scheme with a soft-only
+# miss-set" become the same condition, which made delivery shape 4 (NEAREST)
+# unreachable in every corpus. See WORK.md §9 22.
+WIDENING_ORDER: tuple[BoxId, ...] = ("income_band", "age", "occupation")
 
 # Six scheme read-back chunks in order (05-DATA-CONTRACT.md §1E)
 SCHEME_CHUNKS: tuple[str, ...] = (
