@@ -728,6 +728,18 @@ failed. Do not delete old lines.
              the quote invariant now runs before any file is written. Not committed.
 2026-09-12 — ⚠️ `step-08` has NO commits — all Step 8 work is untracked or unstaged. Third time.
              Blocker list and commit lines are in work-adarsh/2026-09-12.md.
+2026-09-13 — YOU committed Step 8 wip on step-08 (4f4a932). The "no commits" line above is stale.
+2026-09-13 — Merged step-06 into main as 92dfe77. WORK.md and the 12 Sep tool file conflicted
+             (both sides were notes); kept both, renumbered the Step 8 findings to §9 23-25.
+             `pytest -q` on main -> 85 passed; demo-fixture reaches closing_farewell.
+2026-09-13 — Fixed both Step 8 blockers on step-08 (main merged in first). Alias prompt no
+             longer shows another scheme's name and says "this scheme only". `age` and
+             `income_band` are now {"min", "max"}; code checks every number is written in the
+             quote, else ANY + a gate_note. Moved old facets/aliases cache aside, re-ran: 24
+             Groq calls, 0 failures, ~3 min. Second run 36/36 hits, 0 calls. Read aliases by
+             eye: no scheme carries another scheme's name. APY age 18-40, NAPS 14-35, PMEGP
+             18+. `pytest -q` -> 97 passed · py_compile clean · sync --status 0 dirty.
+             Committed 9ae9af2. Needs one re-review, then merge.
 ```
 
 ---
@@ -894,14 +906,14 @@ failed. Do not delete old lines.
    borrow the widened wording, and that distinction is worth keeping. But (b) is honest and
    cheaper, and nothing in the demo depends on it.
 
-23. **Step 8 blocker — model aliases point callers at the wrong scheme.** The alias prompt gave
+23. ~~**Step 8 blocker**~~ **Fixed 13 Sep.** — model aliases point callers at the wrong scheme.** The alias prompt gave
    *"pm kisan loan"* as an example, and the model copied it onto other schemes: APY has
    `pm kisan loan` (hi and mr), SMAM has `pm कisan मशीन`, PMFBY has `pm kisan insurance` /
    `pm kisan bima`. Door A string-matches aliases before the model, so a caller asking for
    PM-KISAN can be offered APY. Also junk: DAY-NRLM hi `शहरी …` (urban, for a rural mission),
    PMAY-G mr `pm awas ग्रीष्म` (summer). **Fix:** drop the named example from the prompt, delete
    `data_cache/extract/*_aliases.json`, re-run (12 calls), and read the aliases by eye once.
-24. **Step 8 blocker — `age` and `income_band` are one number with no direction.** APY is
+24. ~~**Step 8 blocker**~~ **Fixed 13 Sep.** — `age` and `income_band` are one number with no direction.** APY is
    stored `age=18` (its minimum), so its upper limit is lost; NAPS is stored `age=35` (a maximum).
    The Filter cannot tell which. The data contract §1C says numbers are stored exact as a min and
    a max, and `p6_snapshot.derive_keypad_bands` already reads `{"min": .., "max": ..}`. **Fix:**
@@ -912,4 +924,8 @@ failed. Do not delete old lines.
    (b) The occupation cut filters a hand-written 7-value seed list by what the corpus uses; it
    meets T07's rule but cannot find a value outside the seed. Fine at 12 schemes, cardinality 3.
    (c) `level` and `department` are hardcoded (all 12 are central, so true today). (d) HI/MR
-   section chunks are empty — Step 9 fills them.
+   section chunks are empty — Step 9 fills them. (e) New aliases lean on "helpline / call / help desk" because the
+   prompt frames them as helpline speech; callers name a scheme, they do not say "apy exit
+   assistance". Weaker matching, not a wrong route. (f) One PM-KISAN Marathi alias says
+   `कृषी मानधन` — that is PM-KMY, a different scheme (not in the corpus). (g) An income written
+   as "5 lakh" becomes ANY, because the number is not in the quote as digits. Safe, but lossy.
