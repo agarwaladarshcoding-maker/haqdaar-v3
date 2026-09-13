@@ -215,6 +215,16 @@ def check_evidence_quote(quote: str, eligibility_text: str) -> bool:
     return bool(q_norm and q_norm in text_norm)
 
 
+def evidence_text(box: str, raw_data: dict[str, Any]) -> str:
+    """Text a facet's quote must sit in. Category words ("health", "pension") are said in the
+    benefits text, so a category quote may come from eligibility or benefits. Every other box
+    stays eligibility-only."""
+    text = raw_data.get("eligibility", "")
+    if box == "category":
+        text += "\n" + raw_data.get("benefits", "")
+    return text
+
+
 def check_numeric_range(val: Any, quote: str) -> Any:
     """Numerics are stored exact as {"min", "max"} (05-DATA-CONTRACT §1C). Returns ANY if unusable.
 
@@ -304,7 +314,11 @@ def derive_facets_task(
         "3. If no exact sentence in the eligibility text justifies a facet, or if the scheme is universal on that dimension, "
         "set the value to 'ANY' and 'quote' to ''.\n"
         "4. The evidence-quote check is in code: if quote is missing or not verbatim in the eligibility text, "
-        "code will discard the value to ANY.\n\n"
+        "code will discard the value to ANY.\n"
+        "5. Category only: the quote may come from the benefits text OR the eligibility text.\n"
+        "6. Occupation: if the text names several groups or occupations (or rural families as well as workers), "
+        "occupation is 'ANY'. Never pick one group as representative. Set occupation only when the scheme is "
+        "for that one occupation.\n\n"
         "Closed lists:\n"
         "- category: one of ['agriculture', 'business', 'education', 'employment', 'handloom', 'health', 'housing', 'livelihood', 'pension', 'skills', 'social_welfare', 'ANY']\n"
         "- state: one of 36 Indian states/UTs in uppercase or 'ANY'. Central/nationwide schemes MUST be 'ANY'.\n"
@@ -599,7 +613,6 @@ def run_pipeline_extract(
         slug = raw_data["myscheme_slug"]
         sha = raw_data["source_sha256"]
         title_en = item["title_en"]
-        eligibility_text = raw_data.get("eligibility", "")
         facets_res = item["facets_res"]
         aliases_res = item["aliases_res"]
         summary_res = item["summary_res"]
@@ -638,14 +651,14 @@ def run_pipeline_extract(
 
             # VERBATIM EVIDENCE CHECK IN CODE
             if val != ANY:
-                is_verbatim = check_evidence_quote(quote, eligibility_text)
+                is_verbatim = check_evidence_quote(quote, evidence_text(box, raw_data))
                 if is_verbatim:
                     validated_facets[box] = val
                     evidence_quotes[box] = quote
                 else:
                     # Value without verbatim quote becomes ANY
                     logger.warning(
-                        "Scheme %s: facet %s=%s rejected: quote not verbatim in eligibility text",
+                        "Scheme %s: facet %s=%s rejected: quote not verbatim in source text",
                         slug, box, val,
                     )
                     if quote:
@@ -803,8 +816,8 @@ def run_pipeline_extract(
                 if not quote:
                     raise AssertionError(f"Scheme {slug} has non-ANY facet {b}={val} without quote")
                 raw_s = next(r for r in raw_schemes if r["myscheme_slug"] == slug)
-                if not check_evidence_quote(quote, raw_s["eligibility"]):
-                    raise AssertionError(f"Scheme {slug} facet {b}={val} quote not verbatim in eligibility")
+                if not check_evidence_quote(quote, evidence_text(b, raw_s)):
+                    raise AssertionError(f"Scheme {slug} facet {b}={val} quote not verbatim in source text")
 
     # Write occupation vocabulary
     vocab_path = derived_dir / "occupation_vocab.json"

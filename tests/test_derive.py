@@ -21,6 +21,7 @@ from haqdaar.data.pipeline.p2_derive import (
     TIER1_FORBIDDEN_MR,
     apply_alias_uniqueness_gate,
     check_evidence_quote,
+    evidence_text,
     check_forbidden_words,
     derive_facets_task,
     derive_aliases_task,
@@ -376,3 +377,14 @@ def test_age_range_stored_as_min_max_in_record(tmp_path: Path):
     )[0]
     assert res["age"] == ANY
     assert any("Unusable age range" in n for n in res["gate_notes"])
+
+
+def test_category_quote_may_come_from_benefits_other_boxes_may_not():
+    """§9 27: category words live in the benefits text; other boxes stay eligibility-only."""
+    raw = {
+        "eligibility": "Families listed in the SECC database.",
+        "benefits": "Health cover of Rs 5 lakh per family per year.",
+    }
+    assert check_evidence_quote("Health cover", evidence_text("category", raw)) is True
+    assert check_evidence_quote("Health cover", evidence_text("occupation", raw)) is False
+    assert check_evidence_quote("SECC database", evidence_text("category", raw)) is True

@@ -740,6 +740,24 @@ failed. Do not delete old lines.
              eye: no scheme carries another scheme's name. APY age 18-40, NAPS 14-35, PMEGP
              18+. `pytest -q` -> 97 passed · py_compile clean · sync --status 0 dirty.
              Committed 9ae9af2. Needs one re-review, then merge.
+2026-09-13 — Re-reviewed Step 8. Both blockers fixed, checked in the data: no scheme carries
+             another scheme's name; APY age 18-40, NAPS 14-35, PMEGP 18+, rest ANY. Ran it myself:
+             `pytest -q` -> 97 passed · py_compile clean · sync --status 0 dirty ·
+             `make pipeline-extract` -> 36/36 hits, 0 calls. `git log main..step-08` shows 4
+             commits, tree clean. Verdict **safe to merge: yes**. Two new data faults, not in the
+             fix: AB-PMJAY occupation = street_vendor (§9 26), category ANY on 7/12 (§9 27). Both
+             are cheap and must land before the Step 9 snapshot is built.
+2026-09-13 — Fixed §9 26 and 27 on step-08. Category quote may now sit in eligibility OR benefits
+             (still verbatim, checked in code, invariant too). Prompt rule: several groups listed
+             -> occupation ANY. Re-ran facets for all 12 (12 calls, old cache in scratchpad).
+             Result: category set on 12/12 (was 5/12); AB-PMJAY = health, occupation ANY.
+             Side effect: NAPS lost `apprentice`, SMAM lost `farmer` (SMAM lists SHGs, FPOs,
+             entrepreneurs too). Both now ANY = wider, never hides a scheme; occupation vocab is
+             now farmer + street_vendor. Accepted, not re-run. Second run 36/36 hits, 0 calls.
+             `pytest -q` -> 98 passed · py_compile clean · sync --status 0 dirty.
+2026-09-13 — YOU: set the Twilio voice webhook. I checked it on the live Twilio API:
+             +1 424 799 0057 -> `https://attire-divorcee-spousal.ngrok-free.dev/answer`, POST.
+             The §1 warning is closed. Step 1 still needs `server.py` + `telephony/twilio.py`.
 ```
 
 ---
@@ -929,3 +947,17 @@ failed. Do not delete old lines.
    assistance". Weaker matching, not a wrong route. (f) One PM-KISAN Marathi alias says
    `कृषी मानधन` — that is PM-KMY, a different scheme (not in the corpus). (g) An income written
    as "5 lakh" becomes ANY, because the number is not in the quote as digits. Safe, but lossy.
+26. ~~**Step 8, should-fix before Step 9**~~ **Fixed 13 Sep** (occupation ANY; NAPS and SMAM also went ANY, see §8). **AB-PMJAY is tagged `occupation = street_vendor`.** The source
+   covers rural families on six deprivation tests plus 11 urban worker groups; street vendor is
+   one of the 11. The model's own gate_note says it "selected street vendor as representative".
+   The quote is verbatim, so the code check passes — the check proves the words exist, not that
+   they justify narrowing. Effect: a farmer or labourer only hears Ayushman Bharat after the
+   ladder drops occupation. Fix: prompt rule "if the text lists several groups, occupation is
+   ANY", delete ab-pmjay facets cache, re-run (1 call). This was in the first run too; the first
+   review missed it.
+27. ~~**Step 8, should-fix before Step 9**~~ **Fixed 13 Sep** (category set on 12/12). **`category` is ANY on 7 of 12.** The category quote is checked
+   against the eligibility text only, but "health", "pension", "business" are said in the
+   benefits text. So AB-PMJAY (the only health scheme), APY, DAY-NRLM, PM-SVANIDHI, PMEGP, PMMY
+   and SMAM lose their category, and a Door A category answer barely narrows anything. Fix: let
+   the category quote match eligibility OR benefits (still verbatim, still in code), delete the
+   facets cache, re-run (12 calls).
