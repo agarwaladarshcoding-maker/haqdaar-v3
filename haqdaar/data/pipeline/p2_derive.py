@@ -215,6 +215,32 @@ def check_evidence_quote(quote: str, eligibility_text: str) -> bool:
     return bool(q_norm and q_norm in text_norm)
 
 
+def check_numeric_range(val: Any, quote: str) -> Any:
+    """Numerics are stored exact as {"min", "max"} (05-DATA-CONTRACT §1C). Returns ANY if unusable.
+
+    Each number must appear in the quote, so the model cannot invent a cutoff.
+    """
+    if not isinstance(val, dict):
+        return ANY
+    out: dict[str, Optional[int]] = {}
+    quote_digits = set(re.findall(r"\d+", quote.replace(",", "")))
+    for key in ("min", "max"):
+        n = val.get(key)
+        if n is None:
+            out[key] = None
+            continue
+        if isinstance(n, bool) or not isinstance(n, int):
+            return ANY
+        if str(n) not in quote_digits:
+            return ANY
+        out[key] = n
+    if out["min"] is None and out["max"] is None:
+        return ANY
+    if out["min"] is not None and out["max"] is not None and out["min"] > out["max"]:
+        return ANY
+    return out
+
+
 def check_forbidden_words(text: str, forbidden_list: Sequence[str]) -> Optional[str]:
     """Check if any forbidden word/phrase appears in text. Returns matched phrase or None."""
     lower = text.lower()
@@ -284,8 +310,9 @@ def derive_facets_task(
         "- state: one of 36 Indian states/UTs in uppercase or 'ANY'. Central/nationwide schemes MUST be 'ANY'.\n"
         "- gender: one of ['female', 'male', 'other', 'ANY']\n"
         "- social_category: one of ['GEN', 'OBC', 'SC', 'ST', 'ANY']\n"
-        "- age: integer cutoff or 'ANY'\n"
-        "- income_band: integer annual income cutoff or 'ANY'\n"
+        "- age: {\"min\": <int or null>, \"max\": <int or null>} in years, or 'ANY'. Fill min and max separately; never put an upper limit in min.\n"
+        "- income_band: {\"min\": <int or null>, \"max\": <int or null>} annual income in rupees, or 'ANY'.\n"
+        "  For age and income_band the quote must contain every number you give.\n"
         "- occupation: one of ['farmer', 'street_vendor', 'apprentice', 'entrepreneur', 'artisan', 'weaver', 'worker', 'ANY']\n\n"
         "Output JSON format:\n"
         "{\n"
@@ -294,7 +321,7 @@ def derive_facets_task(
         "    \"state\": {\"value\": \"ANY\", \"quote\": \"\"},\n"
         "    \"gender\": {\"value\": \"ANY\", \"quote\": \"\"},\n"
         "    \"social_category\": {\"value\": \"ANY\", \"quote\": \"\"},\n"
-        "    \"age\": {\"value\": \"ANY\", \"quote\": \"\"},\n"
+        "    \"age\": {\"value\": {\"min\": null, \"max\": null}, \"quote\": \"<verbatim quote>\"},\n"
         "    \"income_band\": {\"value\": \"ANY\", \"quote\": \"\"},\n"
         "    \"occupation\": {\"value\": \"<value>\", \"quote\": \"<verbatim quote>\"}\n"
         "  },\n"
@@ -338,10 +365,11 @@ def derive_aliases_task(
         "Rules:\n"
         "1. Provide at least 5 distinct spoken aliases for English (aliases_en).\n"
         "2. Provide at least 5 distinct spoken aliases for Hindi (aliases_hi). At least ONE MUST BE code-mixed "
-        "(e.g. using Latin alphabet or mixing English and Hindi words like 'pm kisan loan' or 'kisan yojana').\n"
+        "(this scheme's own name or acronym in Latin letters, or mixed with Hindi words).\n"
         "3. Provide at least 5 distinct spoken aliases for Marathi (aliases_mr). At least ONE MUST BE code-mixed "
-        "(e.g. using Latin alphabet or mixing English and Marathi words like 'pm kisan loan' or 'kisan yojana').\n"
-        "4. Include common short acronyms, scheme keywords, and colloquial terms.\n"
+        "(this scheme's own name or acronym in Latin letters, or mixed with Marathi words).\n"
+        "4. Every alias must name THIS scheme only, built from its own title, acronym and benefit. "
+        "Never use the name or acronym of any other government scheme.\n"
         "5. Output scheme names in Hindi and Marathi.\n\n"
         "Output JSON format:\n"
         "{\n"
@@ -603,12 +631,10 @@ def run_pipeline_extract(
                 val = ANY
             elif box == "occupation" and val not in OCCUPATIONS:
                 val = ANY
-            elif box in ("age", "income_band"):
-                if val != ANY and not isinstance(val, int):
-                    if isinstance(val, str) and val.isdigit():
-                        val = int(val)
-                    else:
-                        val = ANY
+            elif box in ("age", "income_band") and val != ANY:
+                val = check_numeric_range(val, quote)
+                if val == ANY and quote:
+                    gate_notes.append(f"Unusable {box} range: {quote}")
 
             # VERBATIM EVIDENCE CHECK IN CODE
             if val != ANY:

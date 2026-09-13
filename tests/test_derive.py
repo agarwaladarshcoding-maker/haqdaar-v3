@@ -349,3 +349,30 @@ def test_summary_over_word_cap_fails_in_code(tmp_path: Path):
     too_long = " ".join(["word"] * (tunables.SUMMARY_WORD_TARGET + tunables.SUMMARY_WORD_TOLERANCE + 1))
     with pytest.raises(ValueError, match="word cap"):
         _one_scheme_run(tmp_path, {}, GOOD_ALIASES, too_long)
+
+
+def test_numeric_range_is_min_max_with_numbers_in_the_quote():
+    from haqdaar.data.pipeline.p2_derive import check_numeric_range
+
+    q = "Subscribers aged between 18 and 40 years can join."
+    assert check_numeric_range({"min": 18, "max": 40}, q) == {"min": 18, "max": 40}
+    assert check_numeric_range({"min": None, "max": 40}, q) == {"min": None, "max": 40}
+    # a number not in the quote is invented -> ANY
+    assert check_numeric_range({"min": 18, "max": 60}, q) == ANY
+    # a bare number has no direction -> ANY
+    assert check_numeric_range(18, q) == ANY
+    assert check_numeric_range({"min": None, "max": None}, q) == ANY
+    assert check_numeric_range({"min": 40, "max": 18}, q) == ANY
+    assert check_numeric_range({"min": True, "max": 40}, q) == ANY
+    assert check_numeric_range({"min": None, "max": 150000}, "income below Rs 1,50,000") == {"min": None, "max": 150000}
+
+
+def test_age_range_stored_as_min_max_in_record(tmp_path: Path):
+    res = _one_scheme_run(
+        tmp_path,
+        {"age": {"value": {"min": None, "max": 60}, "quote": "Women farmers"}},  # 60 not in quote
+        GOOD_ALIASES,
+        "Offers support to farmers.",
+    )[0]
+    assert res["age"] == ANY
+    assert any("Unusable age range" in n for n in res["gate_notes"])
