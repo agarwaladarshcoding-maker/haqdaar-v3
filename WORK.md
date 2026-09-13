@@ -68,6 +68,9 @@ cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
 [`work-with-tools/2026-09-12-summary.md`](work-with-tools/2026-09-12-summary.md)
 
 ### Done
+- **Step 1 merged** (14 Sep, 7fc45cc). Real calls ..6e54c3 and ..6c74bd: tone, `mark tone_end`,
+  keys live, clean stop. `keepCallAlive=false` held. Answer → tone ~1.2 s. `make run` starts
+  cloudflared and points the number at it. Webhook + M1 call items below are done.
 - **Git repo** on `main`. Baseline commit holds the vault and all working code.
 - **`.venv` on Python 3.11.** `pytest -q` → **10 passed**.
 - **FileVault on.** Laptop-sleep setting ruled not needed by you — the laptop stays open and
@@ -463,7 +466,7 @@ full keypad call in the simulator, which is `v1-keypad` — a demoable product o
 | Step | What | State |
 |---|---|---|
 | 0 | Repo skeleton, Makefile, pyproject | **merged** 11 Sep |
-| 1 | Telephony smoke call | **unblocked 12 Sep** — Twilio number ✅ + ngrok ✅ verified. Needs `server.py` written, the webhook fixed to `/answer`, and your hands |
+| 1 | Telephony smoke call | **merged** 14 Sep, `--no-ff`, 7fc45cc. Review: safe to merge, 0 blockers. Real calls: tone + `mark tone_end` + keys live, `keepCallAlive=false` held. Tunnel = cloudflared. `pytest -q` → 109 passed on merged `main` |
 | 2 | Contracts, log schema, fixture → tag `v1-skeleton` | **merged + tagged** 11 Sep. `v1-skeleton` on the merge commit, local only |
 | 3 | Filter (pure) | **merged** 12 Sep. Review: safe to merge, 0 blockers |
 | 4 | Planner (minimax) | **merged** 12 Sep, `--no-ff`. Review: safe to merge, 0 blockers. `pytest -q` → 43 passed on merged `main` |
@@ -772,6 +775,10 @@ failed. Do not delete old lines.
              all keys live. `make run` now starts cloudflared + points the number at it
              (`tools/tunnel.py`, `point_number_at` in telephony); `TUNNEL=ngrok` is the backup.
              US server (Codespace, Virginia) tried, parked for v2 — see §9 28. 109 passed.
+2026-09-14 — Step 1 committed (b2c5978: tunnel, call_me, calls, log lines), reviewed, merged
+             `--no-ff` into main (7fc45cc). Review A–F all PASS, 0 blockers. Non-blocking debt:
+             `contracts/tunables.py` now runs load_dotenv() and holds NGROK_DOMAIN (a string, not a
+             number); server.py log lines use inline 1.0 s / 0.02 / 8000. `pytest -q` → 109 passed.
 ```
 
 ---

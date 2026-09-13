@@ -84,6 +84,11 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 14 Sep — Step 1 merged
+- **Added:** tunnel start, `make call`, `make calls`, timed call lines — committed on step-01.
+- **Changed:** Step 1 reviewed (all checks pass) and merged into `main`.
+- **Can do now:** `main` takes a real phone call: tone, keys on time, clean hang-up. 109 tests pass.
+
 ### 13 Sep · keys fixed: Cloudflare tunnel instead of ngrok
 - **Why keys went missing:** ngrok could only carry half the audio from the US to India, so keys arrived late and were lost at hang-up.
 - **Fix:** the Cloudflare tunnel. Two real calls: all audio on time, every key live, no stalls.
