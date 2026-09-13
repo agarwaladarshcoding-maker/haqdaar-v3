@@ -758,6 +758,15 @@ failed. Do not delete old lines.
 2026-09-13 — YOU: set the Twilio voice webhook. I checked it on the live Twilio API:
              +1 424 799 0057 -> `https://attire-divorcee-spousal.ngrok-free.dev/answer`, POST.
              The §1 warning is closed. Step 1 still needs `server.py` + `telephony/twilio.py`.
+2026-09-13 — Wrote the 13 Sep day files: work-with-tools/2026-09-13.md (Step 1 + Step 9, parallel)
+             and work-adarsh/2026-09-13.md (the M1 call). New standing file PROJECT-UPDATE.md —
+             plain-words state, updated every chat. Prompt fixes vs §4: server lives at
+             `haqdaar/server.py` (Makefile runs `haqdaar.server:app`); Step 9 gate 3 prints PENDING
+             for the rendered half until Step 10, or no scheme could pass.
+2026-09-13 — Step 1 implemented: `haqdaar/server.py` (/health, /answer, /stream),
+             `haqdaar/audio/telephony/twilio.py` (parse 6 inbound, build 3 outbound, twilio isolation preserved),
+             `tools/tone.py` (8 kHz μ-law pure python tone generator), `haqdaar/contracts/tunables.py`
+             telephony tunables added. `tests/test_twilio_codec.py` 10 tests passed; `pytest -q` -> 108 passed.
 ```
 
 ---

@@ -5,6 +5,15 @@ Hardcode nothing.
 """
 from __future__ import annotations
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Telephony & stream tunables (06-BUILD-PLAN.md Step 1)
+TONE_FREQ_HZ: int = int(os.environ.get("TONE_FREQ_HZ", 440))
+TONE_DURATION_S: float = float(os.environ.get("TONE_DURATION_S", 1.0))
+TONE_AMPLITUDE: float = float(os.environ.get("TONE_AMPLITUDE", 0.5))
+NGROK_DOMAIN: str = os.environ.get("NGROK_DOMAIN", "")
 
 # Timing and thresholds (04-INTERFACES.md § What is not frozen)
 ENDPOINT_MS: int = int(os.environ.get("ENDPOINT_MS", 700))
