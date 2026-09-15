@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract
+.PHONY: demo demo-run run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract
 
 test:
 	$(PYTHON) -m pytest
@@ -11,6 +11,16 @@ run:
 	@mkdir -p logs
 	@$(PYTHON) -m tools.tunnel | tee -a logs/server.log
 	NGROK_DOMAIN=$$($(PYTHON) -m tools.tunnel --host) PYTHONUNBUFFERED=1 $(PYTHON) -m uvicorn haqdaar.server:app --host 0.0.0.0 --port 8000 2>&1 | tee -a logs/server.log
+
+# DEMO (15 Sep): keypad call on the real 12 schemes, Mac voice. Terminal: make demo (KEYS=3,1,1,1 SPEAK=1)
+demo:
+	$(PYTHON) -m haqdaar.demo_server $(if $(SPEAK),--speak) $(if $(KEYS),--keys $(KEYS))
+
+# DEMO phone: tunnel + number -> demo server. Then dial the number (or make call).
+demo-run:
+	@mkdir -p logs
+	@$(PYTHON) -m tools.tunnel | tee -a logs/server.log
+	NGROK_DOMAIN=$$($(PYTHON) -m tools.tunnel --host) PYTHONUNBUFFERED=1 $(PYTHON) -m uvicorn haqdaar.demo_server:app --host 0.0.0.0 --port 8000 2>&1 | tee -a logs/server.log
 
 # Last calls on the phone line, with any warnings the provider logged.
 calls:

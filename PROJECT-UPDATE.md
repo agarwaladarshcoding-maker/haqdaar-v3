@@ -84,6 +84,15 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 15 Sep — demo prototype (branch `demo-15sep`)
+- **Added:** a keypad phone call on the 12 real schemes that speaks real sentences (Mac's offline voice,
+  English + Hindi). `make demo-run` = phone, `make demo` = terminal backup. Script: `DEMO.md`.
+- **Stress tested:** 500 random-key calls (0 crashes, all 12 schemes reachable); 146 voice lines render, 0 fail;
+  4 fake phone calls on a real server (normal, Hindi, key mashing, hang-up) all end cleanly.
+- **Fixed on the way:** server froze 10 s when you pressed a key while it talked (call then went silent);
+  Mac voice froze on raw scheme text like "Rs.50,000/-..".
+- **Not yet:** a real dial-in on this build — Adarsh does one test call before the demo. `pytest` → 109 passed.
+
 ### 14 Sep — Step 1 merged
 - **Added:** tunnel start, `make call`, `make calls`, timed call lines — committed on step-01.
 - **Changed:** Step 1 reviewed (all checks pass) and merged into `main`.

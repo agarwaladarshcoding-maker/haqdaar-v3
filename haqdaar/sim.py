@@ -162,11 +162,12 @@ def run_sim(
     call_id: Optional[str] = None,
     logs_dir: str = "logs",
     persona: str = DEFAULT_PERSONA,
+    schemes_path: Optional[str] = None,
 ) -> Path:
-    """Run full simulation against fixtures/ and return path to log file."""
+    """Run full simulation against fixtures/ (or schemes_path) and return path to log file."""
     root_dir = Path(__file__).resolve().parent.parent
     fixtures_dir = root_dir / "fixtures"
-    schemes_file = fixtures_dir / "schemes.jsonl"
+    schemes_file = Path(schemes_path) if schemes_path else fixtures_dir / "schemes.jsonl"
 
     schemes: list[dict[str, Any]] = []
     with open(schemes_file, "r", encoding="utf-8") as f:
@@ -174,7 +175,7 @@ def run_sim(
             line = line.strip()
             if line:
                 row = json.loads(line)
-                if row.get("scheme_id") != "S6":
+                if schemes_path or row.get("scheme_id") != "S6":
                     schemes.append(row)
 
     with tempfile.TemporaryDirectory() as td:
@@ -253,6 +254,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     ap.add_argument("--call-id", default=None)
     ap.add_argument("--logs-dir", default="logs")
+    ap.add_argument("--schemes", default=None, help="schemes.jsonl to use instead of fixtures (real: data_cache/derived/schemes.jsonl)")
     args = ap.parse_args(argv)
 
     run_sim(
@@ -260,6 +262,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         call_id=args.call_id,
         logs_dir=args.logs_dir,
         persona=args.persona,
+        schemes_path=args.schemes,
     )
     return 0
 
