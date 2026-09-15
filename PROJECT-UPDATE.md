@@ -84,6 +84,14 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 15 Sep (night, v3) — repeat slowly, "don't know" button, slower voice, PPT brief
+- **Real call test (18:38):** the call went well end to end. One bug: a key pressed while it said "sorry, I did not understand" was lost. **Fixed:** that key now answers the question.
+- **Added:** press **9** at any time (or say "दोबारा" / "repeat") and it says the last line again, slowly. It tells the caller this once, after the language.
+- **Added:** press **3 = I don't know** on the questions about land, loan, age, savings account and family type. It explains kindly and carries on (for example: "your date of birth is on your Aadhaar card").
+- **Changed:** every line plays a bit slower (90%). The repeat plays at 72%. The pitch stays the same.
+- **Added:** `DEMO-FOR-PPT.md`, a brief for the people making the slides and video.
+- **Tested:** fake calls in Hindi and English with 9, 3 and a key during a sorry line. `pytest` → 109 passed. Not yet tried on a real phone.
+
 ### 15 Sep (night, v2) — buttons for the main choice, voice answers confirmed
 - **Bug Adarsh found:** he said "pension", the phone speech-to-text heard nonsense, and the script went to farming anyway.
 - **Changed:** the type of help is now a small button menu (1 farming, 2 pension, 3 health, 4 jobs). Speech still works,

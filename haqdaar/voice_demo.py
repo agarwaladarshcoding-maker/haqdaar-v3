@@ -22,6 +22,7 @@ import threading
 import time
 import urllib.request
 import wave
+from array import array
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
@@ -66,10 +67,15 @@ LINES: dict[str, dict[str, str]] = {
         "wrong_key": "यह बटन इस सवाल के लिए नहीं है।",
         "yn_keys": "माफ़ कीजिए। हाँ के लिए 1 दबाइए, ना के लिए 2।",
         "sorry": "माफ़ कीजिए, मैं सुन नहीं पाई। एक बार फिर।",
+        "tip_repeat": "कोई भी बात दोबारा धीरे सुननी हो, तो कभी भी 9 दबाइए।",
+        "conf_dunno": "आपने कहा, पता नहीं। सही है तो 1 दबाइए, नहीं तो 2।",
+        "yn3_keys": "माफ़ कीजिए। हाँ के लिए 1 दबाइए, ना के लिए 2, पता नहीं तो 3।",
         # farming
         "farm_ack": "ठीक है, खेती से जुड़ी योजनाएँ। सही योजना ढूँढने के लिए मैं आपसे दो छोटे सवाल पूछूँगी।",
-        "q_land": "पहला सवाल। क्या खेती की ज़मीन आपके अपने नाम पर है? हाँ के लिए 1, ना के लिए 2 दबाइए।",
-        "q_loan": "दूसरा सवाल। क्या आपको खेती के लिए लोन की ज़रूरत है? हाँ के लिए 1, ना के लिए 2।",
+        "q_land": "पहला सवाल। क्या खेती की ज़मीन आपके अपने नाम पर है? हाँ के लिए 1, ना के लिए 2, पता नहीं तो 3 दबाइए।",
+        "q_loan": "दूसरा सवाल। क्या आपको खेती के लिए लोन की ज़रूरत है? हाँ के लिए 1, ना के लिए 2, पता नहीं तो 3।",
+        "dunno_land": "कोई बात नहीं। ज़मीन के कागज़ पटवारी या तहसील दफ़्तर में देख सकते हैं। अगर ज़मीन आपके नाम पर है, तो किसान सम्मान निधि भी मिलेगी। इसलिए मैं आपको सारी योजनाएँ बताती हूँ।",
+        "dunno_loan": "कोई बात नहीं, मैं लोन वाली योजना भी बता देती हूँ।",
         "res_yy": "आपके लिए तीन योजनाएँ मिली हैं। पहली, प्रधानमंत्री किसान सम्मान निधि, इसमें हर साल छह हज़ार रुपये मिलते हैं। दूसरी, किसान क्रेडिट कार्ड, खेती के लिए लोन। तीसरी, प्रधानमंत्री फसल बीमा योजना, कम प्रीमियम पर फसल का बीमा।",
         "res_yn": "आपके लिए दो योजनाएँ मिली हैं। पहली, प्रधानमंत्री किसान सम्मान निधि, इसमें हर साल छह हज़ार रुपये मिलते हैं। दूसरी, प्रधानमंत्री फसल बीमा योजना, कम प्रीमियम पर फसल का बीमा।",
         "res_ny": "ज़मीन आपके नाम पर नहीं है, इसलिए किसान सम्मान निधि नहीं मिलेगी। लेकिन दो योजनाएँ आपके लिए हैं, जो बटाईदार और किराए पर खेती करने वाले किसान भी ले सकते हैं। पहली, किसान क्रेडिट कार्ड, खेती के लिए लोन। दूसरी, प्रधानमंत्री फसल बीमा योजना।",
@@ -88,8 +94,10 @@ LINES: dict[str, dict[str, str]] = {
         "apply_pmfby": "आवेदन का तरीका। प्रधानमंत्री फसल बीमा योजना की वेबसाइट पर, या नज़दीकी जन सेवा केंद्र पर जाइए। फार्मर कॉर्नर में रजिस्ट्रेशन फ़ॉर्म भरिए। ज़मीन के कागज़, बैंक पासबुक और बोई गई फसल की जानकारी दीजिए। बुवाई शुरू होने के दो हफ़्ते के अंदर आवेदन करना होता है।",
         # pension
         "pension_ack": "ठीक है, पेंशन। मैं आपसे दो छोटे सवाल पूछूँगी।",
-        "q_age": "पहला सवाल। क्या आपकी उम्र अठारह से चालीस साल के बीच है? हाँ के लिए 1, ना के लिए 2।",
-        "q_account": "दूसरा सवाल। क्या आपका बैंक या पोस्ट ऑफिस में बचत खाता है? हाँ के लिए 1, ना के लिए 2।",
+        "q_age": "पहला सवाल। क्या आपकी उम्र अठारह से चालीस साल के बीच है? हाँ के लिए 1, ना के लिए 2, पता नहीं तो 3।",
+        "q_account": "दूसरा सवाल। क्या आपका बैंक या पोस्ट ऑफिस में बचत खाता है? हाँ के लिए 1, ना के लिए 2, पता नहीं तो 3।",
+        "dunno_age": "कोई बात नहीं। आपकी जन्म की तारीख आधार कार्ड पर लिखी होती है। अटल पेंशन योजना में अठारह से चालीस साल की उम्र में ही जुड़ सकते हैं।",
+        "dunno_account": "कोई बात नहीं। अगर आपके पास बैंक या पोस्ट ऑफिस की पासबुक है, तो आपका खाता है। अटल पेंशन योजना के लिए बचत खाता ज़रूरी है। अब योजना के बारे में सुनिए।",
         "pension_ok": "अच्छी खबर। आप अटल पेंशन योजना में जुड़ सकते हैं।",
         "pension_no_account": "अटल पेंशन योजना के लिए बैंक या पोस्ट ऑफिस में बचत खाता ज़रूरी है, क्योंकि हर महीने का पैसा उसी से कटता है। पहले खाता खुलवाइए। अब योजना के बारे में सुनिए।",
         "pension_too_old": "अटल पेंशन योजना में अठारह से चालीस साल की उम्र में ही जुड़ सकते हैं। अभी मेरी सूची में आपकी उम्र के लिए पेंशन की कोई दूसरी योजना नहीं है।",
@@ -97,7 +105,7 @@ LINES: dict[str, dict[str, str]] = {
         "apply_apy": "आवेदन का तरीका। जिस बैंक या पोस्ट ऑफिस में बचत खाता है, वहाँ जाइए, या नेट बैंकिंग में अटल पेंशन योजना खोजिए। अपनी और नॉमिनी की जानकारी भरिए, खाते से पैसा अपने आप कटने की मंज़ूरी दीजिए, और फ़ॉर्म जमा कीजिए।",
         # health
         "health_ack": "ठीक है, इलाज। मैं आपसे एक छोटा सवाल पूछूँगी।",
-        "q_health": "क्या आपका परिवार अनुसूचित जाति या जनजाति से है, या बिना ज़मीन के दिहाड़ी मज़दूरी से घर चलता है? हाँ के लिए 1, ना के लिए 2।",
+        "q_health": "क्या आपका परिवार अनुसूचित जाति या जनजाति से है, या बिना ज़मीन के दिहाड़ी मज़दूरी से घर चलता है? हाँ के लिए 1, ना के लिए 2, पता नहीं तो 3।",
         "health_likely": "आपका परिवार आयुष्मान भारत योजना के लिए पात्र हो सकता है। आखिरी फ़ैसला सरकारी सूची से होता है।",
         "health_list": "आयुष्मान भारत में पात्रता सरकारी सूची से तय होती है। आपका नाम सूची में है या नहीं, यह अस्पताल या जन सेवा केंद्र पर पता चल जाएगा।",
         "detail_pmjay": "आयुष्मान भारत, प्रधानमंत्री जन आरोग्य योजना। सरकारी वेबसाइट के अनुसार, हर परिवार को साल में पाँच लाख रुपये तक का इलाज सूचीबद्ध अस्पतालों में बिना नकद पैसे के मिलता है। दवाई, जाँच, ऑपरेशन और आईसीयू शामिल हैं, और पुरानी बीमारियाँ पहले दिन से कवर होती हैं।",
@@ -128,9 +136,14 @@ LINES: dict[str, dict[str, str]] = {
         "wrong_key": "That button is not an option here.",
         "yn_keys": "Sorry. For yes press 1, for no press 2.",
         "sorry": "Sorry, I could not hear you. Once more.",
+        "tip_repeat": "To hear anything again slowly, press 9 at any time.",
+        "conf_dunno": "You said you do not know. If that is right, press 1. If not, press 2.",
+        "yn3_keys": "Sorry. For yes press 1, for no press 2, if you do not know press 3.",
         "farm_ack": "Okay, schemes for farmers. To find the right ones, I will ask you two short questions.",
-        "q_land": "First question. Is the farm land in your own name? For yes press 1, for no press 2.",
-        "q_loan": "Second question. Do you need a loan for farming? For yes press 1, for no press 2.",
+        "q_land": "First question. Is the farm land in your own name? For yes press 1, for no press 2, if you do not know press 3.",
+        "q_loan": "Second question. Do you need a loan for farming? For yes press 1, for no press 2, if you do not know press 3.",
+        "dunno_land": "No problem. You can check the land papers with the patwari or the tehsil office. If the land is in your name, PM Kisan applies too. So I will tell you all the schemes.",
+        "dunno_loan": "No problem, I will include the loan scheme too.",
         "res_yy": "I found three schemes for you. One, PM Kisan Samman Nidhi, which gives six thousand rupees every year. Two, the Kisan Credit Card, a loan for farming. Three, Pradhan Mantri Fasal Bima Yojana, crop insurance at a low premium.",
         "res_yn": "I found two schemes for you. One, PM Kisan Samman Nidhi, which gives six thousand rupees every year. Two, Pradhan Mantri Fasal Bima Yojana, crop insurance at a low premium.",
         "res_ny": "Since the land is not in your name, PM Kisan does not apply. But two schemes are open to tenant farmers and sharecroppers too. One, the Kisan Credit Card, a loan for farming. Two, Pradhan Mantri Fasal Bima Yojana, crop insurance.",
@@ -148,15 +161,17 @@ LINES: dict[str, dict[str, str]] = {
         "apply_kcc": "How to apply. Visit the website or branch of the bank you want the card from. Choose Kisan Credit Card, fill in the form, and submit. If you are eligible, the bank will contact you within three to four working days.",
         "apply_pmfby": "How to apply. Visit the Pradhan Mantri Fasal Bima Yojana website, or your nearest Common Service Centre. Fill in the registration form under Farmer Corner, with your land papers, bank passbook, and the crop you sowed. Apply within two weeks of the start of sowing.",
         "pension_ack": "Okay, pension. I will ask you two short questions.",
-        "q_age": "First question. Are you between eighteen and forty years old? For yes press 1, for no press 2.",
-        "q_account": "Second question. Do you have a savings account in a bank or post office? For yes press 1, for no press 2.",
+        "q_age": "First question. Are you between eighteen and forty years old? For yes press 1, for no press 2, if you do not know press 3.",
+        "q_account": "Second question. Do you have a savings account in a bank or post office? For yes press 1, for no press 2, if you do not know press 3.",
+        "dunno_age": "No problem. Your date of birth is printed on your Aadhaar card. Atal Pension Yojana can only be joined between eighteen and forty years of age.",
+        "dunno_account": "No problem. If you have a bank or post office passbook, you have an account. Atal Pension Yojana needs a savings account. Here is how the scheme works.",
         "pension_ok": "Good news. You can join the Atal Pension Yojana.",
         "pension_no_account": "Atal Pension Yojana needs a savings account in a bank or post office, because the monthly amount is paid from it. Please open an account first. Here is how the scheme works.",
         "pension_too_old": "Atal Pension Yojana can only be joined between eighteen and forty years of age. Right now my list has no other pension scheme for your age.",
         "detail_apy": "Atal Pension Yojana. According to the official website, after the age of sixty you get a guaranteed pension every month for life, from one thousand to five thousand rupees. After you, your spouse gets the same pension, and after that the saved money is returned to your nominee.",
         "apply_apy": "How to apply. Visit the bank or post office where you have your savings account, or search for Atal Pension Yojana in net banking. Fill in your and your nominee's details, allow the amount to be auto-debited from your account, and submit the form.",
         "health_ack": "Okay, health. I will ask you one short question.",
-        "q_health": "Is your family from a Scheduled Caste or Scheduled Tribe, or a landless family that lives on daily wage labour? For yes press 1, for no press 2.",
+        "q_health": "Is your family from a Scheduled Caste or Scheduled Tribe, or a landless family that lives on daily wage labour? For yes press 1, for no press 2, if you do not know press 3.",
         "health_likely": "Your family may be eligible for Ayushman Bharat. The final decision comes from the government list.",
         "health_list": "For Ayushman Bharat, eligibility comes from a government list. A hospital or Common Service Centre can check if your name is on it.",
         "detail_pmjay": "Ayushman Bharat, Pradhan Mantri Jan Arogya Yojana. According to the official website, every family gets cashless treatment up to five lakh rupees a year in empanelled hospitals. Medicines, tests, surgery, and ICU are covered, and old illnesses are covered from day one.",
@@ -197,9 +212,9 @@ WORDS: dict[str, tuple[str, ...]] = {
 }
 HINTS = {  # expected words, given to Whisper so short answers are heard right
     "hi": {"need_menu": "खेती, पेंशन, इलाज, रोज़गार", "jobs_menu": "अपना काम, अप्रेंटिसशिप",
-           "which": "किसान सम्मान निधि, किसान क्रेडिट कार्ड, फसल बीमा", "yn": "हाँ, नहीं"},
+           "which": "किसान सम्मान निधि, किसान क्रेडिट कार्ड, फसल बीमा", "yn": "हाँ, नहीं, पता नहीं"},
     "en": {"need_menu": "farming, pension, health, jobs", "jobs_menu": "own business, apprenticeship",
-           "which": "PM Kisan, Kisan Credit Card, crop insurance", "yn": "yes, no"},
+           "which": "PM Kisan, Kisan Credit Card, crop insurance", "yn": "yes, no, don't know"},
 }
 
 
@@ -243,7 +258,35 @@ def sarvam_tts(text: str, lang: str, online: bool = True) -> bytes:
     return data
 
 
+PACE = 0.9        # every line plays at 90% speed (15 Sep: Adarsh said the voice was too fast)
+SLOW_PACE = 0.72  # key 9 = say the last line again at this speed
+
+
+def stretch(ulaw: bytes, speed: float) -> bytes:
+    """Slow speech down without changing the pitch (WSOLA; audioop.findfit does the search in C)."""
+    x = array("h", audioop.ulaw2lin(ulaw, 2))
+    hop, delta = 160, 80  # 20 ms hop, 10 ms search each side
+    if len(x) < 8 * hop:
+        return ulaw
+    out = x[:2 * hop]
+    prev, k = 0, 1
+    while True:
+        nominal = int(k * hop * speed)
+        if nominal + 2 * hop + delta >= len(x) or prev + 2 * hop > len(x):
+            break
+        lo = max(0, nominal - delta)
+        off, _ = audioop.findfit(x[lo:nominal + delta + hop].tobytes(), x[prev + hop:prev + 2 * hop].tobytes())
+        pos = lo + off
+        base = len(out) - hop
+        for i in range(hop):  # cross-fade the overlap
+            out[base + i] = int(out[base + i] * (hop - i) / hop + x[pos + i] * i / hop)
+        out.extend(x[pos + hop:pos + 2 * hop])
+        prev, k = pos, k + 1
+    return audioop.lin2ulaw(out.tobytes(), 2)
+
+
 AUDIO: dict[tuple[str, str], bytes] = {}
+SLOW: dict[tuple[str, str], bytes] = {}
 TEXT: dict[tuple[str, str], str] = {("hi", "greet"): GREET}
 for _l, _lines in LINES.items():
     for _k, _t in _lines.items():
@@ -279,6 +322,8 @@ def prerender() -> None:
 
     with ThreadPoolExecutor(max_workers=6) as pool:
         list(pool.map(one, TEXT.items()))
+    for key, raw in list(AUDIO.items()):
+        AUDIO[key], SLOW[key] = stretch(raw, PACE), stretch(raw, SLOW_PACE)
     try:  # find out now, not mid-call, whether Sarvam can still hear (0.3 s of quiet)
         speech_to_text(b"\x00\x00" * 2400, "hi")
     except Exception as e:
@@ -365,6 +410,15 @@ def yes_no_word(h: Heard) -> bool | None:
     return None
 
 
+DUNNO = ("पता नहीं", "पता नही", "नहीं पता", "नही पता", "मालूम नहीं", "नहीं मालूम", "pata nahi", "don't know",
+         "dont know", "do not know", "not sure", "no idea")
+REPEAT = ("दोबारा", "दुबारा", "फिर से", "धीरे", "dobara", "repeat", "again", "slowly")
+
+
+def said_any(h: Heard, words: tuple[str, ...]) -> bool:
+    return h.spoke and any(w in h.low for w in words)
+
+
 def match_words(h: Heard, options: list[str]) -> str:
     for opt in options:
         if any(w in h.low for w in WORDS.get(opt, ())):
@@ -379,6 +433,7 @@ class Call:
         self.lang = "hi"
         self.lang_known = False
         self.marks = 0
+        self.pending = ""  # key pressed during a "sorry" line: it answers the next question
 
     async def _event(self, timeout: float):
         ev = await asyncio.wait_for(self.q.get(), timeout)
@@ -386,11 +441,19 @@ class Call:
             raise Hangup()
         return ev
 
-    async def speak(self, name: str, lang: str | None = None) -> str:
-        """Play one line; returns a digit if the caller pressed a key while it played."""
-        lang = lang or self.lang
-        data = AUDIO[(lang, name)]
-        say(f"BOT     [{lang}/{name}] {TEXT[(lang, name)][:90]}")
+    async def speak(self, name: str, lang: str | None = None, slow: bool = False) -> str:
+        """Play one line; returns a digit if the caller pressed a key while it played.
+        Key 9 while it plays: start the line again, slowly."""
+        while True:
+            digit = await self._play(name, lang or self.lang, slow)
+            if digit != "9":
+                return digit
+            say("--      repeat slowly")
+            slow = True
+
+    async def _play(self, name: str, lang: str, slow: bool) -> str:
+        data = (SLOW if slow else AUDIO)[(lang, name)]
+        say(f"BOT     [{lang}/{name}{' SLOW' if slow else ''}] {TEXT[(lang, name)][:90]}")
         for i in range(0, len(data), CHUNK):
             await self.ws.send_json(build_media(self.sid, data[i:i + CHUNK]))
         self.marks += 1
@@ -461,8 +524,23 @@ class Call:
         return Heard(text, lang, spoke=True)
 
     async def ask(self, name: str, hint: str = "") -> Heard:
-        digit = await self.speak(name)
-        return Heard(digit=digit) if digit else await self.listen(hint)
+        if self.pending:
+            h, self.pending = Heard(digit=self.pending), ""
+            say(f"--      using key {h.digit} pressed during the last line")
+            return h
+        slow = False
+        for _ in range(4):
+            digit = await self.speak(name, slow=slow)
+            h = Heard(digit=digit) if digit else await self.listen(hint)
+            if h.digit != "9" and not said_any(h, REPEAT):
+                return h
+            say("--      repeat slowly")
+            slow = True
+        return h
+
+    async def nudge(self, name: str) -> None:
+        """A short "sorry / press a key" line. A key pressed during it is kept, not lost (15 Sep call)."""
+        self.pending = await self.speak(name)
 
     async def confirm(self, line: str) -> bool:
         """Read back what speech gave us: 1 = right, 2 = wrong. Silence twice = right."""
@@ -482,36 +560,51 @@ class Call:
             if h.digit:
                 if h.digit.isdigit() and 1 <= int(h.digit) <= len(options):
                     return options[int(h.digit) - 1]
-                await self.speak("wrong_key")
+                await self.nudge("wrong_key")
                 continue
             if h.spoke:
                 opt = match_words(h, options)
                 if not opt:
-                    await self.speak("not_understood")
+                    await self.nudge("not_understood")
                     continue
                 if await self.confirm(f"conf_{opt}"):
                     return opt
-                await self.speak("try_keys")
+                await self.nudge("try_keys")
                 continue
-            await self.speak("sorry")
+            await self.nudge("sorry")
+        self.pending = ""
         if not default:
             say(f"--      {menu}: no answer after 3 tries")
             return ""
         say(f"--      {menu}: no answer, taking {options[0]}")
         return options[0]
 
-    async def yesno(self, question: str, default: bool = True) -> bool:
+    async def yesno(self, question: str, default: bool | None = True, dunno: bool = False) -> bool | None:
+        """1 yes, 2 no; dunno=True also allows 3 "don't know" (returns None).
+        Speech answers are read back for a 1/2 confirm."""
+        keys = "yn3_keys" if dunno else "yn_keys"
         for _ in range(2):
             h = await self.ask(question, HINTS[self.lang]["yn"])
             if h.digit in ("1", "2"):
                 return h.digit == "1"
+            if dunno and h.digit == "3":
+                return None
+            if h.digit:
+                await self.nudge(keys)
+                continue
             if h.spoke:
+                if dunno and said_any(h, DUNNO):
+                    if await self.confirm("conf_dunno"):
+                        return None
+                    await self.nudge(keys)
+                    continue
                 ans = yes_no_word(h)
                 if ans is not None:
                     return ans if await self.confirm("conf_yes" if ans else "conf_no") else not ans
-                await self.speak("yn_keys")
+                await self.nudge(keys)
                 continue
-            await self.speak("sorry")
+            await self.nudge("sorry")
+        self.pending = ""
         return default
 
     async def scheme(self, s: str) -> None:
@@ -522,8 +615,14 @@ class Call:
 
     async def path_farm(self) -> None:
         await self.speak("farm_ack")
-        land = await self.yesno("q_land")
-        loan = await self.yesno("q_loan")
+        land = await self.yesno("q_land", dunno=True)
+        if land is None:  # don't know: tell all, with the land condition said out loud
+            await self.speak("dunno_land")
+            land = True
+        loan = await self.yesno("q_loan", dunno=True)
+        if loan is None:
+            await self.speak("dunno_loan")
+            loan = True
         say(f"--      land in own name: {land}, needs loan: {loan}")
         result, menu, offered = RESULTS[(land, loan)]
         await self.speak(result)
@@ -531,15 +630,24 @@ class Call:
 
     async def path_pension(self) -> None:
         await self.speak("pension_ack")
-        if not await self.yesno("q_age"):
+        age_ok = await self.yesno("q_age", dunno=True)
+        if age_ok is None:
+            await self.speak("dunno_age")
+        elif not age_ok:
             await self.speak("pension_too_old")
             return
-        await self.speak("pension_ok" if await self.yesno("q_account") else "pension_no_account")
+        account = await self.yesno("q_account", dunno=True)
+        if account is None:
+            await self.speak("dunno_account")
+        elif not account:
+            await self.speak("pension_no_account")
+        elif age_ok:  # age unknown + account: no "good news", just the scheme
+            await self.speak("pension_ok")
         await self.scheme("apy")
 
     async def path_health(self) -> None:
         await self.speak("health_ack")
-        await self.speak("health_likely" if await self.yesno("q_health") else "health_list")
+        await self.speak("health_likely" if await self.yesno("q_health", dunno=True) else "health_list")
         await self.scheme("pmjay")
 
     async def path_jobs(self) -> None:
@@ -553,6 +661,7 @@ class Call:
             self.lang = "en"
         self.lang_known = True
         say(f"--      language: {self.lang}")
+        await self.speak("tip_repeat")
         for _ in range(4):
             need = await self.choose("need_menu", ["farm", "pension", "health", "jobs"], default=False)
             say(f"--      need: {need or 'none, ending call'}")
