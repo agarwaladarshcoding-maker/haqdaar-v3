@@ -17,29 +17,31 @@ every line the bot says (`BOT`) and what it heard (`CALLER said: "…"`).
 - Ring again after a call: `make call` (the server stays up). Or Ctrl+C and `make run-demo` again.
 - Another number: `make run-demo TO=+91XXXXXXXXXX`. Start without ringing: `make run-demo NOCALL=1`.
 
-## The call (about 2–3 min). What to say
+## The call (about 2–3 min)
 
-The script is fixed: whatever you say about your need, it goes to farming. Answers you give
-to the yes/no questions **do** change the result.
+**Buttons choose the type of help** (small menu for now). You can also speak: anything it takes
+from your voice is read back — "आपने पेंशन चुनी। सही है तो 1 दबाइए, नहीं तो 2।" — so it never
+goes the wrong way silently. Yes/no questions: 1 = yes, 2 = no, or say हाँ / नहीं (it confirms).
 
-| Bot says | You say (or key) | What to tell the room |
+| Bot says | Press / say | What to tell the room |
 |---|---|---|
-| Namaste… Hindi or English? | "Hindi" / "English" (or 1 / 2) | "No app, no reading. Just talk." |
-| What do you need help with? | "मुझे खेती के लिए मदद चाहिए" / "Help with farming" | |
-| Two short questions. Is the land in your name? | "हाँ" / "Yes" (1 = yes, 2 = no) | "It asks follow-up questions to narrow down." |
-| Do you need a loan? | "हाँ" / "Yes" | |
-| I found **3** schemes: PM-KISAN, Kisan Credit Card, Fasal Bima | — | "Yes + yes = 3 schemes. Say no to land and PM-KISAN drops out." |
-| Which one? | "फसल बीमा" / "Kisan Credit Card" / "the first one" | |
-| Details (from the official site) | — | "Every fact is from the government page." |
-| Shall I tell you how to apply? | "हाँ" | |
-| Another scheme? | "नहीं" / "No" | |
-| Thank you… goodbye. Call ends. | | |
+| Namaste… Hindi or English? | 1 Hindi / 2 English (or say it) | "No app, no reading. Just a phone." |
+| What do you need? 1 farming, 2 pension, 3 health, 4 jobs | a key, or say "पेंशन" → it confirms, press 1 | "Buttons for the main choice; voice is checked back." |
+| **Farming:** land in your name? loan needed? | 1 / 2 each | "Follow-up questions narrow it down." |
+| → 1 to 3 schemes, then "which one? 1 / 2 / 3" | a key or the name | "Say no to land, and PM-KISAN drops out." |
+| **Pension:** age 18–40? savings account? | 1 / 2 | "Over 40 → it says honestly there is no scheme for you." |
+| **Health:** SC/ST or landless daily-wage family? | 1 / 2 | Ayushman Bharat, ₹5 lakh cashless |
+| **Jobs:** 1 own business, 2 apprenticeship | 1 / 2 | PMEGP subsidy or NAPS stipend |
+| Details (from the official site), then "how to apply?" | 1 | "Every fact is from the government page." |
+| Anything else? | 1 → back to the menu, 2 → goodbye | Show a second path |
 
-Results by answer: land yes + loan yes → 3 schemes; land yes + loan no → PM-KISAN + Fasal Bima;
-land no + loan yes → KCC + Fasal Bima; land no + loan no → Fasal Bima only.
+Results for farming: land yes + loan yes → 3 schemes; yes + no → PM-KISAN + Fasal Bima;
+no + yes → KCC + Fasal Bima; no + no → Fasal Bima only.
 
-If it does not catch what you said, it says "sorry, say again", then goes with the script's answer.
-Keys always work: 1 = yes / Hindi, 2 = no / English. You can press a key while it is talking.
+Good 3-minute run: **1** (Hindi) → **1** farming → **1**, **1** → pick **3** by saying "फसल बीमा" and press 1 →
+**1** how to apply → **1** anything else → say "पेंशन", press 1 → **1**, **1** → **2** → **2** goodbye.
+
+If nobody answers the main menu 3 times, it says goodbye. It never picks the type of help on its own.
 
 ## If something goes wrong
 
@@ -53,8 +55,11 @@ Keys always work: 1 = yes / Hindi, 2 = no / English. You can press a key while i
 
 ## Say honestly if asked
 
-- The conversation is **scripted for the demo**: 3 farmer schemes, always the farming path. The follow-up
-  answers are real branches. The full engine (12 schemes, any path) exists, but is keypad only (`make demo-run`).
-- Voice: Sarvam. The lines are made in advance, not live.
-- Hearing: Groq Whisper tonight, because the Sarvam credits ran out. Sarvam hearing comes back once credits are topped up (it switches by itself).
-- Hindi and English only. Marathi comes later.
+- The conversation is **scripted for the demo**: 4 kinds of help, 7 real schemes, fixed follow-up questions.
+  The full engine (12 schemes, any path) exists, but is keypad only (`make demo-run`).
+- Voice: Sarvam, made in advance. **Right now 86 of 111 lines use the Mac voice** because the Sarvam credits
+  ran out. Top up Sarvam and restart `make run-demo`: it makes the missing lines in Sarvam by itself
+  (the window stops saying `VOICE MIXED`).
+- Hearing: Groq Whisper tonight (Sarvam credits). Short single words are hard over a phone line, which is why
+  every voice answer is read back for a 1/2 confirm.
+- Hindi and English only.

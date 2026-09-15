@@ -84,6 +84,17 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 15 Sep (night, v2) — buttons for the main choice, voice answers confirmed
+- **Bug Adarsh found:** he said "pension", the phone speech-to-text heard nonsense, and the script went to farming anyway.
+- **Changed:** the type of help is now a small button menu (1 farming, 2 pension, 3 health, 4 jobs). Speech still works,
+  but whatever it hears is read back: "आपने पेंशन चुनी। सही है तो 1 दबाइए, नहीं तो 2।" Same for हाँ / नहीं and scheme names.
+  It never picks the type of help by itself.
+- **Added:** pension (Atal Pension: age? savings account?), health (Ayushman Bharat: SC/ST or landless daily wage?),
+  jobs (PMEGP or apprenticeship). "Anything else?" goes back to the menu.
+- **Hearing fix:** Whisper garbled a lone short word like "पेंशन". Adding 1 s of quiet around it and a list of expected words fixed it in tests.
+- **Voice:** 86 new lines use the Mac voice until Sarvam credits are topped up. Then a restart makes them in Sarvam.
+- **Tested:** fake calls in Hindi and English through every path, including saying 2 to a wrong confirm. `pytest` → 109 passed.
+
 ### 15 Sep (later) — voice demo that rings you (`make run-demo`)
 - **Added:** one command, `make run-demo`. It starts the tunnel and the server, waits until the voice is ready,
   then rings Adarsh's phone. The caller **talks** (Hindi or English) or presses keys.
