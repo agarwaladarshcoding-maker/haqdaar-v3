@@ -1,49 +1,60 @@
 # HAQDAAR — demo script (15 Sep)
 
-A person calls a phone number, presses keys, and hears which government schemes fit them.
-The schemes are 12 real ones from myscheme.gov.in. Every fact comes from the official page.
+A person gets a phone call, **talks** in Hindi or English, answers two follow-up questions,
+and hears which real government schemes fit them. The facts come from myscheme.gov.in.
 
-## Before the demo (5 min)
+## Start the demo (one command)
 
 ```bash
 cd ~/Documents/haqdaar-v2 && git checkout demo-15sep
-make test                      # expect: 109 passed
-make demo KEYS=3,1,0,2         # quick check: prints a whole call, ends "Goodbye"
-caffeinate -dimsu make demo-run   # tunnel + number -> demo server. Leave this window open.
+make run-demo
 ```
 
-Wait for the line `voice ready: 146 lines, 0 failed` (about 1 min the first time, a few seconds after that).
-Then dial the number yourself once as a test run. Use speakerphone so the room can hear.
+It does everything itself: tunnel, server, voice. Then **your phone rings** (CALL_ME_NUMBER in .env).
+Wait for `RINGING +91…xxxx now`, pick up, and put it on speaker. Leave the window open: it shows
+every line the bot says (`BOT`) and what it heard (`CALLER said: "…"`).
 
-## The call (about 2 min). Keys to press:
+- Ring again after a call: `make call` (the server stays up). Or Ctrl+C and `make run-demo` again.
+- Another number: `make run-demo TO=+91XXXXXXXXXX`. Start without ringing: `make run-demo NOCALL=1`.
 
-| Press | You hear | What to say to the room |
+## The call (about 2–3 min). What to say
+
+The script is fixed: whatever you say about your need, it goes to farming. Answers you give
+to the yes/no questions **do** change the result.
+
+| Bot says | You say (or key) | What to tell the room |
 |---|---|---|
-| — | Welcome, pick a language | "Works on any phone. No app, no internet, no reading." |
-| **3** (English) or **1** (Hindi) | Privacy notice, then "What do you need help with?" + 7 choices | "The choices come straight from the scheme data." |
-| **1** farming | "Good news" + Kisan Credit Card, PM-KISAN, Fasal Bima, SMAM, each with a one-line summary | "It narrowed 12 schemes to the 4 that fit." |
-| **1** benefits | "According to the official myScheme website…" | "Every fact is quoted from the government page." |
-| **2** how to apply | Steps to apply | |
-| **0** finish | "Anything else? 1 yes, 2 no" | |
-| **2** | "Thank you for calling Haqdaar. Goodbye." Call ends. | |
+| Namaste… Hindi or English? | "Hindi" / "English" (or 1 / 2) | "No app, no reading. Just talk." |
+| What do you need help with? | "मुझे खेती के लिए मदद चाहिए" / "Help with farming" | |
+| Two short questions. Is the land in your name? | "हाँ" / "Yes" (1 = yes, 2 = no) | "It asks follow-up questions to narrow down." |
+| Do you need a loan? | "हाँ" / "Yes" | |
+| I found **3** schemes: PM-KISAN, Kisan Credit Card, Fasal Bima | — | "Yes + yes = 3 schemes. Say no to land and PM-KISAN drops out." |
+| Which one? | "फसल बीमा" / "Kisan Credit Card" / "the first one" | |
+| Details (from the official site) | — | "Every fact is from the government page." |
+| Shall I tell you how to apply? | "हाँ" | |
+| Another scheme? | "नहीं" / "No" | |
+| Thank you… goodbye. Call ends. | | |
 
-Other good choices: **6** pension (Atal Pension Yojana), **3** health (Ayushman Bharat), **5** jobs (3 schemes).
-You can press a key while it is talking: it stops and moves on.
+Results by answer: land yes + loan yes → 3 schemes; land yes + loan no → PM-KISAN + Fasal Bima;
+land no + loan yes → KCC + Fasal Bima; land no + loan no → Fasal Bima only.
 
-The server window shows each line as it happens (`SAY …`, `dtmf 1`). You can show it on the screen.
+If it does not catch what you said, it says "sorry, say again", then goes with the script's answer.
+Keys always work: 1 = yes / Hindi, 2 = no / English. You can press a key while it is talking.
 
 ## If something goes wrong
 
 | Problem | Fix |
 |---|---|
-| Call rings but no voice / "application error" | The tunnel changed. Stop `make demo-run` (Ctrl+C) and run it again; it points the number at the new tunnel. |
-| Cannot dial in | `make call` (the server rings your phone). |
-| Phone or internet dead | **Backup:** `make demo SPEAK=1`. Same call in the terminal, spoken by the laptop. You type the keys. |
-| Silent for a long time | It waits 12 s for a key, then asks "Are you still there?". After 3 waits it says goodbye and hangs up. |
+| `cloudflared failed 3 times; using ngrok` | Run `ngrok http --url=<shown address> 8000` in a second window, then `make call`. |
+| Phone never rings | Check the window for `RINGING`. Then `make calls` shows what Twilio did with the call. |
+| Rings, then "application error" | Tunnel died. Ctrl+C, `make run-demo` again. |
+| It never hears you | Speak after it stops talking. Use keys (1 yes, 2 no). |
+| Internet dead | **Backup:** `make demo SPEAK=1`, the old keypad call in the terminal with the laptop voice. |
 
-## What to say honestly if asked
+## Say honestly if asked
 
-- Keypad only today. Speech understanding comes next (Steps 13–16).
-- The voice is the laptop's built-in voice, used for the demo. The real voice (Sarvam, Indian languages) is Step 10.
-- Marathi uses the Hindi voice for now.
-- 12 schemes today. The pipeline that fetched them works for more.
+- The conversation is **scripted for the demo**: 3 farmer schemes, always the farming path. The follow-up
+  answers are real branches. The full engine (12 schemes, any path) exists, but is keypad only (`make demo-run`).
+- Voice: Sarvam. The lines are made in advance, not live.
+- Hearing: Groq Whisper tonight, because the Sarvam credits ran out. Sarvam hearing comes back once credits are topped up (it switches by itself).
+- Hindi and English only. Marathi comes later.

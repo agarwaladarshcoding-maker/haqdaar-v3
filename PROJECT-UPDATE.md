@@ -84,6 +84,20 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 15 Sep (later) — voice demo that rings you (`make run-demo`)
+- **Added:** one command, `make run-demo`. It starts the tunnel and the server, waits until the voice is ready,
+  then rings Adarsh's phone. The caller **talks** (Hindi or English) or presses keys.
+- **Voice:** Sarvam (bulbul:v3, "priya"). All 39 lines are made in advance and saved in the repo, so the call
+  needs no Sarvam credits. **Sarvam credits ran out tonight** after making them.
+- **Hearing:** Sarvam speech-to-text is out of credits, so Groq Whisper does the hearing (it switches by itself).
+- **Fixed script with follow-up questions:** "what do you need" → farming → "is the land in your name?" →
+  "do you need a loan?" → 1 to 3 real farmer schemes (PM-KISAN, Kisan Credit Card, Fasal Bima) → pick one by name →
+  details → how to apply → another one? → goodbye. Always farming (rigged), so it cannot go off track.
+- **Why the last run never rang:** the saved tunnel address had died on 13 Sep but the old process was still running,
+  so the tools kept using the dead address. Now checked with public DNS and restarted if dead.
+- **Tested:** fake Hindi and English calls over a real socket, start to goodbye. **Real call ..cf6f87 rang Adarsh's
+  phone**, played the Sarvam voice, took key 1, heard speech. `pytest` → 109 passed.
+
 ### 15 Sep — demo prototype (branch `demo-15sep`)
 - **Added:** a keypad phone call on the 12 real schemes that speaks real sentences (Mac's offline voice,
   English + Hindi). `make demo-run` = phone, `make demo` = terminal backup. Script: `DEMO.md`.
