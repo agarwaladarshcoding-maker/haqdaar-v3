@@ -61,6 +61,7 @@ SNAPSHOTS_DIR: str = os.environ.get("SNAPSHOTS_DIR", "snapshots")
 RAW_CACHE_DIR: str = os.environ.get("RAW_CACHE_DIR", "data_cache/raw")
 EXTRACT_CACHE_DIR: str = os.environ.get("EXTRACT_CACHE_DIR", "data_cache/extract")
 DERIVED_DIR: str = os.environ.get("DERIVED_DIR", "data_cache/derived")
+REPORTS_DIR: str = os.environ.get("REPORTS_DIR", "data_cache/reports")
 
 # Groq model and extraction pipeline (06-BUILD-PLAN.md Step 8)
 GROQ_MODEL: str = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")

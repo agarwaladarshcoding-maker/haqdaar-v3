@@ -18,6 +18,7 @@ Hard rules:
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import datetime, timezone
 import json
 import logging
 import os
@@ -103,7 +104,7 @@ OCCUPATION_TRILINGUAL: dict[str, dict[str, str]] = {
 class GroqClient:
     """Single-caller HTTP client for Groq API with low reasoning effort."""
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: Optional[str] = None, ledger_path: Optional[Path] = None):
         if api_key is None:
             load_dotenv()
             api_key = os.environ.get("GROQ_API_KEY")
@@ -112,8 +113,33 @@ class GroqClient:
         self.api_key = api_key
         self.endpoint = "https://api.groq.com/openai/v1/chat/completions"
         self._last_call_time: float = 0.0
+        self.ledger_path: Path = (
+            Path(ledger_path) if ledger_path is not None
+            else BASE_DIR / tunables.REPORTS_DIR / "groq_usage.jsonl"
+        )
+        # Run totals for the cost printout at the end of a derive pass
+        self.requests: int = 0
+        self.prompt_tokens: int = 0
+        self.completion_tokens: int = 0
 
-    def call(self, system_prompt: str, user_prompt: str) -> dict[str, Any]:
+    def _write_ledger(self, task: str, slug: str, prompt_tokens: int, completion_tokens: int) -> None:
+        """Append one usage line to the ledger. Never lets a write failure break a derive run."""
+        entry = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "task": task,
+            "slug": slug,
+            "model": tunables.GROQ_MODEL,
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+        }
+        try:
+            self.ledger_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.ledger_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except OSError as e:
+            print(f"Warning: failed to write Groq usage ledger {self.ledger_path}: {e}", file=sys.stderr)
+
+    def call(self, system_prompt: str, user_prompt: str, task: str = "", slug: str = "") -> dict[str, Any]:
         """Execute one throttled call to Groq with response_format json_object and 429 backoff."""
         import httpx
 
@@ -183,9 +209,19 @@ class GroqClient:
                 raise RuntimeError("Groq returned empty content (reasoning budget exceeded)")
 
             try:
-                return json.loads(content)
+                parsed = json.loads(content)
             except json.JSONDecodeError as e:
                 raise RuntimeError(f"Failed to parse Groq response JSON: {e}\nRaw content: {content}") from e
+
+            usage = data.get("usage") or {}
+            prompt_tokens = usage.get("prompt_tokens") or 0
+            completion_tokens = usage.get("completion_tokens") or 0
+            self.requests += 1
+            self.prompt_tokens += prompt_tokens
+            self.completion_tokens += completion_tokens
+            self._write_ledger(task, slug, prompt_tokens, completion_tokens)
+
+            return parsed
 
         raise RuntimeError(f"Groq call failed after {max_retries} retries.")
 
@@ -350,7 +386,7 @@ def derive_facets_task(
         f"Exclusions:\n{exclusions_text}\n"
     )
 
-    raw_result = client.call(system_prompt, user_prompt)
+    raw_result = client.call(system_prompt, user_prompt, task="facets", slug=slug)
     write_to_cache(sha, "facets", raw_result, cache_dir)
     return raw_result, False
 
@@ -401,7 +437,7 @@ def derive_aliases_task(
         f"Benefits overview: {benefits_text}\n"
     )
 
-    raw_result = client.call(system_prompt, user_prompt)
+    raw_result = client.call(system_prompt, user_prompt, task="aliases", slug=slug)
     write_to_cache(sha, "aliases", raw_result, cache_dir)
     return raw_result, False
 
@@ -455,7 +491,7 @@ def derive_summary_task(
         f"Eligibility:\n{eligibility_text}\n"
     )
 
-    raw_result = client.call(system_prompt, user_prompt)
+    raw_result = client.call(system_prompt, user_prompt, task="summary", slug=slug)
     write_to_cache(sha, "summary", raw_result, cache_dir)
     return raw_result, False
 
@@ -842,6 +878,7 @@ def run_pipeline_extract(
     print(f"Network calls:           {network_calls}")
     print(f"Occupation cardinality:  {cardinality} <= {tunables.KEYPAD_CARDINALITY_MAX}")
     print(f"Derived records written: {derived_dir}")
+    print(f"groq: {client.requests} requests, {client.prompt_tokens} prompt + {client.completion_tokens} completion tokens")
     print("=" * 60)
 
     return derived_schemes
