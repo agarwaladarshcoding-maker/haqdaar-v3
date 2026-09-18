@@ -84,6 +84,49 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 18 Sep (later) — the full v2 plan: 100+ schemes, 3 languages
+**Added:** `PLAN-V2.md`, the plan from here to the 10-call test, in 7 phases (0–6). It replaces
+`NEXT-PLAN.md`.
+**Why a new plan:** you want 100+ schemes (all-India + Maharashtra) in Hindi, Marathi and English.
+The research found these problems:
+- Scheme sections are 2–6 minutes long when spoken, so each will get a short checked "card"
+  (~25 s).
+- A scheme the AI can't place quietly became "for everyone", which is a lie. It will be set aside
+  instead.
+- Answering "No" to "Do you live in Maharashtra?" would have removed every scheme.
+- Groq's free tier allows 200K tokens a day, so the 100-scheme data run is about 6 days unless
+  you pay (you decide in Phase 3).
+
+A second reviewer checked the plan against the code and found 17 more holes; all are fixed in the
+plan.
+**How we work:** one phase at a time. You say "start Phase N", I build it with helpers, check
+everything, report, and stop.
+**Changed:** nothing in the code.
+**Project can now:** same as before. Next: Phase 0 (move the repo out of iCloud, cleanup, back up
+the data), when you say go.
+
+### 18 Sep — full check of the project, and a plan to finish
+**Added:** `NEXT-PLAN.md`: the goal, what each of the 21 steps has done (9 done, 4 half, 8 not
+started), a checklist in 4 phases, the decisions only Adarsh can make, and the top risks.
+**Found:** iCloud has pushed 507 repo files off the laptop (disk 90% full), including 457 in `.venv`
+and 17 inside `.git`. That is why `make test` and some git commands hang. The code is fine: a fresh
+setup outside iCloud ran `pytest` → **109 passed**. Fix is in `NEXT-PLAN.md` §4 A.
+**Not done:** the cleanup (old `_staging/`, 15 unused voice clips, a stray empty folder, junk
+files). The safety check blocked deleting without Adarsh's OK. Commands are in `NEXT-PLAN.md` §4.
+**Project can:** same as 15 Sep. §1 below still describes `main` correctly, apart from the dates.
+
+### 15 Sep (night) — references for the PPT
+**Changed:** new `REFERENCES-FOR-PPT.md`: real numbers with links for the problem slide (TRAI, Census,
+NFHS-5, NSS, myScheme, World Bank via Acumen), the 7 scheme pages, similar work (Kisan Call Centre,
+Mobile Vaani, Haqdarshak), the tools, and a ready "References" slide. Items marked (check) must be read at the source first.
+**Project can:** same as before. This is for the slides only.
+
+### 15 Sep (night, v3 call) — whole call in the Sarvam voice, `make call-me`
+- **Changed:** new Sarvam key. All 125 lines are now in the Sarvam voice (mac fallback 0). The clips are saved in `haqdaar/voice_demo_clips/`. Commit that folder and the voice stays even with no credits.
+- **Added:** `make call-me` starts the tunnel and the real backend (`haqdaar.server`), then rings your phone. `make run-demo` does the same for the voice demo.
+- **Real call (19:00):** farming path, keys 1, 1, 2, then scheme 2 (crop insurance), how to apply, goodbye. No errors. One spoken answer was lost: Sarvam speech-to-text took longer than 4.5 s. The call asked for a key and carried on.
+- **Tested:** `pytest` → 109 passed.
+
 ### 15 Sep (night, v3) — repeat slowly, "don't know" button, slower voice, PPT brief
 - **Real call test (18:38):** the call went well end to end. One bug: a key pressed while it said "sorry, I did not understand" was lost. **Fixed:** that key now answers the question.
 - **Added:** press **9** at any time (or say "दोबारा" / "repeat") and it says the last line again, slowly. It tells the caller this once, after the language.

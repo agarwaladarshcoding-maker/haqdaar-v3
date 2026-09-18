@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: demo demo-run run-demo run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract
+.PHONY: demo demo-run run-demo call-me run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract
 
 test:
 	$(PYTHON) -m pytest
@@ -20,6 +20,10 @@ demo:
 # NOCALL=1 to skip the ring, TO=+91... for another number.
 run-demo:
 	caffeinate -dimsu $(PYTHON) -m tools.run_demo
+
+# REAL BACKEND + ring: tunnel + haqdaar.server + rings your phone. Same knobs as run-demo.
+call-me:
+	caffeinate -dimsu env APP=haqdaar.server:app $(PYTHON) -m tools.run_demo
 
 # DEMO phone: tunnel + number -> demo server. Then dial the number (or make call).
 demo-run:

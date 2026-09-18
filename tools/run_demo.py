@@ -23,6 +23,8 @@ from haqdaar.audio.telephony import place_call, point_number_at
 from tools.tunnel import _resolves, cloudflare_host, start_cloudflare
 
 PORT = 8000
+# `make call-me` sets APP=haqdaar.server:app (the real backend); default is the voice demo.
+APP = os.environ.get("APP", "haqdaar.voice_demo:app")
 
 
 def get(url: str) -> dict:
@@ -67,7 +69,7 @@ def main() -> int:
 
     env = dict(os.environ, NGROK_DOMAIN=host, PYTHONUNBUFFERED="1")
     server = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "haqdaar.voice_demo:app", "--host", "0.0.0.0", "--port", str(PORT)],
+        [sys.executable, "-m", "uvicorn", APP, "--host", "0.0.0.0", "--port", str(PORT)],
         env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     log = open("logs/server.log", "a")
 
@@ -78,7 +80,10 @@ def main() -> int:
     threading.Thread(target=pump, daemon=True).start()
 
     try:
-        ok = wait_for("the voice (Sarvam lines)", lambda: get(f"http://localhost:{PORT}/ready")["ready"], 300)
+        if APP.startswith("haqdaar.voice_demo"):
+            ok = wait_for("the voice (Sarvam lines)", lambda: get(f"http://localhost:{PORT}/ready")["ready"], 300)
+        else:
+            ok = wait_for("the server", lambda: get(f"http://localhost:{PORT}/health"), 120)
         ip = _resolves(host, tries=15)
 
         def through_tunnel() -> bool:  # curl pinned to the public-DNS IP (see tunnel._resolves)
