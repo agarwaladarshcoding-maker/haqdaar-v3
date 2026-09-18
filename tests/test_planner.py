@@ -82,11 +82,12 @@ def corpus(fixtures_data, tmp_path, monkeypatch):
 
 def test_stop_survivors_le_4(corpus):
     """Stop 1: <= 4 survivors when speaking-rule exception is satisfied."""
-    # When category, state, gender, social_category are answered, survivors are (0, 1, 3) -> 3 <= 4
+    # When category, state, gender, social_category are answered, survivors are
+    # (0, 1, 2, 3) -> 4 <= 4 (S3's state is now ANY/central, so it also survives).
     # All hard boxes are answered, so no unasked hard boxes are non-ANY.
     bv = {
-        "category": "agriculture",
-        "state": "BIHAR",
+        "category": "farming",
+        "state": "MAHARASHTRA",
         "gender": "female",
         "social_category": "SC",
     }
@@ -100,12 +101,12 @@ def test_stop_survivors_le_4(corpus):
 def test_speaking_rule_exception_prevents_le_4_stop(corpus):
     """Speaking-rule exception: do not stop on <= 4 while an unasked hard box is non-ANY.
 
-    With category=agriculture, survivors are (0, 1, 2, 3) (4 survivors <= 4).
-    However, state, gender, social_category are unasked, and schemes 0, 1, 2, 3
-    require specific values (non-ANY) on them.
+    With category=farming, survivors are (0, 1, 2, 3) (4 survivors <= 4).
+    However, state, gender, social_category are unasked, and S1, S2, S4
+    require specific values (non-ANY) on them (S3 is state=ANY/central).
     Planner MUST ask the qualifying hard box first rather than stopping.
     """
-    bv = {"category": "agriculture"}
+    bv = {"category": "farming"}
     survs = Filter.survivors(bv, corpus)
     assert len(survs) == 4
     assert len(survs) <= tunables.STOP_SURVIVORS
@@ -119,7 +120,7 @@ def test_speaking_rule_exception_prevents_le_4_stop(corpus):
 
 def test_stop_max_turns(corpus):
     """Stop 2a: 8 turns spent triggers STOP_MAX_TURNS."""
-    bv = {"category": "agriculture"}
+    bv = {"category": "farming"}
     act = next_action(bv, corpus, turn_count=tunables.MAX_TURNS)
     assert isinstance(act, Stop)
     assert act.reason == STOP_MAX_TURNS
@@ -132,7 +133,7 @@ def test_stop_max_turns(corpus):
 
 def test_stop_max_questions(corpus):
     """Stop 2b: 6 questions spent triggers STOP_MAX_QUESTIONS."""
-    bv = {"category": "agriculture"}
+    bv = {"category": "farming"}
     act = next_action(bv, corpus, question_count=tunables.MAX_QUESTIONS)
     assert isinstance(act, Stop)
     assert act.reason == STOP_MAX_QUESTIONS
@@ -161,10 +162,10 @@ def test_stop_no_split(tmp_path, monkeypatch):
             "details": {"en": f"NS{i}", "hi": f"NS{i}", "mr": f"NS{i}"},
             "documents": {"en": f"NS{i}", "hi": f"NS{i}", "mr": f"NS{i}"},
             "how_to_apply": {"en": f"NS{i}", "hi": f"NS{i}", "mr": f"NS{i}"},
-            "category": "cat_common",
-            "state": "BIHAR",
-            "gender": "ALL",
-            "social_category": "ALL",
+            "category": "farming",
+            "state": "MAHARASHTRA",
+            "gender": "ANY",
+            "social_category": "ANY",
             "age": "ANY",
             "income_band": "ANY",
             "occupation": "ANY",
@@ -182,7 +183,7 @@ def test_stop_no_split(tmp_path, monkeypatch):
     test_corpus = Corpus.load(snap_id)
 
     # 5 survivors > 4, but every remaining box is ANY across all survivors
-    bv = {"category": "cat_common", "state": "BIHAR"}
+    bv = {"category": "farming", "state": "MAHARASHTRA"}
     assert len(Filter.survivors(bv, test_corpus)) == 5
     act = next_action(bv, test_corpus)
     assert isinstance(act, Stop)
@@ -191,7 +192,12 @@ def test_stop_no_split(tmp_path, monkeypatch):
 
 def test_stop_zero_survivors_exhausted_ladder(tmp_path, monkeypatch):
     """Stop 4: Zero survivors and widening ladder exhausts."""
-    # Build a corpus with hard-box conflict between two states
+    # Build a corpus with a hard-box conflict. The closed `state` set is now
+    # binary (MAHARASHTRA or ANY/central, D6), so there is no second real state
+    # left to build a two-state conflict from; social_category still has 4 real
+    # codes, so the conflict is built there instead. The point under test is
+    # unchanged: a hard-box mismatch is permanent and the widening ladder
+    # (income_band -> age -> occupation) can never rescue it.
     snap_dir = tmp_path / "snapshots_zero"
     audio_dir = tmp_path / "audio_zero"
     snap_dir.mkdir(parents=True, exist_ok=True)
@@ -207,10 +213,10 @@ def test_stop_zero_survivors_exhausted_ladder(tmp_path, monkeypatch):
             "details": {"en": "Z1", "hi": "Z1", "mr": "Z1"},
             "documents": {"en": "Z1", "hi": "Z1", "mr": "Z1"},
             "how_to_apply": {"en": "Z1", "hi": "Z1", "mr": "Z1"},
-            "category": "agriculture",
-            "state": "BIHAR",
+            "category": "farming",
+            "state": "ANY",
             "gender": "female",
-            "social_category": "ALL",
+            "social_category": "GEN",
             "age": "30",
             "income_band": "30000",
             "occupation": "farmer",
@@ -223,10 +229,10 @@ def test_stop_zero_survivors_exhausted_ladder(tmp_path, monkeypatch):
             "details": {"en": "Z2", "hi": "Z2", "mr": "Z2"},
             "documents": {"en": "Z2", "hi": "Z2", "mr": "Z2"},
             "how_to_apply": {"en": "Z2", "hi": "Z2", "mr": "Z2"},
-            "category": "agriculture",
-            "state": "KARNATAKA",
+            "category": "farming",
+            "state": "ANY",
             "gender": "male",
-            "social_category": "ALL",
+            "social_category": "OBC",
             "age": "30",
             "income_band": "30000",
             "occupation": "farmer",
@@ -242,15 +248,16 @@ def test_stop_zero_survivors_exhausted_ladder(tmp_path, monkeypatch):
     )
     test_corpus = Corpus.load(snap_id)
 
-    # State BIHAR + gender male conflicts on hard boxes with both schemes: 0 survivors
+    # social_category ST matches neither Z1 (GEN) nor Z2 (OBC), and gender male
+    # also conflicts with Z1 (female): both hard-miss. 0 survivors.
     # Widening drops all soft boxes (income_band, age, occupation, category), but survivors remain 0
     bv = {
-        "state": "BIHAR",
         "gender": "male",
+        "social_category": "ST",
         "income_band": "30000",
         "age": "30",
         "occupation": "farmer",
-        "category": "agriculture",
+        "category": "farming",
     }
     assert len(Filter.survivors(bv, test_corpus)) == 0
     act = next_action(bv, test_corpus)
@@ -260,17 +267,17 @@ def test_stop_zero_survivors_exhausted_ladder(tmp_path, monkeypatch):
 
 def test_widen_ladder_rung_1_income_band(corpus):
     """Widening ladder: stops at first rung (income_band) producing >= 1 survivor."""
-    # In fixture, S3 requires category=handloom, state=KARNATAKA, age=35, income_band=75000.
+    # S5 (the sole business_loans scheme) is state=MAHARASHTRA, age=35, income_band=50000.
     # If caller answered income_band=30000 (mismatch), age=35 (match):
-    # Dropping income_band at rung 1 immediately recovers S3!
-    # Hard boxes are answered: a widened candidate whose miss-set holds an
-    # unasked hard box is never speakable, so the planner asks that box before
-    # it widens (T10 speaking-rule exception, applied to the widened set).
+    # Dropping income_band at rung 1 immediately recovers S5!
+    # gender and social_category are answered ANY (a no-op mask, same role the
+    # old broken "ALL" placeholder played), so the widened candidate is already
+    # speakable without an extra hard-box ask.
     bv = {
-        "category": "handloom",
-        "state": "KARNATAKA",
-        "gender": "ALL",
-        "social_category": "ALL",
+        "category": "business_loans",
+        "state": "MAHARASHTRA",
+        "gender": "ANY",
+        "social_category": "ANY",
         "age": "35",
         "income_band": "30000",
     }
@@ -282,15 +289,15 @@ def test_widen_ladder_rung_1_income_band(corpus):
 
 def test_widen_ladder_rung_2_age(corpus):
     """Widening ladder: drops income_band then age cumulatively."""
-    # S3 requires category=handloom, state=KARNATAKA, age=35, income_band=75000.
+    # S5 (the sole business_loans scheme) is age=35, income_band=50000.
     # Caller answered income_band=30000 and age=30:
     # Rung 1: drop income_band -> vector still has age=30 -> 0 survivors.
-    # Rung 2: drop age -> vector has both income_band and age dropped -> S3 survives!
+    # Rung 2: drop age -> vector has both income_band and age dropped -> S5 survives!
     bv = {
-        "category": "handloom",
-        "state": "KARNATAKA",
-        "gender": "ALL",
-        "social_category": "ALL",
+        "category": "business_loans",
+        "state": "MAHARASHTRA",
+        "gender": "ANY",
+        "social_category": "ANY",
         "age": "30",
         "income_band": "30000",
     }
@@ -310,12 +317,14 @@ def test_widen_ladder_skips_unasked_or_unknown_rungs(corpus):
     age is UNASKED -> skipped (not counted, no mask to drop).
     Next rung: occupation -> dropping it recovers survivors.
     """
-    # S3 is the only KARNATAKA agriculture scheme (75000, farmer). income_band
-    # and occupation both miss it, and S4 (ANY on everything) is BIHAR, so
-    # nothing survives.
+    # S1 and S2 are the two state=ANY (central) farming schemes (income_band
+    # 75000/30000, occupation farmer). state=OTHER excludes S3, S4, S5 (all
+    # state=MAHARASHTRA-only, D6 fixture migration: S4's only real constraint
+    # is its state, KARNATAKA -> MAHARASHTRA), leaving only S1/S2 in play;
+    # income_band=50000 and occupation=weaver miss both of them.
     bv = {
-        "category": "agriculture",
-        "state": "KARNATAKA",
+        "category": "farming",
+        "state": "OTHER",
         "gender": "female",
         "social_category": "SC",
         "income_band": "50000",
@@ -342,12 +351,15 @@ def test_widen_never_drops_hard_boxes_or_category(corpus):
     assert "category" not in WIDENING_ORDER
     assert not set(WIDENING_ORDER) & HARD_BOXES
 
-    # category=handloom in BIHAR: 0 survivors, and no soft box is answered, so
-    # there is no rung to walk. The call stops on zero survivors and the
-    # terminal becomes Nearest or Empty — it never drops the subject.
+    # category=business_loans (handloom) outside Maharashtra: S5 (the sole
+    # business_loans scheme) is state=MAHARASHTRA-only (D6 fixture migration:
+    # KARNATAKA -> MAHARASHTRA), so it hard-misses; 0 survivors, and no soft
+    # box is answered, so there is no rung to walk. The call stops on zero
+    # survivors and the terminal becomes Nearest or Empty — it never drops the
+    # subject.
     bv = {
-        "category": "handloom",
-        "state": "BIHAR",
+        "category": "business_loans",
+        "state": "OTHER",
         "gender": "female",
         "social_category": "SC",
     }
@@ -364,7 +376,7 @@ def test_zero_survivors_asks_hard_box_the_nearest_would_need(corpus):
     by Filter.speakable() and the caller would hear an empty terminal over a
     corpus that held two near misses. The planner asks the hard box first.
     """
-    bv = {"category": "handloom", "state": "BIHAR"}
+    bv = {"category": "business_loans", "state": "OTHER"}
     assert len(Filter.survivors(bv, corpus)) == 0
     act = next_action(bv, corpus)
     assert isinstance(act, Ask)
@@ -416,21 +428,22 @@ def test_out_of_set_answer_reask(corpus):
       it is asked again as required by T09 §6 ("handed to the ladder as a re-ask"). For widening,
       the Planner treats out-of-set values as UNKNOWN (skips the rung because no mask was appended).
     """
-    # "MAHARASHTRA" is not in corpus.values("state") for the fixture (BIHAR, KARNATAKA)
-    bv = {"category": "agriculture", "state": "MAHARASHTRA"}
-    # Survivors are not narrowed by state=MAHARASHTRA (filter appends no mask -> 4 survivors)
+    # "KARNATAKA" is not in corpus.values("state") for the fixture (MAHARASHTRA, OTHER):
+    # the closed state set is binary now (D6), and any other state name is out-of-set.
+    bv = {"category": "farming", "state": "KARNATAKA"}
+    # Survivors are not narrowed by state=KARNATAKA (filter appends no mask -> 4 survivors)
     survs = Filter.survivors(bv, corpus)
     assert len(survs) == 4
 
     # A naive planner would see state in box_vector and skip it as answered.
-    # Our planner detects that MAHARASHTRA is out-of-set, treats it as unasked, and
+    # Our planner detects that KARNATAKA is out-of-set, treats it as unasked, and
     # under the speaking-rule exception, re-asks state!
     act = next_action(bv, corpus)
     assert isinstance(act, Ask)
     assert act.box == "state"
 
-    # Conversely, if state was answered with a valid in-set value "BIHAR", it is NOT re-asked:
-    bv_valid = {"category": "agriculture", "state": "BIHAR"}
+    # Conversely, if state was answered with a valid in-set value "MAHARASHTRA", it is NOT re-asked:
+    bv_valid = {"category": "farming", "state": "MAHARASHTRA"}
     act_valid = next_action(bv_valid, corpus)
     assert isinstance(act_valid, Ask)
     assert act_valid.box != "state"
@@ -447,16 +460,17 @@ def test_planner_class_interface(corpus):
 def test_widen_asks_unasked_hard_box_before_widening(corpus):
     """A widened candidate is only worth buying if it can be spoken.
 
-    S3 (category=handloom, state=KARNATAKA) is recovered by dropping
-    income_band, but it is non-ANY on gender and social_category. With those
-    hard boxes unasked the truth lock would refuse to name it and the terminal
-    would collapse to Empty. The planner asks the hard box first.
+    S1/S2 (category=farming, state=ANY/central) are recovered by dropping
+    income_band, and they are non-ANY on gender and social_category, which
+    should force the planner to ask a hard box before naming either. state
+    must be OTHER: S3 and S4 are both state=MAHARASHTRA-only now (D6 fixture
+    migration gave S4 back a real state constraint too), so state=OTHER
+    excludes them, leaving only S1/S2 to widen back in.
     """
     bv = {
-        "category": "handloom",
-        "state": "KARNATAKA",
-        "age": "35",
-        "income_band": "30000",
+        "category": "farming",
+        "state": "OTHER",
+        "income_band": "50000",
     }
     assert len(Filter.survivors(bv, corpus)) == 0
     act = next_action(bv, corpus)

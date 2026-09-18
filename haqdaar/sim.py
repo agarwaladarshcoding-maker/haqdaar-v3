@@ -36,17 +36,33 @@ from haqdaar.engine.call import Engine
 
 # Canned keypad runs for the three keypad-only personas. The first digit is the
 # turn 0 language choice. See tests/test_call.py for what each one proves.
+# Digits are keypad positions in vocab.py order (D6, step 1.5a), not the old
+# alphabetical-over-discovered-values order. `state` D6 fixture migration:
+# BIHAR -> ANY for the "central" schemes S1, S2, S4, S6 (key 2 = OTHER, "not
+# in Maharashtra", still matches them); KARNATAKA -> MAHARASHTRA for S3, S5
+# (key 1 = MAHARASHTRA).
 PERSONAS: dict[str, list[str]] = {
-    # P1 · direct match: agriculture in BIHAR, female, SC -> named schemes.
-    "p1": ["1", "1", "1", "2", "2", "9", "9", "9", "2"],
-    # P2 · dead end: handloom in BIHAR does not exist. The ladder is exhausted
-    #      and two nearest schemes are named as non-matches.
-    "p2": ["1", "2", "1", "2", "2", "2"],
-    # P3 · second subject: Door B re-opens the opener and runs a second terminal.
-    "p3": ["1", "1", "1", "2", "2", "0", "1", "2", "2"],
+    # P1 · direct match: farming from outside Maharashtra ("OTHER"), female,
+    # SC -> named schemes (S1 is state=ANY/central, so it still matches).
+    "p1": ["1", "1", "2", "1", "3", "9", "9", "9", "2"],
+    # P2 · dead end: business_loans (handloom) from outside Maharashtra does
+    # not exist — S5 (the sole business_loans scheme) is state=MAHARASHTRA-
+    # only (D6). The ladder is exhausted and two nearest schemes are named as
+    # non-matches.
+    "p2": ["1", "2", "2", "1", "3", "2"],
+    # P3 · second subject: Door B re-opens the opener and runs a second
+    # terminal. state=OTHER carries over from round 1 (Door B clears only
+    # category), so round 2's business_loans answer hard-misses S5 again.
+    "p3": ["1", "1", "2", "1", "3", "0", "1", "2", "2"],
     # Widened match: the caller cannot name a subject, Door A is struck out,
-    #      and one rung of the ladder recovers a scheme.
-    "widened": ["1", "3", "3", "1", "2", "2", "2", "9", "2"],
+    #      and one rung of the ladder recovers a scheme. category now has all
+    #      9 vocab.CATEGORY values as valid keys, so "0" (not "3") is the
+    #      out-of-menu strike digit; the box asked right after the struck-out
+    #      opener is income_band, not state (planner minimax order). S4's D6
+    #      fixture migration gives it a real state constraint (MAHARASHTRA-
+    #      only, like S3/S5), so state=OTHER excludes it too, and
+    #      income_band=50000 (second band) misses both S1 and S2.
+    "widened": ["1", "0", "0", "2", "2", "1", "3", "9", "2"],
 }
 DEFAULT_PERSONA: str = "p1"
 

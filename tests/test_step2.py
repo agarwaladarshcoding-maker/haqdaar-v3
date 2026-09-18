@@ -171,18 +171,18 @@ def test_fixtures_schemes_load_and_validate():
     # Verify S1–S5 valid roles
     s1, s2, s3, s4, s5, s6 = schemes
 
-    # S1: Happy path match (specificity 7)
-    assert s1["state"] == "BIHAR"
-    assert s1["category"] == "agriculture"
+    # S1: Happy path match (state is ANY/central, D6 fixture migration: BIHAR -> ANY)
+    assert s1["state"] == "ANY"
+    assert s1["category"] == "farming"
     assert s1["occupation"] == "farmer"
     assert "kcc" in s1["aliases_en"]
 
     # S2: Soft-miss on income_band only (30,000 cutoff)
     assert s2["income_band"] == 30000
-    assert s2["state"] == "BIHAR"
+    assert s2["state"] == "ANY"
 
-    # S3: Hard-miss on state (KARNATAKA)
-    assert s3["state"] == "KARNATAKA"
+    # S3: Hard-miss on state (D6 fixture migration: KARNATAKA -> MAHARASHTRA)
+    assert s3["state"] == "MAHARASHTRA"
 
     # S4: Near-ANY generic (specificity 2, holds ANY on 5 boxes)
     any_boxes = [box for box in ("gender", "social_category", "age", "income_band", "occupation") if s4[box] == ANY]

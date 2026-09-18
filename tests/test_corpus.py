@@ -23,6 +23,7 @@ import tempfile
 import pytest
 
 from haqdaar.contracts import tunables
+from haqdaar.contracts import vocab
 from haqdaar.contracts.types import (
     ANY,
     RenderKey,
@@ -46,10 +47,10 @@ def sample_schemes():
             "aliases_en": ["kisan credit", "farmer loan", "kcc"],
             "aliases_hi": ["किसान क्रेडिट", "केसीसी", "किसान ऋण"],
             "aliases_mr": ["किसान क्रेडिट", "शेतकरी कर्ज"],
-            "category": "agriculture",
-            "state": "BIHAR",
-            "gender": "ALL",
-            "social_category": "ALL",
+            "category": "farming",
+            "state": "MAHARASHTRA",
+            "gender": "female",
+            "social_category": "ANY",
             "age": 25,
             "income_band": 75000,
             "occupation": "farmer",
@@ -92,8 +93,8 @@ def sample_schemes():
             # state is ANY: scheme is silent on state, survives every state mask
             "category": "health",
             "state": ANY,
-            "gender": "ALL",
-            "social_category": "ALL",
+            "gender": "ANY",
+            "social_category": "ANY",
             "age": ANY,
             "income_band": 150000,
             "occupation": ANY,
@@ -107,10 +108,10 @@ def sample_schemes():
             "aliases_en": ["weaver support", "handloom subsidy", "kcc"],  # "kcc" shared with S1 -> 2 schemes (Door A disambiguation)
             "aliases_hi": ["बुनकर सहायता", "केसीसी"],
             "aliases_mr": ["विणकर सहाय्य"],
-            "category": "handloom",
-            "state": "KARNATAKA",
-            "gender": "ALL",
-            "social_category": "ALL",
+            "category": "business_loans",
+            "state": "MAHARASHTRA",
+            "gender": "male",
+            "social_category": "ANY",
             "age": 30,
             "income_band": 50000,
             "occupation": "weaver",
@@ -201,23 +202,27 @@ def test_any_sets_scheme_bit_in_every_mask_for_that_column(temp_environment):
     """ANY sets a scheme's bit in every mask for that column."""
     corpus = Corpus.load(temp_environment["snap_id"])
 
-    # Scheme S2 (bit 1) has state = ANY
-    # Scheme S1 (bit 0) has state = BIHAR
-    # Scheme S3 (bit 2) has state = KARNATAKA
-    mask_bihar = corpus.mask("state", "BIHAR")
-    mask_karnataka = corpus.mask("state", "KARNATAKA")
+    # `state` no longer works for this demonstration (D6, step 1.5a): the only
+    # closed-set non-ANY state code left is MAHARASHTRA, so there is no second
+    # real state value to contrast against. `gender` still has real distinct
+    # codes, so the ANY-in-every-mask contrast is shown there instead:
+    # Scheme S2 (bit 1) has gender = ANY
+    # Scheme S1 (bit 0) has gender = female
+    # Scheme S3 (bit 2) has gender = male
+    mask_female = corpus.mask("gender", "female")
+    mask_male = corpus.mask("gender", "male")
 
-    # S1 (bit 0) should be in BIHAR, not in KARNATAKA
-    assert (mask_bihar & (1 << 0)) != 0
-    assert (mask_karnataka & (1 << 0)) == 0
+    # S1 (bit 0) should be in female, not in male
+    assert (mask_female & (1 << 0)) != 0
+    assert (mask_male & (1 << 0)) == 0
 
-    # S2 (bit 1, ANY) MUST be in BOTH BIHAR and KARNATAKA
-    assert (mask_bihar & (1 << 1)) != 0
-    assert (mask_karnataka & (1 << 1)) != 0
+    # S2 (bit 1, ANY) MUST be in BOTH female and male
+    assert (mask_female & (1 << 1)) != 0
+    assert (mask_male & (1 << 1)) != 0
 
-    # S3 (bit 2) should be in KARNATAKA, not in BIHAR
-    assert (mask_karnataka & (1 << 2)) != 0
-    assert (mask_bihar & (1 << 2)) == 0
+    # S3 (bit 2) should be in male, not in female
+    assert (mask_male & (1 << 2)) != 0
+    assert (mask_female & (1 << 2)) == 0
 
 
 def test_corpus_audio_and_chunks_return_render_key_never_bytes(temp_environment):
@@ -404,11 +409,12 @@ def test_corpus_methods_total_and_no_raise(temp_environment):
     assert corpus.scheme_id(1) == "S2"
     assert corpus.scheme_id(999) == ""
 
-    # values
+    # values: `state` is a vocab.py keypad box (D6, step 1.5a) — values() is
+    # always the full vocab.STATE list, in vocab order, not the discovered set.
     vals = corpus.values("state")
     assert isinstance(vals, tuple)
-    assert "BIHAR" in vals
-    assert "KARNATAKA" in vals
+    assert "MAHARASHTRA" in vals
+    assert "OTHER" in vals
     assert corpus.values("nonexistent_box") == ()
 
     # gate_notes
@@ -498,3 +504,80 @@ def test_alias_category_word_gate_uses_alias_category_word_min(monkeypatch):
     # Aliases that appear on only one scheme are unaffected.
     assert "unique a" in updated_schemes[0]["aliases_en"]
     assert "unique b" in updated_schemes[1]["aliases_en"]
+
+
+# ---------------------------------------------------------------------------
+# Step 1.5a: keypad values come from vocab.py, in vocab order
+# ---------------------------------------------------------------------------
+
+def test_values_category_matches_vocab_order(temp_environment):
+    """corpus.values('category') is exactly vocab.CATEGORY, in vocab order —
+    not sorted, not limited to what schemes happen to hold (D6, step 1.5a)."""
+    corpus = Corpus.load(temp_environment["snap_id"])
+    assert corpus.values("category") == vocab.CATEGORY
+
+
+def test_values_state_is_maharashtra_other_pair(temp_environment):
+    """corpus.values('state') is the closed (MAHARASHTRA, OTHER) pair (D6)."""
+    corpus = Corpus.load(temp_environment["snap_id"])
+    assert corpus.values("state") == ("MAHARASHTRA", "OTHER")
+
+
+def test_maharashtra_scheme_bit_only_in_maharashtra_mask_state_any_in_both(tmp_path, monkeypatch):
+    """A MAHARASHTRA scheme's bit is set only in the MAHARASHTRA mask; a
+    state=ANY (central) scheme's bit is set in both MAHARASHTRA and OTHER
+    masks — the truth lock the state keypad question depends on (D7)."""
+    snap_dir = tmp_path / "snap_mh"
+    audio_dir = tmp_path / "audio_mh"
+    snap_dir.mkdir(parents=True, exist_ok=True)
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(tunables, "SNAPSHOTS_DIR", str(snap_dir))
+    monkeypatch.setattr(tunables, "AUDIO_DIR", str(audio_dir))
+
+    schemes = [
+        {"scheme_id": "MH1", "state": "MAHARASHTRA", "category": "farming",
+         "gender": "ANY", "social_category": "ANY", "age": "ANY",
+         "income_band": "ANY", "occupation": "ANY"},
+        {"scheme_id": "CENTRAL1", "state": "ANY", "category": "farming",
+         "gender": "ANY", "social_category": "ANY", "age": "ANY",
+         "income_band": "ANY", "occupation": "ANY"},
+    ]
+    snap_id = build_snapshot(
+        schemes_data=schemes, snapshot_id="test_mh_state",
+        snapshots_dir=snap_dir, audio_dir=audio_dir, render_stubs=True,
+    )
+    c = Corpus.load(snap_id)
+
+    mask_mh = c.mask("state", "MAHARASHTRA")
+    mask_other = c.mask("state", "OTHER")
+
+    # MH1 (bit 0): only in the MAHARASHTRA mask
+    assert (mask_mh & (1 << 0)) != 0
+    assert (mask_other & (1 << 0)) == 0
+
+    # CENTRAL1 (bit 1, state=ANY): in BOTH masks, never locked out by the answer
+    assert (mask_mh & (1 << 1)) != 0
+    assert (mask_other & (1 << 1)) != 0
+
+
+def test_non_vocab_facet_value_raises_value_error(tmp_path, monkeypatch):
+    """A scheme whose value for a vocab.KEYPAD_LISTS box is not ANY and not in
+    the vocab list must raise ValueError at snapshot build (D6, step 1.5a):
+    p2 already quarantines such values, so reaching p6 means a bug upstream."""
+    snap_dir = tmp_path / "snap_bad"
+    audio_dir = tmp_path / "audio_bad"
+    snap_dir.mkdir(parents=True, exist_ok=True)
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(tunables, "SNAPSHOTS_DIR", str(snap_dir))
+    monkeypatch.setattr(tunables, "AUDIO_DIR", str(audio_dir))
+
+    schemes = [
+        {"scheme_id": "BAD1", "state": "MAHARASHTRA", "category": "farming",
+         "gender": "ALL", "social_category": "ANY", "age": "ANY",
+         "income_band": "ANY", "occupation": "ANY"},
+    ]
+    with pytest.raises(ValueError, match="not in vocab"):
+        build_snapshot(
+            schemes_data=schemes, snapshot_id="test_bad_gender",
+            snapshots_dir=snap_dir, audio_dir=audio_dir, render_stubs=True,
+        )

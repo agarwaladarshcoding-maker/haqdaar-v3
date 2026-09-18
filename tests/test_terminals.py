@@ -340,23 +340,32 @@ def test_section_source_frame_never_comes_before_summary(corpus):
 # ---------------------------------------------------------------------------
 
 def test_truth_lock_speakable_filtering_uncarried_state(corpus):
-    """Probed on Step 3 branch: a state no scheme carries leaves 5 survivors in bitmasks,
-    of which speakable() allows NONE.
-    Terminals must enforce speakable() before naming any scheme.
+    """Probed on Step 3 branch: answering only one box leaves survivors in
+    bitmasks of which speakable() allows NONE, because the others are still
+    unasked and non-ANY. Terminals must enforce speakable() before naming any
+    scheme.
+
+    The closed `state` set is now the binary MAHARASHTRA/OTHER pair (D6), and
+    MAHARASHTRA is carried by several fixture schemes, so it can no longer be
+    used as an "uncarried" probe. OTHER, answered alone, still makes the
+    point: it correctly survives S1/S2 (state=ANY/central) while hard-missing
+    S3/S4/S5 (state=MAHARASHTRA-only) — but S1/S2 are non-ANY on gender and
+    social_category, both unasked, so speakable() still allows neither.
     """
-    # State MAHARASHTRA is not carried by any scheme in the fixture corpus
-    bv = {"state": "MAHARASHTRA"}
+    # State OTHER is carried by S1/S2 (state=ANY) but hard-misses S3/S4/S5
+    # (state=MAHARASHTRA-only); gender/social_category are left unasked.
+    bv = {"state": "OTHER"}
 
     # Verify that raw survivors() does NOT protect the speaking rule:
-    # It leaves all 5 fixture schemes because MAHARASHTRA was out-of-set
+    # S1 and S2 (state=ANY) both survive on state alone.
     raw_survs = Filter.survivors(bv, corpus)
-    assert len(raw_survs) == 5
+    assert len(raw_survs) == 2
 
-    # Verify that speakable() allows none of them
+    # Verify that speakable() allows none of them (gender/social_category unasked)
     assert all(not Filter.speakable(s, bv, corpus) for s in raw_survs)
 
     # When rendered via Terminals, speakable() must be enforced:
-    # 0 schemes may be spoken, so it falls down ladder to Empty (MAHARASHTRA is a hard-box miss)
+    # 0 schemes may be spoken, so it falls down ladder to Empty
     seq = render_terminal(box_vector=bv, corpus=corpus)
     assert TERMINAL_EMPTY in seq
     assert not any(_is_scheme_name_token(t) for t in seq)
@@ -387,14 +396,21 @@ def test_classify_shape_and_end_to_end_dispatch(fixtures_data, corpus):
     assert seq_p1[0] == RESULTS_EXACT_PREAMBLE
     assert "name:S1" in seq_p1
 
-    # Widened match: agriculture in KARNATAKA for female SC on the wrong income.
-    # Initial survivors: 0. Rung 1 drops income_band -> S3 comes back.
+    # Widened match: farming outside Maharashtra for female SC on the wrong
+    # income. Initial survivors: 0 (S1/S2 both need income_band 75000/30000,
+    # not 50000). Rung 1 drops income_band -> S1 (and S2) come back. `state`
+    # must be OTHER, not MAHARASHTRA: S3 and S4 are both state=MAHARASHTRA +
+    # category=farming now (S4's state D6 fixture migration: KARNATAKA ->
+    # MAHARASHTRA, so its only real constraint is state), so any
+    # state=MAHARASHTRA + category=farming vector is an immediate direct match
+    # on S4, never a 0-survivors-then-widen path — and S3 is unreachable from
+    # OTHER since it too is state=MAHARASHTRA-only.
     widened_vec = {
-        "state": "KARNATAKA",
+        "state": "OTHER",
         "gender": "female",
         "social_category": "SC",
-        "category": "agriculture",
-        "income_band": "30000",
+        "category": "farming",
+        "income_band": "50000",
     }
     shape_w, survs_w, drops_w = classify_shape(box_vector=widened_vec, corpus=corpus)
     assert shape_w == DELIVERY_WIDENED_MATCH
@@ -405,16 +421,18 @@ def test_classify_shape_and_end_to_end_dispatch(fixtures_data, corpus):
     assert seq_w[0] == TERMINAL_WIDENED_PREAMBLE
     assert "drop_income_band" in seq_w
     assert RESULTS_WIDENED_LEAD in seq_w
-    assert "name:S3" in seq_w
+    assert "name:S1" in seq_w
 
-    # `category` is never widened (T10 D6 as amended 13 Sep). handloom in BIHAR
-    # has no match and no soft box to relax, so the terminal is Nearest, not a
-    # widened match that quietly answered a different question.
+    # `category` is never widened (T10 D6 as amended 13 Sep). handloom
+    # (business_loans) outside Maharashtra has no match and no soft box to
+    # relax (S5, the sole business_loans scheme, is state=MAHARASHTRA-only, D6
+    # fixture migration: KARNATAKA -> MAHARASHTRA), so the terminal is Nearest,
+    # not a widened match that quietly answered a different question.
     subject_vec = {
-        "state": "BIHAR",
+        "state": "OTHER",
         "gender": "female",
         "social_category": "SC",
-        "category": "handloom",
+        "category": "business_loans",
     }
     shape_s, survs_s, drops_s = classify_shape(box_vector=subject_vec, corpus=corpus)
     assert shape_s == DELIVERY_NEAREST
@@ -426,8 +444,27 @@ def test_classify_shape_and_end_to_end_dispatch(fixtures_data, corpus):
     assert "drop_category" not in seq_s
     assert SECTION_MENU not in seq_s
 
-    # Nearest delivery: rendered directly or via shape override
-    p2_vec = personas["P2"]["demographics"]
+    # Nearest delivery: rendered directly or via shape override.
+    # Persona P2 (male, GEN) can no longer be used for this: it hard-misses
+    # every scheme on gender alone once state=OTHER also excludes S3/S4/S5
+    # (all state=MAHARASHTRA-only, D6 fixture migration gave S4 a real state
+    # constraint too), so `Filter.nearest(p2_vec, corpus)` is now empty for
+    # P2's literal demographics (this was already true of gender=male vs
+    # S1/S2's female regardless of state — P2's own "expected_nearest":
+    # [S1, S2] never held at the engine level; S4 satisfied this assertion by
+    # coincidence in every earlier round, being ANY on every hard box it
+    # didn't just literally match). A hand-built vector demonstrates the same
+    # soft-only-miss nearest() mechanic instead: business_loans in
+    # Maharashtra (matches S5's hard boxes) on the wrong age/income.
+    p2_vec = {
+        "category": "business_loans",
+        "state": "MAHARASHTRA",
+        "gender": "male",
+        "social_category": "GEN",
+        "age": "99",
+        "income_band": "999999",
+        "occupation": "farmer",
+    }
     near_candidates = Filter.nearest(p2_vec, corpus)
     assert len(near_candidates) <= tunables.NEAREST_CAP
     assert len(near_candidates) >= 1
@@ -437,9 +474,11 @@ def test_classify_shape_and_end_to_end_dispatch(fixtures_data, corpus):
     assert SECTION_MENU not in seq_near
     assert any(_is_scheme_name_token(t) for t in seq_near)
 
-    # Unmatchable hard-box persona: Empty
+    # Unmatchable hard-box persona: Empty. state=OTHER hard-misses S3/S4/S5
+    # (all state=MAHARASHTRA-only, D6 fixture migration); category=education
+    # matches no scheme at all, so S1/S2 (state=ANY) never survive either.
     unmatchable_vec = {
-        "state": "KARNATAKA",
+        "state": "OTHER",
         "gender": "female",
         "social_category": "ST",
         "category": "education",
@@ -471,11 +510,14 @@ def test_terminals_class_namespace():
 def test_naming_without_box_vector_raises_rather_than_waving_schemes_through(corpus):
     """An omitted box_vector must never silently disable Filter.speakable().
 
-    Before this was closed, direct_match(raw, corpus=corpus) named all five
-    fixture schemes under state=MAHARASHTRA, for which speakable() is False on
-    every one of them. The lock has to fail closed, not open.
+    Before this was closed, direct_match(raw, corpus=corpus) named the
+    fixture schemes under state=OTHER, for which speakable() is False on
+    every one of them (see test_truth_lock_speakable_filtering_uncarried_state
+    above: S1/S2 survive state=OTHER on state alone, but are gagged because
+    gender/social_category are unasked). The lock has to fail closed, not
+    open.
     """
-    bv = {"state": "MAHARASHTRA"}
+    bv = {"state": "OTHER"}
     raw_survs = list(Filter.survivors(bv, corpus))
     assert raw_survs, "probe needs a non-empty survivor set to be meaningful"
     assert all(not Filter.speakable(s, bv, corpus) for s in raw_survs)

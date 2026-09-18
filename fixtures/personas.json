@@ -3,8 +3,8 @@
     "persona_id": "P1",
     "name": "Sunita Devi",
     "demographics": {
-      "category": "agriculture",
-      "state": "BIHAR",
+      "category": "farming",
+      "state": "OTHER",
       "gender": "female",
       "social_category": "SC",
       "age": 30,
@@ -20,8 +20,8 @@
     "persona_id": "P2",
     "name": "Ramesh Kumar",
     "demographics": {
-      "category": "agriculture",
-      "state": "BIHAR",
+      "category": "farming",
+      "state": "OTHER",
       "gender": "male",
       "social_category": "GEN",
       "age": 45,
@@ -40,8 +40,8 @@
     "persona_id": "P3",
     "name": "Anil Patil",
     "demographics": {
-      "category": "agriculture",
-      "state": "BIHAR"
+      "category": "farming",
+      "state": "OTHER"
     },
     "door_a_alias": "kcc",
     "expected_candidates": [

@@ -322,10 +322,13 @@ def test_control_keys_hash_and_star(corpus, tmp_path):
 
 def test_out_of_menu_digit_strike_and_drop(corpus, tmp_path):
     """Out-of-menu digit is logged as UNCLEAR; second strike drops box to UNKNOWN."""
+    # category (the opener, asked first) now has all 9 vocab.CATEGORY values as
+    # valid keys 1-9 (D6, step 1.5a), so "9" is a real pick, not out-of-menu.
+    # "0" is the only digit left out of range.
     audio = MockAudio(inputs=[
         Digit("1"),    # Turn 0
-        Digit("9"),    # Out of menu strike 1 (re-ask)
-        Digit("9"),    # Out of menu strike 2 (drop to UNKNOWN)
+        Digit("0"),    # Out of menu strike 1 (re-ask)
+        Digit("0"),    # Out of menu strike 2 (drop to UNKNOWN)
         Digit("1"),    # Next box
         Digit("2"),    # Anything else
     ])
@@ -346,14 +349,17 @@ def test_out_of_menu_digit_strike_and_drop(corpus, tmp_path):
 
 def test_persona_p1_happy_path_end_to_end(corpus, tmp_path):
     """P1 (Sunita Devi) narrows cleanly to a direct match (survivors_le_4)."""
-    # Door A: category=1 (agriculture), then state=1 (BIHAR), gender=2 (female),
-    # social_category=2 (SC).
+    # Door A: category=1 (farming), then state=2 (OTHER — P1 is from outside
+    # Maharashtra; S1 is state=ANY/central so it still matches), gender=1
+    # (female), social_category=3 (SC). Digits are keypad positions in
+    # vocab.py order (D6, step 1.5a), not the old alphabetical-over-
+    # discovered-values order.
     audio = MockAudio(inputs=[
         Digit("1"),    # Turn 0 (hi)
-        Digit("1"),    # opener: category -> agriculture
-        Digit("1"),    # state -> BIHAR
-        Digit("2"),    # gender -> female
-        Digit("2"),    # social_category -> SC
+        Digit("1"),    # opener: category -> farming
+        Digit("2"),    # state -> OTHER
+        Digit("1"),    # gender -> female
+        Digit("3"),    # social_category -> SC
         Digit("9"), Digit("9"), Digit("9"),   # read-back: walk the schemes
         Digit("2"),    # anything else -> no
     ])
@@ -371,7 +377,7 @@ def test_persona_p1_happy_path_end_to_end(corpus, tmp_path):
     assert [l for l in lines if l.get("mode") == "keypad_only" and "stop" not in l]
     # The opener is asked first and logged as a real box
     opener = [l for l in lines if l.get("box") == "category"]
-    assert opener and opener[0]["value"] == "agriculture"
+    assert opener and opener[0]["value"] == "farming"
     assert lines[-1]["stop"] == STOP_LE_4_SURVIVORS
     assert lines[-1]["ladder_rung"] == 0
 
@@ -379,17 +385,19 @@ def test_persona_p1_happy_path_end_to_end(corpus, tmp_path):
 def test_persona_p2_nearest_two_end_to_end(corpus, tmp_path):
     """P2 dead end: nothing matches, the ladder is exhausted, two nearest are named.
 
-    The caller asks about handloom in BIHAR. There is no handloom scheme in
-    BIHAR, and `category` is never widened (T10 D6 as amended), so the ladder
-    runs out and the terminal is Nearest: preamble first, cap 2, summary only,
-    no section_menu, auto-advance (T18 §2).
+    The caller asks about handloom (business_loans) from outside Maharashtra.
+    S5 (the sole business_loans scheme) is state=MAHARASHTRA-only (D6 fixture
+    migration: KARNATAKA -> MAHARASHTRA), so it hard-misses this caller, and
+    `category` is never widened (T10 D6 as amended), so the ladder runs out
+    and the terminal is Nearest: preamble first, cap 2, summary only, no
+    section_menu, auto-advance (T18 §2).
     """
     audio = MockAudio(inputs=[
         Digit("1"),    # Turn 0 (hi)
-        Digit("2"),    # opener: category -> handloom
-        Digit("1"),    # state -> BIHAR
-        Digit("2"),    # gender -> female
-        Digit("2"),    # social_category -> SC
+        Digit("2"),    # opener: category -> business_loans
+        Digit("2"),    # state -> OTHER
+        Digit("1"),    # gender -> female
+        Digit("3"),    # social_category -> SC
         Digit("2"),    # anything else -> no
     ])
     log = Log.open("test_p2_nearest", corpus.snapshot_id, logs_dir=tmp_path)
@@ -428,16 +436,21 @@ def test_persona_p3_second_subject_door_b(corpus, tmp_path):
     keypad equivalent. The third keypad persona is the Door B caller: one
     terminal, "anything else" == 1, the opener asked again, a second terminal
     on the same budget, then the farewell.
+
+    Round 2 asks category -> business_loans again; with state=OTHER carried
+    over from round 1 (Door B clears only `category`), S5 hard-misses on
+    state again, so round 2 also ends as a Nearest (see
+    test_persona_p2_nearest_two_end_to_end).
     """
     audio = MockAudio(inputs=[
         Digit("1"),    # Turn 0 (hi)
-        Digit("1"),    # opener: category -> agriculture
-        Digit("1"),    # state -> BIHAR
-        Digit("2"),    # gender -> female
-        Digit("2"),    # social_category -> SC
+        Digit("1"),    # opener: category -> farming
+        Digit("2"),    # state -> OTHER
+        Digit("1"),    # gender -> female
+        Digit("3"),    # social_category -> SC
         Digit("0"),    # read-back: none of these, leave the menu
         Digit("1"),    # anything else -> yes, Door B
-        Digit("2"),    # opener again: category -> handloom
+        Digit("2"),    # opener again: category -> business_loans
         Digit("2"),    # anything else -> no
     ])
     log = Log.open("test_p3_door_b", corpus.snapshot_id, logs_dir=tmp_path)
@@ -462,16 +475,23 @@ def test_widened_match_when_door_a_is_struck_out(corpus, tmp_path):
 
     A caller who cannot name their subject presses an out-of-menu key twice, so
     Door A drops to UNKNOWN and the Planner falls back to facts. income_band
-    then contradicts the only KARNATAKA scheme, and dropping that one rung
-    recovers it. T18 order: preamble -> drop_* -> lead -> names.
+    then contradicts a scheme, and dropping that one rung recovers it. T18
+    order: preamble -> drop_* -> lead -> names.
+
+    category now has all 9 vocab.CATEGORY values as valid keys (D6, step
+    1.5a), so "3" is a valid pick, not an out-of-menu strike; "0" is the only
+    digit left out of range, so the strike digits changed from "3","3" to
+    "0","0". S4's D6 fixture migration gives it back a real `state` constraint
+    (MAHARASHTRA-only, like S3/S5), so state=OTHER excludes it here too, and
+    income_band=50000 (the second band) misses both S1 and S2 (75000/30000).
     """
     audio = MockAudio(inputs=[
         Digit("1"),    # Turn 0 (hi)
-        Digit("3"), Digit("3"),   # opener struck out -> category = UNKNOWN
-        Digit("1"),    # income_band -> 30000
-        Digit("2"),    # state -> KARNATAKA
-        Digit("2"),    # gender -> female
-        Digit("2"),    # social_category -> SC
+        Digit("0"), Digit("0"),   # opener struck out -> category = UNKNOWN
+        Digit("2"),    # income_band -> second band (50000)
+        Digit("2"),    # state -> OTHER
+        Digit("1"),    # gender -> female
+        Digit("3"),    # social_category -> SC
         Digit("9"),    # read-back: advance
         Digit("2"),    # anything else -> no
     ])
@@ -505,20 +525,20 @@ def test_widened_match_with_door_a_answered(tmp_path, monkeypatch):
 
     fixtures/ is too small for this (five schemes narrow to <=4 or 0 before a
     second soft box is ever asked), so this builds a corpus where it is not:
-    income_band 30000 holds farmers and weavers, only 75000 holds potters, and
+    income_band 30000 holds farmers and weavers, only 75000 holds artisans, and
     every hard box is ANY. Planner asks income_band, then occupation; the caller
-    says 30000 and potter; dropping income_band brings the potters back.
+    says 30000 and artisan; dropping income_band brings the artisans back.
     """
     schemes = []
-    for inc, occ, copies in (("30000", "farmer", 3), ("30000", "weaver", 3), ("75000", "potter", 6)):
+    for inc, occ, copies in (("30000", "farmer", 3), ("30000", "weaver", 3), ("75000", "artisan", 6)):
         for _ in range(copies):
             schemes.append({
-                "scheme_id": f"G{len(schemes)}", "state": "ANY", "category": "agriculture",
+                "scheme_id": f"G{len(schemes)}", "state": "ANY", "category": "farming",
                 "gender": "ANY", "social_category": "ANY", "age": "ANY",
                 "income_band": inc, "occupation": occ,
             })
     schemes.append({
-        "scheme_id": "H0", "state": "ANY", "category": "handloom",
+        "scheme_id": "H0", "state": "ANY", "category": "business_loans",
         "gender": "ANY", "social_category": "ANY", "age": "ANY",
         "income_band": "ANY", "occupation": "ANY",
     })
@@ -534,13 +554,17 @@ def test_widened_match_with_door_a_answered(tmp_path, monkeypatch):
     )
     c = Corpus.load(snap_id)
     assert c.values("income_band") == ("30000", "75000")
-    assert c.values("occupation") == ("farmer", "potter", "weaver")
+    # occupation is a vocab.py keypad box (D6, step 1.5a): values() is always
+    # the full vocab.OCCUPATION list, in vocab order, not just what schemes use.
+    assert c.values("occupation") == (
+        "farmer", "street_vendor", "apprentice", "entrepreneur", "artisan", "weaver", "worker",
+    )
 
     audio = MockAudio(inputs=[
         Digit("1"),    # Turn 0 (hi)
-        Digit("1"),    # opener: category -> agriculture (answered, not struck out)
+        Digit("1"),    # opener: category -> farming (answered, not struck out)
         Digit("1"),    # income_band -> 30000
-        Digit("2"),    # occupation -> potter
+        Digit("5"),    # occupation -> artisan
         Digit("9"), Digit("9"), Digit("9"), Digit("9"),   # read-back
         Digit("2"),    # anything else -> no
     ])
@@ -558,7 +582,7 @@ def test_widened_match_with_door_a_answered(tmp_path, monkeypatch):
 
     lines = [json.loads(l) for l in open(tmp_path / "test_widened_door_a.jsonl")]
     assert not [l for l in lines if l.get("class") == "UNCLEAR"]
-    assert [l for l in lines if l.get("box") == "category" and l.get("value") == "agriculture"]
+    assert [l for l in lines if l.get("box") == "category" and l.get("value") == "farming"]
     assert lines[-1]["stop"] == STOP_ZERO_SURVIVORS
     assert lines[-1]["ladder_rung"] == 1
 
@@ -577,63 +601,53 @@ def test_category_is_never_widened(corpus, tmp_path):
     assert "drop_category" not in audio.played
 
 
-def test_state_drops_to_unknown_only_when_it_will_not_fit_a_keypad(tmp_path, monkeypatch):
-    """T18 §3 is a cardinality test, not a hard-coded box.
-
-    On a corpus with more states than a keypad holds, `state` drops to UNKNOWN,
-    `state_unknown_disclaimer` plays, and only nationwide schemes are speakable.
-    On fixtures/ (2 states) `state` is asked like any other box.
+class _CardinalityOverrideCorpus:
+    """Wraps a real Corpus, overriding values() for one box only, so a test can
+    force it over KEYPAD_CARDINALITY_MAX without needing p6 to ever build such
+    a snapshot (which it can no longer do, D6 step 1.5a — see
+    test_box_drops_to_unknown_only_when_it_will_not_fit_a_keypad). Every other
+    method (mask, scheme_id, chunks, audio, gate_notes, specificity, ...)
+    delegates straight through to the real corpus.
     """
-    wide = []
-    for i in range(tunables.KEYPAD_CARDINALITY_MAX + 2):
-        wide.append({
-            "scheme_id": f"W{i}",
-            "state": f"STATE_{i}",
-            "category": "agriculture",
-            "gender": "ANY",
-            "social_category": "ANY",
-            "age": "ANY",
-            "income_band": "ANY",
-            "occupation": "ANY",
-        })
-    # One nationwide scheme: the only thing speakable once state is UNKNOWN
-    wide.append({
-        "scheme_id": "WNAT",
-        "state": "ANY",
-        "category": "agriculture",
-        "gender": "ANY",
-        "social_category": "ANY",
-        "age": "ANY",
-        "income_band": "ANY",
-        "occupation": "ANY",
-    })
 
-    snap_dir = tmp_path / "wsnap"
-    audio_dir = tmp_path / "waudio"
-    snap_dir.mkdir(parents=True, exist_ok=True)
-    audio_dir.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(tunables, "SNAPSHOTS_DIR", str(snap_dir))
-    monkeypatch.setattr(tunables, "AUDIO_DIR", str(audio_dir))
-    snap_id = build_snapshot(
-        schemes_data=wide,
-        snapshot_id="test_wide_states",
-        snapshots_dir=snap_dir,
-        audio_dir=audio_dir,
-        render_stubs=True,
-    )
-    wide_corpus = Corpus.load(snap_id)
+    def __init__(self, inner, box, fake_values):
+        self._inner = inner
+        self._box = box
+        self._fake_values = fake_values
+
+    def values(self, box):
+        if box == self._box:
+            return self._fake_values
+        return self._inner.values(box)
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+
+def test_box_drops_to_unknown_only_when_it_will_not_fit_a_keypad(corpus, tmp_path):
+    """T18 §3 is a cardinality test, not a hard-coded box: call.py's safety net
+    (a box with > KEYPAD_CARDINALITY_MAX values drops to UNKNOWN,
+    unknown_source="keypad_dropped", and is never prompted) has to fire for
+    whatever box the planner would otherwise ask, not just `state`.
+
+    p6 can no longer itself produce a box with > 9 values (D6, step 1.5a: the
+    5 vocab.KEYPAD_LISTS boxes are always the full, <=9-item vocab list, and
+    age/income_band bands are always capped at KEYPAD_CARDINALITY_MAX too), so
+    build_snapshot() can no longer construct the corpus this test used to
+    build. The engine's safety net in call.py is untouched and still has to
+    hold, so this tests it directly: take the real fixture corpus and wrap it
+    so `values("state")` returns 10 entries, without needing p6 involved at
+    all.
+    """
+    over_cap = tuple(f"STATE_{i}" for i in range(tunables.KEYPAD_CARDINALITY_MAX + 1))
+    wide_corpus = _CardinalityOverrideCorpus(corpus, "state", over_cap)
     assert len(wide_corpus.values("state")) > tunables.KEYPAD_CARDINALITY_MAX
 
-    audio = MockAudio(inputs=[Digit("1"), Digit("0"), Digit("2")])
-    log = Log.open("test_wide", snap_id, logs_dir=tmp_path)
+    audio = MockAudio(inputs=[Digit("1"), Digit("1"), Digit("1"), Digit("2")])
+    log = Log.open("test_wide", corpus.snapshot_id, logs_dir=tmp_path)
     Engine.run_call(audio, None, wide_corpus, log)
 
-    assert STATE_UNKNOWN_DISCLAIMER in audio.played
-    named = {t.split(":", 1)[1] for t in audio.played if t.startswith("name:")}
-    assert "WNAT" in named, "the nationwide scheme was not named"
-    assert not {n for n in named if n.startswith("W") and n != "WNAT"}, (
-        "a state-specific scheme was named to a caller whose state is UNKNOWN"
-    )
+    assert "keypad_state" not in audio.played, "an over-cardinality box must never be prompted"
 
     lines = [json.loads(l) for l in open(tmp_path / "test_wide.jsonl")]
     dropped = [
@@ -641,6 +655,16 @@ def test_state_drops_to_unknown_only_when_it_will_not_fit_a_keypad(tmp_path, mon
         if l.get("box") == "state" and l.get("unknown_source") == "keypad_dropped"
     ]
     assert dropped, "the keypad drop was not logged"
+    assert dropped[0]["value"] == UNKNOWN
+
+    # Contrast: with <= 9 values (the real fixture corpus, 2 states) `state`
+    # is asked like any other box — the safety net does not fire when it
+    # shouldn't.
+    assert len(corpus.values("state")) <= tunables.KEYPAD_CARDINALITY_MAX
+    audio_normal = MockAudio(inputs=[Digit("1"), Digit("1"), Digit("1"), Digit("1"), Digit("2")])
+    log_normal = Log.open("test_normal_state", corpus.snapshot_id, logs_dir=tmp_path)
+    Engine.run_call(audio_normal, None, corpus, log_normal)
+    assert "keypad_state" in audio_normal.played
 
 
 # ---------------------------------------------------------------------------

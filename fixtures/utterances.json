@@ -7,12 +7,12 @@
     "expected_stamps": [
       {
         "box": "category",
-        "value": "agriculture",
+        "value": "farming",
         "span": "agriculture"
       },
       {
         "box": "state",
-        "value": "BIHAR",
+        "value": "OTHER",
         "span": "Bihar"
       },
       {
@@ -35,12 +35,12 @@
     "expected_stamps": [
       {
         "box": "category",
-        "value": "agriculture",
+        "value": "farming",
         "span": "कृषि"
       },
       {
         "box": "state",
-        "value": "BIHAR",
+        "value": "OTHER",
         "span": "बिहार"
       },
       {
@@ -63,12 +63,12 @@
     "expected_stamps": [
       {
         "box": "category",
-        "value": "agriculture",
+        "value": "farming",
         "span": "कृषी"
       },
       {
         "box": "state",
-        "value": "BIHAR",
+        "value": "OTHER",
         "span": "बिहार"
       },
       {
@@ -91,7 +91,7 @@
     "expected_stamps": [
       {
         "box": "state",
-        "value": "BIHAR",
+        "value": "OTHER",
         "span": "Bihar"
       },
       {
@@ -114,7 +114,7 @@
     "expected_stamps": [
       {
         "box": "state",
-        "value": "BIHAR",
+        "value": "OTHER",
         "span": "बिहार"
       },
       {
@@ -137,7 +137,7 @@
     "expected_stamps": [
       {
         "box": "state",
-        "value": "BIHAR",
+        "value": "OTHER",
         "span": "बिहार"
       },
       {

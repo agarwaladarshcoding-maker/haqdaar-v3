@@ -25,6 +25,7 @@ import struct
 from typing import Any, Mapping, Sequence
 
 from haqdaar.contracts import tunables
+from haqdaar.contracts import vocab
 from haqdaar.contracts.types import (
     ANY,
     HARD_BOXES,
@@ -259,26 +260,55 @@ def build_snapshot(
 
     vocab_boxes: dict[str, dict[str, Any]] = {}
     for box in boxes:
-        values_set: set[str] = set()
-        for s in schemes:
-            val = s.get(box)
-            if val is None and "facets" in s:
-                val = s["facets"].get(box)
-            if val is not None and val != ANY and val != "ANY":
-                if isinstance(val, (list, tuple, set)):
-                    for v in val:
-                        if v != ANY:
-                            values_set.add(str(v))
-                else:
-                    values_set.add(str(val))
-        sorted_values = sorted(values_set)
-        code_map = {v: idx for idx, v in enumerate(sorted_values)}
-        vocab_source = "corpus_prose_cut" if box == "occupation" else "authored"
-        vocab_boxes[box] = {
-            "values": sorted_values,
-            "code_map": code_map,
-            "vocab_source": vocab_source,
-        }
+        if box in vocab.KEYPAD_LISTS:
+            # Closed-list boxes (D6, step 1.5a): values = vocab.py's list, in vocab
+            # order, every value, even ones no scheme on this snapshot holds. This is
+            # what the keypad menu reads aloud, so the order must be fixed and known,
+            # not "whatever happens to appear on schemes" (see plan step 1.5a).
+            values_list = list(vocab.KEYPAD_LISTS[box])
+            for s in schemes:
+                val = s.get(box)
+                if val is None and "facets" in s:
+                    val = s["facets"].get(box)
+                if val is None or val == ANY or val == "ANY":
+                    continue
+                candidates = val if isinstance(val, (list, tuple, set)) else (val,)
+                for v in candidates:
+                    if v == ANY or v == "ANY":
+                        continue
+                    if str(v) not in values_list:
+                        raise ValueError(
+                            f"{s.get('scheme_id')}: {box} value {v!r} not in vocab"
+                        )
+            code_map = {v: idx for idx, v in enumerate(values_list)}
+            vocab_source = "corpus_prose_cut" if box == "occupation" else "authored"
+            vocab_boxes[box] = {
+                "values": values_list,
+                "code_map": code_map,
+                "vocab_source": vocab_source,
+            }
+        else:
+            # age / income_band: range boxes, unchanged in 1.5a (bands come in 1.5b).
+            values_set: set[str] = set()
+            for s in schemes:
+                val = s.get(box)
+                if val is None and "facets" in s:
+                    val = s["facets"].get(box)
+                if val is not None and val != ANY and val != "ANY":
+                    if isinstance(val, (list, tuple, set)):
+                        for v in val:
+                            if v != ANY:
+                                values_set.add(str(v))
+                    else:
+                        values_set.add(str(val))
+            sorted_values = sorted(values_set)
+            code_map = {v: idx for idx, v in enumerate(sorted_values)}
+            vocab_source = "authored"
+            vocab_boxes[box] = {
+                "values": sorted_values,
+                "code_map": code_map,
+                "vocab_source": vocab_source,
+            }
 
     keypad_age_bands = derive_keypad_bands(schemes, "age", max_bands=tunables.KEYPAD_CARDINALITY_MAX)
     keypad_income_bands = derive_keypad_bands(schemes, "income_band", max_bands=tunables.KEYPAD_CARDINALITY_MAX)
