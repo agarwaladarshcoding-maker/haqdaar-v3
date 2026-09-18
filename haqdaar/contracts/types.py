@@ -63,6 +63,7 @@ FIXED_LINE_IDS: tuple[str, ...] = (
     "door_a_option_none",
     "door_a_downgrade_to_b",
     "q_state",
+    "state_q_maharashtra",
     "q_gender",
     "q_social_category",
     "q_age",

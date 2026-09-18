@@ -54,18 +54,20 @@ PERSONAS: dict[str, list[str]] = {
     # terminal. state=OTHER carries over from round 1 (Door B clears only
     # category), so round 2's business_loans answer hard-misses S5 again.
     "p3": ["1", "1", "2", "1", "3", "0", "1", "2", "2"],
-    # Widened match: the caller cannot name a subject, Door A is struck out,
+    # Widened match: the caller cannot name a subject, Door A is declined,
     #      and one rung of the ladder recovers a scheme. category now has all
-    #      9 vocab.CATEGORY values as valid keys, so "0" (not "3") is the
-    #      out-of-menu strike digit; the box asked right after the struck-out
-    #      opener is income_band, not state (planner minimax order). S4's D6
-    #      fixture migration gives it a real state constraint (MAHARASHTRA-
-    #      only, like S3/S5), so state=OTHER excludes it too. income_band is
-    #      now a band box (step 1.5b): the fixture corpus's bands are
-    #      "0-29999","30000-30000","30001-49999","50000-50000","50001-74999",
+    #      9 vocab.CATEGORY values as valid keys, so there is no out-of-menu
+    #      strike digit left for it; "0" on the opener means "don't know"
+    #      (D7/F8, step 1.6) and drops it to UNKNOWN in a single key, not two
+    #      strikes. The box asked right after the declined opener is
+    #      income_band, not state (planner minimax order). S4's D6 fixture
+    #      migration gives it a real state constraint (MAHARASHTRA-only, like
+    #      S3/S5), so state=OTHER excludes it too. income_band is now a band
+    #      box (step 1.5b): the fixture corpus's bands are "0-29999",
+    #      "30000-30000","30001-49999","50000-50000","50001-74999",
     #      "75000-75000","75001+" — key 4 picks "50000-50000", which misses
     #      both S1 (75000) and S2 (30000).
-    "widened": ["1", "0", "0", "4", "2", "1", "3", "9", "2"],
+    "widened": ["1", "0", "4", "2", "1", "3", "9", "2"],
 }
 DEFAULT_PERSONA: str = "p1"
 

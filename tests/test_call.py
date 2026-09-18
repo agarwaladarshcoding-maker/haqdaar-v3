@@ -323,13 +323,18 @@ def test_control_keys_hash_and_star(corpus, tmp_path):
 def test_out_of_menu_digit_strike_and_drop(corpus, tmp_path):
     """Out-of-menu digit is logged as UNCLEAR; second strike drops box to UNKNOWN."""
     # category (the opener, asked first) now has all 9 vocab.CATEGORY values as
-    # valid keys 1-9 (D6, step 1.5a), so "9" is a real pick, not out-of-menu.
-    # "0" is the only digit left out of range.
+    # valid keys 1-9 (D6, step 1.5a), so every digit 1-9 is a real pick there,
+    # and "0" is reserved for "don't know" (D7/F8, step 1.6), not a strike. So
+    # this test strikes the box after it: state has only 2 vocab values
+    # (MAHARASHTRA, OTHER), so "5" is genuinely out-of-menu there.
     audio = MockAudio(inputs=[
         Digit("1"),    # Turn 0
-        Digit("0"),    # Out of menu strike 1 (re-ask)
-        Digit("0"),    # Out of menu strike 2 (drop to UNKNOWN)
+        Digit("1"),    # opener: category -> farming
+        Digit("5"),    # state: out of menu strike 1 (re-ask)
+        Digit("5"),    # state: out of menu strike 2 (drop to UNKNOWN)
         Digit("1"),    # Next box
+        Digit("3"),    # Next box
+        Digit("9"), Digit("9"), Digit("9"),   # read-back: walk the schemes
         Digit("2"),    # Anything else
     ])
     log = Log.open("test_out_of_menu", corpus.snapshot_id, logs_dir=tmp_path)
@@ -341,6 +346,7 @@ def test_out_of_menu_digit_strike_and_drop(corpus, tmp_path):
     dropped = [l for l in lines if l.get("unknown_source") == "keypad_dropped"]
     assert len(dropped) == 1
     assert dropped[0]["value"] == UNKNOWN
+    assert dropped[0]["box"] == "state"
 
 
 # ---------------------------------------------------------------------------
@@ -473,24 +479,26 @@ def test_persona_p3_second_subject_door_b(corpus, tmp_path):
 def test_widened_match_when_door_a_is_struck_out(corpus, tmp_path):
     """Shape 3: 0 survivors, a rung of the ladder recovers a scheme.
 
-    A caller who cannot name their subject presses an out-of-menu key twice, so
-    Door A drops to UNKNOWN and the Planner falls back to facts. income_band
-    then contradicts a scheme, and dropping that one rung recovers it. T18
-    order: preamble -> drop_* -> lead -> names.
+    A caller who cannot name their subject declines it, so Door A drops to
+    UNKNOWN and the Planner falls back to facts. income_band then contradicts
+    a scheme, and dropping that one rung recovers it. T18 order: preamble ->
+    drop_* -> lead -> names.
 
     category now has all 9 vocab.CATEGORY values as valid keys (D6, step
-    1.5a), so "3" is a valid pick, not an out-of-menu strike; "0" is the only
-    digit left out of range, so the strike digits changed from "3","3" to
-    "0","0". S4's D6 fixture migration gives it back a real `state` constraint
-    (MAHARASHTRA-only, like S3/S5), so state=OTHER excludes it here too.
-    income_band is now a band box (step 1.5b): the fixture corpus's bands are
-    ("0-29999", "30000-30000", "30001-49999", "50000-50000", "50001-74999",
-    "75000-75000", "75001+"); key 4 = "50000-50000", which misses both S1 and
-    S2 (their own bands are "75000-75000" and "30000-30000").
+    1.5a), so "3" is a valid pick, not an out-of-menu strike. Step 1.6 (D7/F8)
+    makes "0" mean "don't know" on every box, a one-key decline rather than a
+    two-strike drop, so the opener input changed from "0","0" (strike, strike)
+    to a single "0" (declined). S4's D6 fixture migration gives it back a real
+    `state` constraint (MAHARASHTRA-only, like S3/S5), so state=OTHER excludes
+    it here too. income_band is now a band box (step 1.5b): the fixture
+    corpus's bands are ("0-29999", "30000-30000", "30001-49999",
+    "50000-50000", "50001-74999", "75000-75000", "75001+"); key 4 =
+    "50000-50000", which misses both S1 and S2 (their own bands are
+    "75000-75000" and "30000-30000").
     """
     audio = MockAudio(inputs=[
         Digit("1"),    # Turn 0 (hi)
-        Digit("0"), Digit("0"),   # opener struck out -> category = UNKNOWN
+        Digit("0"),    # opener declined -> category = UNKNOWN
         Digit("4"),    # income_band -> "50000-50000" band
         Digit("2"),    # state -> OTHER
         Digit("1"),    # gender -> female
@@ -515,10 +523,10 @@ def test_widened_match_when_door_a_is_struck_out(corpus, tmp_path):
     lines = [json.loads(l) for l in open(tmp_path / "test_widened.jsonl")]
     assert lines[-1]["stop"] == STOP_ZERO_SURVIVORS
     assert lines[-1]["ladder_rung"] == 1
-    # Door A was struck out, and that is logged
+    # Door A was declined, and that is logged (D7/F8: "0" -> declined, not a strike)
     assert [
         l for l in lines
-        if l.get("box") == "category" and l.get("unknown_source") == "keypad_dropped"
+        if l.get("box") == "category" and l.get("unknown_source") == "declined"
     ]
 
 
@@ -653,7 +661,7 @@ def test_box_drops_to_unknown_only_when_it_will_not_fit_a_keypad(corpus, tmp_pat
     log = Log.open("test_wide", corpus.snapshot_id, logs_dir=tmp_path)
     Engine.run_call(audio, None, wide_corpus, log)
 
-    assert "keypad_state" not in audio.played, "an over-cardinality box must never be prompted"
+    assert "state_q_maharashtra" not in audio.played, "an over-cardinality box must never be prompted"
 
     lines = [json.loads(l) for l in open(tmp_path / "test_wide.jsonl")]
     dropped = [
@@ -670,7 +678,121 @@ def test_box_drops_to_unknown_only_when_it_will_not_fit_a_keypad(corpus, tmp_pat
     audio_normal = MockAudio(inputs=[Digit("1"), Digit("1"), Digit("1"), Digit("1"), Digit("2")])
     log_normal = Log.open("test_normal_state", corpus.snapshot_id, logs_dir=tmp_path)
     Engine.run_call(audio_normal, None, corpus, log_normal)
-    assert "keypad_state" in audio_normal.played
+    assert "state_q_maharashtra" in audio_normal.played
+
+
+# ---------------------------------------------------------------------------
+# 3b. Step 1.6: state question + key 0 = "don't know" (D7, F8)
+# ---------------------------------------------------------------------------
+
+def test_state_yes_names_a_maharashtra_only_scheme(corpus, tmp_path):
+    """Pressing 1 on state_q_maharashtra means "yes" (MAHARASHTRA): a
+    Maharashtra-only fixture scheme (S3) is named, alongside the nationwide
+    ones (S1, S2)."""
+    audio = MockAudio(inputs=[
+        Digit("1"),    # Turn 0 (hi)
+        Digit("1"),    # opener: category -> farming
+        Digit("1"),    # state -> MAHARASHTRA (yes)
+        Digit("1"),    # gender -> female
+        Digit("3"),    # social_category -> SC
+        Digit("9"), Digit("9"), Digit("9"),   # read-back: walk the schemes
+        Digit("2"),    # anything else -> no
+    ])
+    log = Log.open("test_state_yes", corpus.snapshot_id, logs_dir=tmp_path)
+    Engine.run_call(audio, None, corpus, log)
+
+    names = {t.split(":", 1)[1] for t in audio.played if t.startswith("name:")}
+    assert "S3" in names, "the Maharashtra-only scheme must be named after state=1"
+
+
+def test_state_no_keeps_only_central_schemes(corpus, tmp_path):
+    """Pressing 2 on state_q_maharashtra means "no" (OTHER): only nationwide
+    schemes (S1, S2) are named, never a Maharashtra-only one (S3, S4, S5)."""
+    audio = MockAudio(inputs=[
+        Digit("1"),    # Turn 0 (hi)
+        Digit("1"),    # opener: category -> farming
+        Digit("2"),    # state -> OTHER (no)
+        Digit("1"),    # gender -> female
+        Digit("3"),    # social_category -> SC
+        Digit("9"), Digit("9"), Digit("9"),   # read-back: walk the schemes
+        Digit("2"),    # anything else -> no
+    ])
+    log = Log.open("test_state_no", corpus.snapshot_id, logs_dir=tmp_path)
+    Engine.run_call(audio, None, corpus, log)
+
+    names = {t.split(":", 1)[1] for t in audio.played if t.startswith("name:")}
+    assert names, "expected at least the nationwide schemes to be named"
+    assert not (names & {"S3", "S4", "S5"}), "a Maharashtra-only scheme must never be named after state=2"
+
+
+def test_state_zero_declines_with_no_strike_and_disclaimer(corpus, tmp_path):
+    """Pressing 0 on state_q_maharashtra is a real answer (UNKNOWN, declined):
+    no strike, no UNCLEAR record, state_unknown_disclaimer plays, the
+    nationwide schemes are named, and no Maharashtra-only scheme is named."""
+    audio = MockAudio(inputs=[
+        Digit("1"),    # Turn 0 (hi)
+        Digit("1"),    # opener: category -> farming
+        Digit("0"),    # state -> UNKNOWN (don't know)
+        Digit("1"),    # gender -> female
+        Digit("3"),    # social_category -> SC
+        Digit("9"), Digit("9"), Digit("9"),   # read-back: walk the schemes
+        Digit("2"),    # anything else -> no
+    ])
+    log = Log.open("test_state_zero", corpus.snapshot_id, logs_dir=tmp_path)
+    Engine.run_call(audio, None, corpus, log)
+
+    assert STATE_UNKNOWN_DISCLAIMER in audio.played
+    names = {t.split(":", 1)[1] for t in audio.played if t.startswith("name:")}
+    assert names, "expected the nationwide schemes to be named"
+    assert not (names & {"S3", "S4", "S5"}), "a Maharashtra-only scheme must never be named when state is unknown"
+
+    lines = [json.loads(l) for l in open(tmp_path / "test_state_zero.jsonl")]
+    state_answers = [l for l in lines if l.get("class") == "ANSWER" and l.get("box") == "state"]
+    assert len(state_answers) == 1
+    assert state_answers[0]["value"] == UNKNOWN
+    assert state_answers[0]["unknown_source"] == "declined"
+    assert not [l for l in lines if l.get("class") == "UNCLEAR" and l.get("transcript") == "0"]
+
+
+def test_zero_declines_any_box_with_no_strike(corpus, tmp_path):
+    """Key 0 means "don't know" on any box, not only state: it is logged as a
+    real ANSWER (UNKNOWN, declined), never as a strike."""
+    audio = MockAudio(inputs=[
+        Digit("1"),    # Turn 0 (hi)
+        Digit("1"),    # opener: category -> farming
+        Digit("2"),    # state -> OTHER
+        Digit("0"),    # gender -> UNKNOWN (don't know)
+        Digit("3"),    # social_category -> SC
+        Digit("2"),    # anything else -> no (whatever the outcome)
+    ])
+    log = Log.open("test_zero_any_box", corpus.snapshot_id, logs_dir=tmp_path)
+    Engine.run_call(audio, None, corpus, log)
+
+    lines = [json.loads(l) for l in open(tmp_path / "test_zero_any_box.jsonl")]
+    gender_answers = [l for l in lines if l.get("class") == "ANSWER" and l.get("box") == "gender"]
+    assert len(gender_answers) == 1
+    assert gender_answers[0]["value"] == UNKNOWN
+    assert gender_answers[0]["unknown_source"] == "declined"
+    assert not [l for l in lines if l.get("class") == "UNCLEAR" and l.get("transcript") == "0"]
+
+
+def test_state_prompt_id_is_state_q_maharashtra(corpus, tmp_path):
+    """The state box plays state_q_maharashtra, never a generic keypad_state
+    prompt (step 1.6, D7/F8)."""
+    audio = MockAudio(inputs=[
+        Digit("1"),    # Turn 0 (hi)
+        Digit("1"),    # opener: category -> farming
+        Digit("1"),    # state -> MAHARASHTRA
+        Digit("1"),    # gender -> female
+        Digit("3"),    # social_category -> SC
+        Digit("9"), Digit("9"), Digit("9"),
+        Digit("2"),
+    ])
+    log = Log.open("test_state_prompt_id", corpus.snapshot_id, logs_dir=tmp_path)
+    Engine.run_call(audio, None, corpus, log)
+
+    assert "state_q_maharashtra" in audio.played
+    assert "keypad_state" not in audio.played
 
 
 # ---------------------------------------------------------------------------

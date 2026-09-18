@@ -63,8 +63,6 @@ def _is_askable(box: BoxId, val: Optional[ValueCode], corpus: Any) -> bool:
 
 def _expected_turns(box: BoxId, corpus: Any) -> int:
     """Expected turns for answering box: Keypad = 1, Spoken = 2 (T10 D2, T15)."""
-    if box == "state":
-        return EXPECTED_TURNS_SPOKEN
     vals = corpus.values(box)
     if vals and len(vals) > tunables.KEYPAD_CARDINALITY_MAX:
         return EXPECTED_TURNS_SPOKEN

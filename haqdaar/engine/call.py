@@ -195,7 +195,12 @@ class Engine:
                     ))
                     continue
 
-                prompt_id = f"keypad_{box}" if box != "category" else "opener_prompt"
+                if box == "category":
+                    prompt_id = "opener_prompt"
+                elif box == "state":
+                    prompt_id = "state_q_maharashtra"
+                else:
+                    prompt_id = f"keypad_{box}"
                 audio.say((prompt_id,))
 
                 inp = audio.next_input(profile="normal")
@@ -275,6 +280,30 @@ class Engine:
                             turn_n=turn_n,
                         ))
                         audio.repeat()
+                        continue
+                    elif digit == "0":
+                        # D7/F8: 0 always means "don't know", on any box. It is a
+                        # real answer (UNKNOWN, declined), not a miss: no strike,
+                        # no repeat.
+                        turn_n += 1
+                        box_vector[box] = UNKNOWN
+                        box_strikes[box] = 0
+                        question_count += 1
+                        log.write(TurnLogRecord(
+                            turn_n=turn_n,
+                            turn_class="ANSWER",
+                            box=box,
+                            value=UNKNOWN,
+                            unknown_source="declined",
+                            transcript="0",
+                            span="0",
+                        ))
+                        if turn_n >= tunables.MAX_TURNS:
+                            stop_reason = STOP_MAX_TURNS
+                            break
+                        if question_count >= tunables.MAX_QUESTIONS:
+                            stop_reason = STOP_MAX_QUESTIONS
+                            break
                         continue
 
                     # Keypad answer: 1-9
