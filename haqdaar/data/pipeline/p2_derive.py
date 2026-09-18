@@ -571,7 +571,7 @@ def run_pipeline_extract(
     Cuts trilingual occupation vocabulary (cardinality <= 9).
     Writes valid records to data_cache/derived/.
     """
-    raw_files = sorted(raw_dir.glob("*.json"))
+    raw_files = sorted(raw_dir.glob("*.json"), key=lambda p: p.stem)
     if not raw_files:
         raise FileNotFoundError(f"No raw scheme files found in {raw_dir}")
 
@@ -736,7 +736,7 @@ def run_pipeline_extract(
         title_mr = aliases_res.get("scheme_name_mr", title_en)
 
         scheme_record: dict[str, Any] = {
-            "scheme_id": f"S{item['idx'] + 1}",
+            "scheme_id": slug,
             "myscheme_slug": slug,
             "source_url": raw_data["source_url"],
             "level": "CENTRAL",
