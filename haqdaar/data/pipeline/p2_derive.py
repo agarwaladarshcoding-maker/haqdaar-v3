@@ -41,6 +41,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 RAW_CACHE_DIR = BASE_DIR / tunables.RAW_CACHE_DIR
 EXTRACT_CACHE_DIR = BASE_DIR / tunables.EXTRACT_CACHE_DIR
 DERIVED_DIR = BASE_DIR / tunables.DERIVED_DIR
+REPORTS_DIR = BASE_DIR / tunables.REPORTS_DIR
 
 MYSCHEME_HOST = "myscheme.gov.in"
 
@@ -560,16 +561,23 @@ def run_pipeline_extract(
     raw_dir: Path = RAW_CACHE_DIR,
     extract_cache_dir: Path = EXTRACT_CACHE_DIR,
     derived_dir: Path = DERIVED_DIR,
+    reports_dir: Path = REPORTS_DIR,
     client: Optional[GroqClient] = None,
 ) -> list[dict[str, Any]]:
     """Execute Step 8 derivation pass.
-    
+
     Reads 12 files from data_cache/raw/*.json.
     Derives facets, aliases, and summary via Groq (cached).
     Applies evidence-quote checks in code.
     Applies table-wide alias uniqueness gate.
     Cuts trilingual occupation vocabulary (cardinality <= 9).
     Writes valid records to data_cache/derived/.
+
+    A scheme that fails a per-scheme check (bad host, a Groq task exception, a forbidden
+    word, the summary word cap, the alias floor or missing code-mixed alias) is quarantined
+    with a reason in data_cache/reports/derive.json instead of stopping the run (D2). The run
+    itself still raises if fewer than tunables.MIN_SCHEMES schemes survive, or if a whole-corpus
+    invariant (occupation cardinality, the evidence-quote self-check) is violated.
     """
     raw_files = sorted(raw_dir.glob("*.json"), key=lambda p: p.stem)
     if not raw_files:
@@ -583,15 +591,30 @@ def run_pipeline_extract(
 
     logger.info("Starting derivation pass for %d schemes...", len(raw_files))
 
+    quarantined: list[dict[str, str]] = []
+
+    def _quarantine(slug: str, reason: str) -> None:
+        """Set a scheme aside with a reason instead of failing the whole run (D2).
+
+        Removes any stale data_cache/derived/<slug>.json so no quarantined scheme's old
+        record survives from a previous run.
+        """
+        quarantined.append({"slug": slug, "reason": reason})
+        stale = derived_dir / f"{slug}.json"
+        if stale.exists():
+            stale.unlink()
+
     raw_schemes: list[dict[str, Any]] = []
     for rf in raw_files:
         with open(rf, "r", encoding="utf-8") as f:
             data = json.load(f)
+        slug = data.get("myscheme_slug", rf.stem)
         # Verify host
         url = data.get("source_url", "")
         parsed = urlparse(url)
         if MYSCHEME_HOST not in parsed.netloc:
-            raise ValueError(f"Scheme {rf.name} has invalid host: {url}")
+            _quarantine(slug, f"invalid host: {url}")
+            continue
         raw_schemes.append(data)
 
     total_tasks = len(raw_schemes) * 3
@@ -605,32 +628,39 @@ def run_pipeline_extract(
         sha = raw_data["source_sha256"]
         title_en = read_scheme_title_from_html(slug, raw_dir)
 
-        # 1. Facets task
-        facets_result, facets_cached = derive_facets_task(raw_data, client, extract_cache_dir)
-        if facets_cached:
-            cache_hits += 1
-            logger.info("[CACHE] %s:facets (%s) hit", slug, sha[:8])
-        else:
-            network_calls += 1
-            logger.info("[GROQ]  %s:facets (%s) completed", slug, sha[:8])
+        try:
+            # 1. Facets task
+            facets_result, facets_cached = derive_facets_task(raw_data, client, extract_cache_dir)
+            if facets_cached:
+                cache_hits += 1
+                logger.info("[CACHE] %s:facets (%s) hit", slug, sha[:8])
+            else:
+                network_calls += 1
+                logger.info("[GROQ]  %s:facets (%s) completed", slug, sha[:8])
 
-        # 2. Aliases task
-        aliases_result, aliases_cached = derive_aliases_task(raw_data, title_en, client, extract_cache_dir)
-        if aliases_cached:
-            cache_hits += 1
-            logger.info("[CACHE] %s:aliases (%s) hit", slug, sha[:8])
-        else:
-            network_calls += 1
-            logger.info("[GROQ]  %s:aliases (%s) completed", slug, sha[:8])
+            # 2. Aliases task
+            aliases_result, aliases_cached = derive_aliases_task(raw_data, title_en, client, extract_cache_dir)
+            if aliases_cached:
+                cache_hits += 1
+                logger.info("[CACHE] %s:aliases (%s) hit", slug, sha[:8])
+            else:
+                network_calls += 1
+                logger.info("[GROQ]  %s:aliases (%s) completed", slug, sha[:8])
 
-        # 3. Summary task
-        summary_result, summary_cached = derive_summary_task(raw_data, title_en, client, extract_cache_dir)
-        if summary_cached:
-            cache_hits += 1
-            logger.info("[CACHE] %s:summary (%s) hit", slug, sha[:8])
-        else:
-            network_calls += 1
-            logger.info("[GROQ]  %s:summary (%s) completed", slug, sha[:8])
+            # 3. Summary task
+            summary_result, summary_cached = derive_summary_task(raw_data, title_en, client, extract_cache_dir)
+            if summary_cached:
+                cache_hits += 1
+                logger.info("[CACHE] %s:summary (%s) hit", slug, sha[:8])
+            else:
+                network_calls += 1
+                logger.info("[GROQ]  %s:summary (%s) completed", slug, sha[:8])
+        except Exception as e:
+            # A Groq task exhausts its retries and raises (RuntimeError), or the cache
+            # misses with no client (ValueError). Either way, quarantine this scheme only.
+            logger.error("Scheme %s quarantined: %s", slug, e)
+            _quarantine(slug, str(e))
+            continue
 
         intermediate_records.append({
             "idx": idx,
@@ -710,7 +740,8 @@ def run_pipeline_extract(
         summary_hi = summary_res.get("summary_hi", "").strip()
         summary_mr = summary_res.get("summary_mr", "").strip()
 
-        # Check Tier-1 forbidden words
+        # Check Tier-1 forbidden words (D2: quarantine this scheme, don't stop the run)
+        bad_word_reason = None
         for lang, text, fwords in [
             ("en", summary_en, TIER1_FORBIDDEN_EN),
             ("hi", summary_hi, TIER1_FORBIDDEN_HI),
@@ -718,14 +749,20 @@ def run_pipeline_extract(
         ]:
             bad_word = check_forbidden_words(text, fwords)
             if bad_word:
-                raise ValueError(
-                    f"Tier-1 forbidden word '{bad_word}' found in {lang} summary for {slug}: '{text}'"
-                )
+                bad_word_reason = f"Tier-1 forbidden word '{bad_word}' found in {lang} summary: '{text}'"
+                break
+        if bad_word_reason:
+            _quarantine(slug, bad_word_reason)
+            continue
 
         # ~35-word cap is checked in code, not only asked for in the prompt
         n_words = len(summary_en.split())
         if n_words > tunables.SUMMARY_WORD_TARGET + tunables.SUMMARY_WORD_TOLERANCE:
-            raise ValueError(f"English summary for {slug} is {n_words} words, over the ~{tunables.SUMMARY_WORD_TARGET}-word cap")
+            _quarantine(
+                slug,
+                f"English summary is {n_words} words, over the ~{tunables.SUMMARY_WORD_TARGET}-word cap",
+            )
+            continue
 
         # Clean aliases
         aliases_en = [normalize_text(a) for a in aliases_res.get("aliases_en", []) if normalize_text(a)]
@@ -806,17 +843,44 @@ def run_pipeline_extract(
     apply_alias_uniqueness_gate(derived_schemes)
 
     # Alias floor and code-mix check post-gate. No padding with made-up aliases:
-    # if the floor bites, lower the floor rather than admit a scheme the caller cannot name (T07).
+    # if the floor bites, quarantine the scheme rather than admit one the caller cannot name (T07).
+    kept_schemes: list[dict[str, Any]] = []
     for s in derived_schemes:
         slug = s["myscheme_slug"]
+        reason: Optional[str] = None
         for lang in ("en", "hi", "mr"):
             if len(s[f"aliases_{lang}"]) < tunables.ALIAS_FLOOR:
-                raise ValueError(
-                    f"Scheme {slug} has only {len(s[f'aliases_{lang}'])} aliases in {lang}, required >= {tunables.ALIAS_FLOOR}"
-                )
-        for lang in ("hi", "mr"):
-            if not any(re.search(r"[a-zA-Z]", a) for a in s[f"aliases_{lang}"]):
-                raise ValueError(f"Scheme {slug} has no code-mixed alias in {lang}")
+                reason = f"only {len(s[f'aliases_{lang}'])} aliases in {lang}, required >= {tunables.ALIAS_FLOOR}"
+                break
+        if reason is None:
+            for lang in ("hi", "mr"):
+                if not any(re.search(r"[a-zA-Z]", a) for a in s[f"aliases_{lang}"]):
+                    reason = f"no code-mixed alias in {lang}"
+                    break
+        if reason is not None:
+            _quarantine(slug, reason)
+            continue
+        kept_schemes.append(s)
+    derived_schemes = kept_schemes
+
+    # Write the quarantine report and enforce the floor (D2): the run fails only if too few
+    # schemes survive, never because one scheme had a problem.
+    kept_slugs = [s["myscheme_slug"] for s in derived_schemes]
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    report_path = reports_dir / "derive.json"
+    tmp_report = report_path.with_suffix(".tmp")
+    with open(tmp_report, "w", encoding="utf-8") as f:
+        json.dump(
+            {"stage": "derive", "kept": kept_slugs, "quarantined": quarantined},
+            f, indent=2, ensure_ascii=False,
+        )
+    tmp_report.rename(report_path)
+
+    if len(kept_slugs) < tunables.MIN_SCHEMES:
+        raise RuntimeError(
+            f"Pipeline derive kept {len(kept_slugs)} schemes, but at least {tunables.MIN_SCHEMES} "
+            f"are required (see {report_path})"
+        )
 
     # Cut trilingual occupation vocabulary from corpus's own eligibility prose
     corpus_occupations: set[str] = set()
@@ -878,6 +942,7 @@ def run_pipeline_extract(
     print(f"Network calls:           {network_calls}")
     print(f"Occupation cardinality:  {cardinality} <= {tunables.KEYPAD_CARDINALITY_MAX}")
     print(f"Derived records written: {derived_dir}")
+    print(f"quarantined: {len(quarantined)} (see data_cache/reports/derive.json)")
     print(f"groq: {client.requests} requests, {client.prompt_tokens} prompt + {client.completion_tokens} completion tokens")
     print("=" * 60)
 

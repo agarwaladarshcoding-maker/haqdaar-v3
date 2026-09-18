@@ -78,4 +78,6 @@ GROQ_429_PAD_S: float = float(os.environ.get("GROQ_429_PAD_S", 1.5))
 ALIAS_BENEFITS_CHARS: int = int(os.environ.get("ALIAS_BENEFITS_CHARS", 300))
 # An alias on this many schemes or more is a category word and is dropped from all (T12)
 ALIAS_CATEGORY_WORD_MIN: int = int(os.environ.get("ALIAS_CATEGORY_WORD_MIN", 3))
+# A scrape/derive run fails only if fewer than this many schemes survive quarantine (D2)
+MIN_SCHEMES: int = int(os.environ.get("MIN_SCHEMES", 8))
 

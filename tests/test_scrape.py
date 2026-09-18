@@ -12,8 +12,10 @@ import pytest
 from haqdaar.data.pipeline.p1_scrape import (
     MYSCHEME_HOST,
     compute_source_sha256,
+    finalize_scrape_report,
     is_cache_valid,
     load_scheme_slugs,
+    scrape_all_slugs,
     scrape_scheme,
 )
 
@@ -111,6 +113,78 @@ def test_scrape_scheme_anti_fabrication_on_error(tmp_path: Path):
     # Assert nothing was written to cache dir
     assert not (cache_dir / "invalid-slug.json").exists()
     assert not (cache_dir / "invalid-slug.html").exists()
+
+
+def _fake_page(bad_slugs: set) -> MagicMock:
+    """A page double good enough to drive scrape_scheme without a real browser.
+
+    Slugs in bad_slugs come back as HTTP 404 (same shape as
+    test_scrape_scheme_anti_fabrication_on_error); every other slug returns valid section text.
+    """
+    page = MagicMock()
+
+    def _goto(url, **kwargs):
+        page.url = url
+        if url.rsplit("/", 1)[-1] in bad_slugs:
+            page.title.return_value = "Page not found"
+            page.content.return_value = "<html>404 Page not found</html>"
+            return MagicMock(status=404)
+        page.title.return_value = "OK Scheme"
+        page.content.return_value = "<html>ok</html>"
+        return MagicMock(status=200)
+
+    page.goto.side_effect = _goto
+
+    def _locator(selector):
+        loc = MagicMock()
+        loc.count.return_value = 1
+        loc.inner_text.return_value = f"{selector} text content"
+        return loc
+
+    page.locator.side_effect = _locator
+    page.wait_for_timeout.return_value = None
+    return page
+
+
+def test_scrape_all_slugs_quarantines_one_bad_slug_and_continues(tmp_path: Path):
+    """D2: a per-slug fetch failure is quarantined with a reason; the loop does not stop,
+    and scrape_scheme's own anti-fabrication rule means the bad slug writes no cache file."""
+    cache_dir = tmp_path / "raw"
+    page = _fake_page(bad_slugs={"scheme-b"})
+
+    results, quarantined = scrape_all_slugs(
+        ["scheme-a", "scheme-b", "scheme-c"], page, cache_dir=cache_dir, polite_delay=0
+    )
+
+    assert {r["myscheme_slug"] for r in results} == {"scheme-a", "scheme-c"}
+    assert len(quarantined) == 1
+    assert quarantined[0]["slug"] == "scheme-b"
+    assert "HTTP 404" in quarantined[0]["reason"]
+    assert not (cache_dir / "scheme-b.json").exists()
+    assert (cache_dir / "scheme-a.json").exists()
+    assert (cache_dir / "scheme-c.json").exists()
+
+
+def test_finalize_scrape_report_writes_report_and_enforces_floor(tmp_path: Path):
+    """D2: the run fails only if fewer than min_required_schemes survive quarantine."""
+    reports_dir = tmp_path / "reports"
+    results = [{"myscheme_slug": "scheme-a"}, {"myscheme_slug": "scheme-c"}]
+    quarantined = [{"slug": "scheme-b", "reason": "HTTP 404"}]
+
+    # Above the floor: writes the report, does not raise
+    finalize_scrape_report(results, quarantined, reports_dir=reports_dir, min_required_schemes=2)
+    report = json.loads((reports_dir / "scrape.json").read_text())
+    assert report == {
+        "stage": "scrape",
+        "kept": ["scheme-a", "scheme-c"],
+        "quarantined": quarantined,
+    }
+
+    # Below the floor: still writes the report, but raises
+    with pytest.raises(RuntimeError, match="at least 3"):
+        finalize_scrape_report(results, quarantined, reports_dir=reports_dir, min_required_schemes=3)
+    report = json.loads((reports_dir / "scrape.json").read_text())
+    assert report["kept"] == ["scheme-a", "scheme-c"]
 
 
 def test_pipeline_not_imported_by_runtime():

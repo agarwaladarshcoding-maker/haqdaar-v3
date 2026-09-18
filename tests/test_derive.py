@@ -133,8 +133,9 @@ def test_cache_roundtrip(tmp_path: Path):
     assert not cache_file.with_suffix(".tmp").exists()
 
 
-def test_evidence_quote_in_code_drops_unverified_facet_to_any(tmp_path: Path):
+def test_evidence_quote_in_code_drops_unverified_facet_to_any(tmp_path: Path, monkeypatch):
     """If model suggests a value but the quote is not in eligibility text, value becomes ANY."""
+    monkeypatch.setattr(tunables, "MIN_SCHEMES", 0)  # a lone test scheme must not hit the corpus floor
     raw_dir = tmp_path / "raw"
     extract_dir = tmp_path / "extract"
     derived_dir = tmp_path / "derived"
@@ -194,6 +195,7 @@ def test_evidence_quote_in_code_drops_unverified_facet_to_any(tmp_path: Path):
         raw_dir=raw_dir,
         extract_cache_dir=extract_dir,
         derived_dir=derived_dir,
+        reports_dir=tmp_path / "reports",
         client=mock_client,
     )
 
@@ -221,8 +223,9 @@ def test_evidence_quote_in_code_drops_unverified_facet_to_any(tmp_path: Path):
     assert res["facets_verified_on"] is None
 
 
-def test_zero_network_calls_on_second_run(tmp_path: Path):
+def test_zero_network_calls_on_second_run(tmp_path: Path, monkeypatch):
     """Second run must make ZERO calls when cache is populated."""
+    monkeypatch.setattr(tunables, "MIN_SCHEMES", 0)  # a lone test scheme must not hit the corpus floor
     raw_dir = tmp_path / "raw"
     extract_dir = tmp_path / "extract"
     derived_dir = tmp_path / "derived"
@@ -273,19 +276,21 @@ def test_zero_network_calls_on_second_run(tmp_path: Path):
     ]
 
     # First run spends 3 calls
-    run_pipeline_extract(raw_dir, extract_dir, derived_dir, client=mock_client)
+    reports_dir = tmp_path / "reports"
+    run_pipeline_extract(raw_dir, extract_dir, derived_dir, reports_dir, client=mock_client)
     assert mock_client.call.call_count == 3
 
     # Second run with a client that would raise if called
     fail_client = MagicMock()
     fail_client.call.side_effect = AssertionError("Groq API was called on a cached pass!")
 
-    run_pipeline_extract(raw_dir, extract_dir, derived_dir, client=fail_client)
+    run_pipeline_extract(raw_dir, extract_dir, derived_dir, reports_dir, client=fail_client)
     # Passed with 0 calls to fail_client
     assert fail_client.call.call_count == 0
 
 
-def _one_scheme_run(tmp_path: Path, facets: dict, aliases: dict, summary_en: str):
+def _one_scheme_run(tmp_path: Path, monkeypatch, facets: dict, aliases: dict, summary_en: str):
+    monkeypatch.setattr(tunables, "MIN_SCHEMES", 0)  # a lone test scheme must not hit the corpus floor
     raw_dir = tmp_path / "raw"
     raw_dir.mkdir(parents=True)
     eligibility = "Women farmers of all social categories cultivating land."
@@ -309,7 +314,9 @@ def _one_scheme_run(tmp_path: Path, facets: dict, aliases: dict, summary_en: str
         aliases,
         {"summary_en": summary_en, "summary_hi": "सहायता दी जाती है।", "summary_mr": "मदत दिली जाते."},
     ]
-    return run_pipeline_extract(raw_dir, tmp_path / "extract", tmp_path / "derived", client=client)
+    return run_pipeline_extract(
+        raw_dir, tmp_path / "extract", tmp_path / "derived", tmp_path / "reports", client=client
+    )
 
 
 GOOD_ALIASES = {
@@ -319,11 +326,12 @@ GOOD_ALIASES = {
 }
 
 
-def test_all_is_not_a_sentinel_and_level_matches_contract(tmp_path: Path):
+def test_all_is_not_a_sentinel_and_level_matches_contract(tmp_path: Path, monkeypatch):
     """One sentinel only (ANY). 'ALL' on a hard box is outside the closed set and becomes ANY."""
     assert "ALL" not in GENDERS | SOCIAL_CATEGORIES | STATES
     res = _one_scheme_run(
         tmp_path,
+        monkeypatch,
         {"social_category": {"value": "ALL", "quote": "of all social categories"}},
         GOOD_ALIASES,
         "Offers support to farmers.",
@@ -332,24 +340,36 @@ def test_all_is_not_a_sentinel_and_level_matches_contract(tmp_path: Path):
     assert res["level"] in ("CENTRAL", "STATE")
 
 
-def test_alias_floor_fails_loudly_instead_of_padding(tmp_path: Path):
-    """A scheme under the alias floor is not padded with made-up slug aliases."""
+def test_alias_floor_quarantines_instead_of_failing_loudly(tmp_path: Path, monkeypatch):
+    """A scheme under the alias floor is not padded with made-up slug aliases: it is
+    quarantined with a reason, and the run itself does not raise (D2)."""
     thin = dict(GOOD_ALIASES, aliases_mr=["समीक्षा एक", "review yojana"])
-    with pytest.raises(ValueError, match="aliases in mr"):
-        _one_scheme_run(tmp_path, {}, thin, "Offers support to farmers.")
+    results = _one_scheme_run(tmp_path, monkeypatch, {}, thin, "Offers support to farmers.")
+    assert results == []
     assert not (tmp_path / "derived" / "review-scheme.json").exists()
+    report = json.loads((tmp_path / "reports" / "derive.json").read_text())
+    assert report["kept"] == []
+    assert len(report["quarantined"]) == 1
+    assert report["quarantined"][0]["slug"] == "review-scheme"
+    assert "aliases in mr" in report["quarantined"][0]["reason"]
 
 
-def test_missing_code_mixed_alias_fails_loudly(tmp_path: Path):
+def test_missing_code_mixed_alias_quarantines_instead_of_failing_loudly(tmp_path: Path, monkeypatch):
     no_mix = dict(GOOD_ALIASES, aliases_hi=["समीक्षा एक", "समीक्षा दो", "समीक्षा तीन"])
-    with pytest.raises(ValueError, match="code-mixed alias in hi"):
-        _one_scheme_run(tmp_path, {}, no_mix, "Offers support to farmers.")
+    results = _one_scheme_run(tmp_path, monkeypatch, {}, no_mix, "Offers support to farmers.")
+    assert results == []
+    report = json.loads((tmp_path / "reports" / "derive.json").read_text())
+    assert len(report["quarantined"]) == 1
+    assert "code-mixed alias in hi" in report["quarantined"][0]["reason"]
 
 
-def test_summary_over_word_cap_fails_in_code(tmp_path: Path):
+def test_summary_over_word_cap_quarantines_instead_of_failing_loudly(tmp_path: Path, monkeypatch):
     too_long = " ".join(["word"] * (tunables.SUMMARY_WORD_TARGET + tunables.SUMMARY_WORD_TOLERANCE + 1))
-    with pytest.raises(ValueError, match="word cap"):
-        _one_scheme_run(tmp_path, {}, GOOD_ALIASES, too_long)
+    results = _one_scheme_run(tmp_path, monkeypatch, {}, GOOD_ALIASES, too_long)
+    assert results == []
+    report = json.loads((tmp_path / "reports" / "derive.json").read_text())
+    assert len(report["quarantined"]) == 1
+    assert "word cap" in report["quarantined"][0]["reason"]
 
 
 def test_numeric_range_is_min_max_with_numbers_in_the_quote():
@@ -368,15 +388,92 @@ def test_numeric_range_is_min_max_with_numbers_in_the_quote():
     assert check_numeric_range({"min": None, "max": 150000}, "income below Rs 1,50,000") == {"min": None, "max": 150000}
 
 
-def test_age_range_stored_as_min_max_in_record(tmp_path: Path):
+def test_age_range_stored_as_min_max_in_record(tmp_path: Path, monkeypatch):
     res = _one_scheme_run(
         tmp_path,
+        monkeypatch,
         {"age": {"value": {"min": None, "max": 60}, "quote": "Women farmers"}},  # 60 not in quote
         GOOD_ALIASES,
         "Offers support to farmers.",
     )[0]
     assert res["age"] == ANY
     assert any("Unusable age range" in n for n in res["gate_notes"])
+
+
+def _three_schemes_with_one_bad(tmp_path: Path) -> MagicMock:
+    """Write 3 raw scheme files (scheme-a/b/c) and return a client whose scheme-b summary
+    carries a forbidden word, so scheme-b is the one that fails validation (D2)."""
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir(parents=True)
+    eligibility = "Farmers of all social categories cultivating land."
+    for slug in ("scheme-a", "scheme-b", "scheme-c"):
+        raw_scheme = {
+            "myscheme_slug": slug,
+            "source_url": f"https://www.myscheme.gov.in/schemes/{slug}",
+            "fetched_on": "2026-09-15",
+            "benefits": "Support.",
+            "eligibility": eligibility,
+            "exclusions": "",
+            "documents": "Aadhaar.",
+            "apply": "Online.",
+            "source_sha256": f"sha_{slug}",
+        }
+        (raw_dir / f"{slug}.json").write_text(json.dumps(raw_scheme))
+
+    base_facets = {b: {"value": "ANY", "quote": ""} for b in SEVEN_BOXES}
+    good_aliases = {
+        "aliases_en": ["scheme one", "scheme two", "scheme three"],
+        "aliases_hi": ["योजना एक", "योजना दो", "scheme yojana"],
+        "aliases_mr": ["योजना एक", "योजना दोन", "scheme yojana"],
+    }
+    good_summary = {
+        "summary_en": "Offers direct support to practicing farmers cultivating agricultural land.",
+        "summary_hi": "सहायता दी जाती है।",
+        "summary_mr": "मदत दिली जाते.",
+    }
+    bad_summary = {
+        "summary_en": "You are eligible for this scheme's benefit right away.",
+        "summary_hi": "सहायता दी जाती है।",
+        "summary_mr": "मदत दिली जाते.",
+    }
+
+    client = MagicMock()
+    client.call.side_effect = [
+        {"facets": base_facets, "gate_notes": []}, good_aliases, good_summary,   # scheme-a
+        {"facets": base_facets, "gate_notes": []}, good_aliases, bad_summary,    # scheme-b: forbidden word
+        {"facets": base_facets, "gate_notes": []}, good_aliases, good_summary,   # scheme-c
+    ]
+    return client
+
+
+def test_derive_quarantines_one_bad_scheme_of_three(tmp_path: Path, monkeypatch):
+    """D2: a per-scheme failure quarantines only that scheme; the other two survive and the
+    run itself does not raise."""
+    monkeypatch.setattr(tunables, "MIN_SCHEMES", 2)
+    client = _three_schemes_with_one_bad(tmp_path)
+
+    results = run_pipeline_extract(
+        tmp_path / "raw", tmp_path / "extract", tmp_path / "derived", tmp_path / "reports", client=client
+    )
+
+    assert {s["myscheme_slug"] for s in results} == {"scheme-a", "scheme-c"}
+    report = json.loads((tmp_path / "reports" / "derive.json").read_text())
+    assert sorted(report["kept"]) == ["scheme-a", "scheme-c"]
+    assert len(report["quarantined"]) == 1
+    assert report["quarantined"][0]["slug"] == "scheme-b"
+    assert "forbidden word" in report["quarantined"][0]["reason"]
+    assert not (tmp_path / "derived" / "scheme-b.json").exists()
+
+
+def test_derive_raises_below_min_schemes(tmp_path: Path, monkeypatch):
+    """D2: the run fails only if fewer than MIN_SCHEMES survive quarantine."""
+    monkeypatch.setattr(tunables, "MIN_SCHEMES", 3)
+    client = _three_schemes_with_one_bad(tmp_path)
+
+    with pytest.raises(RuntimeError, match="at least 3"):
+        run_pipeline_extract(
+            tmp_path / "raw", tmp_path / "extract", tmp_path / "derived", tmp_path / "reports", client=client
+        )
 
 
 def test_category_quote_may_come_from_benefits_other_boxes_may_not():

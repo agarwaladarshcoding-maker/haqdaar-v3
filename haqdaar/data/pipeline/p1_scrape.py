@@ -27,6 +27,8 @@ from urllib.parse import urlparse
 
 import yaml
 
+from haqdaar.contracts import tunables
+
 try:
     from playwright.sync_api import Browser, Page, sync_playwright
 except ImportError:
@@ -37,6 +39,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 RAW_CACHE_DIR = BASE_DIR / "data_cache" / "raw"
+REPORTS_DIR = BASE_DIR / tunables.REPORTS_DIR
 DEFAULT_SCHEMES_FILE = Path(__file__).resolve().parent / "schemes.yaml"
 
 MYSCHEME_HOST = "myscheme.gov.in"
@@ -290,11 +293,72 @@ def scrape_scheme(
     return record
 
 
+def scrape_all_slugs(
+    slugs: List[str],
+    page: Page,
+    cache_dir: Path = RAW_CACHE_DIR,
+    polite_delay: float = DEFAULT_POLITE_DELAY_SEC,
+) -> "tuple[List[Dict[str, Any]], List[Dict[str, str]]]":
+    """Scrape every slug against one already-open page (D2: quarantine, don't crash).
+
+    A per-slug failure is set aside with its reason and the loop moves on; scrape_scheme
+    already writes nothing to cache on error, so a quarantined slug leaves no raw file.
+    """
+    results: List[Dict[str, Any]] = []
+    quarantined: List[Dict[str, str]] = []
+
+    for idx, slug in enumerate(slugs):
+        if idx > 0 and not is_cache_valid(slug, cache_dir):
+            logger.info("Polite delay of %.1fs before next fetch...", polite_delay)
+            time.sleep(polite_delay)
+
+        try:
+            rec = scrape_scheme(slug, page, cache_dir=cache_dir)
+            results.append(rec)
+        except Exception as e:
+            logger.error("Error scraping slug '%s': %s", slug, e)
+            quarantined.append({"slug": slug, "reason": str(e)})
+
+    return results, quarantined
+
+
+def finalize_scrape_report(
+    results: List[Dict[str, Any]],
+    quarantined: List[Dict[str, str]],
+    reports_dir: Path = REPORTS_DIR,
+    min_required_schemes: int = tunables.MIN_SCHEMES,
+) -> Path:
+    """Write data_cache/reports/scrape.json and enforce the survival floor (D2).
+
+    The run fails only if fewer than min_required_schemes schemes survive quarantine.
+    """
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    report_path = reports_dir / "scrape.json"
+    temp_report = reports_dir / "scrape.json.tmp"
+    with open(temp_report, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "stage": "scrape",
+                "kept": [rec["myscheme_slug"] for rec in results],
+                "quarantined": quarantined,
+            },
+            f, indent=2, ensure_ascii=False,
+        )
+    os.replace(temp_report, report_path)
+
+    if len(results) < min_required_schemes:
+        raise RuntimeError(
+            f"Pipeline scrape produced {len(results)} schemes, but at least {min_required_schemes} are required."
+        )
+    return report_path
+
+
 def run_pipeline_scrape(
     schemes_file: Path = DEFAULT_SCHEMES_FILE,
     cache_dir: Path = RAW_CACHE_DIR,
     polite_delay: float = DEFAULT_POLITE_DELAY_SEC,
-    min_required_schemes: int = 8,
+    min_required_schemes: int = tunables.MIN_SCHEMES,
+    reports_dir: Path = REPORTS_DIR,
 ) -> List[Dict[str, Any]]:
     """Main pipeline scrape runner.
 
@@ -308,8 +372,6 @@ def run_pipeline_scrape(
 
     slugs = load_scheme_slugs(schemes_file)
     logger.info("Loaded %d slugs from %s", len(slugs), schemes_file)
-
-    results: List[Dict[str, Any]] = []
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -326,27 +388,19 @@ def run_pipeline_scrape(
         )
         page = context.new_page()
 
-        for idx, slug in enumerate(slugs):
-            if idx > 0 and not is_cache_valid(slug, cache_dir):
-                logger.info("Polite delay of %.1fs before next fetch...", polite_delay)
-                time.sleep(polite_delay)
-
-            try:
-                rec = scrape_scheme(slug, page, cache_dir=cache_dir)
-                results.append(rec)
-            except Exception as e:
-                logger.error("Error scraping slug '%s': %s", slug, e)
-                # Strict anti-fabrication: fail loudly and propagate
-                browser.close()
-                raise
+        results, quarantined = scrape_all_slugs(slugs, page, cache_dir=cache_dir, polite_delay=polite_delay)
 
         browser.close()
 
-    # Final verification check
-    if len(results) < min_required_schemes:
-        raise RuntimeError(
-            f"Pipeline scrape produced {len(results)} schemes, but at least {min_required_schemes} are required."
+    if quarantined:
+        logger.warning(
+            "Quarantined %d of %d schemes: %s",
+            len(quarantined), len(slugs),
+            ", ".join(f"{q['slug']} ({q['reason']})" for q in quarantined),
         )
+
+    # Write the quarantine report and enforce the survival floor (D2)
+    finalize_scrape_report(results, quarantined, reports_dir, min_required_schemes)
 
     for rec in results:
         parsed = urlparse(rec["source_url"])
