@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract backup
+.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract backup call-me
 
 test:
 	$(PYTHON) -m pytest
@@ -26,6 +26,10 @@ calls:
 # Uses the live tunnel; HOST=<address> to aim at another server.
 call:
 	NGROK_DOMAIN=$${HOST:-$$($(PYTHON) -m tools.tunnel --host)} $(PYTHON) -m tools.call_me $(TO)
+
+# One command: tunnel + haqdaar.server + rings your phone (CALL_ME_NUMBER). NOCALL=1 skips the ring.
+call-me:
+	caffeinate -dimsu $(PYTHON) -m tools.run_demo
 
 sim:
 	$(PYTHON) -m haqdaar.sim

@@ -34,10 +34,31 @@ def _alive(pid: int) -> bool:
         return False
 
 
+def _resolves(host: str, tries: int = 8) -> str:
+    """IP of host from public DNS (1.1.1.1), or "". The Mac's own resolver caches the
+    "not found" from a lookup made before a new quick tunnel exists, so it lies for minutes."""
+    for _ in range(tries):
+        try:
+            out = subprocess.run(["dig", "+short", "@1.1.1.1", host], capture_output=True, text=True, timeout=5).stdout
+            ips = [l for l in out.split() if re.fullmatch(r"[0-9.]+", l)]
+            if ips:
+                return ips[0]
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        time.sleep(2)
+    return ""
+
+
 def cloudflare_host() -> str:
-    """Saved cloudflared address if that cloudflared is still running, else ""."""
-    if HOST_FILE.exists() and PID_FILE.exists() and _alive(int(PID_FILE.read_text())):
-        return HOST_FILE.read_text().strip()
+    """Saved cloudflared address if that cloudflared is still running and its address still
+    exists, else "". A quick tunnel can die while the process lives on (15 Sep: dead host
+    reused for 2 days); then stop that process so a fresh one starts."""
+    if HOST_FILE.exists() and PID_FILE.exists() and _alive(pid := int(PID_FILE.read_text())):
+        host = HOST_FILE.read_text().strip()
+        if _resolves(host):
+            return host
+        os.kill(pid, 15)
+        PID_FILE.unlink()
     return ""
 
 
@@ -49,7 +70,7 @@ def start_cloudflare() -> str:
         stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
     )
     for _ in range(60):
-        m = re.search(r"https://([a-z0-9-]+\.trycloudflare\.com)", LOG_FILE.read_text())
+        m = re.search(r"https://((?!api\.)[a-z0-9-]+\.trycloudflare\.com)", LOG_FILE.read_text())
         if m:
             PID_FILE.write_text(str(proc.pid))
             HOST_FILE.write_text(m.group(1))
