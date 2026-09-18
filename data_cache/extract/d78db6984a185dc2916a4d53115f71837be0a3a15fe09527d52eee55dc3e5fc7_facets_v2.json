@@ -1,0 +1,34 @@
+{
+  "facets": {
+    "category": {
+      "value": "pension",
+      "quote": "Each subscriber under APY shall receive a  guaranteed minimum pension of Rs. 1000/- per month or Rs. 2000/- per month or Rs. 3000/- per month or Rs. 4000/- per month or Rs. 5000/- per month, after the age of 60 years until death."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 18,
+        "max": 40
+      },
+      "quote": "The minimum age of joining APY is 18 years and maximum is 40 years."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Excludes any citizen who is or has been an income tax payer from joining as of 1st October 2022."
+  ]
+}

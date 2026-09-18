@@ -1,0 +1,32 @@
+{
+  "facets": {
+    "category": {
+      "value": "business_loans",
+      "quote": "Funds will be allocated under annual Budget Estimates toward disbursement of Margin Money (subsidy) for setting up new micro-enterprises/units;"
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 18,
+        "max": null
+      },
+      "quote": "Any individual, above 18 years of age."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": "Any individual, above 18 years of age."
+    }
+  },
+  "gate_notes": []
+}

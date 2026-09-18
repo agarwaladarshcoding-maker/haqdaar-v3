@@ -3,12 +3,12 @@
   "cardinality": 2,
   "occupations": {
     "farmer": {
-      "en": "farmer",
+      "en": "Farmer",
       "hi": "किसान",
       "mr": "शेतकरी"
     },
     "street_vendor": {
-      "en": "street vendor",
+      "en": "Street vendor",
       "hi": "रेहड़ी-पटरी विक्रेता",
       "mr": "फेरीवाले"
     }

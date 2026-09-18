@@ -46,7 +46,7 @@
     "naps दो",
     "अप्रेंटीशिप योजना naps"
   ],
-  "category": "skills",
+  "category": "jobs_skills",
   "gender": "ANY",
   "social_category": "ANY",
   "age": {
@@ -56,8 +56,7 @@
   "income_band": "ANY",
   "occupation": "ANY",
   "evidence_quotes": {
-    "category": "Under the scheme, training will be imparted in Designated Trades (DT) and Optional Trades (OT).",
-    "state": "",
+    "category": "Apprenticeship training is primarily a transition from academia to workplace",
     "gender": "",
     "social_category": "",
     "age": "Minimum age for an apprentice is 14 years, and 18 years for designated trades related to hazardous industries, as per Section 3(a) of the Apprentices Act, 1961. Apprenticeship training is primarily a transition from academia to workplace, and therefore, to avail partial stipend support by the Government, at the time of registration the upper age limit should be 35 years.",

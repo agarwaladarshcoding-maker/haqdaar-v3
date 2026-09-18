@@ -46,24 +46,21 @@
     "कृषी यंत्र सहाय्य smam",
     "smam शेतकरी उपकरण समर्थन"
   ],
-  "category": "agriculture",
+  "category": "farming",
   "gender": "ANY",
   "social_category": "ANY",
   "age": "ANY",
   "income_band": "ANY",
   "occupation": "ANY",
   "evidence_quotes": {
-    "category": "The main objective of this scheme is to provide agricultural machinery to poor and economically weak farmers",
-    "state": "",
+    "category": "provide agricultural machinery to poor and economically weak farmers",
     "gender": "",
     "social_category": "",
     "age": "",
     "income_band": "",
     "occupation": ""
   },
-  "gate_notes": [
-    "Women farmers are given priority but scheme is not limited to them, so gender is set to ANY"
-  ],
+  "gate_notes": [],
   "chunks": {
     "en": {
       "name": "Sub-mission On Agriculture Mechanization",

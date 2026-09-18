@@ -46,22 +46,23 @@
     "pm svanidhi कार्यशील भांडवल कर्ज",
     "प्रधानमंत्री स्ट्रीट वेंडर लोन"
   ],
-  "category": "livelihood",
+  "category": "ANY",
   "gender": "ANY",
   "social_category": "ANY",
   "age": "ANY",
   "income_band": "ANY",
   "occupation": "street_vendor",
   "evidence_quotes": {
-    "category": "Street vendors in possession of Certificate of Vending / Identity Card issued by Urban Local Bodies (ULBs).",
-    "state": "",
+    "category": "",
     "gender": "",
     "social_category": "",
     "age": "",
     "income_band": "",
     "occupation": "Street vendors in possession of Certificate of Vending / Identity Card issued by Urban Local Bodies (ULBs)."
   },
-  "gate_notes": [],
+  "gate_notes": [
+    "Unverified quote for category=business_loans: "
+  ],
   "chunks": {
     "en": {
       "name": "PM Street Vendor’s AtmaNirbhar Nidhi (PM SVANidhi)",

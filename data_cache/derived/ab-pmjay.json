@@ -53,8 +53,7 @@
   "income_band": "ANY",
   "occupation": "ANY",
   "evidence_quotes": {
-    "category": "Financial Health Insurance Cover",
-    "state": "",
+    "category": "Financial Health Insurance Cover:",
     "gender": "",
     "social_category": "",
     "age": "",
@@ -62,7 +61,7 @@
     "occupation": ""
   },
   "gate_notes": [
-    "Eligibility combines rural deprivation criteria and a long list of urban occupational categories, making occupation and social_category non‑exclusive."
+    "Scheme targets health insurance; multiple social categories and occupations, so set to ANY. No single age or income limit specified in eligibility text."
   ],
   "chunks": {
     "en": {

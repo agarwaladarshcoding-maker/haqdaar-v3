@@ -32,6 +32,7 @@ from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 from haqdaar.contracts import tunables
+from haqdaar.contracts import vocab
 from haqdaar.contracts.types import ANY, HARD_BOXES, SEVEN_BOXES, ValueCode
 
 logger = logging.getLogger("haqdaar.pipeline.p2_derive")
@@ -45,61 +46,8 @@ REPORTS_DIR = BASE_DIR / tunables.REPORTS_DIR
 
 MYSCHEME_HOST = "myscheme.gov.in"
 
-# Closed vocabulary sets (T06, T10, T11, 05-DATA-CONTRACT §1C)
-CATEGORIES: frozenset[str] = frozenset({
-    "agriculture",
-    "business",
-    "education",
-    "employment",
-    "handloom",
-    "health",
-    "housing",
-    "livelihood",
-    "pension",
-    "skills",
-    "social_welfare",
-    "ANY",
-})
-
-GENDERS: frozenset[str] = frozenset({"female", "male", "other", "ANY"})
-
-SOCIAL_CATEGORIES: frozenset[str] = frozenset({"GEN", "OBC", "SC", "ST", "ANY"})
-
-STATES: frozenset[str] = frozenset({
-    "ANDAMAN_AND_NICOBAR", "ANDHRA_PRADESH", "ARUNACHAL_PRADESH", "ASSAM", "BIHAR",
-    "CHANDIGARH", "CHHATTISGARH", "DADRA_AND_NAGAR_HAVELI_AND_DAMAN_AND_DIU", "DELHI",
-    "GOA", "GUJARAT", "HARYANA", "HIMACHAL_PRADESH", "JAMMU_AND_KASHMIR", "JHARKHAND",
-    "KARNATAKA", "KERALA", "LADAKH", "LAKSHADWEEP", "MADHYA_PRADESH", "MAHARASHTRA",
-    "MANIPUR", "MEGHALAYA", "MIZORAM", "NAGALAND", "ODISHA", "PUDUCHERRY", "PUNJAB",
-    "RAJASTHAN", "SIKKIM", "TAMIL_NADU", "TELANGANA", "TRIPURA", "UTTAR_PRADESH",
-    "UTTARAKHAND", "WEST_BENGAL", "ANY",
-})
-
-OCCUPATIONS: frozenset[str] = frozenset({
-    "farmer",
-    "street_vendor",
-    "apprentice",
-    "entrepreneur",
-    "artisan",
-    "weaver",
-    "worker",
-    "ANY",
-})
-
-# Tier-1 forbidden words (05-DATA-CONTRACT §3 Gate 4)
-TIER1_FORBIDDEN_EN: tuple[str, ...] = ("eligible", "qualify", "entitled", "you will get", "you can get")
-TIER1_FORBIDDEN_HI: tuple[str, ...] = ("पात्र", "हकदार", "मिलेगा", "पा सकते हैं")
-TIER1_FORBIDDEN_MR: tuple[str, ...] = ("पात्र", "हक्क", "मिळेल", "मिळू शकते")
-
-OCCUPATION_TRILINGUAL: dict[str, dict[str, str]] = {
-    "farmer": {"en": "farmer", "hi": "किसान", "mr": "शेतकरी"},
-    "street_vendor": {"en": "street vendor", "hi": "रेहड़ी-पटरी विक्रेता", "mr": "फेरीवाले"},
-    "apprentice": {"en": "apprentice", "hi": "प्रशिक्षु", "mr": "शिकाऊ उमेदवार"},
-    "entrepreneur": {"en": "entrepreneur", "hi": "उद्यमी", "mr": "उद्योजक"},
-    "artisan": {"en": "artisan", "hi": "कारीगर", "mr": "कारागीर"},
-    "weaver": {"en": "weaver", "hi": "बुनकर", "mr": "विणकर"},
-    "worker": {"en": "worker", "hi": "श्रमिक", "mr": "कामगार"},
-}
+# Closed vocabulary lists, keypad labels, and forbidden phrases now live in
+# haqdaar/contracts/vocab.py (D6), so the pipeline and the engine read the same lists.
 
 
 class GroqClient:
@@ -234,12 +182,34 @@ def normalize_text(text: str) -> str:
 
 def check_evidence_quote(quote: str, eligibility_text: str) -> bool:
     """Verify in code that quote is non-empty and appears verbatim in eligibility_text.
-    
-    A prompt is not a guard. This asserts verbatim inclusion.
+
+    A prompt is not a guard. This asserts verbatim inclusion. A quote containing an
+    ellipsis ("..." or "…") is an elided quote: split it on the ellipsis, each stripped,
+    non-empty fragment must itself be verbatim in the source, and the fragments must
+    appear in order (each found only after the previous one's end) -- so a quote can elide
+    the middle of a long sentence without being able to stitch together words that were
+    never adjacent or that run backwards.
     """
     if not quote or not str(quote).strip():
         return False
     q = str(quote).strip()
+
+    if "..." in q or "…" in q:
+        fragments = [f.strip() for f in re.split(r"\.\.\.|…", q) if f.strip()]
+        if not fragments:
+            return False
+        text_norm = " ".join(eligibility_text.split())
+        pos = 0
+        for frag in fragments:
+            frag_norm = " ".join(frag.split())
+            if not frag_norm:
+                return False
+            idx = text_norm.find(frag_norm, pos)
+            if idx == -1:
+                return False
+            pos = idx + len(frag_norm)
+        return True
+
     if q in eligibility_text:
         return True
     # Strip quotes/dots wrapping
@@ -297,9 +267,17 @@ def check_forbidden_words(text: str, forbidden_list: Sequence[str]) -> Optional[
     return None
 
 
+# Bumped when a task's prompt TEXT changes, so a stale cached response (derived under the
+# old prompt) is never mistaken for one derived under the new prompt. facets -> 2 (step 1.4:
+# closed lists now generated from vocab.py, state removed). aliases/summary prompt text is
+# unchanged in this step, so they stay at 1.
+PROMPT_VERSIONS: dict[str, int] = {"facets": 2, "aliases": 1, "summary": 1}
+
+
 def get_cache_path(source_sha256: str, task_name: str, cache_dir: Path) -> Path:
-    """Content-addressed cache key: source_sha256 + task name."""
-    return cache_dir / f"{source_sha256}_{task_name}.json"
+    """Content-addressed cache key: source_sha256 + task name + prompt version."""
+    version = PROMPT_VERSIONS[task_name]
+    return cache_dir / f"{source_sha256}_{task_name}_v{version}.json"
 
 
 def read_from_cache(source_sha256: str, task_name: str, cache_dir: Path) -> Optional[dict[str, Any]]:
@@ -341,6 +319,15 @@ def derive_facets_task(
     exclusions_text = raw_data.get("exclusions", "")
     slug = raw_data.get("myscheme_slug", "")
 
+    # Closed-list lines are generated from vocab.py (D6), so the prompt and the pipeline's
+    # own validation can never disagree about what values are allowed.
+    category_lines = "\n".join(
+        f"  - {c} ({vocab.CATEGORY_GLOSS[c]})" for c in vocab.CATEGORY
+    )
+    gender_list = ", ".join(f"'{v}'" for v in (*vocab.GENDER, ANY))
+    social_category_list = ", ".join(f"'{v}'" for v in (*vocab.SOCIAL_CATEGORY, ANY))
+    occupation_list = ", ".join(f"'{v}'" for v in (*vocab.OCCUPATION, ANY))
+
     system_prompt = (
         "You are an expert government scheme eligibility analyst for Haqdaar.\n"
         "Extract eligibility facets from the scheme text into a strict JSON object.\n"
@@ -357,19 +344,18 @@ def derive_facets_task(
         "occupation is 'ANY'. Never pick one group as representative. Set occupation only when the scheme is "
         "for that one occupation.\n\n"
         "Closed lists:\n"
-        "- category: one of ['agriculture', 'business', 'education', 'employment', 'handloom', 'health', 'housing', 'livelihood', 'pension', 'skills', 'social_welfare', 'ANY']\n"
-        "- state: one of 36 Indian states/UTs in uppercase or 'ANY'. Central/nationwide schemes MUST be 'ANY'.\n"
-        "- gender: one of ['female', 'male', 'other', 'ANY']\n"
-        "- social_category: one of ['GEN', 'OBC', 'SC', 'ST', 'ANY']\n"
+        "- category: one of the following (code and what it covers), or 'ANY':\n"
+        f"{category_lines}\n"
+        f"- gender: one of [{gender_list}]\n"
+        f"- social_category: one of [{social_category_list}]\n"
         "- age: {\"min\": <int or null>, \"max\": <int or null>} in years, or 'ANY'. Fill min and max separately; never put an upper limit in min.\n"
         "- income_band: {\"min\": <int or null>, \"max\": <int or null>} annual income in rupees, or 'ANY'.\n"
         "  For age and income_band the quote must contain every number you give.\n"
-        "- occupation: one of ['farmer', 'street_vendor', 'apprentice', 'entrepreneur', 'artisan', 'weaver', 'worker', 'ANY']\n\n"
+        f"- occupation: one of [{occupation_list}]\n\n"
         "Output JSON format:\n"
         "{\n"
         "  \"facets\": {\n"
         "    \"category\": {\"value\": \"<value>\", \"quote\": \"<verbatim quote>\"},\n"
-        "    \"state\": {\"value\": \"ANY\", \"quote\": \"\"},\n"
         "    \"gender\": {\"value\": \"ANY\", \"quote\": \"\"},\n"
         "    \"social_category\": {\"value\": \"ANY\", \"quote\": \"\"},\n"
         "    \"age\": {\"value\": {\"min\": null, \"max\": null}, \"quote\": \"<verbatim quote>\"},\n"
@@ -683,14 +669,36 @@ def run_pipeline_extract(
         aliases_res = item["aliases_res"]
         summary_res = item["summary_res"]
 
+        # state comes from level, never from the model (D6): the model is never asked, so it
+        # can never invent a state. p1 does not write a level yet, so this still hard-codes
+        # CENTRAL for every real scheme until step 3.3; raw_data.get() only lets a level
+        # travel through when a future p1 (or a test) sets one.
+        level = raw_data.get("level", "CENTRAL")
+        if level == "CENTRAL":
+            state_value = ANY
+        elif level == "MAHARASHTRA":
+            state_value = "MAHARASHTRA"
+        else:
+            _quarantine(slug, f"level {level} not served")
+            continue
+
         # Parse and verify facets
         raw_facets = facets_res.get("facets", {})
         gate_notes = list(facets_res.get("gate_notes", []))
 
         validated_facets: dict[str, Any] = {}
         evidence_quotes: dict[str, str] = {}
+        closed_lists = {
+            "category": vocab.CATEGORY,
+            "gender": vocab.GENDER,
+            "social_category": vocab.SOCIAL_CATEGORY,
+            "occupation": vocab.OCCUPATION,
+        }
 
+        quarantine_reason: Optional[str] = None
         for box in SEVEN_BOXES:
+            if box == "state":
+                continue  # derived from level above, never asked of the model
             box_data = raw_facets.get(box, {})
             if isinstance(box_data, dict):
                 val = box_data.get("value", ANY)
@@ -699,57 +707,81 @@ def run_pipeline_extract(
                 val = box_data
                 quote = ""
 
-            # Check closed sets
-            if box == "category" and val not in CATEGORIES:
-                val = ANY
-            elif box == "state" and val not in STATES:
-                val = ANY
-            elif box == "gender" and val not in GENDERS:
-                val = ANY
-            elif box == "social_category" and val not in SOCIAL_CATEGORIES:
-                val = ANY
-            elif box == "occupation" and val not in OCCUPATIONS:
-                val = ANY
-            elif box in ("age", "income_band") and val != ANY:
-                val = check_numeric_range(val, quote)
-                if val == ANY and quote:
-                    gate_notes.append(f"Unusable {box} range: {quote}")
+            # A value outside its closed list is not silently widened to ANY (D6): that has
+            # the same lie risk as an unknown value -- a women-only scheme would be read to
+            # everyone. It quarantines the whole scheme instead. (Applies to category too:
+            # an unknown category *code* is still quarantined, even though an unverified
+            # category *quote* is not -- see below.)
+            closed_list = closed_lists.get(box)
+            if closed_list is not None and val != ANY and val not in closed_list:
+                quarantine_reason = f"unknown {box} value {val!r}"
+                break
 
-            # VERBATIM EVIDENCE CHECK IN CODE
-            if val != ANY:
-                is_verbatim = check_evidence_quote(quote, evidence_text(box, raw_data))
-                if is_verbatim:
-                    validated_facets[box] = val
-                    evidence_quotes[box] = quote
-                else:
-                    # Value without verbatim quote becomes ANY
-                    logger.warning(
-                        "Scheme %s: facet %s=%s rejected: quote not verbatim in source text",
-                        slug, box, val,
-                    )
-                    if quote:
-                        gate_notes.append(f"Unverified quote for {box}={val}: {quote}")
+            if box in ("age", "income_band"):
+                if val == ANY:
                     validated_facets[box] = ANY
                     evidence_quotes[box] = ""
-            else:
+                    continue
+                if isinstance(val, dict) and val.get("min") is None and val.get("max") is None:
+                    # No number at all -- the model is saying "no limit", not offering a
+                    # fact it failed to back up. Silent ANY, same as the model saying ANY.
+                    validated_facets[box] = ANY
+                    evidence_quotes[box] = ""
+                    continue
+                # At least one number is being asserted: it must be backed by a quote that
+                # both contains every number given AND is itself verbatim in the source.
+                # Missing, unverified, or number-short quotes all quarantine (D6) -- there is
+                # no silent-ANY escape once a number has actually been claimed.
+                checked = check_numeric_range(val, quote)
+                if checked == ANY:
+                    quarantine_reason = f"Unusable {box} range: {quote}"
+                    break
+                if not check_evidence_quote(quote, evidence_text(box, raw_data)):
+                    quarantine_reason = f"Unverified quote for {box}={checked}: {quote}"
+                    break
+                validated_facets[box] = checked
+                evidence_quotes[box] = quote
+                continue
+
+            # category, gender, social_category, occupation
+            if val == ANY:
                 validated_facets[box] = ANY
                 evidence_quotes[box] = ""
+                continue
+
+            if check_evidence_quote(quote, evidence_text(box, raw_data)):
+                validated_facets[box] = val
+                evidence_quotes[box] = quote
+            elif box == "category":
+                # category is the caller's NEED, not an eligibility rule like the other hard
+                # boxes: an unverified quote here is honest ambiguity, not a lie risk, so it
+                # falls back to ANY with a gate note instead of quarantining (the pre-1.4
+                # behaviour, kept for this one box only).
+                gate_notes.append(f"Unverified quote for category={val}: {quote}")
+                validated_facets[box] = ANY
+                evidence_quotes[box] = ""
+            else:
+                # gender / social_category / occupation: same lie risk as an unknown value
+                # (D6) -- quarantine rather than silently widen to ANY.
+                quarantine_reason = f"Unverified quote for {box}={val}: {quote}"
+                break
+
+        if quarantine_reason is not None:
+            logger.warning("Scheme %s quarantined: %s", slug, quarantine_reason)
+            _quarantine(slug, quarantine_reason)
+            continue
 
         # Validate summary and forbidden phrases
         summary_en = summary_res.get("summary_en", "").strip()
         summary_hi = summary_res.get("summary_hi", "").strip()
         summary_mr = summary_res.get("summary_mr", "").strip()
 
-        # Check Tier-1 forbidden words (D2: quarantine this scheme, don't stop the run)
+        # Check forbidden phrases via vocab.py (D2: quarantine this scheme, don't stop the run)
         bad_word_reason = None
-        for lang, text, fwords in [
-            ("en", summary_en, TIER1_FORBIDDEN_EN),
-            ("hi", summary_hi, TIER1_FORBIDDEN_HI),
-            ("mr", summary_mr, TIER1_FORBIDDEN_MR),
-        ]:
-            bad_word = check_forbidden_words(text, fwords)
-            if bad_word:
-                bad_word_reason = f"Tier-1 forbidden word '{bad_word}' found in {lang} summary: '{text}'"
+        for lang, text in [("en", summary_en), ("hi", summary_hi), ("mr", summary_mr)]:
+            bad_phrase = vocab.find_forbidden(text, lang)
+            if bad_phrase:
+                bad_word_reason = f"Forbidden phrase '{bad_phrase}' found in {lang} summary: '{text}'"
                 break
         if bad_word_reason:
             _quarantine(slug, bad_word_reason)
@@ -776,8 +808,8 @@ def run_pipeline_extract(
             "scheme_id": slug,
             "myscheme_slug": slug,
             "source_url": raw_data["source_url"],
-            "level": "CENTRAL",
-            "state": validated_facets["state"],
+            "level": level,
+            "state": state_value,
             "department": "Government of India",
             "fetched_on": raw_data["fetched_on"],
             "source_sha256": sha,
@@ -901,15 +933,18 @@ def run_pipeline_extract(
         "vocab_source": "corpus_prose_cut",
         "cardinality": cardinality,
         "occupations": {
-            occ: OCCUPATION_TRILINGUAL.get(occ, {"en": occ, "hi": occ, "mr": occ})
+            occ: vocab.LABELS.get(occ, {"en": occ, "hi": occ, "mr": occ})
             for occ in sorted_occupations
         },
     }
 
-    # Invariant verification: every non-ANY facet carries verbatim evidence quote
+    # Invariant verification: every non-ANY facet carries verbatim evidence quote. "state" is
+    # excluded: it comes from level (trusted, not model-derived), so it has no evidence quote.
     for s in derived_schemes:
         slug = s["myscheme_slug"]
         for b in SEVEN_BOXES:
+            if b == "state":
+                continue
             val = s[b]
             if val != ANY:
                 quote = s["evidence_quotes"].get(b)

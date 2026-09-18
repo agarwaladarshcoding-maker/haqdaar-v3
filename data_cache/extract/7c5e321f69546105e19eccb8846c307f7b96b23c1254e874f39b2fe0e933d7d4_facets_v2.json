@@ -1,0 +1,32 @@
+{
+  "facets": {
+    "category": {
+      "value": "business_loans",
+      "quote": "Shishu: Covering loans upto Rs.50,000/-."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": []
+}

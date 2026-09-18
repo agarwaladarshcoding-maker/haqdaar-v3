@@ -1,0 +1,32 @@
+{
+  "facets": {
+    "category": {
+      "value": "farming",
+      "quote": "provide agricultural machinery to poor and economically weak farmers"
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": []
+}

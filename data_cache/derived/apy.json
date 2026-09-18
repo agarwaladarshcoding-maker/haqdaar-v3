@@ -56,15 +56,16 @@
   "income_band": "ANY",
   "occupation": "ANY",
   "evidence_quotes": {
-    "category": "Guaranteed minimum pension amount",
-    "state": "",
+    "category": "Each subscriber under APY shall receive a  guaranteed minimum pension of Rs. 1000/- per month or Rs. 2000/- per month or Rs. 3000/- per month or Rs. 4000/- per month or Rs. 5000/- per month, after the age of 60 years until death.",
     "gender": "",
     "social_category": "",
     "age": "The minimum age of joining APY is 18 years and maximum is 40 years.",
     "income_band": "",
     "occupation": ""
   },
-  "gate_notes": [],
+  "gate_notes": [
+    "Excludes any citizen who is or has been an income tax payer from joining as of 1st October 2022."
+  ],
   "chunks": {
     "en": {
       "name": "Atal Pension Yojana",

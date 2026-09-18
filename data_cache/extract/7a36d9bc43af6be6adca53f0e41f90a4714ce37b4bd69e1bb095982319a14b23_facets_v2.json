@@ -1,0 +1,32 @@
+{
+  "facets": {
+    "category": {
+      "value": "farming",
+      "quote": "All farmers, including tenant farmers and sharecroppers growing notified crops in notified areas."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "farmer",
+      "quote": "All farmers, including tenant farmers and sharecroppers growing notified crops in notified areas."
+    }
+  },
+  "gate_notes": []
+}

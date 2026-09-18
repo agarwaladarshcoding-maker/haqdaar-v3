@@ -1,0 +1,34 @@
+{
+  "facets": {
+    "category": {
+      "value": "women_children",
+      "quote": "One member (preferably a woman) from each rural poor household would be brought under the Self Help Group (SHG) network."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Scheme emphasizes women participation but eligibility is not limited to a specific gender or occupation."
+  ]
+}

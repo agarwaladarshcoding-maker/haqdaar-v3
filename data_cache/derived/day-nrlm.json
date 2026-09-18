@@ -46,15 +46,14 @@
     "day ग्रामीण आजीविका सेवा",
     "nrlm समर्थन केंद्र"
   ],
-  "category": "livelihood",
+  "category": "women_children",
   "gender": "ANY",
   "social_category": "ANY",
   "age": "ANY",
   "income_band": "ANY",
   "occupation": "ANY",
   "evidence_quotes": {
-    "category": "The Mission consists of four components, viz., (i) social mobilization, community institution, and capacity building; (ii) financial inclusion; (iii) livelihood promotion; and (iv) convergence.",
-    "state": "",
+    "category": "One member (preferably a woman) from each rural poor household would be brought under the Self Help Group (SHG) network.",
     "gender": "",
     "social_category": "",
     "age": "",
@@ -62,7 +61,7 @@
     "occupation": ""
   },
   "gate_notes": [
-    "Scheme prefers women members but eligibility is not limited by gender"
+    "Scheme emphasizes women participation but eligibility is not limited to a specific gender or occupation."
   ],
   "chunks": {
     "en": {

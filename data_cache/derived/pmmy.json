@@ -46,15 +46,14 @@
     "प्रधानमंत्री मुद्रा किशोर समर्थन",
     "pmmy तरुण प्लस चौकशी सेवा"
   ],
-  "category": "business",
+  "category": "business_loans",
   "gender": "ANY",
   "social_category": "ANY",
   "age": "ANY",
   "income_band": "ANY",
   "occupation": "ANY",
   "evidence_quotes": {
-    "category": "beneficiary micro unit/ entrepreneur",
-    "state": "",
+    "category": "Shishu: Covering loans upto Rs.50,000/-.",
     "gender": "",
     "social_category": "",
     "age": "",

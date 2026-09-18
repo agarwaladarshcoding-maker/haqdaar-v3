@@ -46,7 +46,7 @@
     "pm किसान वार्षिक सहा हजार",
     "pm-kisan सहा हजार लाभ"
   ],
-  "category": "agriculture",
+  "category": "farming",
   "gender": "ANY",
   "social_category": "ANY",
   "age": "ANY",
@@ -54,7 +54,6 @@
   "occupation": "farmer",
   "evidence_quotes": {
     "category": "All landholding farmers' families, which have cultivable land holding in their names are eligible to get benefit under the scheme.",
-    "state": "",
     "gender": "",
     "social_category": "",
     "age": "",

@@ -9,16 +9,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from haqdaar.contracts import tunables
+from haqdaar.contracts import vocab
 from haqdaar.contracts.types import ANY, SEVEN_BOXES
 from haqdaar.data.pipeline.p2_derive import (
-    CATEGORIES,
-    GENDERS,
-    OCCUPATIONS,
-    SOCIAL_CATEGORIES,
-    STATES,
-    TIER1_FORBIDDEN_EN,
-    TIER1_FORBIDDEN_HI,
-    TIER1_FORBIDDEN_MR,
     apply_alias_uniqueness_gate,
     check_evidence_quote,
     evidence_text,
@@ -52,22 +45,38 @@ def test_check_evidence_quote_verbatim():
     assert check_evidence_quote(None, eligibility) is False
 
 
+def test_check_evidence_quote_accepts_elided_quotes_in_order():
+    """A quote with '...' or '…' is an elided quote: the model may skip the middle of a long
+    sentence, but each fragment must still be verbatim, in order (added in step 1.4 review)."""
+    text = (
+        "Financial Assistance of Rs 1,20,000 per unit for plain areas. A willing beneficiary "
+        "can avail of institutional finance, to build a permanent house."
+    )
+    # In-order fragments pass, with either ellipsis spelling.
+    assert check_evidence_quote(
+        "Financial Assistance of Rs 1,20,000 per unit ... to build a permanent house.", text
+    ) is True
+    assert check_evidence_quote(
+        "Financial Assistance of Rs 1,20,000 per unit … to build a permanent house.", text
+    ) is True
+    # A fragment not in the source fails.
+    assert check_evidence_quote(
+        "Financial Assistance of Rs 1,20,000 per unit ... to fly to the moon", text
+    ) is False
+    # Out-of-order fragments fail: the second fragment must be found *after* the first.
+    assert check_evidence_quote(
+        "to build a permanent house ... Financial Assistance of Rs 1,20,000 per unit", text
+    ) is False
+
+
 def test_check_forbidden_words():
-    # English
-    assert check_forbidden_words("You are eligible for Rs 6000", TIER1_FORBIDDEN_EN) == "eligible"
-    assert check_forbidden_words("You will get 3 installments", TIER1_FORBIDDEN_EN) == "you will get"
-    assert check_forbidden_words("All farmers qualify for this", TIER1_FORBIDDEN_EN) == "qualify"
-    assert check_forbidden_words("The scheme provides annual support to farmers.", TIER1_FORBIDDEN_EN) is None
-
-    # Hindi
-    assert check_forbidden_words("किसान इस योजना के पात्र हैं", TIER1_FORBIDDEN_HI) == "पात्र"
-    assert check_forbidden_words("किसानों को 6000 रुपये मिलेगा", TIER1_FORBIDDEN_HI) == "मिलेगा"
-    assert check_forbidden_words("यह योजना किसानों को सहायता देती है।", TIER1_FORBIDDEN_HI) is None
-
-    # Marathi
-    assert check_forbidden_words("शेतकरी या योजनेसाठी पात्र आहेत", TIER1_FORBIDDEN_MR) == "पात्र"
-    assert check_forbidden_words("शेतकऱ्यांना अनुदान मिळेल", TIER1_FORBIDDEN_MR) == "मिळेल"
-    assert check_forbidden_words("ही योजना शेतकऱ्यांना आर्थिक मदत देते.", TIER1_FORBIDDEN_MR) is None
+    """check_forbidden_words is a generic (text, word list) matcher; vocab.FORBIDDEN is what
+    p2 actually feeds it now (see test_find_forbidden_* in test_vocab.py for those phrases)."""
+    fwords = ("eligible", "qualify", "you will get")
+    assert check_forbidden_words("You are eligible for Rs 6000", fwords) == "eligible"
+    assert check_forbidden_words("You will get 3 installments", fwords) == "you will get"
+    assert check_forbidden_words("All farmers qualify for this", fwords) == "qualify"
+    assert check_forbidden_words("The scheme provides annual support to farmers.", fwords) is None
 
 
 def test_alias_uniqueness_gate():
@@ -133,8 +142,11 @@ def test_cache_roundtrip(tmp_path: Path):
     assert not cache_file.with_suffix(".tmp").exists()
 
 
-def test_evidence_quote_in_code_drops_unverified_facet_to_any(tmp_path: Path, monkeypatch):
-    """If model suggests a value but the quote is not in eligibility text, value becomes ANY."""
+def test_evidence_quote_in_code_quarantines_unverified_facet(tmp_path: Path, monkeypatch):
+    """Decision added in step 1.4: if the model suggests a value but the quote is not
+    verbatim in the eligibility text, the whole scheme is quarantined -- not silently
+    widened to ANY (D6: the same lie risk as an unknown value, e.g. reading a women-only
+    scheme to everyone)."""
     monkeypatch.setattr(tunables, "MIN_SCHEMES", 0)  # a lone test scheme must not hit the corpus floor
     raw_dir = tmp_path / "raw"
     extract_dir = tmp_path / "extract"
@@ -157,18 +169,16 @@ def test_evidence_quote_in_code_drops_unverified_facet_to_any(tmp_path: Path, mo
     (raw_dir / "test-scheme.html").write_text("<html><title>Test Weaver Scheme</title></html>")
 
     # Mock client returns:
-    # 1. occupation: weaver, with verbatim quote -> should KEEP
-    # 2. gender: female, with fabricated quote "women only" -> should DROP to ANY
-    # 3. social_category: SC, with no quote -> should DROP to ANY
+    # 1. occupation: weaver, with verbatim quote -> fine on its own
+    # 2. gender: female, with fabricated quote "women only" -> unverified -> quarantines the scheme
     mock_client = MagicMock()
     mock_client.call.side_effect = [
         # facets call
         {
             "facets": {
-                "category": {"value": "handloom", "quote": "handloom weavers"},
-                "state": {"value": "ANY", "quote": ""},
+                "category": {"value": "business_loans", "quote": "handloom weavers"},
                 "gender": {"value": "female", "quote": "women only"},  # Not in text!
-                "social_category": {"value": "SC", "quote": ""},        # No quote!
+                "social_category": {"value": "ANY", "quote": ""},
                 "age": {"value": "ANY", "quote": ""},
                 "income_band": {"value": "ANY", "quote": ""},
                 "occupation": {"value": "weaver", "quote": "artisanal handloom weavers"}, # Verbatim!
@@ -199,28 +209,13 @@ def test_evidence_quote_in_code_drops_unverified_facet_to_any(tmp_path: Path, mo
         client=mock_client,
     )
 
-    assert len(results) == 1
-    res = results[0]
-
-    # Validated facets:
-    assert res["occupation"] == "weaver"
-    assert res["evidence_quotes"]["occupation"] == "artisanal handloom weavers"
-    assert res["category"] == "handloom"
-    assert res["evidence_quotes"]["category"] == "handloom weavers"
-
-    # Fabricated / missing quote facets MUST be ANY:
-    assert res["gender"] == ANY
-    assert res["evidence_quotes"]["gender"] == ""
-    assert res["social_category"] == ANY
-    assert res["evidence_quotes"]["social_category"] == ""
-
-    # Gate notes should carry the unverified quote
-    assert any("Unverified quote for gender=female: women only" in note for note in res["gate_notes"])
-
-    # Provenance fields:
-    assert res["facets_source"] == "derived"
-    assert res["facets_verified_by"] is None
-    assert res["facets_verified_on"] is None
+    assert results == []
+    assert not (derived_dir / "test-scheme.json").exists()
+    report = json.loads((tmp_path / "reports" / "derive.json").read_text())
+    assert report["kept"] == []
+    assert len(report["quarantined"]) == 1
+    assert report["quarantined"][0]["slug"] == "test-scheme"
+    assert "Unverified quote for gender=female: women only" in report["quarantined"][0]["reason"]
 
 
 def test_zero_network_calls_on_second_run(tmp_path: Path, monkeypatch):
@@ -249,8 +244,7 @@ def test_zero_network_calls_on_second_run(tmp_path: Path, monkeypatch):
         # facets
         {
             "facets": {
-                "category": {"value": "agriculture", "quote": "Farmers cultivating land"},
-                "state": {"value": "ANY", "quote": ""},
+                "category": {"value": "farming", "quote": "Farmers cultivating land"},
                 "gender": {"value": "ANY", "quote": ""},
                 "social_category": {"value": "ANY", "quote": ""},
                 "age": {"value": "ANY", "quote": ""},
@@ -326,18 +320,21 @@ GOOD_ALIASES = {
 }
 
 
-def test_all_is_not_a_sentinel_and_level_matches_contract(tmp_path: Path, monkeypatch):
-    """One sentinel only (ANY). 'ALL' on a hard box is outside the closed set and becomes ANY."""
-    assert "ALL" not in GENDERS | SOCIAL_CATEGORIES | STATES
-    res = _one_scheme_run(
+def test_all_is_not_a_sentinel_and_unknown_value_quarantines(tmp_path: Path, monkeypatch):
+    """One sentinel only (ANY). 'ALL' on a hard box is outside the closed set and is not
+    widened to ANY: it quarantines the scheme (D6, step 1.4)."""
+    assert "ALL" not in (vocab.GENDER + vocab.SOCIAL_CATEGORY)
+    results = _one_scheme_run(
         tmp_path,
         monkeypatch,
         {"social_category": {"value": "ALL", "quote": "of all social categories"}},
         GOOD_ALIASES,
         "Offers support to farmers.",
-    )[0]
-    assert res["social_category"] == ANY
-    assert res["level"] in ("CENTRAL", "STATE")
+    )
+    assert results == []
+    report = json.loads((tmp_path / "reports" / "derive.json").read_text())
+    assert len(report["quarantined"]) == 1
+    assert "unknown social_category value" in report["quarantined"][0]["reason"]
 
 
 def test_alias_floor_quarantines_instead_of_failing_loudly(tmp_path: Path, monkeypatch):
@@ -388,16 +385,68 @@ def test_numeric_range_is_min_max_with_numbers_in_the_quote():
     assert check_numeric_range({"min": None, "max": 150000}, "income below Rs 1,50,000") == {"min": None, "max": 150000}
 
 
-def test_age_range_stored_as_min_max_in_record(tmp_path: Path, monkeypatch):
-    res = _one_scheme_run(
+def test_unusable_age_range_quarantines_scheme(tmp_path: Path, monkeypatch):
+    """Decision added in step 1.4: an age/income range that cannot be used is not silently
+    widened to ANY -- it quarantines the scheme (same lie risk as an unknown value)."""
+    results = _one_scheme_run(
         tmp_path,
         monkeypatch,
         {"age": {"value": {"min": None, "max": 60}, "quote": "Women farmers"}},  # 60 not in quote
         GOOD_ALIASES,
         "Offers support to farmers.",
-    )[0]
+    )
+    assert results == []
+    report = json.loads((tmp_path / "reports" / "derive.json").read_text())
+    assert len(report["quarantined"]) == 1
+    assert "Unusable age range" in report["quarantined"][0]["reason"]
+
+
+def test_age_range_with_no_number_at_all_is_any_and_kept(tmp_path: Path, monkeypatch):
+    """{'min': None, 'max': None} means 'no limit', not a claim the model failed to back
+    up -- silent ANY, no gate note, no quarantine, even with an empty quote (review fix)."""
+    results = _one_scheme_run(
+        tmp_path,
+        monkeypatch,
+        {"age": {"value": {"min": None, "max": None}, "quote": ""}},
+        GOOD_ALIASES,
+        "Offers support to farmers.",
+    )
+    assert len(results) == 1
+    res = results[0]
     assert res["age"] == ANY
-    assert any("Unusable age range" in n for n in res["gate_notes"])
+    assert not any("age" in n.lower() for n in res["gate_notes"])
+
+
+def test_empty_quote_occupation_quarantines_scheme(tmp_path: Path, monkeypatch):
+    """gender / social_category / occupation: a non-ANY value with a missing quote is the
+    same lie risk as an unverified one -- quarantine, not silent ANY (review fix)."""
+    results = _one_scheme_run(
+        tmp_path,
+        monkeypatch,
+        {"occupation": {"value": "farmer", "quote": ""}},
+        GOOD_ALIASES,
+        "Offers support to farmers.",
+    )
+    assert results == []
+    report = json.loads((tmp_path / "reports" / "derive.json").read_text())
+    assert len(report["quarantined"]) == 1
+    assert "Unverified quote for occupation=farmer" in report["quarantined"][0]["reason"]
+
+
+def test_empty_quote_category_falls_back_to_any_with_gate_note(tmp_path: Path, monkeypatch):
+    """category is the caller's NEED, not an eligibility rule: a missing/unverified quote
+    falls back to ANY with a gate note, and the scheme is still kept (review fix)."""
+    results = _one_scheme_run(
+        tmp_path,
+        monkeypatch,
+        {"category": {"value": "farming", "quote": ""}},
+        GOOD_ALIASES,
+        "Offers support to farmers.",
+    )
+    assert len(results) == 1
+    res = results[0]
+    assert res["category"] == ANY
+    assert any("Unverified quote for category=farming" in n for n in res["gate_notes"])
 
 
 def _three_schemes_with_one_bad(tmp_path: Path) -> MagicMock:
@@ -461,7 +510,7 @@ def test_derive_quarantines_one_bad_scheme_of_three(tmp_path: Path, monkeypatch)
     assert sorted(report["kept"]) == ["scheme-a", "scheme-c"]
     assert len(report["quarantined"]) == 1
     assert report["quarantined"][0]["slug"] == "scheme-b"
-    assert "forbidden word" in report["quarantined"][0]["reason"]
+    assert "Forbidden phrase" in report["quarantined"][0]["reason"]
     assert not (tmp_path / "derived" / "scheme-b.json").exists()
 
 
@@ -485,3 +534,64 @@ def test_category_quote_may_come_from_benefits_other_boxes_may_not():
     assert check_evidence_quote("Health cover", evidence_text("category", raw)) is True
     assert check_evidence_quote("Health cover", evidence_text("occupation", raw)) is False
     assert check_evidence_quote("SECC database", evidence_text("category", raw)) is True
+
+
+def test_unknown_occupation_value_quarantines_scheme(tmp_path: Path, monkeypatch):
+    """D6, step 1.4: a facet value outside its closed list is not widened to ANY -- it
+    quarantines the scheme, because ANY would read a scoped scheme to everyone."""
+    results = _one_scheme_run(
+        tmp_path,
+        monkeypatch,
+        # "shopkeeper" is not in vocab.OCCUPATION
+        {"occupation": {"value": "shopkeeper", "quote": "shopkeeper"}},
+        GOOD_ALIASES,
+        "Offers support to farmers.",
+    )
+    assert results == []
+    report = json.loads((tmp_path / "reports" / "derive.json").read_text())
+    assert len(report["quarantined"]) == 1
+    assert "unknown occupation value" in report["quarantined"][0]["reason"]
+
+
+def test_level_other_than_central_or_maharashtra_quarantines_scheme(tmp_path: Path, monkeypatch):
+    """D6/D7, step 1.4: state comes from level, not the model. p2 still hard-codes level
+    CENTRAL for every real scheme (no p1 writes a level yet), but the branch that would
+    handle a future state-level scheme must quarantine honestly rather than guess."""
+    monkeypatch.setattr(tunables, "MIN_SCHEMES", 0)
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir(parents=True)
+    eligibility = "Farmers of all social categories cultivating land."
+    raw_scheme = {
+        "myscheme_slug": "gujarat-scheme",
+        "source_url": "https://www.myscheme.gov.in/schemes/gujarat-scheme",
+        "fetched_on": "2026-09-15",
+        "benefits": "Support.",
+        "eligibility": eligibility,
+        "exclusions": "",
+        "documents": "Aadhaar.",
+        "apply": "Online.",
+        "source_sha256": "sha_gujarat",
+        "level": "GUJARAT",
+    }
+    (raw_dir / "gujarat-scheme.json").write_text(json.dumps(raw_scheme))
+
+    base_facets = {b: {"value": "ANY", "quote": ""} for b in SEVEN_BOXES}
+    client = MagicMock()
+    client.call.side_effect = [
+        {"facets": base_facets, "gate_notes": []},
+        GOOD_ALIASES,
+        {
+            "summary_en": "Offers support to farmers.",
+            "summary_hi": "सहायता दी जाती है।",
+            "summary_mr": "मदत दिली जाते.",
+        },
+    ]
+
+    results = run_pipeline_extract(
+        raw_dir, tmp_path / "extract", tmp_path / "derived", tmp_path / "reports", client=client
+    )
+    assert results == []
+    report = json.loads((tmp_path / "reports" / "derive.json").read_text())
+    assert len(report["quarantined"]) == 1
+    assert report["quarantined"][0]["slug"] == "gujarat-scheme"
+    assert "level GUJARAT not served" in report["quarantined"][0]["reason"]

@@ -46,7 +46,7 @@
     "पंतप्रधान रोजगार निर्मिती कार्यक्रम",
     "pmegp मार्जिन मनी सबसिडी"
   ],
-  "category": "livelihood",
+  "category": "business_loans",
   "gender": "ANY",
   "social_category": "ANY",
   "age": {
@@ -56,8 +56,7 @@
   "income_band": "ANY",
   "occupation": "ANY",
   "evidence_quotes": {
-    "category": "Funds under PMEGP Scheme will be available under two major heads",
-    "state": "",
+    "category": "Funds will be allocated under annual Budget Estimates toward disbursement of Margin Money (subsidy) for setting up new micro-enterprises/units;",
     "gender": "",
     "social_category": "",
     "age": "Any individual, above 18 years of age.",

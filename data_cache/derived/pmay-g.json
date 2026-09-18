@@ -53,8 +53,7 @@
   "income_band": "ANY",
   "occupation": "ANY",
   "evidence_quotes": {
-    "category": "The universe of eligible beneficiaries under PMAY-G will include all the houseless households living in zero, one, or two-room houses with kutcha walls and kutcha roofs (as per SECC data, and subject to the exclusion process).",
-    "state": "",
+    "category": "Financial Assistance of ₹ 1,20,000 per unit ... to build a permanent house.",
     "gender": "",
     "social_category": "",
     "age": "",
@@ -62,7 +61,7 @@
     "occupation": ""
   },
   "gate_notes": [
-    "The scheme targets housing deprivation across all social categories and does not specify age, income or occupation restrictions; prioritisation criteria are complex but do not constitute exclusive eligibility facets."
+    "Scheme targets multiple social categories (SC/ST, Minorities, Others) and various household types, so no single social_category or occupation can be specified."
   ],
   "chunks": {
     "en": {

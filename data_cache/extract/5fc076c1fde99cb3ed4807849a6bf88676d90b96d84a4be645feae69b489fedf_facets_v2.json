@@ -1,0 +1,34 @@
+{
+  "facets": {
+    "category": {
+      "value": "health",
+      "quote": "Financial Health Insurance Cover:"
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Scheme targets health insurance; multiple social categories and occupations, so set to ANY. No single age or income limit specified in eligibility text."
+  ]
+}

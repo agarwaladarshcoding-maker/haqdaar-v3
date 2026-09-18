@@ -46,7 +46,7 @@
     "प्रधान मंत्री पिक बीमा",
     "pmfby परवडणारी प्रीमियम"
   ],
-  "category": "agriculture",
+  "category": "farming",
   "gender": "ANY",
   "social_category": "ANY",
   "age": "ANY",
@@ -54,7 +54,6 @@
   "occupation": "farmer",
   "evidence_quotes": {
     "category": "All farmers, including tenant farmers and sharecroppers growing notified crops in notified areas.",
-    "state": "",
     "gender": "",
     "social_category": "",
     "age": "",
