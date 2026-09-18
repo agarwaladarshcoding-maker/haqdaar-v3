@@ -551,13 +551,49 @@ def test_maharashtra_scheme_bit_only_in_maharashtra_mask_state_any_in_both(tmp_p
     mask_mh = c.mask("state", "MAHARASHTRA")
     mask_other = c.mask("state", "OTHER")
 
-    # MH1 (bit 0): only in the MAHARASHTRA mask
-    assert (mask_mh & (1 << 0)) != 0
-    assert (mask_other & (1 << 0)) == 0
+    # p6 orders bits by (priority, slug) since step 1.8, so look the bits up.
+    bit = {c.scheme_id(i): i for i in range(2)}
 
-    # CENTRAL1 (bit 1, state=ANY): in BOTH masks, never locked out by the answer
-    assert (mask_mh & (1 << 1)) != 0
-    assert (mask_other & (1 << 1)) != 0
+    # MH1: only in the MAHARASHTRA mask
+    assert (mask_mh & (1 << bit["MH1"])) != 0
+    assert (mask_other & (1 << bit["MH1"])) == 0
+
+    # CENTRAL1 (state=ANY): in BOTH masks, never locked out by the answer
+    assert (mask_mh & (1 << bit["CENTRAL1"])) != 0
+    assert (mask_other & (1 << bit["CENTRAL1"])) != 0
+
+
+def test_bit_order_follows_priority_then_slug(tmp_path, monkeypatch):
+    """Step 1.8 (D8): p6 orders bits by (priority, scheme_id) before assigning bit
+    indices, so terminals.py's existing specificity-then-bit-index tie-break gives
+    specificity -> priority -> slug with no Corpus or terminals change. Input order
+    here is deliberately scrambled so a passing test proves the sort ran."""
+    snap_dir = tmp_path / "snap_prio"
+    audio_dir = tmp_path / "audio_prio"
+    snap_dir.mkdir(parents=True, exist_ok=True)
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(tunables, "SNAPSHOTS_DIR", str(snap_dir))
+    monkeypatch.setattr(tunables, "AUDIO_DIR", str(audio_dir))
+
+    base = {"state": "ANY", "category": "farming", "gender": "ANY",
+            "social_category": "ANY", "age": "ANY", "income_band": "ANY",
+            "occupation": "ANY"}
+    schemes = [
+        {"scheme_id": "zzz-low", "priority": 3, **base},
+        {"scheme_id": "bbb-mid", "priority": 2, **base},
+        {"scheme_id": "aaa-high", "priority": 1, **base},
+        {"scheme_id": "ccc-mid", "priority": 2, **base},
+    ]
+    snap_id = build_snapshot(
+        schemes_data=schemes, snapshot_id="test_priority_order",
+        snapshots_dir=snap_dir, audio_dir=audio_dir, render_stubs=True,
+    )
+    c = Corpus.load(snap_id)
+
+    # (priority, slug) ascending: aaa-high(1) -> bbb-mid(2) -> ccc-mid(2) -> zzz-low(3)
+    assert [c.scheme_id(i) for i in range(4)] == [
+        "aaa-high", "bbb-mid", "ccc-mid", "zzz-low",
+    ]
 
 
 def test_non_vocab_facet_value_raises_value_error(tmp_path, monkeypatch):

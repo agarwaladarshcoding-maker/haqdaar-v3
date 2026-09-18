@@ -57,12 +57,14 @@ from haqdaar.engine.terminals import (
     DELIVERY_NEAREST,
     DELIVERY_WIDENED_MATCH,
     RESULTS_EXACT_PREAMBLE,
+    RESULTS_MORE_PROMPT,
     RESULTS_WIDENED_LEAD,
     SECTION_MENU,
     STATE_UNKNOWN_DISCLAIMER,
     TERMINAL_EMPTY,
     TERMINAL_NEAREST_PREAMBLE,
     TERMINAL_WIDENED_PREAMBLE,
+    Terminals,
 )
 
 
@@ -885,6 +887,123 @@ def test_ordering_bad_news_before_names_in_call_output(corpus, tmp_path):
 
     if name_indices and preamble_indices:
         assert min(preamble_indices) < min(name_indices)
+
+
+# ---------------------------------------------------------------------------
+# 5. Step 1.8: Ranking & Paging (D8) Tests
+# ---------------------------------------------------------------------------
+
+def test_star_in_read_back_switches_language_and_logs_switch(corpus, tmp_path):
+    """D13's `*` cycle also works on the read-back menu (step 1.8, shared with
+    the question phase via _next_lang): it rotates the language, logs a
+    LangSwitchRecord, and replays the current scheme's block without advancing."""
+    audio = MockAudio(inputs=[
+        Digit("1"),    # Turn 0 (hi)
+        Digit("1"),    # opener: category -> farming
+        Digit("2"),    # state -> OTHER
+        Digit("1"),    # gender -> female
+        Digit("3"),    # social_category -> SC
+        Digit("*"),    # read-back: switch language, replay scheme 1
+        Digit("9"), Digit("9"),   # read-back: walk the schemes to the end
+        Digit("2"),    # anything else -> no
+    ])
+    log = Log.open("test_readback_star", corpus.snapshot_id, logs_dir=tmp_path)
+    Engine.run_call(audio, None, corpus, log)
+
+    assert audio.language == "mr"
+    # name:S1's block was said twice: once by the initial terminal play, once
+    # again by the `*` replay.
+    assert audio.played.count("name:S1") == 2
+
+    lines = [json.loads(l) for l in open(tmp_path / "test_readback_star.jsonl")]
+    switches = [l for l in lines if l.get("lang") == "mr" and l.get("lang_source") == "keypad"]
+    assert len(switches) == 1
+
+
+def test_unmapped_digit_replays_section_menu_and_does_not_leave(corpus, tmp_path):
+    """Step 1.8: an unmapped read-back digit (5-8) replays section_menu on the
+    same scheme instead of leaving the menu."""
+    audio = MockAudio(inputs=[
+        Digit("1"),    # Turn 0 (hi)
+        Digit("1"),    # opener: category -> farming
+        Digit("2"),    # state -> OTHER
+        Digit("1"),    # gender -> female
+        Digit("3"),    # social_category -> SC
+        Digit("5"),    # read-back: unmapped digit -> replay section_menu
+        Digit("9"), Digit("9"),   # read-back: walk the schemes to the end
+        Digit("2"),    # anything else -> no
+    ])
+    log = Log.open("test_readback_replay", corpus.snapshot_id, logs_dir=tmp_path)
+    Engine.run_call(audio, None, corpus, log)
+
+    assert audio.hung_up
+    assert "no_more_schemes" in audio.played
+    # 2 named schemes each get one section_menu from the initial terminal
+    # play, plus one extra from the "5" replay.
+    assert audio.played.count(SECTION_MENU) == 3
+
+
+def test_read_back_pages_10_survivors_3_3_3_1_in_priority_slug_order(tmp_path, monkeypatch):
+    """Step 1.8 (D8): with more speakable candidates than were named, the
+    read-back menu pages through the rest as 3 + 3 + 1 (on top of the 3 already
+    named), each page led by results_more_prompt, in the same specificity ->
+    priority -> slug order p6's (priority, slug) bit assignment already gives
+    (all 10 schemes here tie on specificity, so this exercises the priority ->
+    slug tie-break end to end)."""
+    snap_dir = tmp_path / "snap_page"
+    audio_dir = tmp_path / "audio_page"
+    snap_dir.mkdir(parents=True, exist_ok=True)
+    audio_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(tunables, "SNAPSHOTS_DIR", str(snap_dir))
+    monkeypatch.setattr(tunables, "AUDIO_DIR", str(audio_dir))
+
+    base = {"state": "ANY", "category": "farming", "gender": "ANY",
+            "social_category": "ANY", "age": "ANY", "income_band": "ANY",
+            "occupation": "ANY"}
+    priorities = [1, 1, 1, 2, 2, 2, 2, 3, 3, 3]
+    schemes = [
+        {"scheme_id": f"s{i + 1:02d}", "priority": p, **base}
+        for i, p in enumerate(priorities)
+    ]
+    snap_id = build_snapshot(
+        schemes_data=schemes, snapshot_id="test_page10",
+        snapshots_dir=snap_dir, audio_dir=audio_dir, render_stubs=True,
+    )
+    c = Corpus.load(snap_id)
+
+    ranked_ids = [c.scheme_id(i) for i in Terminals.ranked(list(range(10)), c)]
+    assert ranked_ids == [f"s{i:02d}" for i in range(1, 11)]
+
+    named = ranked_ids[:3]
+    rest = ranked_ids[3:]
+    sections_heard = {n: ["summary"] for n in named}
+
+    audio = MockAudio(inputs=[Digit("9")] * 10)
+    log = Log.open("test_page10", snap_id, logs_dir=tmp_path)
+    kept_going = Engine._read_back(audio, named, sections_heard, rest, c, log, turn_n=4)
+    log.close(reason=STOP_LE_4_SURVIVORS)
+
+    assert kept_going
+    assert named == ranked_ids
+    assert rest == []
+
+    more_prompt_indices = [i for i, t in enumerate(audio.played) if t == RESULTS_MORE_PROMPT]
+    assert len(more_prompt_indices) == 3
+
+    idx_s04 = audio.played.index("name:s04")
+    idx_s07 = audio.played.index("name:s07")
+    idx_s10 = audio.played.index("name:s10")
+    assert audio.played[idx_s04 - 1] == RESULTS_MORE_PROMPT
+    assert audio.played[idx_s07 - 1] == RESULTS_MORE_PROMPT
+    assert audio.played[idx_s10 - 1] == RESULTS_MORE_PROMPT
+
+    def _names_between(start: int, end: Optional[int]) -> list[str]:
+        segment = audio.played[start:end]
+        return [t for t in segment if t.startswith("name:")]
+
+    assert _names_between(idx_s04 - 1, idx_s07 - 1) == ["name:s04", "name:s05", "name:s06"]
+    assert _names_between(idx_s07 - 1, idx_s10 - 1) == ["name:s07", "name:s08", "name:s09"]
+    assert _names_between(idx_s10 - 1, None) == ["name:s10"]
 
 
 def test_concurrency_and_import_discipline():

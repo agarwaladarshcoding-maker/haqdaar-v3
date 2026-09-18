@@ -89,6 +89,7 @@ FIXED_LINE_IDS: tuple[str, ...] = (
     "section_source_frame",
     "next_scheme_intro",
     "no_more_schemes",
+    "results_more_prompt",
     "keypad_only_mode",
     "state_unknown_disclaimer",
     "results_exact_preamble",

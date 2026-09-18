@@ -3,6 +3,7 @@
   "myscheme_slug": "pmfby",
   "source_url": "https://www.myscheme.gov.in/schemes/pmfby",
   "level": "CENTRAL",
+  "priority": 1,
   "state": "ANY",
   "department": "Government of India",
   "fetched_on": "2026-09-11",

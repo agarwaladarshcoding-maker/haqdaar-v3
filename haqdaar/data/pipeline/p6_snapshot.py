@@ -34,6 +34,7 @@ from haqdaar.contracts.types import (
     RenderKey,
     compute_render_key,
 )
+from haqdaar.data.pipeline.p1_scrape import DEFAULT_PRIORITY
 
 
 def _compute_file_sha256(filepath: Path) -> str:
@@ -292,6 +293,15 @@ def build_snapshot(
     # 1. Alias uniqueness gate
     schemes, alias_map = apply_alias_uniqueness_gate(schemes_data)
     num_schemes = len(schemes)
+
+    # 1b. Priority ordering (D8, step 1.8): bit index breaks ties (terminals.py
+    # sorts by specificity, then bit index), so ordering the bits by
+    # (priority, slug) gives specificity -> priority -> slug without any
+    # change to Corpus (frozen) or terminals.py. Fixtures without scheme_id
+    # (S1..) keep input order: they have no slug to sort by and no priority
+    # story of their own.
+    if all("scheme_id" in s for s in schemes):
+        schemes.sort(key=lambda s: (s.get("priority", DEFAULT_PRIORITY), s.get("scheme_id", "")))
 
     # 2. Derive bit index and word width
     word_bytes = max(8, (num_schemes + 7) // 8)

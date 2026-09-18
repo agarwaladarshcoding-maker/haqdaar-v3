@@ -98,6 +98,46 @@ def load_scheme_slugs(yaml_path: Path = DEFAULT_SCHEMES_FILE) -> List[str]:
     return slugs
 
 
+DEFAULT_PRIORITY = 2
+
+
+def load_scheme_priorities(yaml_path: Path = DEFAULT_SCHEMES_FILE) -> Dict[str, int]:
+    """Load per-scheme priority (1-3, default DEFAULT_PRIORITY) from schemes.yaml.
+
+    A scheme with no `priority` key gets DEFAULT_PRIORITY. A `priority` present but not
+    an int in 1..3 (bool does not count as an int here) raises, naming the slug.
+    """
+    if not yaml_path.exists():
+        raise FileNotFoundError(f"Schemes configuration file not found: {yaml_path}")
+
+    with open(yaml_path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+
+    if isinstance(data, list):
+        items = data
+    elif isinstance(data, dict):
+        items = data.get("schemes", [])
+    else:
+        raise ValueError(f"Unexpected data format in {yaml_path}: expected list or dict")
+
+    priorities: Dict[str, int] = {}
+    for item in items:
+        if not (isinstance(item, dict) and "slug" in item):
+            continue
+        slug = str(item["slug"]).strip()
+        if not slug:
+            continue
+        if "priority" not in item:
+            priorities[slug] = DEFAULT_PRIORITY
+            continue
+        p = item["priority"]
+        if isinstance(p, bool) or not isinstance(p, int) or not (1 <= p <= 3):
+            raise ValueError(f"{slug}: priority must be an int in 1..3, got {p!r}")
+        priorities[slug] = p
+
+    return priorities
+
+
 def is_cache_valid(slug: str, cache_dir: Path = RAW_CACHE_DIR) -> bool:
     """Check if cache exists and was fetched less than one day ago."""
     json_path = cache_dir / f"{slug}.json"

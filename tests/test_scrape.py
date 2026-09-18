@@ -10,10 +10,12 @@ from unittest.mock import MagicMock
 import pytest
 
 from haqdaar.data.pipeline.p1_scrape import (
+    DEFAULT_PRIORITY,
     MYSCHEME_HOST,
     compute_source_sha256,
     finalize_scrape_report,
     is_cache_valid,
+    load_scheme_priorities,
     load_scheme_slugs,
     scrape_all_slugs,
     scrape_scheme,
@@ -50,6 +52,47 @@ schemes:
     )
     slugs = load_scheme_slugs(yaml_file)
     assert slugs == ["pm-kisan", "kcc", "smam"]
+
+
+def test_load_scheme_priorities_default_and_explicit(tmp_path: Path):
+    yaml_file = tmp_path / "schemes.yaml"
+    yaml_file.write_text(
+        """
+schemes:
+  - slug: pm-kisan
+    priority: 1
+  - slug: kcc
+"""
+    )
+    priorities = load_scheme_priorities(yaml_file)
+    assert priorities == {"pm-kisan": 1, "kcc": DEFAULT_PRIORITY}
+
+
+def test_load_scheme_priorities_bad_value_raises(tmp_path: Path):
+    yaml_file = tmp_path / "schemes.yaml"
+    yaml_file.write_text(
+        """
+schemes:
+  - slug: pm-kisan
+    priority: 5
+"""
+    )
+    with pytest.raises(ValueError, match="pm-kisan"):
+        load_scheme_priorities(yaml_file)
+
+
+def test_load_scheme_priorities_bool_rejected(tmp_path: Path):
+    # bool is a subclass of int in Python; True/False must not silently become 1/0.
+    yaml_file = tmp_path / "schemes.yaml"
+    yaml_file.write_text(
+        """
+schemes:
+  - slug: pm-kisan
+    priority: true
+"""
+    )
+    with pytest.raises(ValueError, match="pm-kisan"):
+        load_scheme_priorities(yaml_file)
 
 
 def test_is_cache_valid_checks_required_blocks_and_hash(tmp_path: Path):

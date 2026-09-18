@@ -59,6 +59,7 @@ TERMINAL_NEAREST_PREAMBLE: str = "terminal_nearest_preamble"
 TERMINAL_EMPTY: str = "terminal_empty"
 SECTION_MENU: str = "section_menu"
 SECTION_SOURCE_FRAME: str = "section_source_frame"
+RESULTS_MORE_PROMPT: str = "results_more_prompt"
 
 
 def mark_name(scheme_id: str) -> str:
@@ -122,6 +123,24 @@ def _sort_survivors(survivors: Sequence[Any], corpus: Any = None) -> list[Any]:
         return (-spec, tie)
 
     return sorted(survivors, key=sort_key)
+
+
+def ranked(survivors: Sequence[Any], corpus: Any = None) -> list[Any]:
+    """Public entry point for step 1.8 paging: survivors sorted specificity -> priority ->
+    slug. p6 already breaks specificity ties by bit index ordered (priority, slug)
+    (step 1.8), so this is exactly _sort_survivors -- no separate tie-break needed here.
+    """
+    return _sort_survivors(survivors, corpus)
+
+
+def more_sequence(schemes: Sequence[Any], corpus: Any = None) -> tuple[str, ...]:
+    """Step 1.8: the read-back "more" page -- results_more_prompt followed by the next
+    page of scheme blocks (name mark -> name -> summary -> end mark -> section_menu),
+    same shape as every other terminal's scheme block.
+    """
+    seq: list[str] = [RESULTS_MORE_PROMPT]
+    seq.extend(_render_schemes_sequence(schemes, corpus, include_section_menu=True))
+    return tuple(seq)
 
 
 def _is_speakable(
@@ -446,3 +465,5 @@ class Terminals:
     render = staticmethod(render_terminal)
     sequence = staticmethod(terminal_sequence)
     classify_shape = staticmethod(classify_shape)
+    ranked = staticmethod(ranked)
+    more_sequence = staticmethod(more_sequence)

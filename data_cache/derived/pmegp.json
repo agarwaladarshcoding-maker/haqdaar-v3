@@ -3,6 +3,7 @@
   "myscheme_slug": "pmegp",
   "source_url": "https://www.myscheme.gov.in/schemes/pmegp",
   "level": "CENTRAL",
+  "priority": 3,
   "state": "ANY",
   "department": "Government of India",
   "fetched_on": "2026-09-11",

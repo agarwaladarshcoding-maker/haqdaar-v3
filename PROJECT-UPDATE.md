@@ -19,7 +19,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 - Pick the next question that cuts the list down fastest (Step 4), drop schemes that don't fit (Step 3),
   and choose how to end the call (Step 5).
 - Take a real phone call through a Cloudflare tunnel, with every key arriving on time (Step 1).
-- `pytest -q` → **145 passed**.
+- `pytest -q` → **152 passed**.
 - Ring your phone into the real backend in one command: `make call-me`.
 - Back up all the scheme data: `make backup`. The text part is also saved in git.
 
@@ -86,6 +86,16 @@ Each entry says: what was added, what was changed, and what the project can do a
 ---
 
 ## 3 · Log — newest first
+
+### 19 Sep — Phase 1, step 1.8: best schemes first, and "press 9 for 3 more"
+**Added:** each scheme has a priority (1 = say first). Wide-reach ones (PM-KISAN, Ayushman Bharat,
+PM Awas Gramin, Fasal Bima) are 1; narrow ones (SMAM, PMEGP, NAPS) are 3. Change them in `schemes.yaml`.
+**Changed:** when many schemes match, the call reads 3, and at the last one key 9 plays "here are
+more" and the next 3, until none are left. Before, only 3 were ever read.
+**Changed:** on the scheme menu, `*` now changes language and reads that scheme again; 0 leaves;
+a key with no meaning plays the menu again instead of ending it.
+**Project can now:** tell a caller about every scheme they match, best first.
+Tests: **152 passed**. Next: 1.9, short spoken cards for each scheme.
 
 ### 19 Sep (night) — Phase 1, step 1.7: the call writes down which schemes it told you about
 **Added:** every call log now has one line per scheme the caller actually heard: its id, how the

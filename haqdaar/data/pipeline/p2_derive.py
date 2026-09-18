@@ -34,6 +34,11 @@ from dotenv import load_dotenv
 from haqdaar.contracts import tunables
 from haqdaar.contracts import vocab
 from haqdaar.contracts.types import ANY, HARD_BOXES, SEVEN_BOXES, ValueCode
+from haqdaar.data.pipeline.p1_scrape import (
+    DEFAULT_PRIORITY,
+    DEFAULT_SCHEMES_FILE,
+    load_scheme_priorities,
+)
 
 logger = logging.getLogger("haqdaar.pipeline.p2_derive")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -549,6 +554,7 @@ def run_pipeline_extract(
     derived_dir: Path = DERIVED_DIR,
     reports_dir: Path = REPORTS_DIR,
     client: Optional[GroqClient] = None,
+    schemes_file: Path = DEFAULT_SCHEMES_FILE,
 ) -> list[dict[str, Any]]:
     """Execute Step 8 derivation pass.
 
@@ -571,6 +577,8 @@ def run_pipeline_extract(
 
     extract_cache_dir.mkdir(parents=True, exist_ok=True)
     derived_dir.mkdir(parents=True, exist_ok=True)
+
+    priorities = load_scheme_priorities(schemes_file)
 
     if client is None:
         client = GroqClient()
@@ -809,6 +817,7 @@ def run_pipeline_extract(
             "myscheme_slug": slug,
             "source_url": raw_data["source_url"],
             "level": level,
+            "priority": priorities.get(slug, DEFAULT_PRIORITY),
             "state": state_value,
             "department": "Government of India",
             "fetched_on": raw_data["fetched_on"],

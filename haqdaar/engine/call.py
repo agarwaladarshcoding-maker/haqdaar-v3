@@ -13,7 +13,7 @@ Hard rules:
 """
 from __future__ import annotations
 
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any, Mapping, Optional
 
 from haqdaar.contracts import tunables
 from haqdaar.contracts.log_schema import (
@@ -53,7 +53,23 @@ from haqdaar.engine.terminals import (
     SECTION_MENU,
     SECTION_SOURCE_FRAME,
     Terminals,
+    mark_end,
+    mark_name,
+    scheme_name_chunk,
+    scheme_summary_chunk,
 )
+
+# Step 1.8: bounded replay for an unmapped read-back key (5-8), so a stuck key can
+# never loop forever. This is a small tunable that would normally live in
+# contracts/tunables.py alongside OVERFLOW_READ_CAP; it lives here because this
+# step's file list does not include tunables.py (see the step report).
+READBACK_REPLAY_MAX: int = 2
+
+
+def _next_lang(curr_lang: str) -> str:
+    """Rotate hi -> mr -> en -> hi (D13's `*` cycle). Shared by the question phase
+    and the read-back menu so both keypads use the same rotation."""
+    return "mr" if curr_lang == "hi" else ("en" if curr_lang == "mr" else "hi")
 
 
 class Engine:
@@ -272,7 +288,7 @@ class Engine:
                         continue
                     elif digit == "*":
                         curr_lang = getattr(audio, "language", "hi")
-                        new_lang = "mr" if curr_lang == "hi" else ("en" if curr_lang == "mr" else "hi")
+                        new_lang = _next_lang(curr_lang)
                         if hasattr(audio, "language"):
                             audio.language = new_lang
                         log.write(LangSwitchRecord(
@@ -438,14 +454,25 @@ class Engine:
             named = [
                 t.split(":", 1)[1] for t in terminal_seq if t.startswith("name:")
             ]
-            cur_lang = getattr(audio, "language", lang)
 
             # --- 6. Read-Back Menu ---
             # section_menu plays after each named scheme. 1-4 replay a section
-            # behind section_source_frame, 9 advances, anything else leaves.
+            # behind section_source_frame, 9 advances (or pages in more, D8),
+            # * switches language and replays, 0 leaves, other keys replay the menu.
             if SECTION_MENU in terminal_seq:
                 sections_heard: dict[str, list[str]] = {n: ["summary"] for n in named}
-                kept_going = Engine._read_back(audio, named, sections_heard)
+                # D8 paging: candidate_survs holds every speakable candidate this
+                # terminal resolved, not just the ones named so far (direct match
+                # names all of them, so this is empty there; overflow and a >4
+                # widened match name only the top OVERFLOW_READ_CAP).
+                rest = [
+                    sid for sid in (
+                        corpus.scheme_id(s) for s in Terminals.ranked(candidate_survs, corpus)
+                    )
+                    if sid not in named
+                ]
+                kept_going = Engine._read_back(audio, named, sections_heard, rest, corpus, log, turn_n)
+                cur_lang = getattr(audio, "language", lang)
                 for n in named:
                     log.write(DeliveryRecord(
                         slug=n,
@@ -461,6 +488,7 @@ class Engine:
                 # Nearest: "Restraint: summary only, NO section_menu,
                 # auto-advance" (terminals.py nearest()) -- there is no later
                 # touch point for these schemes, so write here.
+                cur_lang = getattr(audio, "language", lang)
                 for n in named:
                     log.write(DeliveryRecord(
                         slug=n,
@@ -527,16 +555,24 @@ class Engine:
     @staticmethod
     def _read_back(
         audio: Any,
-        named: Sequence[str],
+        named: list[str],
         sections_heard: dict[str, list[str]],
+        rest: list[str],
+        corpus: Any,
+        log: Log,
+        turn_n: int,
     ) -> bool:
         """Drive the read-back menu. Returns False if the caller hung up.
 
         Appends each section actually played to sections_heard[<scheme>] (D9),
         so the caller writes one DeliveryRecord per scheme once this returns.
+        `rest` holds the ranked ids of speakable candidates not already named
+        (D8 paging, step 1.8): key 9 on the last named scheme pages in the next
+        OVERFLOW_READ_CAP of them, extending `named` in place, instead of leaving.
         """
         ix = 0
         heard: set[str] = set()
+        replays = 0
         while ix < len(named):
             rb_inp = audio.next_input(profile="readback")
             if isinstance(rb_inp, Hangup):
@@ -545,15 +581,41 @@ class Engine:
             if isinstance(rb_inp, Silence):
                 # No key on the menu is not a dead end: move on to the next scheme.
                 ix += 1
+                replays = 0
                 continue
             if not isinstance(rb_inp, Digit):
                 ix += 1
+                replays = 0
                 continue
             key = rb_inp.digit
+
+            if key == "*":
+                # D13's `*` cycle, shared with the question phase (_next_lang):
+                # rotate language, log the switch, then replay the current
+                # scheme's block in the new language. Does not advance ix.
+                new_lang = _next_lang(getattr(audio, "language", "hi"))
+                if hasattr(audio, "language"):
+                    audio.language = new_lang
+                log.write(LangSwitchRecord(
+                    lang=new_lang,
+                    lang_source="keypad",
+                    turn_n=turn_n,
+                ))
+                sid = named[ix]
+                audio.say((
+                    mark_name(sid),
+                    scheme_name_chunk(sid),
+                    scheme_summary_chunk(sid),
+                    mark_end(sid),
+                    SECTION_MENU,
+                ))
+                continue
+
             if key in Engine.SECTION_KEYS and key not in heard:
                 # Each section plays at most once per scheme. Without the guard
                 # a caller (or a fake) holding one key replays it forever.
                 heard.add(key)
+                replays = 0
                 section = Engine.SECTION_KEYS[key]
                 sections_heard[named[ix]].append(section)
                 audio.say((
@@ -568,6 +630,19 @@ class Engine:
                 audio.repeat()
                 continue
             if key == "9":
+                replays = 0
+                if ix == len(named) - 1 and rest:
+                    # D8 paging: more speakable candidates than were named. Page
+                    # in the next OVERFLOW_READ_CAP instead of leaving the menu.
+                    page = rest[:tunables.OVERFLOW_READ_CAP]
+                    del rest[:tunables.OVERFLOW_READ_CAP]
+                    audio.say(Terminals.more_sequence(page, corpus))
+                    for sid in page:
+                        sections_heard[sid] = ["summary"]
+                    named.extend(page)
+                    ix += 1
+                    heard = set()
+                    continue
                 ix += 1
                 heard = set()
                 if ix < len(named):
@@ -575,8 +650,23 @@ class Engine:
                 else:
                     audio.say(("no_more_schemes",))
                 continue
-            # 0 = none of these, or anything unrecognised: leave the menu.
-            return True
+            if key == "0":
+                # 0 = none of these: leave the menu.
+                return True
+            # Any other digit (5-8): replay the section menu, bounded so a stuck
+            # key can never loop forever. After READBACK_REPLAY_MAX replays in a
+            # row on the same scheme, treat the next one as 9.
+            replays += 1
+            if replays > READBACK_REPLAY_MAX:
+                replays = 0
+                ix += 1
+                heard = set()
+                if ix < len(named):
+                    audio.say(("next_scheme_intro",))
+                else:
+                    audio.say(("no_more_schemes",))
+                continue
+            audio.say((SECTION_MENU,))
         return True
 
 

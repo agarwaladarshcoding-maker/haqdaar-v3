@@ -5,14 +5,26 @@
 
 schemes:
   - slug: pm-kisan # Pradhan Mantri Kisan Samman Nidhi
+    priority: 1
   - slug: kcc # Kisan Credit Card (substituted for kisan-credit-scheme / kisan-credit-card, which 404s)
+    priority: 2
   - slug: smam # Sub-mission On Agriculture Mechanization (substituted for sfts / small-farmer-tractor-subsidy, which 404s)
+    priority: 3
   - slug: ab-pmjay # Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana (substituted for pmjay, which 404s)
+    priority: 1
   - slug: pmmy # Pradhan Mantri Mudra Yojana
+    priority: 2
   - slug: apy # Atal Pension Yojana
+    priority: 2
   - slug: pm-svanidhi # PM Street Vendor’s AtmaNirbhar Nidhi
+    priority: 2
   - slug: pmay-g # Pradhan Mantri Awaas Yojana - Gramin (substituted for pradhan-mantri-awas-yojana-gramin, which 404s)
+    priority: 1
   - slug: pmegp # Prime Minister's Employment Generation Programme
+    priority: 3
   - slug: pmfby # Pradhan Mantri Fasal Bima Yojna
+    priority: 1
   - slug: day-nrlm # Deendayal Antyodaya Yojana - National Rural Livelihoods Mission
+    priority: 2
   - slug: naps # National Apprenticeship Promotion Scheme
+    priority: 3
