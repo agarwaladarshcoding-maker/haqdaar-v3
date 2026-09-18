@@ -64,6 +64,16 @@ cd /Users/adarshagarwala/Documents/haqdaar-v2 && source .venv/bin/activate
 
 ## 1 · Where we stand — 12 Sep
 
+> **Update 18 Sep 2026 — v2 has started. The plan is now [`PLAN-V2.md`](PLAN-V2.md) (phases 0–6).**
+> The rest of this section is the state as of 12–15 Sep and is kept as history.
+> - **Repo moved out of iCloud** to `~/code/haqdaar-v2` (fresh python3.11 venv; 109 tests in ~3 s).
+>   8 git objects iCloud never gave back were recovered from GitHub.
+> - **Phase 0 done** on branch `v2-p0-ground` (pushed, not merged): `_staging/` removed, pipeline text
+>   under git (62 files in `data_cache/`), `make backup`, `make call-me` + tunnel DNS fix on this line,
+>   v2 decisions in `source-docs/DECISION-LOG.md` §6.
+> - `demo-15sep` is committed, pushed and frozen (125 clips).
+> - Next: Phase 1, only when Adarsh says "start Phase 1".
+
 *Plain-words version of this whole section, for anyone coming back cold:*
 [`work-with-tools/2026-09-12-summary.md`](work-with-tools/2026-09-12-summary.md)
 
@@ -460,6 +470,8 @@ untracked and the branch was empty.
 
 ## 6 · The rest of the queue
 
+> **Superseded 18 Sep 2026 by [`PLAN-V2.md`](PLAN-V2.md) §3.** The queue below is history.
+
 Order: **0 → 1 → 2 → 3 → 4 → 5 → 6**, then the pipeline steps. This is the shortest path to a
 full keypad call in the simulator, which is `v1-keypad` — a demoable product on its own.
 
@@ -779,6 +791,16 @@ failed. Do not delete old lines.
              `--no-ff` into main (7fc45cc). Review A–F all PASS, 0 blockers. Non-blocking debt:
              `contracts/tunables.py` now runs load_dotenv() and holds NGROK_DOMAIN (a string, not a
              number); server.py log lines use inline 1.0 s / 0.02 / 8000. `pytest -q` → 109 passed.
+2026-09-18 — Full audit. Wrote NEXT-PLAN.md (the plan from here to `v1`; §1 and §6 of this file
+             are out of date until Phase 0 updates them). iCloud offloaded 507 files (.venv 457,
+             .git 17), so `make test` hangs; clean venv outside iCloud → 109 passed. Cleanup not
+             run (needs Adarsh's OK); commands in NEXT-PLAN.md §4.
+2026-09-18 — Wrote PLAN-V2.md (100+ schemes central+Maharashtra, hi/mr/en, 7 phases, stress-tested,
+             approved). Supersedes NEXT-PLAN.md. Built one phase at a time on "start Phase N". No code.
+2026-09-18 — Phase 0 done on `v2-p0-ground`: repo moved to ~/code/haqdaar-v2 (8 lost git objects
+             restored from GitHub), demo-15sep committed + pushed + frozen, _staging removed,
+             data_cache text in git (62 files), make backup, make call-me, DECISION-LOG §6 (V2-D0..D8).
+             pytest -> 109 passed. Not merged; main not pushed (needs Adarsh's OK).
 ```
 
 ---

@@ -6,7 +6,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ---
 
-## 1 · What the project can do today (13 Sep, D-day is 14 Sep)
+## 1 · What the project can do today (18 Sep, v2 Phase 0 done)
 
 **It can:**
 - Take 12 real government schemes from myscheme.gov.in and save their pages (Step 7).
@@ -20,6 +20,8 @@ Each entry says: what was added, what was changed, and what the project can do a
   and choose how to end the call (Step 5).
 - Take a real phone call through a Cloudflare tunnel, with every key arriving on time (Step 1).
 - `pytest -q` → **109 passed**.
+- Ring your phone into the real backend in one command: `make call-me`.
+- Back up all the scheme data: `make backup`. The text part is also saved in git.
 
 **It cannot yet:**
 - Run full voice dialogue over the phone call (waiting on speech model, TTS audio, and live dial verification).
@@ -68,6 +70,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 |---|---|
 | `haqdaar/server.py` | FastAPI app exposing `/health`, `/answer` (TwiML Stream XML), `/stream` (audio WS). |
 | `tools/tone.py` | 8 kHz μ-law 440 Hz 1-second pure tone generator (no WAV/RIFF headers). |
+| `tools/run_demo.py` | `make call-me`: tunnel + server + rings your phone, in one command. |
 
 ### Other
 | File | What it does |
@@ -83,6 +86,104 @@ Each entry says: what was added, what was changed, and what the project can do a
 ---
 
 ## 3 · Log — newest first
+
+### 18 Sep (night) — Phase 0 done: the ground is fixed
+**Moved:** the project now lives in `~/code/haqdaar-v2`, out of iCloud. iCloud had taken some files
+off the laptop, which is why tests and git kept freezing. 8 of git's own files never came back;
+they were copied back from GitHub, and git's own check is clean. Tests: **109 passed in 3 seconds**.
+**Saved:** the demo branch (`demo-15sep`) is committed and on GitHub, then frozen. 15 unused voice
+clips were removed (checked: the demo uses exactly the other 125).
+**Added:** the scheme data text is now in git (62 files), and `make backup` copies all of it to
+`~/haqdaar-backup/`. `make call-me` rings your phone with the real backend.
+**Changed:** the v2 decisions are written in the decision log (§6). The old `_staging/` drafts are gone
+(still in git history).
+**Project can now:** same calls as before, on solid ground. Work is on branch `v2-p0-ground`, not
+merged yet. **You:** open VS Code on `~/code/haqdaar-v2`, and say "start Phase 1" when ready.
+
+### 18 Sep (later) — the full v2 plan: 100+ schemes, 3 languages
+**Added:** `PLAN-V2.md`, the plan from here to the 10-call test, in 7 phases (0–6). It replaces
+`NEXT-PLAN.md`.
+**Why a new plan:** you want 100+ schemes (all-India + Maharashtra) in Hindi, Marathi and English.
+The research found these problems:
+- Scheme sections are 2–6 minutes long when spoken, so each will get a short checked "card"
+  (~25 s).
+- A scheme the AI can't place quietly became "for everyone", which is a lie. It will be set aside
+  instead.
+- Answering "No" to "Do you live in Maharashtra?" would have removed every scheme.
+- Groq's free tier allows 200K tokens a day, so the 100-scheme data run is about 6 days unless
+  you pay (you decide in Phase 3).
+
+A second reviewer checked the plan against the code and found 17 more holes; all are fixed in the
+plan.
+**How we work:** one phase at a time. You say "start Phase N", I build it with helpers, check
+everything, report, and stop.
+**Changed:** nothing in the code.
+**Project can now:** same as before. Next: Phase 0 (move the repo out of iCloud, cleanup, back up
+the data), when you say go.
+
+### 18 Sep — full check of the project, and a plan to finish
+**Added:** `NEXT-PLAN.md`: the goal, what each of the 21 steps has done (9 done, 4 half, 8 not
+started), a checklist in 4 phases, the decisions only Adarsh can make, and the top risks.
+**Found:** iCloud has pushed 507 repo files off the laptop (disk 90% full), including 457 in `.venv`
+and 17 inside `.git`. That is why `make test` and some git commands hang. The code is fine: a fresh
+setup outside iCloud ran `pytest` → **109 passed**. Fix is in `NEXT-PLAN.md` §4 A.
+**Not done:** the cleanup (old `_staging/`, 15 unused voice clips, a stray empty folder, junk
+files). The safety check blocked deleting without Adarsh's OK. Commands are in `NEXT-PLAN.md` §4.
+**Project can:** same as 15 Sep. §1 below still describes `main` correctly, apart from the dates.
+
+### 15 Sep (night) — references for the PPT
+**Changed:** new `REFERENCES-FOR-PPT.md`: real numbers with links for the problem slide (TRAI, Census,
+NFHS-5, NSS, myScheme, World Bank via Acumen), the 7 scheme pages, similar work (Kisan Call Centre,
+Mobile Vaani, Haqdarshak), the tools, and a ready "References" slide. Items marked (check) must be read at the source first.
+**Project can:** same as before. This is for the slides only.
+
+### 15 Sep (night, v3 call) — whole call in the Sarvam voice, `make call-me`
+- **Changed:** new Sarvam key. All 125 lines are now in the Sarvam voice (mac fallback 0). The clips are saved in `haqdaar/voice_demo_clips/`. Commit that folder and the voice stays even with no credits.
+- **Added:** `make call-me` starts the tunnel and the real backend (`haqdaar.server`), then rings your phone. `make run-demo` does the same for the voice demo.
+- **Real call (19:00):** farming path, keys 1, 1, 2, then scheme 2 (crop insurance), how to apply, goodbye. No errors. One spoken answer was lost: Sarvam speech-to-text took longer than 4.5 s. The call asked for a key and carried on.
+- **Tested:** `pytest` → 109 passed.
+
+### 15 Sep (night, v3) — repeat slowly, "don't know" button, slower voice, PPT brief
+- **Real call test (18:38):** the call went well end to end. One bug: a key pressed while it said "sorry, I did not understand" was lost. **Fixed:** that key now answers the question.
+- **Added:** press **9** at any time (or say "दोबारा" / "repeat") and it says the last line again, slowly. It tells the caller this once, after the language.
+- **Added:** press **3 = I don't know** on the questions about land, loan, age, savings account and family type. It explains kindly and carries on (for example: "your date of birth is on your Aadhaar card").
+- **Changed:** every line plays a bit slower (90%). The repeat plays at 72%. The pitch stays the same.
+- **Added:** `DEMO-FOR-PPT.md`, a brief for the people making the slides and video.
+- **Tested:** fake calls in Hindi and English with 9, 3 and a key during a sorry line. `pytest` → 109 passed. Not yet tried on a real phone.
+
+### 15 Sep (night, v2) — buttons for the main choice, voice answers confirmed
+- **Bug Adarsh found:** he said "pension", the phone speech-to-text heard nonsense, and the script went to farming anyway.
+- **Changed:** the type of help is now a small button menu (1 farming, 2 pension, 3 health, 4 jobs). Speech still works,
+  but whatever it hears is read back: "आपने पेंशन चुनी। सही है तो 1 दबाइए, नहीं तो 2।" Same for हाँ / नहीं and scheme names.
+  It never picks the type of help by itself.
+- **Added:** pension (Atal Pension: age? savings account?), health (Ayushman Bharat: SC/ST or landless daily wage?),
+  jobs (PMEGP or apprenticeship). "Anything else?" goes back to the menu.
+- **Hearing fix:** Whisper garbled a lone short word like "पेंशन". Adding 1 s of quiet around it and a list of expected words fixed it in tests.
+- **Voice:** 86 new lines use the Mac voice until Sarvam credits are topped up. Then a restart makes them in Sarvam.
+- **Tested:** fake calls in Hindi and English through every path, including saying 2 to a wrong confirm. `pytest` → 109 passed.
+
+### 15 Sep (later) — voice demo that rings you (`make run-demo`)
+- **Added:** one command, `make run-demo`. It starts the tunnel and the server, waits until the voice is ready,
+  then rings Adarsh's phone. The caller **talks** (Hindi or English) or presses keys.
+- **Voice:** Sarvam (bulbul:v3, "priya"). All 39 lines are made in advance and saved in the repo, so the call
+  needs no Sarvam credits. **Sarvam credits ran out tonight** after making them.
+- **Hearing:** Sarvam speech-to-text is out of credits, so Groq Whisper does the hearing (it switches by itself).
+- **Fixed script with follow-up questions:** "what do you need" → farming → "is the land in your name?" →
+  "do you need a loan?" → 1 to 3 real farmer schemes (PM-KISAN, Kisan Credit Card, Fasal Bima) → pick one by name →
+  details → how to apply → another one? → goodbye. Always farming (rigged), so it cannot go off track.
+- **Why the last run never rang:** the saved tunnel address had died on 13 Sep but the old process was still running,
+  so the tools kept using the dead address. Now checked with public DNS and restarted if dead.
+- **Tested:** fake Hindi and English calls over a real socket, start to goodbye. **Real call ..cf6f87 rang Adarsh's
+  phone**, played the Sarvam voice, took key 1, heard speech. `pytest` → 109 passed.
+
+### 15 Sep — demo prototype (branch `demo-15sep`)
+- **Added:** a keypad phone call on the 12 real schemes that speaks real sentences (Mac's offline voice,
+  English + Hindi). `make demo-run` = phone, `make demo` = terminal backup. Script: `DEMO.md`.
+- **Stress tested:** 500 random-key calls (0 crashes, all 12 schemes reachable); 146 voice lines render, 0 fail;
+  4 fake phone calls on a real server (normal, Hindi, key mashing, hang-up) all end cleanly.
+- **Fixed on the way:** server froze 10 s when you pressed a key while it talked (call then went silent);
+  Mac voice froze on raw scheme text like "Rs.50,000/-..".
+- **Not yet:** a real dial-in on this build — Adarsh does one test call before the demo. `pytest` → 109 passed.
 
 ### 14 Sep — Step 1 merged
 - **Added:** tunnel start, `make call`, `make calls`, timed call lines — committed on step-01.

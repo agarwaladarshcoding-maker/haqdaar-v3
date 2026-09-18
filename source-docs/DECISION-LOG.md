@@ -6,7 +6,7 @@ module: architecture
 status: reviewed
 tags: [decisions, supersession, traceability, staging]
 created: 2026-09-10
-updated: 2026-09-10
+updated: 2026-09-18
 author: Adarsh Agarwala
 last_agent_edit: claude-code
 source_file: source-docs/MAP-done.md
@@ -35,7 +35,7 @@ Read with [[RULES.md]] §6: *if a decision invalidates an earlier note, the old 
 | [[tickets/T06]] — *"a turn is one AND instruction"* | [[tickets/T09]] 2 | **One pass, one word retained per turn.** Masks are kept, not folded |
 | [[tickets/T09]] 7 — survivor counts stored as a replay assertion | [[tickets/T16]] 2 | **Struck.** *Storing survivor sets would be a second copy of a derivable fact — redundancy dressed as proof* |
 | [[tickets/T11]] — echo-confirm **unconditional** | [[tickets/T12]] | **Narrowed to box values. Door A is exempt** — the read-back is the confirmation |
-| [[tickets/T11]] — box drop to keypad on two strikes | [[tickets/T15]] | **Cardinality > 9 → straight to UNKNOWN, never a keypad menu.** `state` has 36 values |
+| [[tickets/T11]] — box drop to keypad on two strikes | [[tickets/T15]] | **Cardinality > 9 → straight to UNKNOWN, never a keypad menu.** `state` has 36 values · **Superseded for `state` by V2-D7 (18 Sep 2026):** state is now a yes/no keypad question (Maharashtra or not). Still true for any other box over 9 values |
 | [[tickets/T11]] — box drop to keypad | [[tickets/T18]] 4 | **Completion:** two more non-ANSWERs on a box *already* on keypad → **UNKNOWN.** There is nowhere else to go |
 | [[tickets/T11]] 5 — model timeout 1.5 s | [[tickets/T14]] 1 · [[tickets/T17]] | **2.0 s hard timeout**, no in-turn retry |
 | [[tickets/T11]] — *"the model class META is the language route"* | [[tickets/T24]] 3 | **Structurally impossible** — *to hear "can we speak in Marathi?" you must understand a caller you have just established you cannot understand.* The route is `*` on the keypad |
@@ -117,6 +117,20 @@ open; D7 is a measurement Step 14 produces, not a decision.
 | D6 | **Both caps present** (`MAX_TURNS=8`, `MAX_QUESTIONS=6`). The docs carried only the second | **Restored** |
 | D8 | **The audio pool is read lazily, not preloaded.** [[tickets/T15]]'s *"~200 MB fits in RAM"* is a demo-scale observation that becomes false at ~2,500 schemes (~4.5 GB); [[tickets/T17]] leaned on it when freezing the language | **Ratified by Adarsh, 10 Sep 2026 — no ticket amendment owed and no signature moves.** `Corpus.audio`/`chunks` return a **`RenderKey`, not bytes**, so the tiering is internal to `haqdaar/audio/`. Tier 0 pins the bounded ~35 MB (fixed lines + chips); the growth term (scheme chunks) is `mmap` + LRU off SSD, prefetched when `Planner` returns `Stop`. **The demo host warms the whole pool, so its behaviour is byte-identical to preloading.** [[03-ARCHITECTURE]] §10.1, [[06-BUILD-PLAN]] Steps 11 & 17 |
 | D9 | **`maps/wayfinder-map.md` is the sole source of truth; `maps/history/` is version support only.** The history set skips rev 8 and rev 24 | **Ratified by Adarsh, 10 Sep 2026.** The latest map by name/time is the only authoritative artefact; historical revisions are supporting versions and **their completeness is not a correctness property.** The rev 8/24 gaps are **withdrawn as findings**, not deferred. See [[01-CONTRADICTIONS]] §5 |
+
+## 6 · v2 decisions (PLAN-V2.md, ratified by Adarsh 18 Sep 2026)
+
+These come from `PLAN-V2.md` §2, which Adarsh approved on 18 Sep 2026. They are numbered **V2-Dn**
+so they do not clash with D1–D9 in §5. The full text and the reasons are in `PLAN-V2.md`.
+
+| # | Decision | What it replaces |
+|---|---|---|
+| V2-D0 | **The corpus grows to 100+ schemes: central + Maharashtra, all in Hindi, Marathi and English.** The 12 schemes stay the proving set for Phases 1–2 | The small testing set of [[tickets/T07]] as the end scope |
+| V2-D1 | **Scheme id = the myscheme slug.** The scheme list is sorted by slug before anything counts through it (derive output, snapshot masks, `Corpus` index). Logs use slugs, never bit positions | Ids and bit positions that shift when a scheme is added or removed |
+| V2-D3 | **Spoken cards.** One Groq call per scheme writes four short English cards (benefit, who can apply with the exclusions folded in, documents, how to apply), at most 55 words each. Code, not the model, adds "and N more" to the documents card. Numbers, forbidden phrases and word overlap with the source are checked in code | Reading the scraped sections out whole (2–6 minutes each) |
+| V2-D6 | **One vocabulary file, `haqdaar/contracts/vocab.py`.** Every closed list, its labels in 3 languages, and the forbidden phrases. Keypad menus are built from it. A value the LLM gives that is not on the list **sets the scheme aside (quarantine); it never becomes ANY**. `state` comes from the scraped level, never the LLM. CATEGORY is 9 need groups | Closed lists spread over several files; unknown values quietly widened to ANY |
+| V2-D7 | **State = one yes/no question:** "Do you live in Maharashtra? 1 yes, 2 no, 0 don't know". "No" keeps the central schemes (the OTHER mask = schemes whose state is ANY). Prompt id `state_q_maharashtra` | **Supersedes** "cardinality > 9 → never a keypad menu" for `state` ([[tickets/T15]], §1 above) |
+| V2-D8 | **Ranking and paging.** `priority` 1–3 per scheme. Order: specificity, then priority, then slug. Overflow reads 3; key 9 plays the next 3. In the read-back, `*` changes language and `0` means "none of these" | Overflow that read the top 3 and stopped |
 
 ## Related
 [[01-CONTRADICTIONS]] · [[08-TRACEABILITY]] · [[10-RISK-REGISTER]] · [[maps/wayfinder-map]]
