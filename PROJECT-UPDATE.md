@@ -87,6 +87,16 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 18 Sep (night, later) — Phase 1, step 1.6: "0 = don't know" and the Maharashtra question
+**Changed:** pressing **0** on any question now means "I don't know". Before, 0 counted as a wrong
+key (a strike). Now the call just moves on, and never guesses for you.
+**Changed:** the state question is now a yes/no: "Do you live in Maharashtra? 1 yes, 2 no, 0 don't
+know". 1 lets Maharashtra-only schemes in, 2 keeps only all-India ones, 0 plays a short warning and
+names only all-India schemes.
+**Project can now:** do all of the above in `make sim`. Tests: **143 passed**. Phase 1 steps 1.0 to
+1.6 are done, on branch `v2-p1-pipeline` (pushed, not merged). Next: 1.7, a log of what the call
+actually said. The spoken words for the new question are written down but not recorded yet (step 1.12).
+
 ### 18 Sep (night) — Phase 0 done: the ground is fixed
 **Moved:** the project now lives in `~/code/haqdaar-v2`, out of iCloud. iCloud had taken some files
 off the laptop, which is why tests and git kept freezing. 8 of git's own files never came back;
