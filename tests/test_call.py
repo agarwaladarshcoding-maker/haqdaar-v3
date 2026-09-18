@@ -27,6 +27,7 @@ from haqdaar.contracts.log_schema import (
     STOP_REASONS,
     CallCloseRecord,
     CallOpenRecord,
+    DeliveryRecord,
     LangSwitchRecord,
     STOP_LE_4_SURVIVORS,
     STOP_MAX_QUESTIONS,
@@ -52,6 +53,7 @@ from haqdaar.data.log import Log
 from haqdaar.data.pipeline.p6_snapshot import build_snapshot
 from haqdaar.engine.call import Engine
 from haqdaar.engine.terminals import (
+    DELIVERY_DIRECT_MATCH,
     DELIVERY_NEAREST,
     DELIVERY_WIDENED_MATCH,
     RESULTS_EXACT_PREAMBLE,
@@ -386,6 +388,74 @@ def test_persona_p1_happy_path_end_to_end(corpus, tmp_path):
     assert opener and opener[0]["value"] == "farming"
     assert lines[-1]["stop"] == STOP_LE_4_SURVIVORS
     assert lines[-1]["ladder_rung"] == 0
+
+
+def test_delivery_record_one_per_scheme_with_sections(corpus, tmp_path):
+    """D9: a direct-match call writes one DeliveryRecord per named scheme,
+    carrying the scheme's slug and the sections actually spoken, and the log
+    has zero invalid lines.
+
+    Same P1 keypad path as test_persona_p1_happy_path_end_to_end (2 named
+    schemes -- see that test's fixture, S1/S2), except the first read-back
+    reads back a section (key 1 = benefit_text) before moving on, so its
+    record's sections grow past the baseline "summary".
+    """
+    audio = MockAudio(inputs=[
+        Digit("1"),    # Turn 0 (hi)
+        Digit("1"),    # opener: category -> farming
+        Digit("2"),    # state -> OTHER
+        Digit("1"),    # gender -> female
+        Digit("3"),    # social_category -> SC
+        Digit("1"),    # read-back scheme 1: hear benefit_text
+        Digit("9"), Digit("9"),   # read-back: walk the schemes
+        Digit("2"),    # anything else -> no
+    ])
+    log = Log.open("test_p1_delivery", corpus.snapshot_id, logs_dir=tmp_path)
+    Engine.run_call(audio, None, corpus, log)
+
+    lines = [json.loads(l) for l in open(tmp_path / "test_p1_delivery.jsonl")]
+    assert not [l for l in lines if l.get("invalid")]
+
+    named = [t.split(":", 1)[1] for t in audio.played if t.startswith("name:")]
+    deliveries = [l for l in lines if "slug" in l]
+    assert len(deliveries) == len(named) == 2
+
+    for rec, slug in zip(deliveries, named):
+        assert rec["slug"] == slug
+        assert rec["ending"] == DELIVERY_DIRECT_MATCH
+        assert rec["lang"] == "hi"
+        assert rec["sections"][0] == "summary"
+
+    # Only the first scheme's read-back key was pressed.
+    assert deliveries[0]["sections"] == ["summary", "benefit_text"]
+    assert deliveries[1]["sections"] == ["summary"]
+
+
+def test_delivery_record_nearest_summary_only(corpus, tmp_path):
+    """D9: a Nearest terminal has no section_menu / read-back, but its named
+    schemes were still spoken, so each still gets a DeliveryRecord (sections
+    == ["summary"] only) and no invalid lines are written."""
+    audio = MockAudio(inputs=[
+        Digit("1"),    # Turn 0 (hi)
+        Digit("2"),    # opener: category -> business_loans
+        Digit("2"),    # state -> OTHER
+        Digit("1"),    # gender -> female
+        Digit("3"),    # social_category -> SC
+        Digit("2"),    # anything else -> no
+    ])
+    log = Log.open("test_p2_delivery", corpus.snapshot_id, logs_dir=tmp_path)
+    Engine.run_call(audio, None, corpus, log)
+
+    lines = [json.loads(l) for l in open(tmp_path / "test_p2_delivery.jsonl")]
+    assert not [l for l in lines if l.get("invalid")]
+
+    named = [t.split(":", 1)[1] for t in audio.played if t.startswith("name:")]
+    deliveries = [l for l in lines if "slug" in l]
+    assert len(deliveries) == len(named) == 2
+    for rec, slug in zip(deliveries, named):
+        assert rec["slug"] == slug
+        assert rec["ending"] == DELIVERY_NEAREST
+        assert rec["sections"] == ["summary"]
 
 
 def test_persona_p2_nearest_two_end_to_end(corpus, tmp_path):

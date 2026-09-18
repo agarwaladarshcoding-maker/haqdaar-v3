@@ -19,7 +19,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 - Pick the next question that cuts the list down fastest (Step 4), drop schemes that don't fit (Step 3),
   and choose how to end the call (Step 5).
 - Take a real phone call through a Cloudflare tunnel, with every key arriving on time (Step 1).
-- `pytest -q` → **109 passed**.
+- `pytest -q` → **145 passed**.
 - Ring your phone into the real backend in one command: `make call-me`.
 - Back up all the scheme data: `make backup`. The text part is also saved in git.
 
@@ -86,6 +86,15 @@ Each entry says: what was added, what was changed, and what the project can do a
 ---
 
 ## 3 · Log — newest first
+
+### 19 Sep (night) — Phase 1, step 1.7: the call writes down which schemes it told you about
+**Added:** every call log now has one line per scheme the caller actually heard: its id, how the
+call ended (direct match, overflow, widened, nearest), which parts were read out (summary, and
+benefits / how to apply / documents / who can apply if the caller asked), and the language.
+**Project can now:** show after any call exactly what the caller was told, so the 10-call test can
+check it. Tests: **145 passed**. Next: 1.8, ranking and "press 9 for 3 more".
+**Still true:** the v2 engine is keypad-only in the terminal. First real phone call on v2 = end of
+Phase 2 (keys). It hears your voice at the end of Phase 4.
 
 ### 18 Sep (night, later) — Phase 1, step 1.6: "0 = don't know" and the Maharashtra question
 **Changed:** pressing **0** on any question now means "I don't know". Before, 0 counted as a wrong

@@ -18,6 +18,7 @@ import warnings
 from haqdaar.contracts.log_schema import (
     CallCloseRecord,
     CallOpenRecord,
+    DeliveryRecord,
     LangSwitchRecord,
     LogRecord,
     STOP_REASONS,
@@ -160,6 +161,10 @@ class Log:
             return data, is_invalid
 
         elif isinstance(line, LangSwitchRecord):
+            raw = asdict(line)
+            return {k: v for k, v in raw.items() if v is not None}, False
+
+        elif isinstance(line, DeliveryRecord):
             raw = asdict(line)
             return {k: v for k, v in raw.items() if v is not None}, False
 

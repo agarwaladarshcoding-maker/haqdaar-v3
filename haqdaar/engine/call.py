@@ -23,6 +23,7 @@ from haqdaar.contracts.log_schema import (
     STOP_NO_SPLIT,
     STOP_REASONS,
     STOP_ZERO_SURVIVORS,
+    DeliveryRecord,
     LangSwitchRecord,
     TurnLogRecord,
 )
@@ -426,17 +427,47 @@ class Engine:
             )
             audio.say(terminal_seq)
 
+            # --- D9: Delivery log ---
+            # Every named scheme in terminal_seq already had its name+summary
+            # spoken by the audio.say() above, regardless of what the caller
+            # does next in the read-back menu. So "summary" is seeded for all
+            # of them up front; _read_back appends any extra section the
+            # caller actually asks for, and the record is written once each,
+            # after the caller's interaction with that terminal is fully known
+            # (simplest correct point -- one write per scheme, no rewrites).
+            named = [
+                t.split(":", 1)[1] for t in terminal_seq if t.startswith("name:")
+            ]
+            cur_lang = getattr(audio, "language", lang)
+
             # --- 6. Read-Back Menu ---
             # section_menu plays after each named scheme. 1-4 replay a section
             # behind section_source_frame, 9 advances, anything else leaves.
             if SECTION_MENU in terminal_seq:
-                named = [
-                    t.split(":", 1)[1] for t in terminal_seq if t.startswith("name:")
-                ]
-                if not Engine._read_back(audio, named):
+                sections_heard: dict[str, list[str]] = {n: ["summary"] for n in named}
+                kept_going = Engine._read_back(audio, named, sections_heard)
+                for n in named:
+                    log.write(DeliveryRecord(
+                        slug=n,
+                        ending=shape,
+                        sections=sections_heard[n],
+                        lang=cur_lang,
+                    ))
+                if not kept_going:
                     log.close(reason=STOP_ZERO_SURVIVORS if not survs else STOP_LE_4_SURVIVORS,
                               ladder_rung=ladder_rung, mode=mode)
                     return
+            elif named:
+                # Nearest: "Restraint: summary only, NO section_menu,
+                # auto-advance" (terminals.py nearest()) -- there is no later
+                # touch point for these schemes, so write here.
+                for n in named:
+                    log.write(DeliveryRecord(
+                        slug=n,
+                        ending=shape,
+                        sections=["summary"],
+                        lang=cur_lang,
+                    ))
 
             # --- 7. Anything Else ---
             audio.say(("anything_else",))
@@ -494,8 +525,16 @@ class Engine:
     }
 
     @staticmethod
-    def _read_back(audio: Any, named: Sequence[str]) -> bool:
-        """Drive the read-back menu. Returns False if the caller hung up."""
+    def _read_back(
+        audio: Any,
+        named: Sequence[str],
+        sections_heard: dict[str, list[str]],
+    ) -> bool:
+        """Drive the read-back menu. Returns False if the caller hung up.
+
+        Appends each section actually played to sections_heard[<scheme>] (D9),
+        so the caller writes one DeliveryRecord per scheme once this returns.
+        """
         ix = 0
         heard: set[str] = set()
         while ix < len(named):
@@ -515,9 +554,11 @@ class Engine:
                 # Each section plays at most once per scheme. Without the guard
                 # a caller (or a fake) holding one key replays it forever.
                 heard.add(key)
+                section = Engine.SECTION_KEYS[key]
+                sections_heard[named[ix]].append(section)
                 audio.say((
                     SECTION_SOURCE_FRAME,
-                    f"scheme:{named[ix]}:{Engine.SECTION_KEYS[key]}",
+                    f"scheme:{named[ix]}:{section}",
                     SECTION_MENU,
                 ))
                 continue

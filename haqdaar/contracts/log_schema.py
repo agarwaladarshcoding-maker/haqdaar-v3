@@ -91,6 +91,22 @@ class TurnLogRecord:
 
 
 @dataclass(frozen=True)
+class DeliveryRecord:
+    """One record per scheme actually spoken to the caller (D9).
+
+    `slug` is the stable scheme id (T20-amendment: ids = slugs). `ending` is
+    the terminal shape the scheme was spoken under (terminals.py DELIVERY_*
+    constants: direct_match/overflow/widened_match/nearest) -- not the call's
+    stop reason. `sections` lists what was actually played for this scheme:
+    "summary" always, plus any of benefit_text/how_to_apply/documents/
+    who_can_apply the caller read back."""
+    slug: str
+    ending: str
+    sections: list[str]
+    lang: Lang
+
+
+@dataclass(frozen=True)
 class LangSwitchRecord:
     """Mid-call '*' language switch (T24 amendment, written once per switch)."""
     lang: Lang
@@ -106,4 +122,4 @@ class CallCloseRecord:
     mode: Optional[Literal["voice", "keypad_only"]] = None
 
 
-LogRecord = Union[CallOpenRecord, TurnLogRecord, LangSwitchRecord, CallCloseRecord]
+LogRecord = Union[CallOpenRecord, TurnLogRecord, LangSwitchRecord, CallCloseRecord, DeliveryRecord]
