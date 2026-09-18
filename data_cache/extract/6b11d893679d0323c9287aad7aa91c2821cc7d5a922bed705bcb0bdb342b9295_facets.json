@@ -1,0 +1,36 @@
+{
+  "facets": {
+    "category": {
+      "value": "agriculture",
+      "quote": "Farmers - individual/joint borrowers who are owner cultivators; Tenant farmers, oral lessees & share croppers; Self Help Groups (SHGs) or Joint Liability Groups (JLGs) of farmers including tenant farmers, share croppers etc"
+    },
+    "state": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "farmer",
+      "quote": "Farmers - individual/joint borrowers who are owner cultivators"
+    }
+  },
+  "gate_notes": []
+}

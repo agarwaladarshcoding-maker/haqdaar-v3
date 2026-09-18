@@ -1,0 +1,36 @@
+{
+  "facets": {
+    "category": {
+      "value": "pension",
+      "quote": "Guaranteed minimum pension amount"
+    },
+    "state": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 18,
+        "max": 40
+      },
+      "quote": "The minimum age of joining APY is 18 years and maximum is 40 years."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": []
+}

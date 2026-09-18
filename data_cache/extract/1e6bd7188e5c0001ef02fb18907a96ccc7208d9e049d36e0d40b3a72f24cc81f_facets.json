@@ -1,0 +1,38 @@
+{
+  "facets": {
+    "category": {
+      "value": "housing",
+      "quote": "The universe of eligible beneficiaries under PMAY-G will include all the houseless households living in zero, one, or two-room houses with kutcha walls and kutcha roofs (as per SECC data, and subject to the exclusion process)."
+    },
+    "state": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "The scheme targets housing deprivation across all social categories and does not specify age, income or occupation restrictions; prioritisation criteria are complex but do not constitute exclusive eligibility facets."
+  ]
+}

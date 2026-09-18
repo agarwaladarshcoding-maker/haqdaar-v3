@@ -1,10 +1,15 @@
 .env
 logs/
 audio/
-data_cache/
+data_cache/*
+!data_cache/raw/
+!data_cache/derived/
+!data_cache/extract/
+data_cache/raw/*.html
 .venv/
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 node_modules/
 .agent/

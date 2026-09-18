@@ -1,0 +1,93 @@
+{
+  "scheme_id": "S3",
+  "myscheme_slug": "day-nrlm",
+  "source_url": "https://www.myscheme.gov.in/schemes/day-nrlm",
+  "level": "CENTRAL",
+  "state": "ANY",
+  "department": "Government of India",
+  "fetched_on": "2026-09-11",
+  "source_sha256": "f58a120628296b20eed26a8e66233ddd6b22902e5cc4aa34988d61e95caafb92",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Deendayal Antyodaya Yojana - National Rural Livelihoods Mission",
+  "scheme_name_hi": "दीनदयाल अंत्योदय योजना - राष्ट्रीय ग्रामीण आजीविका मिशन",
+  "scheme_name_mr": "दीनदयाल अंत्योदय योजना - राष्ट्रीय ग्रामीण आजीविका मिशन",
+  "aliases_en": [
+    "day rural livelihood helpline",
+    "deendayal antyodaya help line",
+    "day-nrlm support line",
+    "deendayal antyodaya yojana call center",
+    "national rural livelihoods mission hotline"
+  ],
+  "aliases_hi": [
+    "day-nrlm हेल्पलाइन",
+    "दीनदयाल अंत्योदय कॉल सेंटर",
+    "अंत्योदय मिशन सहायता लाइन",
+    "day ग्रामीण आजीविका सहायता",
+    "nrlm सहायता केंद्र"
+  ],
+  "aliases_mr": [
+    "day-nrlm हेल्पलाइन",
+    "दीनदयाल अंत्योदय कॉल सेंटर",
+    "ग्रामीण आजीविका मिशन मदत लाइन",
+    "day ग्रामीण आजीविका सेवा",
+    "nrlm समर्थन केंद्र"
+  ],
+  "category": "livelihood",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": "ANY",
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "The Mission consists of four components, viz., (i) social mobilization, community institution, and capacity building; (ii) financial inclusion; (iii) livelihood promotion; and (iv) convergence.",
+    "state": "",
+    "gender": "",
+    "social_category": "",
+    "age": "",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Scheme prefers women members but eligibility is not limited by gender"
+  ],
+  "chunks": {
+    "en": {
+      "name": "Deendayal Antyodaya Yojana - National Rural Livelihoods Mission",
+      "summary": "The scheme links rural poor households to women-led Self Help Groups, offering bank‑linked credit, revolving and community investment funds, interest subvention, skill training, and market support to boost livelihoods and financial inclusion.",
+      "benefit_text": "Key benefits of the Scheme include:\nOne member (preferably a woman) from each rural poor household would be brought under the Self Help Group (SHG) network. Women SHG groups would have bank-linkage arrangements.\nSHGs would be federated at the village level and higher levels to provide space, voice and resources and to reduce dependence on external agencies.\nThe Mission consists of four components, viz., (i) social mobilization, community institution, and capacity building; (ii) financial inclusion; (iii) livelihood promotion; and (iv) convergence.\nThe participatory social assessment would be organized to identify and rank all households according to vulnerability. The ranking would be with reference to the poorest of the poor, single woman and woman-headed households, disabled, landless, and migrant labor and they would receive special focus.\nTraining and capacity building of the poor, particularly in relation to managing the institutions, livelihoods, credit absorption, and creditworthiness.\nThe Mission also supports the development of skills for rural youth and their placement, training, and self-employment through rural self-employment institutes (RSETIs), innovations, infrastructure creation, and market support.\nProvision of Revolving Fund as support to SHGs to strengthen their institutional and financial management capacity and build a good credit history.\nProvision of Community Investment Support Fund (CIF) in the intensive blocks to the SHGs through the Federations to advance loans and/or undertake common/collective socio-economic activities.\nIntroduction of financial inclusion model, loaning from banks, association and coordination with banking/financial institutions, and coverage from loss of life, health, etc.\nProvision of Interest Subvention on loans availed by SHGs to cover the difference between the lending rate of the banks and 7%.\nConvergence with various ministries and agencies dealing with poverty reduction of rural poor.\nWith highly decentralized planning; States will have liberty in developing their own action plan for poverty reduction.\nNRLM to have suitable linkages at the district level with District Rural Development Agencies (DRDAs) and Panchayat Raj Institutions (PRIs).",
+      "who_can_apply": "SHGs should be in active existence at least for the last 6 months as per the books of account of SHGs and not from the date of opening of the S/B account.\nSHGs should be practicing ‘Panchasutras’ i.e., Regular meetings; Regular savings; Regular inter-loaning; Timely repayment; and Up-to-date books of accounts.\nQualified as per grading norms fixed by NABARD. As and when the federations of the SHGs come to existence, the grading exercise may be done by the Federations to support the banks.\nThe existing defunct SHGs are also eligible for the credit if they are revived and continue to be active for a minimum period of 3 months",
+      "documents": "Aadhar Number\nProof of Identity\nProof of Residence\nVoter ID Card\nPassport Size Photo",
+      "how_to_apply": "Online\nTo register for DAY-NRLM, visit the following link: https://aajeevika.gov.in/en/member/register\nFill out the mandatory fields. (Name, email ID, Contact Number)\nProvide a Username.\nCreate a new password and confirm the same.\nClick on \"Create New Account\"."
+    },
+    "hi": {
+      "name": "दीनदयाल अंत्योदय योजना - राष्ट्रीय ग्रामीण आजीविका मिशन",
+      "summary": "योजना ग्रामीण गरीब परिवारों को महिला‑संचालित स्वयं सहायता समूहों से जोड़ती है, बैंक‑संबंधित ऋण, घूर्णन एवं सामुदायिक निवेश निधि, ब्याज सबसिडी, कौशल प्रशिक्षण और बाजार सहायता प्रदान करती है।",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "दीनदयाल अंत्योदय योजना - राष्ट्रीय ग्रामीण आजीविका मिशन",
+      "summary": "ही योजना ग्रामीण गरिब कुटुंबांना महिला‑नेतृत्वातील स्वयं सहकारी गटांशी जोडते, बँक‑संबंधित कर्ज, फिरती व सामुदायिक गुंतवणूक निधी, व्याज सबसिडी, कौशल्य प्रशिक्षण आणि बाजार सहाय्य देते.",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

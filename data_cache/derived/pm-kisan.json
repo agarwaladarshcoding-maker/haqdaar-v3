@@ -1,0 +1,91 @@
+{
+  "scheme_id": "S6",
+  "myscheme_slug": "pm-kisan",
+  "source_url": "https://www.myscheme.gov.in/schemes/pm-kisan",
+  "level": "CENTRAL",
+  "state": "ANY",
+  "department": "Government of India",
+  "fetched_on": "2026-09-11",
+  "source_sha256": "57ff74f559dbf4d0048b54a677662052b803907614159ebafd344e3eb28964f5",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Pradhan Mantri Kisan Samman Nidhi (PM-KISAN)",
+  "scheme_name_hi": "प्रधानमंत्री किसान सम्मान निधि",
+  "scheme_name_mr": "प्रधानमंत्री कृषी मानधन निधी",
+  "aliases_en": [
+    "pm kisan six thousand yearly",
+    "pm-kisan 6000 rupees assistance",
+    "prime minister kisan 6000 scheme",
+    "pm kisan ₹6,000 benefit",
+    "pm-kisan annual ₹6k payment"
+  ],
+  "aliases_hi": [
+    "पीएम किसान छह हजार रुपये",
+    "पीएम-कीसान 6000 रुपये सहायता",
+    "प्रधानमंत्री किसान 6000 रुपये योजना",
+    "पीएम किसान सालाना छह हजार",
+    "pm-kisan छह हजार लाभ"
+  ],
+  "aliases_mr": [
+    "pm किसान सहा हजार रुपये",
+    "pm-kisan 6000 रुपये मदत",
+    "प्रधानमंत्री कृषी मानधन 6000 रुपये",
+    "pm किसान वार्षिक सहा हजार",
+    "pm-kisan सहा हजार लाभ"
+  ],
+  "category": "agriculture",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": "ANY",
+  "income_band": "ANY",
+  "occupation": "farmer",
+  "evidence_quotes": {
+    "category": "All landholding farmers' families, which have cultivable land holding in their names are eligible to get benefit under the scheme.",
+    "state": "",
+    "gender": "",
+    "social_category": "",
+    "age": "",
+    "income_band": "",
+    "occupation": "All landholding farmers' families, which have cultivable land holding in their names are eligible to get benefit under the scheme."
+  },
+  "gate_notes": [],
+  "chunks": {
+    "en": {
+      "name": "Pradhan Mantri Kisan Samman Nidhi (PM-KISAN)",
+      "summary": "PM-Kisan delivers a total of ₹6,000 each year to landholding farmer families in three equal ₹2,000 installments, supporting agricultural households across the nation through the government.",
+      "benefit_text": "Financial Assistance: An amount of ₹6,000/- per year in 3 equal installments of ₹2,000/- every four months is provided to each eligible family.\n﻿",
+      "who_can_apply": "All landholding farmers' families, which have cultivable land holding in their names are eligible to get benefit under the scheme.\n﻿",
+      "documents": "Aadhaar Card.\nLandholding papers.\nSavings Bank Account.\n﻿\n\n﻿",
+      "how_to_apply": "Online\nOnline - Via CSCs\nStep 1: Visit the PM-KISAN Portal.\nStep 2: Click on \"New Farmer Registration\" option.\nStep 3: Enter Your Aadhaar Number and Mobile Number.\nStep 4: Enter the received OTP to authenticate your Aadhaar with UIDAI.\nStep 5: Fill in the required information and upload the mandatory documents.\nStep 6: Click on \"Submit\".\nKnow Your Status: Click here.\n﻿\n\nApply Now"
+    },
+    "hi": {
+      "name": "प्रधानमंत्री किसान सम्मान निधि",
+      "summary": "PM‑Kisan योजना प्रत्येक साल तीन समान किस्तों में ₹6,000 प्रदान करती है, जिससे कृषि परिवारों को वित्तीय समर्थन मिलता है।",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "प्रधानमंत्री कृषी मानधन निधी",
+      "summary": "PM‑Kisan योजना प्रत्येक वर्ष तीन समान हप्त्यांमध्ये ₹6,000 देते, ज्यामुळे शेतकरी कुटुंबांना आर्थिक मदत मिळते।",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

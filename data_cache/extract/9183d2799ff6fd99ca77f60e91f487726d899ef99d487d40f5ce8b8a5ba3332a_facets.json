@@ -1,0 +1,36 @@
+{
+  "facets": {
+    "category": {
+      "value": "livelihood",
+      "quote": "Street vendors in possession of Certificate of Vending / Identity Card issued by Urban Local Bodies (ULBs)."
+    },
+    "state": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "street_vendor",
+      "quote": "Street vendors in possession of Certificate of Vending / Identity Card issued by Urban Local Bodies (ULBs)."
+    }
+  },
+  "gate_notes": []
+}

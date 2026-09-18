@@ -1,0 +1,91 @@
+{
+  "scheme_id": "S7",
+  "myscheme_slug": "pm-svanidhi",
+  "source_url": "https://www.myscheme.gov.in/schemes/pm-svanidhi",
+  "level": "CENTRAL",
+  "state": "ANY",
+  "department": "Government of India",
+  "fetched_on": "2026-09-11",
+  "source_sha256": "9183d2799ff6fd99ca77f60e91f487726d899ef99d487d40f5ce8b8a5ba3332a",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "PM Street Vendor’s AtmaNirbhar Nidhi (PM SVANidhi)",
+  "scheme_name_hi": "प्रधानमंत्री स्ट्रीट विक्रेता आत्मनिर्भर निधि",
+  "scheme_name_mr": "प्रधानमंत्री स्ट्रीट विक्रेता आत्मनिर्भर निधी",
+  "aliases_en": [
+    "pm svanidhi working capital loan",
+    "prime minister street vendor atmanirbhar loan",
+    "pm street vendor fund loan",
+    "atmanirbhar vendor loan by pm",
+    "pm svanidhi loan scheme"
+  ],
+  "aliases_hi": [
+    "pm svanidhi ऋण",
+    "प्रधानमंत्री स्ट्रीट विक्रेता निधि ऋण",
+    "आत्मनिर्भर विक्रेता लोन पीएम से",
+    "pm svanidhi कामकाजी पूँजी ऋण",
+    "प्रधानमंत्री स्ट्रीट वेंडर लोन"
+  ],
+  "aliases_mr": [
+    "pm svanidhi कर्ज",
+    "प्रधानमंत्री स्ट्रीट विक्रेता निधी कर्ज",
+    "आत्मनिर्भर विक्रेता कर्ज पीएम",
+    "pm svanidhi कार्यशील भांडवल कर्ज",
+    "प्रधानमंत्री स्ट्रीट वेंडर लोन"
+  ],
+  "category": "livelihood",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": "ANY",
+  "income_band": "ANY",
+  "occupation": "street_vendor",
+  "evidence_quotes": {
+    "category": "Street vendors in possession of Certificate of Vending / Identity Card issued by Urban Local Bodies (ULBs).",
+    "state": "",
+    "gender": "",
+    "social_category": "",
+    "age": "",
+    "income_band": "",
+    "occupation": "Street vendors in possession of Certificate of Vending / Identity Card issued by Urban Local Bodies (ULBs)."
+  },
+  "gate_notes": [],
+  "chunks": {
+    "en": {
+      "name": "PM Street Vendor’s AtmaNirbhar Nidhi (PM SVANidhi)",
+      "summary": "PM SVANidhi offers street vendors tiered working‑capital loans up to ₹50,000 with interest subsidy at 7%, quarterly cashback of ₹100 for digital payments, credit‑guarantee cover, and a RuPay credit card after the second tranche repayment.",
+      "benefit_text": "Working Capital Loan:\n1st Tranche: Loan up to ₹15,000/-; repayment within 12 months.\n2nd Tranche: Loan up to ₹25,000/-; repayment within 18 months.\n3rd Tranche: Loan up to ₹50,000/-; repayment within 36 months.\nNext tranche available on timely or early repayment.\nNo prepayment penalty on early repayment.\nInterest Subsidy:\nSubsidy at 7% per annum on loan amount.\nCredited quarterly to beneficiary’s bank account.\nApplicable only for standard (non-NPA) accounts.\nValid up to 31st March 2033.\nDigital Transaction Cashback:\nCashback up to ₹100/- per month for digital transactions.\nCredit Guarantee Support:\n31.87% guarantee cover for 1st tranche loan.\n8.25% guarantee cover for 2nd tranche loan.\n6% guarantee cover for 3rd tranche loan.\nNo charges for lending institutions.\nUPI Linked RuPay Credit Card:\nInitial credit limit of ₹10,000/-; extendable up to ₹30,000/-.\nValidity of 5 years.\nAvailable after successful repayment of 2nd tranche loan.\n﻿",
+      "who_can_apply": "Street vendors in possession of Certificate of Vending / Identity Card issued by Urban Local Bodies (ULBs).\nThe vendors, who have been identified in the survey but have not been issued Certificate of Vending / Identity Card.\nStreet Vendors left out of the ULB-led identification survey or who have started vending after completion of the survey and have been issued a Letter of Recommendation (LoR) to that effect by the ULB / Town Vending Committee (TVC).\nThe vendors of surrounding development/ peri-urban/rural areas vending in the geographical limits of the ULBs, who have been issued a Letter of Recommendation (LoR) to that effect by the ULB / TVC.\n﻿",
+      "documents": "For 1st Loan :\nFor Category A and B vendors:\nCertificate of Vending\nIdentity Card\nFor Category C and D vendors:\nLetter of Recommendation\n KYC documents required in addition to CoV/ID/LoR :\nAadhaar Card\nVoter Identity Card\nDriving License\nMNREGA Card\nPAN Card\nFor Letter of Recommendation :\nCopy of Account Statement/Passbook\nCopy of Membership Card/any other proof of membership\nAny other document to substantiate the claim as a vendor\nRequest letter to ULB\nFor Second Loan\nLoan Closure Document\n﻿",
+      "how_to_apply": "Online\nOffline\nStep 1: Visit https://pmsvanidhi.mohua.gov.in/ and click on the \"Log In\" button on the homepage. \nStep 2: Enter Mobile number and captcha. Click request OTP. \nStep 3: After successful login, select valid \"vendor category\" among the available options. Enter \"Survey Reference Number\" (SRN) which is mandatory.\nStep 4: On entering these basic details, fill the application form online, upload the relevant documents and submit.\nNote: \nFor any kind of clarification and access detailed stepwise process, refer User Manual.\nFor any query one can call on the toll free number i.e 1800111979 between 9.30 AM to 6.00 PM on Monday to Saturday except national holidays.\nContact Details: Click here.\n﻿\n\nApply Now"
+    },
+    "hi": {
+      "name": "प्रधानमंत्री स्ट्रीट विक्रेता आत्मनिर्भर निधि",
+      "summary": "पीएम एसवीएनिधि सड़क विक्रेताओं को अधिकतम ₹50,000 तक के चरणबद्ध कार्यशील पूँजी ऋण, 7% ब्याज सब्सिडी, डिजिटल लेन‑देनों पर ₹100 मासिक कैशबैक, क्रेडिट गारंटी और दूसरे चरण की पुनर्भुगतान के बाद रुपे कार्ड प्रदान करता है।",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "प्रधानमंत्री स्ट्रीट विक्रेता आत्मनिर्भर निधी",
+      "summary": "पीएम एसव्हीएनिधी रस्त्यावरील विक्रेत्यांसाठी जास्तीत जास्त ₹50,000 पर्यंत टियर‑वाइज कार्यशील भांडवल कर्ज, 7% व्याज सबसिडी, डिजिटल व्यवहारांसाठी मासिक ₹100 कॅशबॅक, क्रेडिट गॅरंटी आणि दुसऱ्या टप्प्याची परतफेड पूर्ण झाल्यावर रुपे कार्ड उपलब्ध करते.",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

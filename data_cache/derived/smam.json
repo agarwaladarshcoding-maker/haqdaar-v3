@@ -1,0 +1,93 @@
+{
+  "scheme_id": "S12",
+  "myscheme_slug": "smam",
+  "source_url": "https://www.myscheme.gov.in/schemes/smam",
+  "level": "CENTRAL",
+  "state": "ANY",
+  "department": "Government of India",
+  "fetched_on": "2026-09-11",
+  "source_sha256": "6e7134cf66fab8ec9c2093c606ae4114ba1e7bb29dd89e677058bf5a05539101",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Sub-mission On Agriculture Mechanization",
+  "scheme_name_hi": "कृषि मशीनरी उप-योजना",
+  "scheme_name_mr": "कृषी यंत्रसामग्री उप-योजना",
+  "aliases_en": [
+    "smam farm mechanisation help",
+    "sub-mission on agriculture mechanisation line",
+    "smam subsidy for farm machines",
+    "agriculture mechanisation assistance smam",
+    "smam farmer equipment support"
+  ],
+  "aliases_hi": [
+    "एसएमएएम कृषि मशीनरी योजना",
+    "कृषि मशीनरी सब-मिशन हेल्पलाइन",
+    "एसएमएएम फ़सल यंत्र सब्सिडी कॉल",
+    "कृषि यंत्र सहायता smam",
+    "smam किसान मशीन सहायता"
+  ],
+  "aliases_mr": [
+    "smam शेतकरी यंत्रसामग्री योजना",
+    "कृषी यंत्र सब-मिशन हेल्पलाइन",
+    "smam शेतकरी यंत्रसाठी कॉल",
+    "कृषी यंत्र सहाय्य smam",
+    "smam शेतकरी उपकरण समर्थन"
+  ],
+  "category": "agriculture",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": "ANY",
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "The main objective of this scheme is to provide agricultural machinery to poor and economically weak farmers",
+    "state": "",
+    "gender": "",
+    "social_category": "",
+    "age": "",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Women farmers are given priority but scheme is not limited to them, so gender is set to ANY"
+  ],
+  "chunks": {
+    "en": {
+      "name": "Sub-mission On Agriculture Mechanization",
+      "summary": "The SMAM initiative subsidises 50‑80% of agricultural machinery costs, prioritising financially weak, small‑land and women farmers, fostering custom hiring centres, awareness drives, hi‑tech hubs and certification to boost productivity and income.",
+      "benefit_text": "The stated objectives of the SMAM scheme are as follows.\nThe main objective of this scheme is to provide agricultural machinery to poor and economically weak farmers and this subsidy is given by the government.\nEnhancing the reach of farm mechanization to small & marginal farmers and to the regions where farm power availability is low.\nPromoting ‘Custom Hiring Centres’ to mitigate the adverse economies of scale caused due to small landholding and the high cost of individual ownership.\nGenerating awareness among stakeholders through demonstration and capacity-building activities.\nDeveloping hubs for hi-tech & high-value farm equipment.\nEnsuring performance testing and certification at designated testing centres.\nUnder the SMAM scheme of the central government, farmers are provided with the benefit of subsidies ranging from 50 to 80 percent for buying agricultural machinery. \nUnder the scheme, priority is given to women farmers.\nFarmers can take advantage of subsidies on agricultural machinery so that they will be able to get agricultural machinery at a low cost.\nThrough this scheme, farmers can easily purchase agricultural equipment.\nWith the help of agricultural equipment, farmers will be able to do all the farming work in less time.\nThere will be an increase in the yield with less cost of equipment, which will increase the income of the farmer.",
+      "who_can_apply": "All landholding farmers' families, Self Help Groups (SHGs), User Groups, Cooperative Societies, Farmer Producer Organizations (FPOs) and Entrepreneurs\nThe farmer must be a native of India.\nWomen farmers can also take advantage of this scheme. They will be given priority in this scheme.\nThe benefit of this scheme will be given by the central government to those farmers who are financially weak.\nThe benefit of this scheme will be given to those farmers who have not taken the benefit of subsidy from any other central scheme earlier.",
+      "documents": "For farmers\nAadhar card - To identify the beneficiary.\nPassport size photo of Farmer.\nRecord of Right(RoR) of land to upload while adding land details.\nCopy of first page of the bank pass book on which the details of the beneficiary are given.\nCopy of any ID Proof(Aadhar Card / Driving Lisence / VoterID Card / PAN Card / Passport).\nCopy of Caste Category Certificate in case of SC / ST / OBC.\nDo not fill the wrong information. On filing false information the benefits may be denied.\n﻿\n\nNote\nFarmer while registering in DBT portal has to select correct District, Sub-District, Block, and Village from the drop down list. The name of farmer should be as per Aadhaar card. The farmer category (SC/ST/General), farmer type (Small/Marginal/Large) and Gender (Male/Female) should be correctly furnished otherwise the application will be debarred at the time of physical verification. This is the responsibility of farmer to furnish the correct details for availing subsidy.",
+      "how_to_apply": "Online\nVisit https://agrimachinery.nic.in/Index/Index ﻿\nSelect the appropriate option from the Registration﻿\n﻿﻿\n dropdown option. \nFill out the form with the required information and register."
+    },
+    "hi": {
+      "name": "कृषि मशीनरी उप-योजना",
+      "summary": "SMAM योजना आर्थिक रूप से कमजोर, छोटे‑जमीनी और महिला किसानों को कृषि मशीनरी की लागत का 50‑80% सब्सिडी देती है, कस्टम हायरिंग सेंटर, जागरूकता कार्यक्रम, हाई‑टेक हब और प्रमाणन को बढ़ावा देती है।",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "कृषी यंत्रसामग्री उप-योजना",
+      "summary": "SMAM योजना आर्थिकदृष्ट्या दुर्बल, लहानजमीनी व महिला शेतकऱ्यांसाठी कृषी यंत्रसामग्रीच्या किंमतीचा 50‑80% सवलत देते, कस्टम हायरिंग सेंटर, जनजागृती, उच्च‑तंत्र हब व प्रमाणनाला प्रोत्साहन देते।",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

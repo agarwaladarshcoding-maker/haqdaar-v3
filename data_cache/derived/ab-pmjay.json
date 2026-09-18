@@ -1,0 +1,93 @@
+{
+  "scheme_id": "S1",
+  "myscheme_slug": "ab-pmjay",
+  "source_url": "https://www.myscheme.gov.in/schemes/ab-pmjay",
+  "level": "CENTRAL",
+  "state": "ANY",
+  "department": "Government of India",
+  "fetched_on": "2026-09-11",
+  "source_sha256": "5fc076c1fde99cb3ed4807849a6bf88676d90b96d84a4be645feae69b489fedf",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana",
+  "scheme_name_hi": "आयुष्मान भारत - प्रधानमंत्री जन आरोग्य योजना",
+  "scheme_name_mr": "आयुष्मान भारत - प्रधानमंत्री जन आरोग्य योजना",
+  "aliases_en": [
+    "ayushman bharat pmjay",
+    "ab-pmjay cashless cover",
+    "ayushman bharat health insurance",
+    "pm jan arogya scheme",
+    "ayushman bharat family coverage"
+  ],
+  "aliases_hi": [
+    "आयुष्मान भारत योजना",
+    "ab-pmjay हेल्पलाइन",
+    "ayushman bharat pmjay",
+    "आयुष्मान बीमा कवरेज",
+    "pmjay स्वास्थ्य सुरक्षा"
+  ],
+  "aliases_mr": [
+    "आयुष्मान भारत योजना",
+    "ab-pmjay हेल्पलाइन",
+    "ayushman bharat pmjay",
+    "आयुष्मान आरोग्य कव्हर",
+    "pmjay आरोग्य सुरक्षा"
+  ],
+  "category": "health",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": "ANY",
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "Financial Health Insurance Cover",
+    "state": "",
+    "gender": "",
+    "social_category": "",
+    "age": "",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Eligibility combines rural deprivation criteria and a long list of urban occupational categories, making occupation and social_category non‑exclusive."
+  ],
+  "chunks": {
+    "en": {
+      "name": "Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana",
+      "summary": "Ayushman Bharat‑PMJAY offers cashless hospital coverage up to ₹5 lakhs per family yearly, covering all treatments, pre‑existing diseases, and pre/post‑hospitalisation expenses, with nationwide portability and no size or age limits.",
+      "benefit_text": "Financial Health Insurance Cover:\nAnnual Hospitalization Coverage: Cashless coverage up to ₹5,00,000/- per family per year.\nComprehensive Treatment Costs: Covers consultation, medicines, diagnostics, surgery, ICU, implants, accommodation, and food.\nPre and Post Hospitalization Support: Covers 3 days pre-hospitalization and 15 days post-hospitalization expenses.\nTreatment Complication Coverage: Covers complications arising during treatment.\nCoverage Features:\nPre-Existing Disease Coverage: Covers all pre-existing diseases from day one.\nNo Family Size Limit: No restriction on age, gender, or family size.\nNationwide Portability: Benefits available across India in empanelled hospitals.\nWide Procedure Coverage: Covers approximately 1,929 medical procedures.\n﻿",
+      "who_can_apply": "Rural Beneficiaries\nOut of the total seven deprivation criteria for rural areas, PM-JAY covered all such families who fall into at least one of the following six deprivation criteria and automatic inclusion(Destitute/ living on alms, manual scavenger households, primitive tribal group, legally released bonded labour) criteria:\nOnly one room with kucha walls and kucha roof\nNo adult member between ages 16 to 59\nHouseholds with no adult male member between ages 16 to 59\nDisabled member and no able-bodied adult member\nSC/ST households\nLandless households deriving a major part of their income from manual casual labour\nAutomatically includedHouseholds without shelter\nDestitute/ living on alms,\nManual scavenger families,\nPrimitive tribal groups,\nLegally released bonded labour.\nUrban Beneficiaries\nFor urban areas, the following 11 occupational categories of workers are eligible for the scheme:\nRagpicker\nBeggar\nDomestic worker\nStreet vendor/ Cobbler/hawker / other service provider working on streets\nConstruction worker/ Plumber/ Mason/ Labour/ Painter/ Welder/ Security guard/ Coolie and other head-load worker\nSweeper/ Sanitation worker/ Mali\nHome-based worker/ Artisan/ Handicrafts worker/ Tailor\nTransport worker/ Driver/ Conductor/ Helper to drivers and conductors/ Cart puller/ Rickshaw puller\nShop worker/ Assistant/ Peon in small establishment/ Helper/Delivery assistant / Attendant/ Waiter\nElectrician/ Mechanic/ Assembler/ Repair worker\nWasher-man/ Chowkidar\n﻿",
+      "documents": "1.\tAge & Identity Proof (Aadhaar Card / PAN Card).\n2.\tProof of Address.\n3.\tContact details (Mobile, e-mail).\n4.\tCaste Certificate.\n5.\tIncome Certificate.\n6.\tDocument Proof of the Current Status of the Family (Joint or Nuclear).\n7. Aadhaar Card.\n﻿",
+      "how_to_apply": "Offline\nOnline\nThe Arogya Mitra searches the available list of beneficiaries using details such as name, location, ration card number, mobile number, or the RSBY URN of the beneficiary. After this, the beneficiary is searched for in the BIS. The individual is identified and the scanned valid ID documents are then uploaded.\nTo get a PMJAY e-card for themselves and their family, a potential beneficiary needs to visit either a hospital or a Community Service Centre (CSC) for identification and follow the steps mentioned below:\nStep 1: Potential AB-PMJAY beneficiaries are to submit the PM letter/ RSBY URN/ RC Number/ Mobile Number - The operator (commonly known as the Arogya Mitra) searches the available list of beneficiaries. The operator does this by entering details such as name, location, Ration Card number, mobile number, or even RSBY URN of the beneficiary.\nStep 2: Search in the BIS Application - The operator searches for the potential beneficiary in the entitled SECC, RSBY, State Health Scheme, Additional Data Collection Drive databases.\nStep 3: Individual Identification - The identification process is carried out if the name is found in the list. For this, documents like Aadhaar or any government ID and a Ration Card or an alternative family ID are required to validate against the details available in the system. Scanned documents are then uploaded.\nStep 4: Family Identification - The Arogya Mitra then identifies the family records through the ration card and the scanned documents are then uploaded. The Arogya Mitra then submits the individual and family records to the trust/insurance company for approval.\nStep 5: Approval or Rejection - The Health insurance company or trust may then approve or recommend rejection for the submitted beneficiaries. The cases that are recommended for rejection will be finally verified for approval or rejection by the State Health Agency (SHA).\nStep 6: E-card Issuance - On approval by SHA/insurance company/trust, an e-card will be issued to the beneficiary.﻿\n﻿\n﻿\n\n﻿\n\nApply Now"
+    },
+    "hi": {
+      "name": "आयुष्मान भारत - प्रधानमंत्री जन आरोग्य योजना",
+      "summary": "आयुष्मान भारत‑पीएमजय प्रति परिवार वार्षिक पाँच लाख रुपये तक का नकद‑रहित अस्पताल कवरेज प्रदान करता है, जिसमें सभी उपचार, पूर्व‑स्थापित रोग, तथा पूर्व‑और‑पश्चात् अस्पताल खर्च शामिल हैं, और यह पूरे देश में बिना पारिवारिक आकार या आयु प्रतिबंध के उपलब्ध है।",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "आयुष्मान भारत - प्रधानमंत्री जन आरोग्य योजना",
+      "summary": "आयुष्मान भारत‑पीएमजेए प्रत्येक कुटुंबाला वार्षिक पाच लाख रुपयांपर्यंतचा नकद‑रहित रुग्णालय कव्हर देते, ज्यात सर्व उपचार, पूर्व‑स्थापित आजार, व पूर्व‑आणि‑पश्चात रुग्णालय खर्च समाविष्ट आहेत, आणि हे संपूर्ण भारतात कुटुंबाचा आकार किंवा वय मर्यादा न ठेवता उपलब्ध आहे.",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

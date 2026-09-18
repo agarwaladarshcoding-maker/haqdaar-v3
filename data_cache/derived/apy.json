@@ -1,0 +1,94 @@
+{
+  "scheme_id": "S2",
+  "myscheme_slug": "apy",
+  "source_url": "https://www.myscheme.gov.in/schemes/apy",
+  "level": "CENTRAL",
+  "state": "ANY",
+  "department": "Government of India",
+  "fetched_on": "2026-09-11",
+  "source_sha256": "d78db6984a185dc2916a4d53115f71837be0a3a15fe09527d52eee55dc3e5fc7",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Atal Pension Yojana",
+  "scheme_name_hi": "अटल पेंशन योजना",
+  "scheme_name_mr": "अटल पेन्शन योजना",
+  "aliases_en": [
+    "atal pension yojana helpline",
+    "apy retirement call",
+    "atal pension support line",
+    "apy exit assistance",
+    "atal pension help desk"
+  ],
+  "aliases_hi": [
+    "अटल पेंशन योज़ना हेल्पलाइन",
+    "apy रिटायरमेंट कॉल",
+    "अटल पेंशन सहायता लाइन",
+    "apy निकास सहायता",
+    "अटल पेंशन मदद डेस्क"
+  ],
+  "aliases_mr": [
+    "अटल पेन्शन योजनेचा हेल्पलाइन",
+    "apy रिटायरमेंट कॉल",
+    "अटल पेन्शन सपोर्ट लाइन",
+    "apy बाहेर जाण्याची मदत",
+    "अटल पेन्शन मदत डेस्क"
+  ],
+  "category": "pension",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": {
+    "min": 18,
+    "max": 40
+  },
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "Guaranteed minimum pension amount",
+    "state": "",
+    "gender": "",
+    "social_category": "",
+    "age": "The minimum age of joining APY is 18 years and maximum is 40 years.",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [],
+  "chunks": {
+    "en": {
+      "name": "Atal Pension Yojana",
+      "summary": "Atal Pension Yojana guarantees a monthly pension of Rs 1,000‑5,000 from age 60 for life, extends the same amount to the spouse after death, and returns the accumulated corpus to the nominee, while contributions enjoy tax relief.",
+      "benefit_text": "Upon exit on attaining 60 years\nThe subscriber shall receive the following three benefits on attaining the age of 60:\n(i) Guaranteed minimum pension amount: Each subscriber under APY shall receive a  guaranteed minimum pension of Rs. 1000/- per month or Rs. 2000/- per month or Rs. 3000/- per month or Rs. 4000/- per month or Rs. 5000/- per month, after the age of 60 years until death.\n(ii) Guaranteed minimum pension amount to the spouse: After the subscriber’s demise, the spouse of the subscriber shall be entitled to receive the same pension amount as that of the subscriber,until death.  \n(iii) Return of the pension wealth to the nominee of the subscriber: After the demise of both the subscriber and the spouse, the nominee of the subscriber shall be entitled to receive the pension wealth, as accumulated till the  subscriber's age of 60 years.\nContributions to the Atal Pension Yojana (APY) are  eligible for tax benefits similar to the National Pension System (NPS) under section 80CCD(1).\nVoluntary exit (Exit before 60 Years of age): \nThe subscriber shall  be refunded only the contributions made by him to APY alongwith the net actual accrued income earned on his contributions (after deducting the account maintenance charges).\nHowever, in case of subscribers who joined the scheme before 31st March 2016 and have received the Government Co-Contribution,  shall not receive the same including the   accrued  income earned thereon.    \nFor death before 60 years\nOption 1: In case of death of the subscriber before 60 years, option will be available to the spouse of the subscriber to continue contribution in the APY account of the subscriber, which can be maintained in the spouse’s name, for the remaining vesting period, till the original subscriber would have attained the age of 60 years. The spouse of the subscriber shall be entitled to receive the same pension amount as the subscriber until death of the spouse. Such APY account and pension amount would be in addition even if the spouse has his/her APY account and pension amount in own name.\nOption 2: The entire accumulated pension corpus till date under APY will be returned to the spouse / nominee.",
+      "who_can_apply": "Age of joining and contribution period\nThe minimum age of joining APY is 18 years and maximum is 40 years.\nThe age of exit and start of pension is 60 years.\nSubscriber contribution to APY shall be made through the facility of ‘auto-debit’ of the prescribed contribution amount from the savings bank account of the subscriber on monthly, quarterly or half-yearly basis.\nThe subscribers are required to contribute the prescribed contribution amount from the age of joining APY till the age of  60 years.",
+      "documents": "KYC details are fetched from active Bank/Post Office Savings account.  \n﻿",
+      "how_to_apply": "Online\nOffline\nProcess 1:\nOne can also open an APY account online using one's Net banking facility. \nThe applicant can login into his/her internet banking account and search for APY on dashboard.\nCustomer has to fill basic and Nominee details.\nCustomer has to give consent for  auto debit of premium from the account and submit the form.\nProcess 2:\nVisit website “https://enps.nsdl.com/eNPS/NationalPensionSystem.html “ and select “Atal Pension Yojana”.\nSelect “APY Registration”\nFill the basic details in the form. One can complete KYC through 3 options – \nOffline KYC – Where one has to upload XML file of Aadhaar\nAadhaar – Where KYC is done through OTP verification on Mobile Number register with Aadhaar\nVirtual ID – Where Aadhaar virtual ID is created for KYC \nCitizen can select either one of three options.\nOnce the basic details are filled, an acknowledgement number is generated.\nCitizen then has to fill personal details and decide the pension amount he/she wants after 60 years.\nThe Citizen also has to decide the frequency of contribution for the scheme.\nOnce the citizen “confirms” for personal details, he/she  has to then fill nominee details.\nAfter submitting the personal and Nominee details, Citizen is redirected to NSDL website for eSign.\nOnce Aadhaar is OTP verified,  Citizen gets successfully registered in APY.\nOne can also join digitally through e-APY portal or through web portal of banks providing such facility.\nVisit website “https://enps.nsdl.com/eNPS/NationalPensionSystem.html “ and select “Atal Pension Yojana”.\nHelpline Number - - Toll Free Helpline number for APY Scheme is 1800-110-069"
+    },
+    "hi": {
+      "name": "अटल पेंशन योजना",
+      "summary": "अटल पेंशन योजना 60 साल की उम्र से जीवनभर Rs 1,000‑5,000 मासिक पेंशन सुनिश्चित करती है, मृत्यु पर जीवनसाथी को समान राशि और नामित व्यक्ति को जमा राशि वापस देती है, साथ ही योगदान पर कर राहत मिलती है।",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "अटल पेन्शन योजना",
+      "summary": "अटल पेंशन योजना ६० वयापासून जीवनभर Rs 1,000‑5,000 मासिक पेन्शन देते, मृत्यूच्या वेळी जोडीदाराला समान रक्कम आणि नामांकित व्यक्तीला जमा रक्कम परत मिळते, तसेच योगदानावर कर सवलत उपलब्ध होते.",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

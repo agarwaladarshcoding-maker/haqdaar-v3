@@ -1,0 +1,16 @@
+{
+  "vocab_source": "corpus_prose_cut",
+  "cardinality": 2,
+  "occupations": {
+    "farmer": {
+      "en": "farmer",
+      "hi": "किसान",
+      "mr": "शेतकरी"
+    },
+    "street_vendor": {
+      "en": "street vendor",
+      "hi": "रेहड़ी-पटरी विक्रेता",
+      "mr": "फेरीवाले"
+    }
+  }
+}

@@ -1,9 +1,15 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract
+.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract backup
 
 test:
 	$(PYTHON) -m pytest
+
+# Copy of all pipeline data (raw HTML included; HTML is not in git) to ~/haqdaar-backup/.
+backup:
+	@mkdir -p $(HOME)/haqdaar-backup
+	tar czf $(HOME)/haqdaar-backup/data_cache-$$(date +%Y%m%d-%H%M%S).tgz data_cache
+	@ls -lh $(HOME)/haqdaar-backup | tail -1
 
 # Everything the server prints also goes to logs/server.log (Claude reads it).
 # Starts the cloudflared tunnel and points the number at it. Backup: TUNNEL=ngrok make run

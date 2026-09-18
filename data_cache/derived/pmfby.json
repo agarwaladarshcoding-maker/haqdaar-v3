@@ -1,0 +1,91 @@
+{
+  "scheme_id": "S10",
+  "myscheme_slug": "pmfby",
+  "source_url": "https://www.myscheme.gov.in/schemes/pmfby",
+  "level": "CENTRAL",
+  "state": "ANY",
+  "department": "Government of India",
+  "fetched_on": "2026-09-11",
+  "source_sha256": "7a36d9bc43af6be6adca53f0e41f90a4714ce37b4bd69e1bb095982319a14b23",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Pradhan Mantri Fasal Bima Yojna (PMFBY)",
+  "scheme_name_hi": "प्रधान मंत्री फसल बीमा योजना (पीएमएफबीवाई)",
+  "scheme_name_mr": "प्रधानमंत्री पिक बीमा योजना (PMFBY)",
+  "aliases_en": [
+    "pmfby crop insurance",
+    "prime minister's farm insurance",
+    "pmfby affordable premiums",
+    "pmfby farmer protection scheme",
+    "pmfby insurance for crops"
+  ],
+  "aliases_hi": [
+    "पीएमएफबीवाई फसल बीमा",
+    "प्रधान मंत्री फसल बीमा योजना",
+    "pmfby बीमा योजना",
+    "प्रधान मंत्री की फसल बीमा",
+    "pmfby सस्ती प्रीमियम"
+  ],
+  "aliases_mr": [
+    "पीएमएफबीवाई पिक बीमा",
+    "प्रधानमंत्री पिक बीमा योजना",
+    "pmfby पिक विमा",
+    "प्रधान मंत्री पिक बीमा",
+    "pmfby परवडणारी प्रीमियम"
+  ],
+  "category": "agriculture",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": "ANY",
+  "income_band": "ANY",
+  "occupation": "farmer",
+  "evidence_quotes": {
+    "category": "All farmers, including tenant farmers and sharecroppers growing notified crops in notified areas.",
+    "state": "",
+    "gender": "",
+    "social_category": "",
+    "age": "",
+    "income_band": "",
+    "occupation": "All farmers, including tenant farmers and sharecroppers growing notified crops in notified areas."
+  },
+  "gate_notes": [],
+  "chunks": {
+    "en": {
+      "name": "Pradhan Mantri Fasal Bima Yojna (PMFBY)",
+      "summary": "PMFBY offers farmers low premiums—2% for Kharif food/oilseed, 1.5% for Rabi, 5% for commercial crops—with full subsidy in NE states, covering natural disasters, pests, post‑harvest losses, and fast claim settlement.",
+      "benefit_text": "Affordable Premiums: The maximum premium payable by the farmer will be 2% for the Kharif food and oilseed crops. For rabi food and oilseeds crop, it is 1.5% and for yearly commercial or horticultural crops it will be 5%. The remaining premium is subsidized by the government.\n* For the farmers in North-Eastern States, Jammu, Kashmir, and Himachal Pradesh, the government also pays the entire premium.\nComprehensive Coverage: The scheme covers natural disasters (droughts, floods), pests, and diseases. Post-harvest losses due to local risks like hailstorms and landslides are also included.\nTimely Compensation: PMFBY aims to process claims within two months of the harvest to ensure that farmers get the compensation quickly, preventing them from falling into debt traps.\nTechnology-Driven Implementation: PMFBY integrates advanced technologies like satellite imaging, drones, and mobile apps for precise estimation of crop loss, ensuring accurate claim settlements.\n﻿\n\nRISKS COVERED\nYield Losses (Standing Crops): The Government provides this insurance coverage for yield losses that fall under the non-preventable risks, such as Natural Fire and Lightning: Storm, Hailstorm, Tornado etc.:  Flood, Inundation and Landslide;  Pests/ Diseases, etc.; Drought etc.\nPrevented Sowing: Cases may arise where most of the farmers (insured )of notified areas may want to plant or sow. In such cases, they have to bear the expenditure for that cause and are restricted from planting or sowing insured crops because of unfavourable weather conditions. These farmers will then become eligible for the indemnity claims of up to a maximum of 25% of the sum insured.\nPost-harvest Losses: The Government provides for post-harvest losses on an individual farm basis. The Government offers coverage of up to 14 days (maximum) from harvesting for crops that are stored in “cut and spread” condition. It means that the Government covers farmers who have put the crops to become sun-baked in the field after harvesting that have been destroyed due to cyclone or cyclonic rains occurred across the country.\nLocalised Calamities: The Government provides for localised calamities on an individual farm basis. Risks such as loss or damage arising from identified localised hazards, such as hailstorms, landslides, and inundation impacting separated farmlands in the notified area comes under this coverage.",
+      "who_can_apply": "All farmers, including tenant farmers and sharecroppers growing notified crops in notified areas.\nFarmers must have an insurable interest in the insured crops.\nFarmers must possess a valid and authenticated land ownership certificate or a valid land tenure agreement.\nThe farmer must be a cultivator or sharecropper on the insured land.\nThe farmer must apply for insurance coverage within the prescribed time frame, usually within 2 weeks of the start of the sowing season.\nFarmers must not have received compensation for the same crop loss from any other medium or source.",
+      "documents": "Passport–sized Photograph\nPassbook\nIdentity Proof (Aadhaar Card/PAN Card/Voter ID/Bank Passbook with Photo, Kisan Photo Book/NREGA Job Card)\nAddress Proof (Aadhaar Card/PAN Card/Voter ID/Electricity Bill/Bank Passbook with Photo).\nEvidence of Land records, as per the State Records of Right (RoR), Land Possession Certificate (LPC), and other applicable agreements, contracts notified or permitted by the state.\nDeclaration about the crop sown/intended to be sown.",
+      "how_to_apply": "Online\nOffline\nOnline - Via CSCs\nStep 1: Visit the Official Website of \"Pradhan Mantri Fasal Bima Yojana\".\nStep 2: At the top right corner of the homepage, click \"Farmer Corner\".\nIn the popup window, click \"Guest Farmer\". You will be taken to the Online Registration Form.\n*If already registered, skip to Step: 4.\nStep 3: In the Registration Form, fill in the following mandatory fields (marked with a red asterisk): \n\"FARMER DETAILS\" Section: Full Name, Passbook Name, Relationship, Relative Name, Mobile No., Age, Caste Category, Gender, Farmer Type, Farmer Category, \n\"RESIDENTIAL DETAILS\" Section: State, District, Sub District, Residential Village/ Town, Address, PIN Code\n\"FARMER ID\" Section: ID Type, ID No, \n\"ACCOUNT DETAILS\" Section: IFSC, Bank Name, Branch Name, Savings Bank A/C No., Confirm Savings Bank A/C No..\nAt the bottom of the registration form, fill in the Captcha Code and click \"Create User\".\nStep 4: Upon successful registration, click \"Farmer Corner (Apply for Crop Insurance Yourself)\".\nIn the popup window, click \"Login for Farmer\". You will be taken to the Login Page.\nhttps://pmfby.gov.in/farmerLogin\nStep 5: On the Login Page, provide your Mobile Number, fill the Captcha Code, then click \"Request for OTP\". Enter the OTP received on your registered Mobile Number, and click \"Submit\". You will be taken to the \"Farmer Application Form\".\nStep 6: Fill in all the mandatory fields of the Application Form and upload all the mandatory documents in the specified format and size.\nClick \"Preview\" to carefully review all the information provided and the uploaded documents. Click \"Submit\" to submit your application. You'll receive a confirmation message.\nStep 7: In the popup window, the following options will be displayed: \"Pay Later\" and \"Make Payment\". Select \"Pay Later\" if you intend to pay for the insurance at a later stage. Else, select \"Make Payment\".\nStep 8: Upon successful payment, you may print the receipt of the payment.\nTrack Your Application\nYou can track the application status on the PMFBY website through the ‘Application Status’ option on the home page."
+    },
+    "hi": {
+      "name": "प्रधान मंत्री फसल बीमा योजना (पीएमएफबीवाई)",
+      "summary": "पीएमएफबीवाई किसानों को कम प्रीमियम—खरीफ़ में 2%, रबी में 1.5%, व्यापारिक फसलों में 5%—प्रदान करता है, पूर्वोत्तर में पूर्ण सब्सिडी, प्राकृतिक आपदाएँ, कीट‑रोग, कटाई‑पश्चात नुकसान तथा शीघ्र दावा निपटान को कवर करता है।",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "प्रधानमंत्री पिक बीमा योजना (PMFBY)",
+      "summary": "पीएमएफबीवाई शेतकऱ्यांसाठी कमी प्रीमियम—खरीफमध्ये 2%, रबीमध्ये 1.5%, व्यावसायिक पिकांमध्ये 5%—देऊ करते, पूर्वोत्तर प्रदेशात पूर्ण सबसिडी, नैसर्गिक आपत्ती, कीटक‑रोग, कापणी‑नंतर नुकसान आणि वेगवान दावे निपटारा कव्हर करते।",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}
