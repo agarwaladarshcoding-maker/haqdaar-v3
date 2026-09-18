@@ -157,51 +157,99 @@ def apply_readback_completeness_gate(
     return accepted, rejected
 
 
-def derive_keypad_bands(
+def _parse_range_value(scheme_id: str, box: str, val: Any) -> tuple[int | None, int | None] | None:
+    """Parse a scheme's age/income_band facet into a (lo, hi) range, step 1.5b.
+
+    Returns None when the scheme is unconstrained on this box (ANY / missing):
+    it then matches every band. Otherwise returns (lo, hi), either end None
+    when that end is open. `{"min": a, "max": b}` is the production shape;
+    a bare number `n` (fixtures only) is the point range (n, n).
+    """
+    if val is None or val == ANY or val == "ANY":
+        return None
+    if isinstance(val, dict):
+        lo = val.get("min")
+        hi = val.get("max")
+        if lo is not None and not isinstance(lo, (int, float)):
+            raise ValueError(f"{scheme_id}: {box} min {lo!r} is not a usable range")
+        if hi is not None and not isinstance(hi, (int, float)):
+            raise ValueError(f"{scheme_id}: {box} max {hi!r} is not a usable range")
+        return (int(lo) if lo is not None else None, int(hi) if hi is not None else None)
+    if isinstance(val, bool):
+        raise ValueError(f"{scheme_id}: {box} value {val!r} is not a usable range")
+    if isinstance(val, (int, float)):
+        n = int(val)
+        return (n, n)
+    if isinstance(val, str) and val.lstrip("-").isdigit():
+        n = int(val)
+        return (n, n)
+    raise ValueError(f"{scheme_id}: {box} value {val!r} is not a usable range")
+
+
+def _band_wholly_inside(band_lo: int, band_hi: int | None, scheme_lo: int | None, scheme_hi: int | None) -> bool:
+    """True iff [band_lo, band_hi] lies wholly inside [scheme_lo, scheme_hi] (None = open end).
+
+    A scheme may be missed by an honest band boundary, but must never be named
+    for a band that reaches outside its own range (step 1.5b honesty rule).
+    """
+    if scheme_lo is not None and band_lo < scheme_lo:
+        return False
+    if scheme_hi is not None and (band_hi is None or band_hi > scheme_hi):
+        return False
+    return True
+
+
+def build_range_bands(
     schemes: list[dict[str, Any]],
     box: str,
     max_bands: int | None = None,
-) -> list[str]:
-    """Derive keypad band edges from cutoffs present in scheme facets (<= 9 bands)."""
+) -> list[dict[str, Any]]:
+    """Build keypad bands for a range box (age, income_band), step 1.5b.
+
+    Edges are each scheme's `min` and `max + 1` (an inclusive max becomes the
+    start of the NEXT band, fixing the old off-by-one). Bands cover 0..infinity
+    with no gaps. When more than `max_bands` result, the edge used by the
+    fewest schemes is dropped first (ties: the larger edge) until the count
+    fits — this can only ever merge bands, never widen what a scheme matches,
+    because masks are computed separately by the wholly-inside rule.
+
+    Returns a list of {"code", "lo", "hi"} dicts, ascending, hi=None on the
+    open top band. Empty when no scheme constrains this box.
+    """
     if max_bands is None:
         max_bands = tunables.KEYPAD_CARDINALITY_MAX
-    cutoffs: set[int] = set()
+
+    edge_votes: dict[int, int] = defaultdict(int)
     for scheme in schemes:
         val = scheme.get(box)
         if val is None and "facets" in scheme:
             val = scheme["facets"].get(box)
-        if isinstance(val, (int, float)):
-            cutoffs.add(int(val))
-        elif isinstance(val, str) and val.isdigit():
-            cutoffs.add(int(val))
-        elif isinstance(val, dict):
-            # min / max numeric cutoffs
-            if "min" in val and isinstance(val["min"], (int, float)):
-                cutoffs.add(int(val["min"]))
-            if "max" in val and isinstance(val["max"], (int, float)):
-                cutoffs.add(int(val["max"]))
+        rng = _parse_range_value(scheme.get("scheme_id"), box, val)
+        if rng is None:
+            continue
+        lo, hi = rng
+        if lo is not None and lo > 0:
+            edge_votes[lo] += 1
+        if hi is not None and (hi + 1) > 0:
+            edge_votes[hi + 1] += 1
 
-    sorted_cutoffs = sorted(cutoffs)
-    if not sorted_cutoffs:
-        if box == "age":
-            return ["<18", "18-25", "26-35", "36-50", "51-60", ">60"]
-        elif box == "income_band":
-            return ["<50000", "50000-100000", "100001-250000", "250001-500000", ">500000"]
-        return ["band_1", "band_2", "band_3"]
+    edges = sorted(edge_votes)
+    if not edges:
+        return []
 
-    # Limit to max_bands - 1 split points
-    if len(sorted_cutoffs) >= max_bands:
-        step = len(sorted_cutoffs) / (max_bands - 1)
-        sampled = [sorted_cutoffs[int(i * step)] for i in range(max_bands - 1)]
-    else:
-        sampled = sorted_cutoffs
+    while len(edges) > max_bands - 1:
+        worst = min(edges, key=lambda e: (edge_votes[e], -e))
+        edges.remove(worst)
 
-    bands: list[str] = []
-    bands.append(f"<{sampled[0]}")
-    for i in range(len(sampled) - 1):
-        bands.append(f"{sampled[i]}-{sampled[i+1]-1}")
-    bands.append(f">={sampled[-1]}")
-    return bands[:max_bands]
+    bounds: list[int | None] = [0, *edges, None]
+    bands: list[dict[str, Any]] = []
+    for i in range(len(bounds) - 1):
+        lo = bounds[i]
+        next_bound = bounds[i + 1]
+        hi = None if next_bound is None else next_bound - 1
+        code = f"{lo}+" if hi is None else f"{lo}-{hi}"
+        bands.append({"code": code, "lo": lo, "hi": hi})
+    return bands
 
 
 def build_snapshot(
@@ -288,30 +336,17 @@ def build_snapshot(
                 "vocab_source": vocab_source,
             }
         else:
-            # age / income_band: range boxes, unchanged in 1.5a (bands come in 1.5b).
-            values_set: set[str] = set()
-            for s in schemes:
-                val = s.get(box)
-                if val is None and "facets" in s:
-                    val = s["facets"].get(box)
-                if val is not None and val != ANY and val != "ANY":
-                    if isinstance(val, (list, tuple, set)):
-                        for v in val:
-                            if v != ANY:
-                                values_set.add(str(v))
-                    else:
-                        values_set.add(str(val))
-            sorted_values = sorted(values_set)
-            code_map = {v: idx for idx, v in enumerate(sorted_values)}
-            vocab_source = "authored"
+            # age / income_band: range boxes. The keypad values ARE the band
+            # codes (step 1.5b) — a caller picks a band, never a raw number.
+            bands = build_range_bands(schemes, box, max_bands=tunables.KEYPAD_CARDINALITY_MAX)
+            values_list = [b["code"] for b in bands]
+            code_map = {v: idx for idx, v in enumerate(values_list)}
             vocab_boxes[box] = {
-                "values": sorted_values,
+                "values": values_list,
                 "code_map": code_map,
-                "vocab_source": vocab_source,
+                "vocab_source": "authored",
+                "bands": bands,
             }
-
-    keypad_age_bands = derive_keypad_bands(schemes, "age", max_bands=tunables.KEYPAD_CARDINALITY_MAX)
-    keypad_income_bands = derive_keypad_bands(schemes, "income_band", max_bands=tunables.KEYPAD_CARDINALITY_MAX)
 
     # 4. Build masks.bin: packed (box, value) -> word
     # Rule: ANY sets a scheme's bit in every mask for that column.
@@ -325,21 +360,41 @@ def build_snapshot(
     masks_bin_data.extend(b"\x00" * header_size)
 
     for box in sorted(vocab_boxes.keys()):
+        is_range_box = box not in vocab.KEYPAD_LISTS
+        band_by_code = (
+            {b["code"]: b for b in vocab_boxes[box]["bands"]} if is_range_box else {}
+        )
         for val in vocab_boxes[box]["values"]:
             mask_word = 0
-            for i, scheme in enumerate(schemes):
-                scheme_val = scheme.get(box)
-                if scheme_val is None and "facets" in scheme:
-                    scheme_val = scheme["facets"].get(box)
-
-                # Hard constraint: ANY sets a scheme's bit in every mask for that column
-                if scheme_val == ANY or scheme_val == "ANY" or scheme_val is None:
-                    mask_word |= (1 << i)
-                elif isinstance(scheme_val, (list, tuple, set)):
-                    if ANY in scheme_val or "ANY" in scheme_val or val in scheme_val:
+            if is_range_box:
+                # age / income_band (step 1.5b): a scheme's bit is set only
+                # when the band lies wholly inside the scheme's own range, or
+                # the scheme is ANY for this box. A scheme may be missed by
+                # a band boundary, but is never wrongly named.
+                band = band_by_code[val]
+                for i, scheme in enumerate(schemes):
+                    scheme_val = scheme.get(box)
+                    if scheme_val is None and "facets" in scheme:
+                        scheme_val = scheme["facets"].get(box)
+                    rng = _parse_range_value(scheme.get("scheme_id"), box, scheme_val)
+                    if rng is None:
                         mask_word |= (1 << i)
-                elif str(scheme_val) == str(val):
-                    mask_word |= (1 << i)
+                    elif _band_wholly_inside(band["lo"], band["hi"], rng[0], rng[1]):
+                        mask_word |= (1 << i)
+            else:
+                for i, scheme in enumerate(schemes):
+                    scheme_val = scheme.get(box)
+                    if scheme_val is None and "facets" in scheme:
+                        scheme_val = scheme["facets"].get(box)
+
+                    # Hard constraint: ANY sets a scheme's bit in every mask for that column
+                    if scheme_val == ANY or scheme_val == "ANY" or scheme_val is None:
+                        mask_word |= (1 << i)
+                    elif isinstance(scheme_val, (list, tuple, set)):
+                        if ANY in scheme_val or "ANY" in scheme_val or val in scheme_val:
+                            mask_word |= (1 << i)
+                    elif str(scheme_val) == str(val):
+                        mask_word |= (1 << i)
 
             offset = len(masks_bin_data)
             mask_offsets[f"{box}:{val}"] = offset
@@ -368,10 +423,6 @@ def build_snapshot(
         "word_bytes": word_bytes,
         "boxes": vocab_boxes,
         "mask_offsets": mask_offsets,
-        "keypad_bands": {
-            "age": keypad_age_bands,
-            "income_band": keypad_income_bands,
-        },
     }
     vocab_path = snap_dir / "vocab.json"
     with open(vocab_path, "w", encoding="utf-8") as f:
@@ -536,10 +587,6 @@ def build_snapshot(
         "created_at": datetime.now(timezone.utc).isoformat(),
         "num_schemes": num_schemes,
         "word_bytes": word_bytes,
-        "keypad_bands": {
-            "age": keypad_age_bands,
-            "income_band": keypad_income_bands,
-        },
         "vocab_source": {box: meta["vocab_source"] for box, meta in vocab_boxes.items()},
         "render_keys": manifest_render_keys,
         "chunks": scheme_chunks_map,

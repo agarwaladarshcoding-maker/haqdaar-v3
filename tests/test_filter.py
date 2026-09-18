@@ -214,8 +214,8 @@ def test_tally_and_miss_set(fixtures_data, corpus):
         "state": "OTHER",
         "gender": "female",
         "social_category": "SC",
-        "age": "30",
-        "income_band": "75000",
+        "age": "30-30",
+        "income_band": "75000-75000",
         "occupation": "farmer",
     }
     tallies = tally(vector, corpus)

@@ -278,8 +278,8 @@ def test_widen_ladder_rung_1_income_band(corpus):
         "state": "MAHARASHTRA",
         "gender": "ANY",
         "social_category": "ANY",
-        "age": "35",
-        "income_band": "30000",
+        "age": "35-35",
+        "income_band": "30000-30000",
     }
     assert len(Filter.survivors(bv, corpus)) == 0
     act = next_action(bv, corpus)
@@ -298,8 +298,8 @@ def test_widen_ladder_rung_2_age(corpus):
         "state": "MAHARASHTRA",
         "gender": "ANY",
         "social_category": "ANY",
-        "age": "30",
-        "income_band": "30000",
+        "age": "30-30",
+        "income_band": "30000-30000",
     }
     assert len(Filter.survivors(bv, corpus)) == 0
     act = next_action(bv, corpus)
@@ -470,7 +470,7 @@ def test_widen_asks_unasked_hard_box_before_widening(corpus):
     bv = {
         "category": "farming",
         "state": "OTHER",
-        "income_band": "50000",
+        "income_band": "50000-50000",
     }
     assert len(Filter.survivors(bv, corpus)) == 0
     act = next_action(bv, corpus)

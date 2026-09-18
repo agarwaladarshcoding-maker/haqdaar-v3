@@ -482,13 +482,16 @@ def test_widened_match_when_door_a_is_struck_out(corpus, tmp_path):
     1.5a), so "3" is a valid pick, not an out-of-menu strike; "0" is the only
     digit left out of range, so the strike digits changed from "3","3" to
     "0","0". S4's D6 fixture migration gives it back a real `state` constraint
-    (MAHARASHTRA-only, like S3/S5), so state=OTHER excludes it here too, and
-    income_band=50000 (the second band) misses both S1 and S2 (75000/30000).
+    (MAHARASHTRA-only, like S3/S5), so state=OTHER excludes it here too.
+    income_band is now a band box (step 1.5b): the fixture corpus's bands are
+    ("0-29999", "30000-30000", "30001-49999", "50000-50000", "50001-74999",
+    "75000-75000", "75001+"); key 4 = "50000-50000", which misses both S1 and
+    S2 (their own bands are "75000-75000" and "30000-30000").
     """
     audio = MockAudio(inputs=[
         Digit("1"),    # Turn 0 (hi)
         Digit("0"), Digit("0"),   # opener struck out -> category = UNKNOWN
-        Digit("2"),    # income_band -> second band (50000)
+        Digit("4"),    # income_band -> "50000-50000" band
         Digit("2"),    # state -> OTHER
         Digit("1"),    # gender -> female
         Digit("3"),    # social_category -> SC
@@ -553,7 +556,10 @@ def test_widened_match_with_door_a_answered(tmp_path, monkeypatch):
         snapshots_dir=snap_dir, audio_dir=audio_dir, render_stubs=True,
     )
     c = Corpus.load(snap_id)
-    assert c.values("income_band") == ("30000", "75000")
+    # income_band is a band box (step 1.5b): bare-number 30000/75000 facets
+    # become point bands, plus the open "0-29999" floor and "75001+" ceiling
+    # that no scheme here constrains.
+    assert c.values("income_band") == ("0-29999", "30000-30000", "30001-74999", "75000-75000", "75001+")
     # occupation is a vocab.py keypad box (D6, step 1.5a): values() is always
     # the full vocab.OCCUPATION list, in vocab order, not just what schemes use.
     assert c.values("occupation") == (
@@ -563,7 +569,7 @@ def test_widened_match_with_door_a_answered(tmp_path, monkeypatch):
     audio = MockAudio(inputs=[
         Digit("1"),    # Turn 0 (hi)
         Digit("1"),    # opener: category -> farming (answered, not struck out)
-        Digit("1"),    # income_band -> 30000
+        Digit("2"),    # income_band -> "30000-30000" band
         Digit("5"),    # occupation -> artisan
         Digit("9"), Digit("9"), Digit("9"), Digit("9"),   # read-back
         Digit("2"),    # anything else -> no

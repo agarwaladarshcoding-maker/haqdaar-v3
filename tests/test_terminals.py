@@ -410,7 +410,7 @@ def test_classify_shape_and_end_to_end_dispatch(fixtures_data, corpus):
         "gender": "female",
         "social_category": "SC",
         "category": "farming",
-        "income_band": "50000",
+        "income_band": "50000-50000",
     }
     shape_w, survs_w, drops_w = classify_shape(box_vector=widened_vec, corpus=corpus)
     assert shape_w == DELIVERY_WIDENED_MATCH
@@ -461,8 +461,8 @@ def test_classify_shape_and_end_to_end_dispatch(fixtures_data, corpus):
         "state": "MAHARASHTRA",
         "gender": "male",
         "social_category": "GEN",
-        "age": "99",
-        "income_band": "999999",
+        "age": "36+",
+        "income_band": "75001+",
         "occupation": "farmer",
     }
     near_candidates = Filter.nearest(p2_vec, corpus)

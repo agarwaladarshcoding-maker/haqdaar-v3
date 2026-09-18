@@ -60,9 +60,12 @@ PERSONAS: dict[str, list[str]] = {
     #      out-of-menu strike digit; the box asked right after the struck-out
     #      opener is income_band, not state (planner minimax order). S4's D6
     #      fixture migration gives it a real state constraint (MAHARASHTRA-
-    #      only, like S3/S5), so state=OTHER excludes it too, and
-    #      income_band=50000 (second band) misses both S1 and S2.
-    "widened": ["1", "0", "0", "2", "2", "1", "3", "9", "2"],
+    #      only, like S3/S5), so state=OTHER excludes it too. income_band is
+    #      now a band box (step 1.5b): the fixture corpus's bands are
+    #      "0-29999","30000-30000","30001-49999","50000-50000","50001-74999",
+    #      "75000-75000","75001+" — key 4 picks "50000-50000", which misses
+    #      both S1 (75000) and S2 (30000).
+    "widened": ["1", "0", "0", "4", "2", "1", "3", "9", "2"],
 }
 DEFAULT_PERSONA: str = "p1"
 

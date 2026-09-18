@@ -7,8 +7,8 @@
       "state": "OTHER",
       "gender": "female",
       "social_category": "SC",
-      "age": 30,
-      "income_band": 75000,
+      "age": "30-30",
+      "income_band": "75000-75000",
       "occupation": "farmer"
     },
     "target_scheme": "S1",
@@ -24,8 +24,8 @@
       "state": "OTHER",
       "gender": "male",
       "social_category": "GEN",
-      "age": 45,
-      "income_band": 600000,
+      "age": "36+",
+      "income_band": "75001+",
       "occupation": "farmer"
     },
     "target_scheme": null,
