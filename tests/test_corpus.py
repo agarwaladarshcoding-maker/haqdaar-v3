@@ -26,9 +26,10 @@ from haqdaar.contracts import tunables
 from haqdaar.contracts.types import (
     ANY,
     RenderKey,
+    SEVEN_BOXES,
     compute_render_key,
 )
-from haqdaar.data.pipeline.p6_snapshot import build_snapshot
+from haqdaar.data.pipeline.p6_snapshot import build_snapshot, apply_alias_uniqueness_gate
 import haqdaar.data.corpus as corpus_module
 from haqdaar.data.corpus import Corpus, CorpusError
 from haqdaar.audio.pool import AudioPool
@@ -420,3 +421,80 @@ def test_corpus_methods_total_and_no_raise(temp_environment):
     aliases = corpus.alias_set("en")
     assert isinstance(aliases, dict)
     assert "kcc" in aliases
+
+
+def test_box_discovery_is_seven_boxes_allow_list_only(sample_schemes, tmp_path, monkeypatch):
+    """p6 :255-269, Step 1.3 fix A.
+
+    Box discovery must be an allow-list (SEVEN_BOXES only). A record key that is not
+    one of the seven boxes (evidence_quotes, a future priority field) must never become
+    a keypad box, no matter what shape its value is.
+
+    On the old skip-list code this fails: neither key is on the skip list, so both slip
+    through and become boxes whose single value is a dict's/int's str().
+    """
+    snap_dir = tmp_path / "snapshots"
+    audio_dir = tmp_path / "audio"
+    snap_dir.mkdir(parents=True, exist_ok=True)
+    audio_dir.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(tunables, "SNAPSHOTS_DIR", str(snap_dir))
+    monkeypatch.setattr(tunables, "AUDIO_DIR", str(audio_dir))
+
+    schemes_with_extra_keys = []
+    for s in sample_schemes:
+        s = dict(s)
+        s["evidence_quotes"] = {"benefit_text": "cited from the official PDF"}
+        s["priority"] = 1
+        schemes_with_extra_keys.append(s)
+
+    snap_id = build_snapshot(
+        schemes_data=schemes_with_extra_keys,
+        snapshot_id="test_snap_box_allowlist",
+        snapshots_dir=snap_dir,
+        audio_dir=audio_dir,
+        render_stubs=True,
+    )
+
+    vocab_path = snap_dir / snap_id / "vocab.json"
+    with open(vocab_path, "r", encoding="utf-8") as f:
+        vocab_data = json.load(f)
+    boxes = vocab_data["boxes"]
+
+    assert "evidence_quotes" not in boxes
+    assert "priority" not in boxes
+
+    # Every SEVEN_BOXES box that actually has a value on these schemes must still
+    # be discovered — the allow-list must not under-discover either.
+    for box in SEVEN_BOXES:
+        assert box in boxes, f"{box} missing from discovered boxes"
+        assert len(boxes[box]["values"]) > 0, f"{box} discovered with no values"
+
+
+def test_alias_category_word_gate_uses_alias_category_word_min(monkeypatch):
+    """p6 :85, Step 1.3 fix B.
+
+    apply_alias_uniqueness_gate's category-word drop must read
+    tunables.ALIAS_CATEGORY_WORD_MIN, not tunables.ALIAS_FLOOR. Monkeypatch ONLY
+    ALIAS_CATEGORY_WORD_MIN (leave ALIAS_FLOOR at its default 3) and prove the drop
+    follows the lowered MIN. On the old ALIAS_FLOOR code this alias stays kept (2 < 3),
+    so the assertion that it was dropped fails.
+    """
+    monkeypatch.setattr(tunables, "ALIAS_CATEGORY_WORD_MIN", 2)
+
+    schemes = [
+        {"scheme_id": "A", "aliases_en": ["shared word", "unique a"], "aliases_hi": [], "aliases_mr": []},
+        {"scheme_id": "B", "aliases_en": ["shared word", "unique b"], "aliases_hi": [], "aliases_mr": []},
+    ]
+
+    updated_schemes, alias_map = apply_alias_uniqueness_gate(schemes)
+
+    # "shared word" is on 2 schemes; with ALIAS_CATEGORY_WORD_MIN=2, 2 < 2 is False,
+    # so it must be dropped from both, as a category word.
+    assert "shared word" not in updated_schemes[0]["aliases_en"]
+    assert "shared word" not in updated_schemes[1]["aliases_en"]
+    assert "shared word" not in alias_map["en"]
+
+    # Aliases that appear on only one scheme are unaffected.
+    assert "unique a" in updated_schemes[0]["aliases_en"]
+    assert "unique b" in updated_schemes[1]["aliases_en"]

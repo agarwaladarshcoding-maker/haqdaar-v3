@@ -82,7 +82,7 @@ def apply_alias_uniqueness_gate(
     filtered_alias_map: dict[str, dict[str, list[str]]] = {lang: {} for lang in langs}
     for lang in langs:
         for alias_norm, count in alias_counts[lang].items():
-            if count < tunables.ALIAS_FLOOR:
+            if count < tunables.ALIAS_CATEGORY_WORD_MIN:
                 filtered_alias_map[lang][alias_norm] = sorted(alias_to_schemes[lang][alias_norm])
 
     updated_schemes: list[dict[str, Any]] = []
@@ -252,21 +252,10 @@ def build_snapshot(
             scheme["scheme_id"] = f"S{bit_idx + 1}"
 
     # 3. Discover closed vocabulary per box
+    # Allow-list only: boxes are exactly SEVEN_BOXES. A skip list here would let any
+    # unlisted record key (evidence_quotes, a later priority field, ...) become a
+    # keypad box by accident.
     boxes = list(SEVEN_BOXES)
-    # also add any additional facet boxes present
-    for s in schemes:
-        for k in s.keys():
-            if k not in (
-                "scheme_id", "bit", "myscheme_slug", "source_url", "level", "state", "department",
-                "fetched_on", "source_sha256", "facets_source", "facets_verified_by", "facets_verified_on",
-                "en_sections_origin", "hi_sections_origin", "mr_sections_origin",
-                "en_summary_origin", "hi_summary_origin", "mr_summary_origin",
-                "en_verified_by", "en_verified_on", "hi_verified_by", "hi_verified_on", "mr_verified_by", "mr_verified_on",
-                "scheme_name_en", "scheme_name_hi", "scheme_name_mr",
-                "aliases_en", "aliases_hi", "aliases_mr", "gate_notes", "chunks", "facets",
-            ) and not k.startswith("chunk_"):
-                if k not in boxes:
-                    boxes.append(k)
 
     vocab_boxes: dict[str, dict[str, Any]] = {}
     for box in boxes:
