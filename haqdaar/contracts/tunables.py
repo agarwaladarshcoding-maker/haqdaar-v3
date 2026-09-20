@@ -81,3 +81,10 @@ ALIAS_CATEGORY_WORD_MIN: int = int(os.environ.get("ALIAS_CATEGORY_WORD_MIN", 3))
 # A scrape/derive run fails only if fewer than this many schemes survive quarantine (D2)
 MIN_SCHEMES: int = int(os.environ.get("MIN_SCHEMES", 8))
 
+# Spoken cards (step 1.9, D3). A card is read aloud on a phone call, so it is capped in words;
+# CARD_OVERLAP_MIN is the share of a card's content words that must also appear in the source,
+# which is how a card is held to the source instead of being trusted.
+CARD_MAX_WORDS: int = int(os.environ.get("CARD_MAX_WORDS", 55))
+CARD_OVERLAP_MIN: float = float(os.environ.get("CARD_OVERLAP_MIN", 0.6))
+CARDS_FILE: str = os.environ.get("CARDS_FILE", "data_cache/derived/cards.jsonl")
+

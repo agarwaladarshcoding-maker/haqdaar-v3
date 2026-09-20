@@ -276,7 +276,7 @@ def check_forbidden_words(text: str, forbidden_list: Sequence[str]) -> Optional[
 # old prompt) is never mistaken for one derived under the new prompt. facets -> 2 (step 1.4:
 # closed lists now generated from vocab.py, state removed). aliases/summary prompt text is
 # unchanged in this step, so they stay at 1.
-PROMPT_VERSIONS: dict[str, int] = {"facets": 2, "aliases": 1, "summary": 1}
+PROMPT_VERSIONS: dict[str, int] = {"facets": 2, "aliases": 1, "summary": 1, "cards": 1}
 
 
 def get_cache_path(source_sha256: str, task_name: str, cache_dir: Path) -> Path:
