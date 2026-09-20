@@ -88,3 +88,18 @@ CARD_MAX_WORDS: int = int(os.environ.get("CARD_MAX_WORDS", 55))
 CARD_OVERLAP_MIN: float = float(os.environ.get("CARD_OVERLAP_MIN", 0.6))
 CARDS_FILE: str = os.environ.get("CARDS_FILE", "data_cache/derived/cards.jsonl")
 
+
+# Translation (plan item 1.9, D4). Hindi and Marathi come from Sarvam Translate, not Groq, so
+# Groq's small daily budget stays with the live call. Every number below was probed against the
+# live API on 20 Sep 2026 and written to .agent/NOTES.md; TRANSLATE_CHAR_LIMIT in particular is
+# the API's own cap (2001 characters returns a 400), not a guess.
+TRANSLATE_MODEL: str = os.environ.get("TRANSLATE_MODEL", "sarvam-translate:v1")
+TRANSLATE_CHAR_LIMIT: int = int(os.environ.get("TRANSLATE_CHAR_LIMIT", 2000))
+TRANSLATE_TIMEOUT_S: float = float(os.environ.get("TRANSLATE_TIMEOUT_S", 60))
+TRANSLATE_MIN_GAP_S: float = float(os.environ.get("TRANSLATE_MIN_GAP_S", 0.2))
+# One read timed out on the first real run of the 12. A timeout or a 5xx/429 is retried; a 402
+# (no credits) or a 400 (bad input) is final and is never retried.
+TRANSLATE_MAX_ATTEMPTS: int = int(os.environ.get("TRANSLATE_MAX_ATTEMPTS", 3))
+TRANSLATE_RETRY_BACKOFF_S: float = float(os.environ.get("TRANSLATE_RETRY_BACKOFF_S", 2.0))
+# Cache invalidation lives with the other prompt versions, in p2_derive.PROMPT_VERSIONS
+# ("translate_hi"/"translate_mr"): bump it there after a model or numeral-format change.

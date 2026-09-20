@@ -11,9 +11,11 @@ and write down what you did in `.agent/NOTES.md`.
 
 ## 0. Ground rules (read first, follow always)
 
-- **Repo:** `~/code/haqdaar-v2`. Branch: `v2-p1-pipeline`. Never touch `~/Documents/haqdaar-v2`
-  (an old copy). Never merge to `main`.
-- **Python:** `.venv/bin/python`. **Tests:** `.venv/bin/python -m pytest -q` (152 pass now).
+- **Repo:** either `~/code/haqdaar-v2` or `~/Documents/haqdaar-v2` — these are two checkouts of
+  ONE repo (remote `haqdaar-v3`), not two projects. Work in one at a time, `git fetch origin`
+  first, and check the branch. Never hand-copy files between them; push/pull through origin.
+  Branch: `step-1.9`. Never merge to `main`.
+- **Python:** `.venv/bin/python`. **Tests:** `.venv/bin/python -m pytest -q` (167 pass now).
   **Lint:** `python3 -m py_compile <each changed .py file>`.
 - **One commit per step**, message `step 1.N: <short what>`, then `git push`. Do the steps in order:
   1.9 → 1.10 → 1.11 → 1.12 → 1.13 → 1.14 → end.

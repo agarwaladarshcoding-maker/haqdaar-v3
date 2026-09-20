@@ -276,7 +276,12 @@ def check_forbidden_words(text: str, forbidden_list: Sequence[str]) -> Optional[
 # old prompt) is never mistaken for one derived under the new prompt. facets -> 2 (step 1.4:
 # closed lists now generated from vocab.py, state removed). aliases/summary prompt text is
 # unchanged in this step, so they stay at 1.
-PROMPT_VERSIONS: dict[str, int] = {"facets": 2, "aliases": 1, "summary": 1, "cards": 1}
+# translate_hi/translate_mr are p4's (plan 1.9, D4). They are versioned here with the rest so
+# that changing the model or the numeral format invalidates the cached translations.
+PROMPT_VERSIONS: dict[str, int] = {
+    "facets": 2, "aliases": 1, "summary": 1, "cards": 1,
+    "translate_hi": 1, "translate_mr": 1,
+}
 
 
 def get_cache_path(source_sha256: str, task_name: str, cache_dir: Path) -> Path:
@@ -781,12 +786,16 @@ def run_pipeline_extract(
 
         # Validate summary and forbidden phrases
         summary_en = summary_res.get("summary_en", "").strip()
-        summary_hi = summary_res.get("summary_hi", "").strip()
-        summary_mr = summary_res.get("summary_mr", "").strip()
+        # D4 (plan 1.9): p2 writes ENGLISH ONLY. The Hindi and Marathi summaries used to come
+        # from Groq here with no gate, which is finding F2. They now come from p4_translate.py
+        # and are gated by p5, so these stay empty for p4 to fill.
+        summary_hi = ""
+        summary_mr = ""
 
-        # Check forbidden phrases via vocab.py (D2: quarantine this scheme, don't stop the run)
+        # Check forbidden phrases via vocab.py (D2: quarantine this scheme, don't stop the run).
+        # English only now: hi/mr no longer originate here, and p5 gates what p4 produces.
         bad_word_reason = None
-        for lang, text in [("en", summary_en), ("hi", summary_hi), ("mr", summary_mr)]:
+        for lang, text in [("en", summary_en)]:
             bad_phrase = vocab.find_forbidden(text, lang)
             if bad_phrase:
                 bad_word_reason = f"Forbidden phrase '{bad_phrase}' found in {lang} summary: '{text}'"

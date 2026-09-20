@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards backup call-me
+.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards pipeline-translate backup call-me
 
 test:
 	$(PYTHON) -m pytest
@@ -51,6 +51,10 @@ pipeline-extract:
 
 pipeline-cards:
 	$(PYTHON) -m haqdaar.data.pipeline.p3_cards
+
+# Hindi and Marathi via Sarvam Translate (D4). Cached: a second run costs nothing.
+pipeline-translate:
+	$(PYTHON) -m haqdaar.data.pipeline.p4_translate
 
 
 pipeline:
