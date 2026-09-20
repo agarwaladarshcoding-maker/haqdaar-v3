@@ -87,6 +87,37 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 20 Sep (later) — Hindi and Marathi, done properly this time
+**Fixed first:** this folder's Python setup was broken. iCloud had taken 469 of its files off the
+laptop, so any test run just hung. I deleted it and built it fresh. Tests run in about 7 seconds
+again. Your code was never the problem, and nothing was lost.
+
+**Added:** a new pipeline step, `make pipeline-translate`. The five things a call reads out (the
+short summary and the four cards) are written once in English and then translated into Hindi and
+Marathi by Sarvam, not by Groq. Groq's free daily allowance is small, and a live phone call needs
+it more than the pipeline does.
+
+**Checked before building, as the plan asks:** I made one real call to Sarvam to confirm three
+things — the model name, the size limit (2000 letters per request), and the setting that keeps
+6000 written as 6000 instead of spelled out in words. All three matched the plan, so I carried on.
+
+**Fixed a quiet lie.** Hindi and Marathi summaries used to come from Groq with nothing checking
+them, and some wrote amounts out in words where the real page gives a figure. The step that made
+them is now English-only. But rows written earlier still held that old text, and simply stopping
+the source does not clean what is already saved — so any scheme we do not translate now has its
+Hindi and Marathi text emptied. Blank is honest; leftover unchecked text is not.
+
+**Costs nothing to re-run.** Every translation is saved. Running it a second time makes zero
+requests and finishes in under a second.
+
+**Where it stands:** 3 of the 12 schemes are fully translated into both languages. The other 9
+are waiting on something else — their English cards have not yet passed the card check from the
+last step, and translating text we already doubt would only spread the problem. Tuning that check
+is a job on your list from step 1.9, not a fault in this step.
+
+**Project can now:** 188 tests pass, up from 167. Next is the gates step (1.10), which checks the
+translations for numbers, banned phrases and length.
+
 ### 20 Sep — Phase 1, step 1.9: short spoken cards, checked against the source
 **Added:** a new step in the pipeline (`make pipeline-cards`). Each scheme's four long sections
 (what you get, who can apply, papers, how to apply) become four short cards meant to be read out
