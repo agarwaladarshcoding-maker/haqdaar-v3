@@ -87,6 +87,25 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 20 Sep — Phase 1, step 1.9: short spoken cards, checked against the source
+**Added:** a new step in the pipeline (`make pipeline-cards`). Each scheme's four long sections
+(what you get, who can apply, papers, how to apply) become four short cards meant to be read out
+on a phone call. The long pages take minutes to read aloud; a card takes seconds.
+**Added:** the cards are not trusted just because the model wrote them. Each card is checked back
+against the real page: it may not say a number the page does not have, it must say the age and
+income limits, it may not tell the caller they are eligible, it must stay under 55 words, and most
+of its words must come from the page. Every card that fails is written down in
+`data_cache/reports/cards.json` for a person to read. Nothing is retried and nothing is hidden.
+**Added:** the papers card always ends with "The CSC centre will tell you the full list of papers."
+That is our sentence, not the model's, because the real list changes at the counter.
+**Result:** all 12 schemes now have cards. **3 of 12 pass every check.** The good news: not one
+card made up a number, and not one failed the word-overlap check — so the facts are sound. The 9
+failures are all about wording: 10 cards ran long (56 to 89 words instead of 55), and 2 spoke to
+the caller directly ("you will get", "you will receive"). Next is to tighten the instructions we
+give the model and run it again.
+**Cost:** 12 Groq requests. Running it a second time costs nothing (0 requests) — the answers are
+cached. `pytest` → 167 passed (was 152).
+
 ### 19 Sep — Phase 1, step 1.8: best schemes first, and "press 9 for 3 more"
 **Added:** each scheme has a priority (1 = say first). Wide-reach ones (PM-KISAN, Ayushman Bharat,
 PM Awas Gramin, Fasal Bima) are 1; narrow ones (SMAM, PMEGP, NAPS) are 3. Change them in `schemes.yaml`.
