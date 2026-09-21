@@ -1,0 +1,38 @@
+{
+  "facets": {
+    "category": {
+      "value": "livelihood",
+      "quote": "The Mission consists of four components, viz., (i) social mobilization, community institution, and capacity building; (ii) financial inclusion; (iii) livelihood promotion; and (iv) convergence."
+    },
+    "state": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Scheme prefers women members but eligibility is not limited by gender"
+  ]
+}

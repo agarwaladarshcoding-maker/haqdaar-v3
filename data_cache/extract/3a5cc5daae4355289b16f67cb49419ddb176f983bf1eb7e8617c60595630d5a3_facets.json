@@ -1,0 +1,36 @@
+{
+  "facets": {
+    "category": {
+      "value": "skills",
+      "quote": "Under the scheme, training will be imparted in Designated Trades (DT) and Optional Trades (OT)."
+    },
+    "state": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 14,
+        "max": 35
+      },
+      "quote": "Minimum age for an apprentice is 14 years, and 18 years for designated trades related to hazardous industries, as per Section 3(a) of the Apprentices Act, 1961. Apprenticeship training is primarily a transition from academia to workplace, and therefore, to avail partial stipend support by the Government, at the time of registration the upper age limit should be 35 years."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": []
+}

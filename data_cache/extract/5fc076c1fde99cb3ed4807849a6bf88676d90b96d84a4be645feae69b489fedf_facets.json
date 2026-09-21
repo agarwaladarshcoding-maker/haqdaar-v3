@@ -1,0 +1,38 @@
+{
+  "facets": {
+    "category": {
+      "value": "health",
+      "quote": "Financial Health Insurance Cover"
+    },
+    "state": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Eligibility combines rural deprivation criteria and a long list of urban occupational categories, making occupation and social_category non‑exclusive."
+  ]
+}

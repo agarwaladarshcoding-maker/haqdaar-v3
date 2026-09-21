@@ -1,0 +1,38 @@
+{
+  "facets": {
+    "category": {
+      "value": "agriculture",
+      "quote": "The main objective of this scheme is to provide agricultural machinery to poor and economically weak farmers"
+    },
+    "state": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Women farmers are given priority but scheme is not limited to them, so gender is set to ANY"
+  ]
+}

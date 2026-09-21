@@ -1,0 +1,36 @@
+{
+  "facets": {
+    "category": {
+      "value": "agriculture",
+      "quote": "All landholding farmers' families, which have cultivable land holding in their names are eligible to get benefit under the scheme."
+    },
+    "state": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "farmer",
+      "quote": "All landholding farmers' families, which have cultivable land holding in their names are eligible to get benefit under the scheme."
+    }
+  },
+  "gate_notes": []
+}
