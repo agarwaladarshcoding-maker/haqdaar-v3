@@ -358,3 +358,39 @@ phone call with a beep and read keys, and have Hindi and Marathi text checked fo
 lists many kinds of workers, work is set to "any". Re-ran for all 12 schemes.
 **Result:** category known for 12 of 12 (was 5). Twilio webhook checked live: `/answer`, POST.
 **Project could:** turn 12 real pages into clean, quote-backed records.
+
+### 21 Sep · Step 1.11 — the five gates, and everything pushed to GitHub
+
+**First, the repo.** Two commits from the translation step were sitting on this machine and had
+never reached GitHub. They are pushed now. I also added 42 cache files that belong in git but
+were never added, and told git to ignore `haqdaar/voice_demo_clips/` (6.4 MB of audio from the
+old September demo, which the code regenerates). The working tree is clean and everything is on
+GitHub.
+
+**Added:**
+- `haqdaar/data/pipeline/p5_gates.py` — the five checks that decide whether a scheme is safe to
+  say out loud in a language: the numbers match, no sentence promises the caller anything, the
+  translation is not padded, it is really in Devanagari, and no section is empty.
+- `tests/test_gates.py` — 29 tests. Full suite: **217 passed** (was 188).
+- `make pipeline-gates`. It is free: it only reads what the earlier steps already wrote.
+
+**What running it on the real 12 schemes taught us.** Two of the gates were wrong, and only the
+real data showed it:
+- The length gate counted letters. Hindi writes a short English list as a full spoken sentence,
+  so honest text looked 1.8 times too long. It now counts words, which is what a caller hears.
+- The script gate counted the letters in `agrimachinery.nic.in` as "not Hindi". A web address
+  cannot be written in Devanagari and still work, so addresses are now skipped.
+
+After the fixes, Hindi went from 1 scheme to 3 and Marathi from 0 to 2.
+
+**One scheme still fails, on purpose.** PMMY's Marathi turned "Rs.50,000" into "50 हजार". That
+is a real change to a number, so the gate is right to stop it. I did not loosen the gate to make
+the number look better.
+
+**The honest picture.** Only 3 of the 12 schemes have translations at all, so only 3 could be
+gated. The other 9 are stuck one step earlier: their spoken cards fail the card check, so they
+were never translated. That, not the gates, is what to fix next.
+
+**Project can now:** refuse to speak any scheme text that has a wrong number, a false promise,
+padding, the wrong script, or a missing section — per language, so a bad Hindi does not silence
+a good Marathi.
