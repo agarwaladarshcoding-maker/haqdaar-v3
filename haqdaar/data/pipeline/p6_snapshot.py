@@ -259,7 +259,7 @@ def build_snapshot(
     snapshot_id: str | None = None,
     snapshots_dir: str | Path | None = None,
     audio_dir: str | Path | None = None,
-    render_stubs: bool = True,
+    render_stubs: bool = False,
     enforce_readback_gate: bool = False,
 ) -> str:
     """Build a complete snapshot adhering to 05-DATA-CONTRACT.md §2.
@@ -444,19 +444,33 @@ def build_snapshot(
 
     templates: dict[str, Any] = {}
 
-    # Seed default fixed lines
+    # Seed default fixed lines from the one text list, so the key the snapshot records is the
+    # key of the words the renderer will actually speak. Hashing f"{line_id}_{lang}" here meant
+    # the pool was keyed on a line's NAME while the audio held its TEXT, and nothing compared
+    # the two. A line with no text yet keeps the id-based key, so the snapshot still has a slot
+    # for it and texts.missing() is what reports that it is empty.
+    from haqdaar.data.pipeline.texts import fixed_line_texts
+
+    line_keys: dict[str, dict[str, str]] = {}
+    for item in fixed_line_texts():
+        line_keys.setdefault(item.ref, {})[item.lang] = item.key
+
     for line_id in FIXED_LINE_IDS:
         templates[line_id] = {}
         if line_id == "greeting_trilingual":
             # The one non-per-language file (plays hi -> mr -> en)
-            rk = compute_render_key("greeting_trilingual_audio", "all")
+            rk = line_keys.get(line_id, {}).get("all") or compute_render_key(
+                "greeting_trilingual_audio", "all"
+            )
             templates[line_id]["all"] = rk
             templates[line_id]["hi"] = rk
             templates[line_id]["mr"] = rk
             templates[line_id]["en"] = rk
         else:
             for lang in ("en", "hi", "mr"):
-                rk = compute_render_key(f"{line_id}_{lang}", lang)
+                rk = line_keys.get(line_id, {}).get(lang) or compute_render_key(
+                    f"{line_id}_{lang}", lang
+                )
                 templates[line_id][lang] = rk
 
     if templates_data:
@@ -505,9 +519,12 @@ def build_snapshot(
                     text = scheme[f"{chunk_name}_{lang}"]
                 elif chunk_name == "name":
                     text = scheme.get(f"scheme_name_{lang}", f"Scheme {sid}")
-                else:
-                    text = f"{sid} {chunk_name} in {lang}"
 
+                # No placeholder. This used to fall back to the literal string
+                # f"{sid} {chunk_name} in {lang}", hash it, and write a silent stub, so a
+                # scheme with no Hindi benefit text still got a key, a pool entry and a file
+                # that said nothing. The key is now the key of the empty text, the readback
+                # completeness gate sees the gap, and texts.missing() names it out loud.
                 rk = compute_render_key(text, lang)
                 chunk_rks.append(rk)
 
