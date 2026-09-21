@@ -103,3 +103,15 @@ TRANSLATE_MAX_ATTEMPTS: int = int(os.environ.get("TRANSLATE_MAX_ATTEMPTS", 3))
 TRANSLATE_RETRY_BACKOFF_S: float = float(os.environ.get("TRANSLATE_RETRY_BACKOFF_S", 2.0))
 # Cache invalidation lives with the other prompt versions, in p2_derive.PROMPT_VERSIONS
 # ("translate_hi"/"translate_mr"): bump it there after a model or numeral-format change.
+
+# Gates (plan item 1.10, D5). Five gates decide whether a scheme may be spoken in a language.
+# A number below GATE_NUMBER_MIN is allowed to arrive as a word: Sarvam turns "3 installments"
+# into "तीन", seen first-hand on pm-kisan. Amounts (6000, 200000) are never spelled out, so
+# anything at or above the floor must survive the translation as digits.
+GATE_NUMBER_MIN: int = int(os.environ.get("GATE_NUMBER_MIN", 100))
+GATE_LENGTH_RATIO_MAX: float = float(os.environ.get("GATE_LENGTH_RATIO_MAX", 1.6))
+GATE_SCRIPT_MIN: float = float(os.environ.get("GATE_SCRIPT_MIN", 0.8))
+GATES_FILE: str = os.environ.get("GATES_FILE", "data_cache/derived/gates.jsonl")
+# G3 counts words, not characters (Devanagari uses more characters per word), and skips text
+# shorter than this: turning "Aadhaar Card." into a spoken sentence must add words.
+GATE_LENGTH_MIN_WORDS: int = int(os.environ.get("GATE_LENGTH_MIN_WORDS", 12))

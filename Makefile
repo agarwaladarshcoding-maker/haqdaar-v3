@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards pipeline-translate backup call-me
+.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates backup call-me
 
 test:
 	$(PYTHON) -m pytest
@@ -55,6 +55,10 @@ pipeline-cards:
 # Hindi and Marathi via Sarvam Translate (D4). Cached: a second run costs nothing.
 pipeline-translate:
 	$(PYTHON) -m haqdaar.data.pipeline.p4_translate
+
+# The five gates (D5). Free and offline: it only reads what p2/p3/p4 already wrote.
+pipeline-gates:
+	$(PYTHON) -m haqdaar.data.pipeline.p5_gates
 
 
 pipeline:
