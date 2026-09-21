@@ -303,3 +303,13 @@ def test_the_number_floor_is_a_tunable(monkeypatch):
     """Drop the floor and a spelled-out 3 becomes a failure, as the knob promises."""
     monkeypatch.setattr(tunables, "GATE_NUMBER_MIN", 1)
     assert gate_numbers("in 3 installments", "तीन किस्तों में") != []
+
+
+def test_a_devanagari_digit_is_the_same_number_not_an_invented_one():
+    """Sarvam writes scheme names as "योजना-२"; that is the "-2" in the English, not a new number."""
+    assert gate_numbers("National Apprenticeship Promotion Scheme-2", "राष्ट्रीय योजना-२") == []
+
+
+def test_an_invented_number_still_fails_in_devanagari_digits():
+    reasons = gate_numbers("The scheme gives 6000 rupees.", "यह योजना ९९९९ रुपये देती है।")
+    assert any("9999" in r for r in reasons)

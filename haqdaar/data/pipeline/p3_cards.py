@@ -52,15 +52,48 @@ _STOP_WORDS = {
     "must", "should", "would", "could", "about", "more", "than", "your", "when", "where", "what",
 }
 
+# The model is asked for CARD_TARGET_WORDS, not the hard cap. Asking for the cap itself put
+# nine of the twelve schemes a few words over it (56..89 against a 55 cap); asking for a
+# shorter target leaves the model room to run long and still land inside the gate.
+CARD_TARGET_WORDS = 45
+
 SYSTEM_PROMPT = (
     "You write short spoken cards about one Indian government scheme. They are read aloud on a phone call to people with little schooling.\n"
     "Use only facts that are in the SOURCE. Do not add any fact, amount, date, age, limit or condition that is not in the SOURCE.\n"
     "Write plain, short English sentences. No lists, no bullet marks, no brackets, no web links.\n"
     "Write every number with the same digits as the SOURCE. Do not change 200000 to 2 lakh or the other way.\n"
-    "Never tell the listener they are eligible, they qualify, or they will get anything. Describe the scheme: \"Farmers get ...\", \"The scheme gives ...\".\n"
-    "Each card has at most 55 words.\n"
+    "Never say \"you\" or \"your\". Do not say the listener is eligible, qualifies, will get, or will receive anything.\n"
+    "Write about the scheme and the people in it instead:\n"
+    "  not \"you will get 6000 rupees\" but \"the scheme pays 6000 rupees a year\";\n"
+    "  not \"you will receive a loan\" but \"banks give a loan\";\n"
+    "  not \"if you are a farmer\" but \"farmers who own land\".\n"
+    f"HARD LIMIT: each of the four cards is at most {CARD_TARGET_WORDS} words. Count the words before answering. A card over the limit is thrown away.\n"
+    "Leave out the least important detail to stay inside the limit. Four short cards beat four long ones.\n"
     "Return JSON only: {\"benefit_text\": \"...\", \"who_can_apply\": \"...\", \"documents\": \"...\", \"how_to_apply\": \"...\"}"
 )
+
+# One bounded re-ask. The model is told exactly which cards failed and why, and is asked to
+# rewrite only those. There is still no silent papering over: if the retry also fails, the
+# reasons go to the report as before.
+RETRY_PROMPT_HEAD = (
+    "Your last answer was rejected. These cards broke the rules:\n"
+)
+RETRY_PROMPT_TAIL = (
+    "\nWrite all four cards again. Keep the cards that were fine as they were. "
+    f"Fix the ones listed above. Every card must be at most {CARD_TARGET_WORDS} words "
+    "and must never say \"you\" or \"your\".\n"
+    "Return JSON only, the same four keys."
+)
+
+
+def build_retry_prompt(user_prompt: str, cards: dict[str, str], gates: dict[str, list[str]]) -> str:
+    """The user prompt for the single re-ask, naming each failed card and its reasons."""
+    problems = []
+    for field in CARD_FIELDS:
+        reasons = gates.get(field) or []
+        if reasons:
+            problems.append(f"{field}: {'; '.join(reasons)}\n  you wrote: {cards.get(field, '')}")
+    return f"{user_prompt}\n\n{RETRY_PROMPT_HEAD}" + "\n".join(problems) + RETRY_PROMPT_TAIL
 
 
 def _rule_text(record: dict[str, Any], box: str) -> tuple[str, str]:
@@ -128,6 +161,28 @@ def derive_cards(
         slug = raw.get("myscheme_slug", record.get("scheme_id", ""))
         answer = client.call(system_prompt, user_prompt, task="cards", slug=slug)
         cards = {field: str(answer.get(field, "") or "").strip() for field in CARD_FIELDS}
+
+        # One re-ask when the first answer breaks a gate. Gating here (on the un-appended
+        # cards, the same text gate_card_en judges after the CSC sentence is stripped) is what
+        # lets the model see its own reasons. Whatever comes back is cached and gated again by
+        # the caller, so a failing retry is reported, never hidden.
+        gates = {f: gate_card_en(f, cards[f], raw, record) for f in CARD_FIELDS}
+        if any(gates.values()):
+            retry_prompt = build_retry_prompt(user_prompt, cards, gates)
+            try:
+                retry = client.call(system_prompt, retry_prompt, task="cards", slug=slug)
+            except Exception:
+                # A failed re-ask must not lose the first answer; it is still gated and reported.
+                retry = None
+            if retry is not None:
+                retried = {f: str(retry.get(f, "") or "").strip() for f in CARD_FIELDS}
+                retry_gates = {f: gate_card_en(f, retried[f], raw, record) for f in CARD_FIELDS}
+                # Keep the retry only if it is genuinely better, per card. A rewrite that
+                # fixes the length but invents a number must not replace a clean card.
+                for field in CARD_FIELDS:
+                    if retried[field] and not retry_gates[field] and gates[field]:
+                        cards[field] = retried[field]
+
         write_to_cache(sha, "cards", cards, cache_dir)
         from_cache = False
     else:
@@ -143,8 +198,28 @@ def _numbers(text: str) -> list[str]:
     return [m.group(0).replace(",", "") for m in _NUMBER_RE.finditer(text)]
 
 
+def _stem(word: str) -> str:
+    """Crudest possible stem: drop a regular English ending.
+
+    The overlap gate asks whether a card's words came from the source. Without this, apy's
+    true card ("citizens ... payers ... aged") read as four unsourced words against a source
+    saying "citizen ... payer ... age", and a correct card failed. Only the endings that
+    change nothing about the meaning are stripped, so "income" and "incomplete" stay apart.
+    """
+    for suffix in ("ies", "es", "s", "ed", "ing"):
+        if word.endswith(suffix) and len(word) - len(suffix) >= 4:
+            if suffix == "ies":
+                return word[:-3] + "y"
+            return word[: -len(suffix)]
+    return word
+
+
 def _content_words(text: str) -> set[str]:
-    return {w for w in _WORD_RE.findall(text.lower()) if len(w) >= 4 and w not in _STOP_WORDS}
+    return {
+        _stem(w)
+        for w in _WORD_RE.findall(text.lower())
+        if len(w) >= 4 and w not in _STOP_WORDS
+    }
 
 
 def _strip_csc(text: str) -> str:

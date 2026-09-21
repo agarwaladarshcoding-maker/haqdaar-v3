@@ -34,8 +34,10 @@ class _FakeResponse:
 
 
 class _FakeHttpxClient:
-    def __init__(self, payload: dict, counter: dict):
-        self._payload = payload
+    def __init__(self, payloads: list[dict], counter: dict):
+        # A list so a test can give the first call and the re-ask different answers. The last
+        # payload repeats, which keeps the single-answer tests unchanged.
+        self._payloads = payloads
         self._counter = counter
 
     def __enter__(self):
@@ -45,19 +47,26 @@ class _FakeHttpxClient:
         return False
 
     def post(self, *args, **kwargs):
+        index = min(self._counter["posts"], len(self._payloads) - 1)
         self._counter["posts"] += 1
-        return _FakeResponse(self._payload)
+        return _FakeResponse(self._payloads[index])
 
 
-def _patch_groq(monkeypatch: pytest.MonkeyPatch, cards: dict) -> dict:
-    """Make every Groq call answer with `cards`. Returns a counter of HTTP posts made."""
+def _patch_groq(monkeypatch: pytest.MonkeyPatch, *cards: dict) -> dict:
+    """Answer Groq calls with `cards` in order, the last one repeating.
+
+    Returns a counter of HTTP posts made.
+    """
     counter = {"posts": 0}
-    payload = {
-        "choices": [{"message": {"content": json.dumps(cards)}}],
-        "usage": {"prompt_tokens": 10, "completion_tokens": 5},
-    }
+    payloads = [
+        {
+            "choices": [{"message": {"content": json.dumps(c)}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+        }
+        for c in cards
+    ]
     monkeypatch.setattr(
-        httpx, "Client", lambda timeout=None: _FakeHttpxClient(payload, counter)
+        httpx, "Client", lambda timeout=None: _FakeHttpxClient(payloads, counter)
     )
     monkeypatch.setenv("GROQ_API_KEY", "test-key")
     monkeypatch.setattr(tunables, "GROQ_POLITE_DELAY_S", 0.0)
@@ -199,13 +208,13 @@ def test_cached_file_does_not_contain_the_csc_sentence(tmp_path: Path, monkeypat
     _patch_groq(monkeypatch, GOOD_CARDS)
     cache = tmp_path / "extract"
     derive_cards(RAW, RECORD, client=GroqClient(), cache_dir=cache)
-    cached = json.loads(next(cache.glob("*_cards_v1.json")).read_text(encoding="utf-8"))
+    cached = json.loads(next(cache.glob("*_cards_v*.json")).read_text(encoding="utf-8"))
     assert CSC_SENTENCE_EN not in cached["documents"]
 
 
 def test_prompt_carries_the_age_rule_and_every_source_section():
     system, user = build_card_prompts(RAW, RECORD)
-    assert "at most 55 words" in system
+    assert f"at most {p3_cards.CARD_TARGET_WORDS} words" in system
     assert "AGE RULE: 18 to 40 years" in user
     assert "INCOME RULE: none to none rupees a year" in user
     for section in ("benefits", "eligibility", "exclusions", "documents", "apply"):
@@ -263,9 +272,10 @@ def test_one_scheme_failing_still_writes_the_others(tmp_path: Path, monkeypatch)
     assert any(f["slug"] == "missing-raw" for f in report["failures"])
 
 
-def test_gate_failure_is_reported_not_retried(tmp_path: Path, monkeypatch):
+def test_a_gate_failure_is_re_asked_once_and_then_reported(tmp_path: Path, monkeypatch):
+    """One re-ask, and no more. A card that fails twice is reported, never papered over."""
     bad = dict(GOOD_CARDS, benefit_text="The scheme gives farmers 9999 rupees every year.")
-    counter = _patch_groq(monkeypatch, bad)
+    counter = _patch_groq(monkeypatch, bad)  # the re-ask answers just as badly
     derived, raw_dir, cache, reports = _write_inputs(tmp_path)
     cards_file = tmp_path / "cards.jsonl"
     monkeypatch.setattr(p3_cards, "BASE_DIR", tmp_path)
@@ -275,4 +285,56 @@ def test_gate_failure_is_reported_not_retried(tmp_path: Path, monkeypatch):
     row = json.loads(cards_file.read_text(encoding="utf-8").splitlines()[0])
     assert row["ok"] is False
     assert any("9999" in r for r in row["gates"]["benefit_text"])
-    assert counter["posts"] == 1, "a failing gate must not trigger a retry"
+    assert counter["posts"] == 2, "exactly one re-ask, not a retry loop"
+
+
+def test_a_good_re_ask_replaces_the_failed_card(tmp_path: Path, monkeypatch):
+    over_cap = dict(GOOD_CARDS, benefit_text=GOOD_CARDS["benefit_text"] + " also " * 60)
+    counter = _patch_groq(monkeypatch, over_cap, GOOD_CARDS)
+    derived, raw_dir, cache, reports = _write_inputs(tmp_path)
+    cards_file = tmp_path / "cards.jsonl"
+    monkeypatch.setattr(p3_cards, "BASE_DIR", tmp_path)
+    monkeypatch.setattr(tunables, "CARDS_FILE", "cards.jsonl")
+
+    assert run_cards(derived, raw_dir, cache, reports) == 0
+    row = json.loads(cards_file.read_text(encoding="utf-8").splitlines()[0])
+    assert row["ok"] is True
+    assert row["cards"]["benefit_text"] == GOOD_CARDS["benefit_text"]
+    assert counter["posts"] == 2
+
+
+def test_a_worse_re_ask_does_not_replace_a_clean_card(tmp_path: Path, monkeypatch):
+    """The re-ask rewrites all four cards. A card that was already fine must survive."""
+    over_cap = dict(GOOD_CARDS, benefit_text=GOOD_CARDS["benefit_text"] + " also " * 60)
+    spoiled = dict(GOOD_CARDS, documents="Papers such as 4242 and 7777 are needed.")
+    counter = _patch_groq(monkeypatch, over_cap, spoiled)
+    cache = tmp_path / "extract"
+
+    cards, _ = derive_cards(RAW, RECORD, client=GroqClient(), cache_dir=cache)
+    assert "4242" not in cards["documents"], "an invented number must not ride in on a re-ask"
+    assert cards["benefit_text"] == GOOD_CARDS["benefit_text"]
+    assert counter["posts"] == 2
+
+
+def test_the_retry_prompt_names_the_failed_card_and_its_reason():
+    gates = {"benefit_text": ["78 words, over the 55-word cap"], "who_can_apply": [],
+             "documents": [], "how_to_apply": []}
+    prompt = p3_cards.build_retry_prompt("USER", GOOD_CARDS, gates)
+    assert "USER" in prompt
+    assert "benefit_text" in prompt
+    assert "78 words" in prompt
+    assert "who_can_apply:" not in prompt, "a card that passed is not named as a problem"
+
+
+def test_a_plural_of_a_source_word_counts_as_overlap():
+    """apy's true card said "citizens/payers/aged" where the source says "citizen/payer/age"."""
+    raw = dict(RAW, exclusions="Any citizen who is an income tax payer cannot join.")
+    text = "People aged 18 to 40 can join. Citizens who are income tax payers cannot join."
+    assert not any("overlap" in r for r in gate_card_en("who_can_apply", text, raw, RECORD))
+
+
+def test_stemming_does_not_merge_different_words():
+    assert p3_cards._stem("income") == "income"
+    assert p3_cards._stem("bus") == "bus"        # too short to strip
+    assert p3_cards._stem("farmers") == "farmer"
+    assert p3_cards._stem("families") == "family"

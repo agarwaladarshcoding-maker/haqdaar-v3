@@ -64,6 +64,13 @@ _URL_RE = re.compile(
 )
 
 
+# Sarvam's numerals_format=international keeps digits international in the body text, but a
+# scheme NAME still comes back with Devanagari digits ("Scheme-2" -> "योजना-२"). That is the
+# same number in another script, not an invented one, so G1 compares them as equal. G4 still
+# sees these as non-letters, so nothing here weakens the script gate.
+_DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
+
+
 def _numbers(text: str) -> list[str]:
     """Every number in `text`, commas removed, as written.
 
@@ -71,7 +78,7 @@ def _numbers(text: str) -> list[str]:
     say out loud, and we only ever compare like with like.
     """
     out = []
-    for raw in _NUMBER_RE.findall(text or ""):
+    for raw in _NUMBER_RE.findall((text or "").translate(_DEVANAGARI_DIGITS)):
         cleaned = raw.replace(",", "").rstrip(".")
         if cleaned:
             out.append(cleaned)

@@ -314,6 +314,15 @@ def run_translate(
             _clear_untranslated(record)
             continue
 
+        # The English chunk must BE the gated cards, not p2's raw sections. Without this the
+        # call speaks the card while p5 gates the raw section, and every number the card
+        # rightly dropped reads as "missing from the translation" (78 such false alarms on
+        # the 12). One English, spoken and gated.
+        en_chunk = (record.setdefault("chunks", {})).setdefault("en", {})
+        for field, value in english.items():
+            if value:
+                en_chunk[field] = value
+
         for lang in TARGET_LANGS:
             try:
                 if translator is None and read_from_cache(

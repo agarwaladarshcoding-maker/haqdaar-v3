@@ -279,7 +279,7 @@ def check_forbidden_words(text: str, forbidden_list: Sequence[str]) -> Optional[
 # translate_hi/translate_mr are p4's (plan 1.9, D4). They are versioned here with the rest so
 # that changing the model or the numeral format invalidates the cached translations.
 PROMPT_VERSIONS: dict[str, int] = {
-    "facets": 2, "aliases": 1, "summary": 1, "cards": 1,
+    "facets": 2, "aliases": 1, "summary": 1, "cards": 2,
     "translate_hi": 1, "translate_mr": 1,
 }
 
