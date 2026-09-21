@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet pipeline-texts backup call-me
+.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet pipeline-texts pipeline-cost backup call-me
 
 test:
 	$(PYTHON) -m pytest
@@ -69,8 +69,17 @@ pipeline-texts:
 	$(PYTHON) -m haqdaar.data.pipeline.texts
 
 
+# The whole pipeline: p1 (only with RESCRAPE=1) -> p2 -> p3 -> p4 -> p5 -> p6.
+# Paid steps do not run without YES=1; without it they are skipped and say so.
+#   make pipeline              # free steps only
+#   make pipeline YES=1        # allow Groq and Sarvam
+#   make pipeline YES=1 RESCRAPE=1
 pipeline:
-	@echo "pipeline target (implemented in Step 11)"
+	$(PYTHON) -m haqdaar.data.pipeline.run_all $(if $(YES),--yes,) $(if $(RESCRAPE),--rescrape,)
+
+# What has been spent so far, from the two usage ledgers. Runs nothing.
+pipeline-cost:
+	$(PYTHON) -m haqdaar.data.pipeline.run_all --cost
 
 smoke:
 	@echo "smoke target (telephony / pre-demo verification checklist)"
