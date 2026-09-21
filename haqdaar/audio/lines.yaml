@@ -1,0 +1,193 @@
+# haqdaar/audio/lines.yaml
+#
+# Step 1.13 (plan 1.11) — the fixed lines a call can speak.
+#
+# Every id in haqdaar.contracts.types.FIXED_LINE_IDS appears here exactly once, in the same
+# order. English is written here by hand. Hindi and Marathi are NOT written here: they come
+# from p4 (Sarvam) and are checked by p5, the same path the scheme cards take. A line an owner
+# has corrected is pinned with `pinned: true` and p4 leaves it alone.
+#
+# House style, because these are read aloud down a phone to people with little schooling:
+#   - short words, short sentences, one idea per sentence;
+#   - say the key press as a number the caller can act on ("Press 1");
+#   - never claim the caller is eligible, will get, or will receive anything. The call reads
+#     out what a scheme says; it does not decide anyone's case. vocab.FORBIDDEN enforces this
+#     and p5's G2 checks the translations for the same thing;
+#   - no web addresses and no English abbreviations that cannot be spoken in Hindi or Marathi.
+#
+# `{...}` is a slot the engine fills at play time (a scheme name, a box label, a band). Slots
+# are never translated as words; they are replaced with already-translated text.
+
+lines:
+
+  # --- opening -----------------------------------------------------------
+  # The one line rendered as a single file in all three languages, played hi -> mr -> en
+  # (p6_snapshot.py builds it with the "all" render key). It must name the languages in the
+  # language the caller is being offered, so English alone cannot carry it. The English below
+  # is what the English third of the file says.
+  greeting_trilingual:
+    en: "Namaste. This is Haqdaar. For Hindi press 1. For Marathi press 2. For English press 3."
+
+  consent_notice:
+    en: "This call is recorded. We keep it to make this service better. Stay on the line to go ahead."
+
+  opener_prompt:
+    en: "Tell me what you need help with. You can also say the name of a scheme."
+
+  unclear_prompt:
+    en: "Sorry, I did not catch that. Please say it again."
+
+  anything_else:
+    en: "Do you want to hear anything else? Press 1 for yes. Press 2 for no."
+
+  # --- door A · the caller named a scheme --------------------------------
+  # One candidate is simply read out. Two get one keypad turn naming both. Three or more fall
+  # through to the questions (door B), which is a downgrade, not an error.
+  door_a_option_1:
+    en: "Press 1 for {scheme_1}."
+
+  door_a_option_2:
+    en: "Press 2 for {scheme_2}."
+
+  door_a_option_none:
+    en: "Press 3 if you want neither of these."
+
+  door_a_downgrade_to_b:
+    en: "I will ask you a few short questions instead."
+
+  # --- the questions -----------------------------------------------------
+  q_state:
+    en: "Which state do you live in?"
+
+  # Asked in place of q_state where only Maharashtra schemes are loaded, so the caller is not
+  # asked an open question the corpus cannot answer.
+  state_q_maharashtra:
+    en: "Do you live in Maharashtra? Press 1 for yes. Press 2 for no."
+
+  q_gender:
+    en: "Are you a woman or a man?"
+
+  q_social_category:
+    en: "Which category do you belong to? General, O B C, S C, or S T."
+
+  q_age:
+    en: "How old are you?"
+
+  q_income_band:
+    en: "About how much does your family earn in a year?"
+
+  q_occupation:
+    en: "What work do you do?"
+
+  # --- asked a second time, in other words -------------------------------
+  rephrase_state:
+    en: "Which state is your home in?"
+
+  rephrase_gender:
+    en: "Please say woman, man, or other."
+
+  rephrase_social_category:
+    en: "Please say your category. General, O B C, S C, or S T. You can also say you do not want to tell."
+
+  rephrase_age:
+    en: "Please say your age in years, like thirty five."
+
+  rephrase_income_band:
+    en: "Please say how much the whole family earns in one year."
+
+  rephrase_occupation:
+    en: "Please say the work you do, like farming or a shop."
+
+  # --- dropped to the keypad ---------------------------------------------
+  # Each of these is followed by the box's chips, one per key, from vocab.LABELS.
+  keypad_gender:
+    en: "Let us use the keypad."
+
+  keypad_social_category:
+    en: "Let us use the keypad."
+
+  keypad_age:
+    en: "Let us use the keypad. Press the key for your age group."
+
+  keypad_income_band:
+    en: "Let us use the keypad. Press the key for your yearly family earning."
+
+  keypad_occupation:
+    en: "Let us use the keypad. Press the key for your work."
+
+  # Appended after the last chip, so a caller who does not fit any of them has a way out.
+  keypad_unknown_suffix:
+    en: "Press 9 if you do not want to say."
+
+  # --- confirming what was heard -----------------------------------------
+  bundle_confirm_intro:
+    en: "Let me say back what I heard."
+
+  confirm_bundle_opener:
+    en: "You said {bundle}."
+
+  confirm_yn_suffix:
+    en: "Press 1 if this is right. Press 2 to fix it."
+
+  # Played when the caller has gone quiet, to show the line is still open.
+  silence_presence:
+    en: "I am still here."
+
+  # --- reading a scheme out ----------------------------------------------
+  section_menu:
+    en: "Press 1 for what you get. Press 2 for how to apply. Press 3 for the papers needed. Press 4 for who can apply. Press 9 for the next scheme."
+
+  # Said before a section so the caller knows whose words these are: the government's, not ours.
+  section_source_frame:
+    en: "This is what the government page says."
+
+  next_scheme_intro:
+    en: "Now the next scheme."
+
+  no_more_schemes:
+    en: "That was the last scheme."
+
+  results_more_prompt:
+    en: "Press 9 to hear more schemes."
+
+  # --- things the caller must be told plainly ----------------------------
+  keypad_only_mode:
+    en: "I am having trouble hearing you. We will use the keypad from now on."
+
+  state_unknown_disclaimer:
+    en: "I do not know your state, so some of these may not run where you live."
+
+  # --- the five endings --------------------------------------------------
+  results_exact_preamble:
+    en: "Here is what matches what you told me."
+
+  results_overflow:
+    en: "Many schemes match. Here are the closest ones first."
+
+  # Bad news first: the caller is told nothing matched before any name is read.
+  terminal_widened_preamble:
+    en: "Nothing matched everything you told me."
+
+  drop_income_band:
+    en: "I have set aside what your family earns."
+
+  drop_age:
+    en: "I have set aside your age."
+
+  drop_occupation:
+    en: "I have set aside your work."
+
+  drop_category:
+    en: "I have set aside your category."
+
+  results_widened_lead:
+    en: "With that set aside, these schemes match."
+
+  terminal_nearest_preamble:
+    en: "Nothing matched. These are the nearest ones. Check the rules before you apply."
+
+  terminal_empty:
+    en: "I could not find a scheme for you today. Your nearest C S C centre can help you look."
+
+  closing_farewell:
+    en: "Thank you for calling Haqdaar. Goodbye."

@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates backup call-me
+.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet backup call-me
 
 test:
 	$(PYTHON) -m pytest
@@ -59,6 +59,10 @@ pipeline-translate:
 # The five gates (D5). Free and offline: it only reads what p2/p3/p4 already wrote.
 pipeline-gates:
 	$(PYTHON) -m haqdaar.data.pipeline.p5_gates
+
+# The fixed lines as a sheet to correct by hand. Free and offline.
+lines-sheet:
+	$(PYTHON) -m tools.lines_sheet
 
 
 pipeline:
