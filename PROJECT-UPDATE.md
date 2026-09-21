@@ -87,6 +87,62 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 21 Sep (later) — the cards got short, and three quiet bugs came out with them
+
+**The blocker is gone.** Only 3 of the 12 schemes had usable spoken cards. Now all 12 do.
+
+The reason was not what the notes said. I read all 48 cards and their reasons: almost every
+failure was the card being a few words too long (56 to 89 words against a 55-word limit). The
+old prompt asked for "at most 55 words", so the model aimed at the limit and kept sailing past
+it. It now asks for 45, which leaves room to run long and still land inside. It also spells out
+the rule about never telling a caller they will get something, with examples. If a card still
+breaks a rule, it is asked once more and told exactly what was wrong; the rewrite is kept only
+if it is genuinely better, so a fix for length cannot sneak in a wrong number.
+
+**Three bugs came out from under that**, all of them quiet ones that made good work look bad:
+
+- The check that holds a card to its source compared words exactly, so a card saying "citizens"
+  where the page said "citizen" looked made up.
+- Bigger: the translation step translated the short cards but left the English as the *long
+  original page text*. So the call would read the short card while the checker judged the long
+  page, and every number the card had rightly left out looked missing. That one fault was
+  causing 78 of the 83 failures.
+- Scheme names come back with Hindi digits, which read as invented numbers.
+
+With those fixed, schemes passing all the checks in all three languages went from 3 to 8.
+**The 4 that still fail are real translation faults** — one says "50 thousand" where the English
+says 50,000, one drops a whole exclusion and invents "no age limit". I left them failing. They
+are for a person to look at, not for me to quietly loosen a rule around.
+
+**Added: the words the call says.** All 50 fixed lines are written in plain, short English
+("Press 1 for what you get."). A test checks every one of them never promises the caller
+anything. `make lines-sheet` prints them as a sheet you can correct by hand. The keypad words
+and the age/income bands needed nothing new — they were already there.
+
+**Added: one list of everything the call can say** (`make pipeline-texts`). Before this, two
+parts of the code disagreed about what audio should exist, and the disagreement was hidden: when
+a scheme was missing its Hindi text, the code invented a fake placeholder, filed it as real, and
+wrote a silent file. A call would have played nothing and everything would have looked fine.
+That is gone. What is missing is now counted and named: 98 things, all of them the fixed lines
+waiting for their Hindi and Marathi.
+
+**Added: `make pipeline` and `make pipeline-cost`.** One command runs the whole chain. Nothing
+that costs money runs unless you ask for it with `YES=1`, and re-scraping needs asking twice.
+Running it again when everything is already done costs nothing — I checked the spend records
+before and after, and they were identical.
+
+**The cost report caught something on its first run.** It said we had spent 38,000 tokens. We had
+not: 100 of the 113 recorded requests were written by the *tests*, into the real spending record.
+Tests now write to a scratch file, and the false rows are gone. The true cost of everything built
+so far on the 12 schemes: **13 Groq requests, and 27,445 characters of translation.**
+
+**Tests: 253 passing** (was 217).
+
+**Four branches waiting for you to check**, to be merged in this order:
+`step-1.12-cards`, `step-1.13-lines`, `step-1.14-texts`, `step-1.15-pipeline`.
+
+**Next:** the fixed lines still need their Hindi and Marathi.
+
 ### 20 Sep (later) — Hindi and Marathi, done properly this time
 **Fixed first:** this folder's Python setup was broken. iCloud had taken 469 of its files off the
 laptop, so any test run just hung. I deleted it and built it fresh. Tests run in about 7 seconds
