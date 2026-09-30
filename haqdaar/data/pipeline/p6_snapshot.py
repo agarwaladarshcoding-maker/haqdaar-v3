@@ -476,15 +476,24 @@ def build_snapshot(
     if templates_data:
         templates.update(templates_data)
 
-    # Add default chips if not provided
+    # Chips and bands take their keys from the same text list as the render, like the lines
+    # above. Hashing the raw value ("farmer", "0-13") here gave 87 keys no clip was ever made
+    # for, and would have spoken the code instead of the label. A value with no label keeps
+    # the old key, so texts.missing() and Corpus.load still see the gap.
+    from haqdaar.data.pipeline.texts import band_texts, chip_texts
+
+    chip_keys: dict[str, dict[str, str]] = {}
+    bands_by_box = {box: meta["bands"] for box, meta in vocab_boxes.items() if "bands" in meta}
+    for item in (*chip_texts(), *band_texts(bands_by_box)):
+        chip_keys.setdefault(item.ref, {})[item.lang] = item.key
+
     for box, box_meta in vocab_boxes.items():
         for val in box_meta["values"]:
             chip_id = f"chip_{box}_{val}"
             if chip_id not in templates:
                 templates[chip_id] = {}
                 for lang in ("en", "hi", "mr"):
-                    text = f"{val}"
-                    rk = compute_render_key(text, lang)
+                    rk = chip_keys.get(chip_id, {}).get(lang) or compute_render_key(f"{val}", lang)
                     templates[chip_id][lang] = rk
 
     templates_path = snap_dir / "templates.json"
@@ -631,7 +640,26 @@ def build_snapshot(
     return snapshot_id
 
 
+def main() -> int:
+    """Build a snapshot from the real schemes (what p2..p5 wrote) and flip CURRENT to it.
+
+    No stubs: a clip that is not rendered yet is recorded with an empty digest, and
+    Corpus.load refuses the snapshot until `make render YES=1` has made it.
+    """
+    from haqdaar.data.pipeline.texts import _load_schemes, missing
+
+    schemes = _load_schemes(Path(tunables.CARDS_FILE).parent)
+    snap = build_snapshot(schemes, enforce_readback_gate=True)
+    manifest = json.loads(
+        (Path(tunables.SNAPSHOTS_DIR) / snap / "manifest.json").read_text(encoding="utf-8")
+    )
+    keys = manifest["render_keys"]
+    no_audio = sum(1 for meta in keys.values() if not meta.get("digest"))
+    print(f"snapshot: {snap}  schemes: {manifest['num_schemes']}  clips: {len(keys)}")
+    print(f"clips not rendered yet: {no_audio}  texts missing: {len(missing(schemes))}")
+    return 1 if no_audio else 0
+
+
 if __name__ == "__main__":
     import sys
-    snap = build_snapshot([], snapshot_id="snap_initial")
-    print(f"Created snapshot {snap}")
+    sys.exit(main())

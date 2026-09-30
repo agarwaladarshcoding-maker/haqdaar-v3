@@ -133,3 +133,22 @@ def test_p6_does_not_write_stubs_by_default(tmp_path: Path):
         audio_dir=audio_dir,
     )
     assert list(audio_dir.glob("*.ulaw")) == []
+
+
+def test_p6_every_key_matches_all_texts_on_the_real_schemes(tmp_path: Path):
+    """Plan 2.3: the whole manifest (lines, chips, bands, chunks) is exactly the render list.
+
+    p6 used to hash a chip's raw value ("farmer", "0-13") while the render spoke its label, so
+    87 keys in the real snapshot had no clip and never would.
+    """
+    from haqdaar.audio.render import real_texts
+
+    schemes = texts_mod._load_schemes(Path(__file__).resolve().parent.parent / "data_cache" / "derived")
+    build_snapshot(
+        schemes,
+        snapshot_id="real",
+        snapshots_dir=tmp_path / "snapshots",
+        audio_dir=tmp_path / "audio",
+    )
+    manifest = json.loads((tmp_path / "snapshots" / "real" / "manifest.json").read_text("utf-8"))
+    assert set(manifest["render_keys"]) == {t.key for t in real_texts()}

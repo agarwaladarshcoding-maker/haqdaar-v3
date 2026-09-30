@@ -8,6 +8,7 @@ Usage:
     make sim                       # interactive, type digits
     make demo-fixture              # all three personas, non-interactive
     python -m haqdaar.sim --persona p2
+    python -m haqdaar.sim --snapshot snapshots/CURRENT     # the real 12 schemes (plan 2.3)
 """
 from __future__ import annotations
 
@@ -183,8 +184,17 @@ def run_sim(
     call_id: Optional[str] = None,
     logs_dir: str = "logs",
     persona: str = DEFAULT_PERSONA,
+    snapshot: Optional[str] = None,
 ) -> Path:
-    """Run full simulation against fixtures/ and return path to log file."""
+    """Run full simulation against fixtures/ and return path to log file.
+
+    With `snapshot` (an id, "CURRENT", or a path like snapshots/CURRENT) the call runs on that
+    built snapshot and its real audio pool instead of a throwaway fixture snapshot.
+    """
+    if snapshot is not None:
+        corpus = Corpus.load(Path(snapshot).name)
+        return _run_call(corpus, corpus.snapshot_id, canned_inputs, call_id, logs_dir, persona)
+
     root_dir = Path(__file__).resolve().parent.parent
     fixtures_dir = root_dir / "fixtures"
     schemes_file = fixtures_dir / "schemes.jsonl"
@@ -218,45 +228,56 @@ def run_sim(
                 render_stubs=True,
             )
             corpus = Corpus.load(snap_id)
-
-            c_id = call_id or f"sim_{int(time.time())}"
-            log = Log.open(
-                call_id=c_id,
-                snapshot_id=snap_id,
-                logs_dir=logs_dir,
-            )
-
-            audio = FakeAudio(
-                canned_inputs=canned_inputs,
-                fallback=PERSONAS.get(persona, PERSONAS[DEFAULT_PERSONA]),
-            )
-
-            print("==================================================")
-            print(f"Starting Haqdaar Sim: call_id={c_id} persona={persona}")
-            print("==================================================")
-
-            Engine.run_call(
-                audio=audio,
-                model=None,
-                corpus=corpus,
-                log=log,
-            )
-
-            log_path = Path(logs_dir) / f"{c_id}.jsonl"
-            print("==================================================")
-            print(f"Simulation completed. LOG written to: {log_path}")
-            print("==================================================")
-
-            if log_path.exists():
-                print("\n--- Persisted LOG Lines ---")
-                with open(log_path, "r", encoding="utf-8") as f:
-                    for l in f:
-                        print(l.strip())
-
-            return log_path
+            return _run_call(corpus, snap_id, canned_inputs, call_id, logs_dir, persona)
         finally:
             tunables.SNAPSHOTS_DIR = orig_snap_dir
             tunables.AUDIO_DIR = orig_audio_dir
+
+
+def _run_call(
+    corpus: Corpus,
+    snap_id: str,
+    canned_inputs: Optional[list[str]],
+    call_id: Optional[str],
+    logs_dir: str,
+    persona: str,
+) -> Path:
+    """One call on a loaded corpus. Returns the log path."""
+    c_id = call_id or f"sim_{int(time.time())}"
+    log = Log.open(
+        call_id=c_id,
+        snapshot_id=snap_id,
+        logs_dir=logs_dir,
+    )
+
+    audio = FakeAudio(
+        canned_inputs=canned_inputs,
+        fallback=PERSONAS.get(persona, PERSONAS[DEFAULT_PERSONA]),
+    )
+
+    print("==================================================")
+    print(f"Starting Haqdaar Sim: call_id={c_id} persona={persona}")
+    print("==================================================")
+
+    Engine.run_call(
+        audio=audio,
+        model=None,
+        corpus=corpus,
+        log=log,
+    )
+
+    log_path = Path(logs_dir) / f"{c_id}.jsonl"
+    print("==================================================")
+    print(f"Simulation completed. LOG written to: {log_path}")
+    print("==================================================")
+
+    if log_path.exists():
+        print("\n--- Persisted LOG Lines ---")
+        with open(log_path, "r", encoding="utf-8") as f:
+            for l in f:
+                print(l.strip())
+
+    return log_path
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -274,13 +295,28 @@ def main(argv: Optional[list[str]] = None) -> int:
     )
     ap.add_argument("--call-id", default=None)
     ap.add_argument("--logs-dir", default="logs")
+    ap.add_argument(
+        "--snapshot",
+        default=None,
+        help="run on a built snapshot and its real audio, e.g. snapshots/CURRENT",
+    )
+    ap.add_argument(
+        "--keys",
+        default=None,
+        help='the keys to press, space-separated, e.g. "2 1 1 s h" (s=silence, h=hang up)',
+    )
     args = ap.parse_args(argv)
 
+    if args.keys is not None:
+        canned = args.keys.split()
+    else:
+        canned = list(PERSONAS[args.persona]) if args.canned else None
     run_sim(
-        canned_inputs=list(PERSONAS[args.persona]) if args.canned else None,
+        canned_inputs=canned,
         call_id=args.call_id,
         logs_dir=args.logs_dir,
         persona=args.persona,
+        snapshot=args.snapshot,
     )
     return 0
 

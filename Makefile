@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet pipeline-texts pipeline-cost render listen backup call-me
+.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet pipeline-texts pipeline-cost render listen snapshot backup call-me
 
 test:
 	$(PYTHON) -m pytest
@@ -32,7 +32,7 @@ call-me:
 	caffeinate -dimsu $(PYTHON) -m tools.run_demo
 
 sim:
-	$(PYTHON) -m haqdaar.sim
+	$(PYTHON) -m haqdaar.sim $(if $(SNAP),--snapshot $(SNAP),) $(if $(KEYS),--keys "$(KEYS)",)
 
 # T17 §4: a whole call against the four fakes, printing the LOG. One run per
 # keypad-only persona, so an interface break shows up on day one, not day nine.
@@ -91,3 +91,7 @@ render:
 # make listen L=mr N=5   (N=lines plays every fixed line)
 listen:
 	$(PYTHON) -m tools.listen $(L) $(N)
+
+# Plan 2.3: build the real snapshot from the 12 schemes and flip snapshots/CURRENT to it.
+snapshot:
+	$(PYTHON) -m haqdaar.data.pipeline.p6_snapshot
