@@ -480,12 +480,18 @@ def build_snapshot(
     # above. Hashing the raw value ("farmer", "0-13") here gave 87 keys no clip was ever made
     # for, and would have spoken the code instead of the label. A value with no label keeps
     # the old key, so texts.missing() and Corpus.load still see the gap.
-    from haqdaar.data.pipeline.texts import band_texts, chip_texts
+    from haqdaar.data.pipeline.texts import band_texts, chip_texts, key_texts
 
     chip_keys: dict[str, dict[str, str]] = {}
     bands_by_box = {box: meta["bands"] for box, meta in vocab_boxes.items() if "bands" in meta}
     for item in (*chip_texts(), *band_texts(bands_by_box)):
         chip_keys.setdefault(item.ref, {})[item.lang] = item.key
+
+    # "press 1." .. "press 9.", played after each chip of a keypad menu (plan 2.7).
+    for item in key_texts():
+        if item.ref not in templates:
+            templates[item.ref] = {}
+        templates[item.ref].setdefault(item.lang, item.key)
 
     for box, box_meta in vocab_boxes.items():
         for val in box_meta["values"]:

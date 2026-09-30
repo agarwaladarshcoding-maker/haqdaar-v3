@@ -218,7 +218,7 @@ def test_answer_twiml_and_health() -> None:
 
 def test_websocket_stream_tone_and_dtmf(capsys: pytest.CaptureFixture[str]) -> None:
     client = TestClient(app)
-    with client.websocket_connect("/stream") as ws:
+    with client.websocket_connect("/tone") as ws:
         start_payload = {
             "event": "start",
             "sequenceNumber": "1",

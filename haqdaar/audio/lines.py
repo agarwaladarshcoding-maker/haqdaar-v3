@@ -116,6 +116,20 @@ def band_label(box: str, lo: int, hi: int | None, lang: str = "en") -> str:
     return shapes["closed"].format(lo=lo, hi=hi)
 
 
+# After each chip in a keypad menu: "Farmer — press 1." One short clip per key per language
+# (27 in all) instead of one per chip per position, so the menu can be any order or length.
+KEY_TEMPLATES: dict[str, str] = {
+    "en": "press {n}.",
+    "hi": "{n} दबाएँ।",
+    "mr": "{n} दाबा.",
+}
+MENU_KEYS: tuple[int, ...] = tuple(range(1, 10))
+
+
+def key_label(n: int, lang: str = "en") -> str:
+    return (KEY_TEMPLATES.get(lang) or KEY_TEMPLATES["en"]).format(n=n)
+
+
 def untranslated(path: Path | str | None = None) -> list[tuple[str, str]]:
     """Every (line_id, lang) that still has no text. Empty once p4 has run over the lines."""
     missing: list[tuple[str, str]] = []

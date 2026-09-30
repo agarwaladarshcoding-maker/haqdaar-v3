@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 from typing import Any, Iterator, NamedTuple, Optional
 
-from haqdaar.audio.lines import TRILINGUAL_LINE_ID, band_label, load_lines
+from haqdaar.audio.lines import MENU_KEYS, TRILINGUAL_LINE_ID, band_label, key_label, load_lines
 from haqdaar.contracts import tunables, vocab
 from haqdaar.contracts.types import (
     FIXED_LINE_IDS,
@@ -38,7 +38,7 @@ class Text(NamedTuple):
     key: str       # the render key: sha over (text, lang, voice, model, rate)
     lang: str
     text: str
-    kind: str      # "line" | "chip" | "band" | "chunk"
+    kind: str      # "line" | "chip" | "key" | "band" | "chunk"
     ref: str       # line_id, chip id, band id, or "<scheme_id>/<chunk>"
 
 
@@ -80,6 +80,13 @@ def chip_texts() -> Iterator[Text]:
                 text = (label.get(lang) or "").strip()
                 if text:
                     yield _text(lang, text, "chip", f"chip_{box}_{value}")
+
+
+def key_texts() -> Iterator[Text]:
+    """ "press 1." .. "press 9." — spoken after each chip in a keypad menu."""
+    for n in MENU_KEYS:
+        for lang in LANGS:
+            yield _text(lang, key_label(n, lang), "key", f"key_{n}")
 
 
 def band_texts(bands_by_box: dict[str, list[dict[str, Any]]]) -> Iterator[Text]:
@@ -128,6 +135,7 @@ def all_texts(
     for item in (
         *fixed_line_texts(lines_path),
         *chip_texts(),
+        *key_texts(),
         *band_texts(bands_by_box or {}),
         *scheme_chunk_texts(schemes or []),
     ):
