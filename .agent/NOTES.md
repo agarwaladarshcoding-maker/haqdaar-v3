@@ -1749,4 +1749,5 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Merged step-34-35-pipeline into main (--no-ff, 1ecbef1). pytest on main: 311 passed. Push left to owner (not requested).
 - Next: 3.7 audit. No card-audit exporter exists; sample of 20 undefined; pass criteria undefined. Work order written: tools/cards_sheet.py (modeled on lines_sheet.py), stratified seeded sample (7 gate-failing + 13 seeded-random), listen.py cards mode, verdicts to data_cache/reports/audit_3_7.md. Defaults recorded in .agent/OPEN-QUESTIONS.md (OQ3/OQ4).
 - 1 Oct (Muse check): "stopped terminal" scare investigated — nothing stopped mid-step. R3/R4 fixes + merge 1ecbef1 all committed; gates.json fresh (21 ok/7 fail); pytest re-run 311 passed. TASK.md duplicate R4 line removed. Push (28 commits) still left to owner.
+- 1 Oct: committed f39cb16, pushed main (cf503b8..f39cb16, 29 commits, now in sync). Push needed one unsandboxed run (sandbox blocks the SSH agent). Wrote PROMPT-ANTIGRAVITY-3.7.md — A1 work order (cards_sheet.py, audit template, listen cards mode).
 
