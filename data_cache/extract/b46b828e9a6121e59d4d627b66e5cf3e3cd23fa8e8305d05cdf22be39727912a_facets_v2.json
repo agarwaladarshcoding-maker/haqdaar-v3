@@ -1,0 +1,36 @@
+{
+  "facets": {
+    "category": {
+      "value": "farming",
+      "quote": "Fisheries and Aquaculture farmers having up to 4hectares aquaculture farm size or equivalent unit shall be eligible for one time aquaculture insurance incentive."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Only Fisheries and Aquaculture Stakeholders involved in the fisheries value chain and registered on NFDP are covered",
+    "Aquaculture insurance incentive limited to farmers having up to 4hectares aquaculture farm size or equivalent unit",
+    "Performance grant limited to Micro and Small Enterprises with investment and job creation/maintenance; success fee requires successful loan disbursement"
+  ]
+}

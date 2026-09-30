@@ -1,0 +1,37 @@
+{
+  "facets": {
+    "category": {
+      "value": "pension",
+      "quote": "The subscriber will receive a minimum assured pension of ₹ 3,000/- per month after attaining the age of 60 years."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 18,
+        "max": 40
+      },
+      "quote": "The applicant should be between 18 and 40 years of age at the time of entry."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "farmer",
+      "quote": "The applicant should be a Small or Marginal Farmer."
+    }
+  },
+  "gate_notes": [
+    "Requires cultivable landholding up to 2 hectares and name in land records as on 01.08.2019",
+    "Requires Aadhaar card and savings bank account or PM-KISAN account",
+    "Excludes SMFs covered under NPS, Employees State Insurance Corporation scheme, Employees Fund Organization Scheme, Pradhan Mantri Shram Yogi Maandhan Yojana and Pradhan Mantri Vyapari Maandhan",
+    "Excludes institutional landholders, constitutional post holders, Ministers/MPs/MLAs/Mayors/District Panchayat Chairpersons, serving/retired government employees excluding MTS/Class IV/Group D, income tax payers, and practising professionals like Doctors, Engineers, Lawyers, Chartered Accountants, Architects"
+  ]
+}

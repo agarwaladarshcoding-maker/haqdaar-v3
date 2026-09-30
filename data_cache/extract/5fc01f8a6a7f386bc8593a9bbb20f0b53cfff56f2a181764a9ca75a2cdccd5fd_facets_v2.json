@@ -1,0 +1,38 @@
+{
+  "facets": {
+    "category": {
+      "value": "pension",
+      "quote": "Each eligible subscriber under this scheme shall receive an assured minimum monthly pension of ₹3,000/- after attaining the age of sixty years."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 18,
+        "max": 40
+      },
+      "quote": "The applicant must be between 18 and 40 years of age."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Applicant must be Laghu Vyapari, self-employed person, shop owner, retail trader, rice mill owner, oil mill owner, workshop owner, commission agent, real estate broker, small hotel owner, or restaurant owner - multiple groups so occupation=ANY",
+    "Annual turnover must not exceed ₹1,50,00,000/-",
+    "Must possess savings bank account and Aadhaar Card or Aadhaar Number",
+    "Must not be covered under any National Pension Scheme contributed by Central Government, EPFO, or ESIC",
+    "Must not be an income-tax payer/assessee and must not be enrolled under Pradhan Mantri Shram Yogi Maandhan Yojana"
+  ]
+}

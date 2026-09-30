@@ -1,0 +1,37 @@
+{
+  "facets": {
+    "category": {
+      "value": "jobs_skills",
+      "quote": "Training in Soft Skills, Entrepreneurship, Financial and Digital Literacy"
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 15,
+        "max": 45
+      },
+      "quote": "Is aged between 15-45 years"
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Requires Indian nationality - applicable to any candidate of Indian nationality",
+    "Requires Aadhaar card and Aadhaar linked bank account and mandatory Aadhaar ID during enrolment",
+    "Requires 70% attendance to be eligible to appear in assessments",
+    "Must fulfil other criteria for the respective job role as defined by the awarding body"
+  ]
+}

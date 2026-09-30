@@ -1,0 +1,33 @@
+{
+  "facets": {
+    "category": {
+      "value": "housing",
+      "quote": "to build a permanent house."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Universe limited to houseless households living in zero, one, or two-room houses with kutcha walls and kutcha roofs as per SECC data, verified by Gram Sabhas; pucca houses excluded.",
+    "13 automatic exclusions not captured in columns e.g. motorised vehicle, KCC limit, government employee, income-tax/professional-tax payer, refrigerator/landline, and landholding thresholds.",
+    "Monthly income exclusion - Any member of the family earning more than Rs.10,000 per month - cannot be represented as annual income_band."
+  ]
+}

@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet pipeline-texts pipeline-cost render listen snapshot backup call-me
+.PHONY: run call calls sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet pipeline-texts pipeline-cost render listen snapshot backup call-me
 
 test:
 	$(PYTHON) -m pytest
@@ -99,3 +99,7 @@ listen:
 # Plan 2.3: build the real snapshot from the 12 schemes and flip snapshots/CURRENT to it.
 snapshot:
 	$(PYTHON) -m haqdaar.data.pipeline.p6_snapshot
+
+# Plan 3.6: random keypad callers on the real snapshot; 0 crashes and 0 truth failures.
+stress:
+	$(PYTHON) -m tools.stress -n $(or $(N),1000) --seed $(or $(SEED),1)

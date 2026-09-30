@@ -1,0 +1,35 @@
+{
+  "facets": {
+    "category": {
+      "value": "pension",
+      "quote": "A monthly pension of ₹ 200 up to 79 years and ₹ 500 thereafter."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 60,
+        "max": null
+      },
+      "quote": "The applicant should be at least 60 years of age."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Requires applicant to be living Below Poverty Line",
+    "Requires applicant to be a citizen of India"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "facets": {
+    "category": {
+      "value": "welfare_disability",
+      "quote": "The applicant should be a physically or mentally disabled person."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 18,
+        "max": null
+      },
+      "quote": "The age of the applicant should be 18 years and above."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Requires disability more than 80% - not captured in columns",
+    "Requires Below Poverty Line status - no numeric income threshold given so income_band is ANY",
+    "Requires resident of India"
+  ]
+}

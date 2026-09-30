@@ -1,0 +1,36 @@
+{
+  "facets": {
+    "category": {
+      "value": "jobs_skills",
+      "quote": "Under the scheme, training will be imparted in Designated Trades (DT) and Optional Trades (OT)."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 14,
+        "max": 35
+      },
+      "quote": "Minimum age for an apprentice is 14 years, and 18 years for designated trades related to hazardous industries, as per Section 3(a) of the Apprentices Act, 1961. Apprenticeship training is primarily a transition from academia to workplace, and therefore, to avail partial stipend support by the Government, at the time of registration the upper age limit should be 35 years."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "apprentice",
+      "quote": "Minimum age for an apprentice is 14 years, and 18 years for designated trades related to hazardous industries, as per Section 3(a) of the Apprentices Act, 1961."
+    }
+  },
+  "gate_notes": [
+    "No stipend support will be available under NAPS-2 to the Central and State Government Departments and Central and State Public Sector Undertakings/Enterprises, including Public Sector Banks.",
+    "Establishments will be able to issue a contract only to those candidates who have updated their Aadhaar numbers and completed e-KYC on the apprenticeship portal.",
+    "No reimbursement of basic training cost will be provided under NAPS-2, both for Designated Trades (DT) and Optional Trades (OT)."
+  ]
+}

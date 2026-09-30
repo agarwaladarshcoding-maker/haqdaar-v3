@@ -1,0 +1,36 @@
+{
+  "facets": {
+    "category": {
+      "value": "welfare_disability",
+      "quote": "₹ 20000/ - will be given as a lump sum assistance to such surviving member of the household of the deceased poor, who after local inquiry, is found to be the head of the household."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Family must be living Below Poverty Line (BPL)",
+    "Primary breadwinner must be deceased; deceased's age was more than 18 years and less than 60 years",
+    "Applicant must be the succeeding primary breadwinner / head of household found after local inquiry"
+  ]
+}

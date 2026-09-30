@@ -1,0 +1,29 @@
+{
+  "facets": {
+    "category": {
+      "value": "farming",
+      "quote": "Farmers - individual/joint borrowers who are owner cultivators;"
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "farmer",
+      "quote": "Farmers - individual/joint borrowers who are owner cultivators;"
+    }
+  },
+  "gate_notes": []
+}
