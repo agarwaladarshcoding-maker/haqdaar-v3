@@ -456,7 +456,6 @@ def test_failed_language_is_cleared_not_left_stale(tmp_path, monkeypatch):
 # --- the fixed lines -------------------------------------------------------------------------
 
 import re
-import shutil
 
 from haqdaar.audio import lines as lines_mod
 
@@ -477,10 +476,16 @@ class FakeLineTranslator:
         return re.sub(r"(?<!\{)\b[A-Za-z][A-Za-z']*\b(?![a-z0-9_]*\})", "शब्द", text)
 
 
+def _write_english_only(path):
+    """lines.yaml as it was before p4 filled in Hindi and Marathi."""
+    text = lines_mod.LINES_PATH.read_text(encoding="utf-8")
+    path.write_text(re.sub(r"(?m)^    (hi|mr): .*\n", "", text), encoding="utf-8")
+
+
 @pytest.fixture
 def lines_copy(tmp_path):
     path = tmp_path / "lines.yaml"
-    shutil.copy(lines_mod.LINES_PATH, path)
+    _write_english_only(path)
     yield path
     lines_mod.load_lines.cache_clear()
 
@@ -518,7 +523,7 @@ def test_second_lines_run_makes_zero_requests(lines_copy, tmp_path, monkeypatch)
     p4_translate.run_translate_lines(lines_copy, tmp_path / "reports", tmp_path / "cache")
 
     fresh = tmp_path / "fresh.yaml"
-    shutil.copy(lines_mod.LINES_PATH, fresh)
+    _write_english_only(fresh)
     boom = lambda *a, **k: pytest.fail("a warm run must not need Sarvam")
     monkeypatch.setattr(p4_translate, "SarvamTranslator", boom)
     p4_translate.run_translate_lines(fresh, tmp_path / "reports", tmp_path / "cache")
@@ -552,3 +557,12 @@ def test_a_line_that_fails_a_gate_is_not_written(lines_copy, tmp_path, monkeypat
 def test_gate_line_catches_a_lost_slot():
     assert p4_translate.gate_line("Press 1 for {scheme_1}.", "1 दबाएँ योजना के लिए।", "hi")
     assert not p4_translate.gate_line("Press 1 for {scheme_1}.", "{scheme_1} के लिए 1 दबाएँ।", "hi")
+
+
+def test_a_translated_slot_name_is_put_back():
+    assert p4_translate._restore_slot("Press 1 for {scheme_1}.", "{स्कीम_1} के लिए 1 दबाएँ।") == (
+        "{scheme_1} के लिए 1 दबाएँ।"
+    )
+    # Two slots could have swapped places, so they are not guessed at.
+    two = "{क} और {ख}"
+    assert p4_translate._restore_slot("{a} and {b}", two) == two

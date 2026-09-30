@@ -410,6 +410,19 @@ def _pinned_ids(lines_path: Path) -> set[str]:
     }
 
 
+def _restore_slot(english: str, translated: str) -> str:
+    """Put a line's one {slot} name back when Sarvam translated it ({scheme_1} -> {स्कीम_1}).
+
+    Only for a line with exactly one slot, where the match cannot be wrong. With two or more the
+    order could have changed, so those are left for gate_line to stop.
+    """
+    en_slots = _SLOT_RE.findall(english)
+    tr_slots = re.findall(r"\{[^{}]+\}", translated)
+    if len(en_slots) == 1 and len(tr_slots) == 1 and tr_slots[0] != en_slots[0]:
+        return translated.replace(tr_slots[0], en_slots[0])
+    return translated
+
+
 def gate_line(english: str, translated: str, lang: str) -> list[str]:
     """Why a translated line may not be spoken; empty if it may."""
     from haqdaar.data.pipeline import p5_gates
@@ -490,6 +503,7 @@ def run_translate_lines(
             except Exception as e:
                 failures.append({"line": line_id, "lang": lang, "error": str(e)})
                 continue
+            translated = _restore_slot(english, translated)
             reasons = gate_line(english, translated, lang)
             if reasons:
                 failures.append({"line": line_id, "lang": lang, "text": translated, "reasons": reasons})

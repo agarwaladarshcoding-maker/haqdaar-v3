@@ -2,6 +2,8 @@
 
 Step 1.13 (plan 1.11) — the fixed lines load, cover every id, and obey the house rules.
 """
+import re
+
 import pytest
 import yaml
 
@@ -44,14 +46,23 @@ def test_lines_stay_short_enough_to_speak():
         assert words <= 40, f"{line_id} is {words} words"
 
 
-def test_line_text_falls_back_to_english_before_translation():
-    assert line_text("closing_farewell", "en").startswith("Thank you")
+def _english_only(tmp_path):
+    """lines.yaml as it was before p4 filled in Hindi and Marathi."""
+    path = tmp_path / "lines.yaml"
+    text = LINES_PATH.read_text(encoding="utf-8")
+    path.write_text(re.sub(r"(?m)^    (hi|mr): .*\n", "", text), encoding="utf-8")
+    return path
+
+
+def test_line_text_falls_back_to_english_before_translation(tmp_path):
+    path = _english_only(tmp_path)
+    assert line_text("closing_farewell", "en", path).startswith("Thank you")
     # hi is not written yet, so the English is what plays rather than nothing at all.
-    assert line_text("closing_farewell", "hi") == line_text("closing_farewell", "en")
+    assert line_text("closing_farewell", "hi", path) == line_text("closing_farewell", "en", path)
 
 
-def test_untranslated_lists_the_work_left_for_p4():
-    todo = untranslated()
+def test_untranslated_lists_the_work_left_for_p4(tmp_path):
+    todo = untranslated(_english_only(tmp_path))
     ids = {line_id for line_id, _ in todo}
     assert TRILINGUAL_LINE_ID not in ids, "the trilingual greeting is one recording"
     # Every other line still needs hi and mr; this is what the build gate will watch shrink.

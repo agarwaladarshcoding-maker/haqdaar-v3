@@ -87,7 +87,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
-### 30 Sep — the fixed lines can now get their Hindi and Marathi (waiting on Sarvam credit)
+### 30 Sep — every fixed line now has Hindi and Marathi
 
 **First, a safety fix.** The last four steps (1.12 to 1.15) and 16 commits on `main` were only on
 this laptop. The folder in `~/Documents` is inside iCloud, and iCloud had pushed 267 pieces of git
@@ -95,20 +95,23 @@ data off the disk, so every push hung. The copy in `~/code/haqdaar-v2` still had
 the branches were moved there and pushed. **Everything is on GitHub now. Work in `~/code` from now on.**
 
 **Added:** the translate step now also does the fixed lines (the 49 things the call always says,
-like "Press 1 for yes"). It:
-- skips any line you have fixed by hand (`pinned: true`) and any line already done;
-- keeps the `{scheme_1}` style blanks exactly as they are;
-- runs the same checks a scheme gets: numbers, no promises, not padded, really in Devanagari;
-- writes only the lines that pass back into `lines.yaml`, and keeps the file's notes;
-- remembers each result, so a second run costs nothing.
+like "Press 1 for yes"). It skips lines you fixed by hand (`pinned: true`), keeps the `{scheme_1}`
+style blanks, runs the same checks a scheme gets (numbers, no promises, not padded, really in
+Devanagari), and writes only what passes back into `lines.yaml`. A second run costs nothing. It is
+part of `make pipeline` as "p4 lines".
 
-It is also part of `make pipeline` as the step "p4 lines".
+**Ran it for real:** 96 Sarvam requests, 4,388 characters. All 98 texts are in. At first 5 failed
+because Sarvam translated the blank's name too (`{scheme_1}` became `{स्कीम_1}`); when a line has one
+blank the name is now put back. **Nothing the call needs is missing any more** (`make pipeline-texts`:
+missing 0).
 
-**Blocked:** the real run was stopped by Sarvam: "No credits available". Nothing was written and
-nothing was spent. It needs about 96 requests and 4,400 characters. Once the account has credit,
-run `make pipeline-translate`. Then `make lines-sheet` gives you the sheet to correct.
+**For you to check** (`data_cache/reports/lines_sheet.md`):
+- Some Hindi lines speak to the caller as a woman ("रहती हैं", "करती हैं", "कह सकती हैं") and others
+  as a man ("चाहते हैं"). Pick one way, or a form that fits both, and fix those lines by hand.
+- The greeting (Hindi, then Marathi, then English in one recording) still has only its English.
+  Its Hindi and Marathi parts need to be written by hand.
 
-**Tests: 258 passing** (was 253).
+**Tests: 259 passing** (was 253).
 
 ### 21 Sep (later) — the cards got short, and three quiet bugs came out with them
 
