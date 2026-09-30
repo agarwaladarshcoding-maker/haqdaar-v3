@@ -13,10 +13,12 @@ the stream for that call starts.
 from __future__ import annotations
 import asyncio
 import hashlib
+import json
 import os
 import threading
 import time
 import urllib.parse
+from pathlib import Path
 from datetime import datetime
 from typing import Any, Optional
 from dotenv import load_dotenv
@@ -159,7 +161,10 @@ def _corpus_and_pool() -> tuple[Any, Any]:
 
         corpus = Corpus.load("CURRENT")
         pool = AudioPool(tier2="none")
-        pool.warm()  # every clip in audio/ into RAM up to AUDIO_CACHE_MB (37 MB today)
+        # 3.8: pin only the fixed lines, chips and keys (~7 MB). Scheme clips are read from disk
+        # when a scheme is read (~100 KB each, a few ms) and kept in the LRU.
+        manifest = Path(tunables.SNAPSHOTS_DIR) / corpus.snapshot_id / "manifest.json"
+        pool.warm(manifest=json.loads(manifest.read_text(encoding="utf-8")))
         _CALL["corpus"], _CALL["pool"] = corpus, pool
         say(f"corpus  {corpus.snapshot_id} loaded")
     return _CALL["corpus"], _CALL["pool"]

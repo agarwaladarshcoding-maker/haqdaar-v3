@@ -36,13 +36,14 @@ CALL_CEILING_S: int = int(os.environ.get("CALL_CEILING_S", 600))
 MAX_SOURCE_AGE_DAYS: int = int(os.environ.get("MAX_SOURCE_AGE_DAYS", 14))
 
 # Audio cache and storage tiers (03-ARCHITECTURE.md §10.1, 04-INTERFACES.md)
-AUDIO_CACHE_MB: int = int(os.environ.get("AUDIO_CACHE_MB", 512))
+AUDIO_CACHE_MB: int = int(os.environ.get("AUDIO_CACHE_MB", 64))  # 3.8: LRU of scheme clips
 AUDIO_PREFETCH_ON_STOP: bool = (
     os.environ.get("AUDIO_PREFETCH_ON_STOP", "true").lower() in ("true", "1", "yes")
 )
 AUDIO_TIER2: str = os.environ.get("AUDIO_TIER2", "none")  # "none" | "s3" | "r2"
+# 3.8: off. Filling RAM with every clip does not scale past the 12 schemes; pin fixed lines only.
 AUDIO_WARM_ON_BOOT: bool = (
-    os.environ.get("AUDIO_WARM_ON_BOOT", "true").lower() in ("true", "1", "yes")
+    os.environ.get("AUDIO_WARM_ON_BOOT", "false").lower() in ("true", "1", "yes")
 )
 
 # Render and audio format constants
