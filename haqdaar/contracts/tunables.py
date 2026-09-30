@@ -70,6 +70,8 @@ TTS_MIN_GAP_S: float = float(os.environ.get("TTS_MIN_GAP_S", 1.3))
 TTS_429_WAIT_S: float = float(os.environ.get("TTS_429_WAIT_S", 15.0))
 # "#" twice replays the last line slower, stretched at play time (plan 2.5).
 SLOW_PACE: float = float(os.environ.get("SLOW_PACE", 0.8))
+# Audio goes down the line in frames of this many mu-law bytes (8000 = 1 s), each clip then a mark.
+FRAME_BYTES: int = int(os.environ.get("FRAME_BYTES", 8000))
 
 # Voice IDs per language, as they go into the render key.
 VOICE_IDS: dict[str, str] = {
