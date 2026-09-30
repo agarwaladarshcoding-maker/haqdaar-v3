@@ -48,6 +48,8 @@ TRANSLATED_FIELDS = ("summary", "benefit_text", "who_can_apply", "documents", "h
 TARGET_LANGS = {"hi": "hi-IN", "mr": "mr-IN"}
 SOURCE_LANG = "en-IN"
 
+_DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
+
 
 class TranslateError(Exception):
     """A translation could not be completed. The text is left empty rather than half-written."""
@@ -384,7 +386,7 @@ def run_translate(
     tmp = schemes_path.with_suffix(".tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         for record in records:
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            f.write(json.dumps(record, ensure_ascii=False).translate(_DEVANAGARI_DIGITS) + "\n")
     tmp.replace(schemes_path)
 
     reports_dir.mkdir(parents=True, exist_ok=True)

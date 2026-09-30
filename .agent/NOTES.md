@@ -1696,3 +1696,9 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - make pipeline-cards completed: 28 schemes evaluated, 28 ok, 0 failures in reports/cards.json.
 - Cumulative quarantine unchanged at 3/30 (<= 4/30).
 - Muse spend: 23 new calls, ledger now at 161 rows, ₹6.3599 total (spent ₹1.95 on cards; ₹6.36 << ₹60 cap).
+
+## 30 Sep — Step P5: make pipeline-translate
+- make pipeline-translate completed: 28 schemes (56 translations) in hi and mr.
+- reports/translate.json clean: 0 failures, 28 schemes, 56 translated.
+- Zero Devanagari digits: verified ! grep -qP '[०-९]' data_cache/derived/schemes.jsonl passes (0 matches; normalized Devanagari digits to 0-9 in p2_derive.py and p4_translate.py).
+- Muse spend: 220 calls, total ledger now 381 rows, ₹12.9685 (spent ₹6.61 on translate; total ₹12.97 << ₹60 cap).

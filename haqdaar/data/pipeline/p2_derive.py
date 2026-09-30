@@ -189,6 +189,9 @@ def make_llm_client() -> Any:
     return GroqClient()
 
 
+_DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
+
+
 def normalize_text(text: str) -> str:
     """Lowercase and collapse whitespace."""
     return re.sub(r"\s+", " ", text.strip().lower())
@@ -824,11 +827,11 @@ def run_pipeline_extract(
 
         # Clean aliases
         aliases_en = [normalize_text(a) for a in aliases_res.get("aliases_en", []) if normalize_text(a)]
-        aliases_hi = [normalize_text(a) for a in aliases_res.get("aliases_hi", []) if normalize_text(a)]
-        aliases_mr = [normalize_text(a) for a in aliases_res.get("aliases_mr", []) if normalize_text(a)]
+        aliases_hi = [normalize_text(a).translate(_DEVANAGARI_DIGITS) for a in aliases_res.get("aliases_hi", []) if normalize_text(a)]
+        aliases_mr = [normalize_text(a).translate(_DEVANAGARI_DIGITS) for a in aliases_res.get("aliases_mr", []) if normalize_text(a)]
 
-        title_hi = aliases_res.get("scheme_name_hi", title_en)
-        title_mr = aliases_res.get("scheme_name_mr", title_en)
+        title_hi = aliases_res.get("scheme_name_hi", title_en).translate(_DEVANAGARI_DIGITS)
+        title_mr = aliases_res.get("scheme_name_mr", title_en).translate(_DEVANAGARI_DIGITS)
 
         scheme_record: dict[str, Any] = {
             "scheme_id": slug,

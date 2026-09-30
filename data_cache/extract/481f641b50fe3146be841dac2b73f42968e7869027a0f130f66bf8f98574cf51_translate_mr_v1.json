@@ -1,0 +1,14 @@
+{
+  "summary": "इंदिरा गांधी राष्ट्रीय दिव्यांग पेन्शन योजनेत दारिद्र्य रेषेखालील कुटुंबातील दिव्यांगजनांना पैसे मिळतात. ते भारतात राहणारे असावेत. त्यांना 80 टक्क्यांपेक्षा जास्त दिव्यांगत्व असावे. वय 18 ते 79 असेल तर दरमहा 300 रुपये मिळतात. वय 80 झाल्यावर दरमहा 500 रुपये मिळतात.",
+  "benefit_text": "ही योजना 18 ते 79 वर्षे वय असलेल्या दिव्यांग लोकांना महिन्याला 300 रुपये देते. 80 वर्षे आणि त्यापेक्षा जास्त वय असलेल्या दिव्यांग लोकांना ही योजना महिन्याला 500 रुपये देते.",
+  "who_can_apply": "18 वर्षे आणि त्यापेक्षा जास्त वयाचे लोक अर्ज करू शकतात. अर्जदार भारताचे रहिवासी आहेत आणि त्यांना 80% पेक्षा जास्त अपंगत्व आहे. अर्जदार दारिद्र्यरेषेखालील आहेत आणि बुटक्या लोकांचाही समावेश आहे.",
+  "documents": "बीपीएल कार्ड आणि आधार कार्ड आणि अपंगत्व प्रमाणपत्र लागतील. वयाचा पुरावा आणि पासपोर्ट साईज फोटो पण लागतील. सीएससी केंद्र तुम्हाला कागदपत्रांची पूर्ण यादी सांगेल.",
+  "how_to_apply": "लोक उमंग ॲप वरून ऑनलाइन अर्ज करतात आणि एनएसएपी शोधतात. लोक साधी माहिती भरतात आणि पेन्शन कशी घेणार ते निवडतात. लोक फोटो टाकतात आणि फॉर्म जमा करतात.",
+  "en": {
+    "summary": "The Indira Gandhi National Disability Pension Scheme provides Rs 300 monthly to Divyangjan aged 18 to 79 and Rs 500 monthly after 80, for Indian residents with over 80 percent disability from Below Poverty Line families.",
+    "benefit_text": "The scheme pays Rs.300/- per month to disabled people between 18 and 79 years. The scheme pays Rs.500/- per month to disabled people aged 80 years and above.",
+    "who_can_apply": "People aged 18 years and above can apply. Applicants are residents of India with disability more than 80%. Applicants belong to Below Poverty Line and dwarfs are also included.",
+    "documents": "Papers needed are BPL Card and Aadhaar card and disability certificate. Age proof and passport size photographs are also needed. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "People apply online through UMANG App and search for NSAP. People fill basic details and choose mode of payment of pension. People upload photo and submit the form."
+  }
+}

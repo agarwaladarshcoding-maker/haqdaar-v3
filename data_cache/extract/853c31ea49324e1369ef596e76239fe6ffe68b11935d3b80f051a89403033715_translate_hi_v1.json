@@ -1,0 +1,14 @@
+{
+  "summary": "राष्ट्रीय पारिवारिक लाभ योजना में भारत के बीपीएल परिवारों को 20,000 रुपये एक बार में मिलते हैं। घर के मुख्य कमाने वाले की उम्र 18 से 60 साल हो और उसकी मौत हो जाए, तब यह मदद मिलती है। स्थानीय जांच के बाद यह पैसा घर के बचे हुए मुखिया को मिलता है।",
+  "benefit_text": "यह योजना कमाने वाले की मौत पर एक बार में 20000 रुपये की मदद देती है। यह पैसा स्थानीय जांच के बाद पाए गए घर के जीवित मुखिया के लिए है।",
+  "who_can_apply": "आवेदक भारत का नागरिक होना चाहिए। परिवार गरीबी रेखा से नीचे का होना चाहिए। मरने वाला मुख्य कमाने वाला 18 साल से ज्यादा और 60 साल से कम उम्र का था। आवेदक उसके बाद घर का मुख्य कमाने वाला हो।",
+  "documents": "जरूरी कागज मृत्यु प्रमाण पत्र और बीपीएल कार्ड हैं। पहचान का प्रमाण और बैंक खाते की जानकारी भी चाहिए। सीएससी केंद्र आपको कागजों की पूरी सूची बता देगा।",
+  "how_to_apply": "फॉर्म जिला समाज कल्याण अधिकारी या तहसील समाज कल्याण अधिकारी के पास मुफ्त मिलता है। भरा हुआ फॉर्म दस्तावेजों के साथ तय अधिकारी को जमा किया जाता है।",
+  "en": {
+    "summary": "The National Family Benefit Scheme provides Rs 20,000 lump sum assistance to Indian BPL families upon death of primary breadwinner aged 18 to 60, supporting the surviving head of household after local inquiry.",
+    "benefit_text": "The scheme pays 20000 rupees as lump sum assistance on death of the breadwinner. The money is for the surviving head of the household found after local inquiry.",
+    "who_can_apply": "The applicant must be a citizen of India. The family must live Below Poverty Line. The deceased breadwinner was more than 18 years and less than 60 years and the applicant is the succeeding primary breadwinner.",
+    "documents": "The important papers are death certificate and BPL card. Proof of identity and bank account details are also needed. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "The form is available free at the District Social Welfare Officer or Tehsil Social Welfare Officer. The filled form with documents is submitted to the designated officer."
+  }
+}

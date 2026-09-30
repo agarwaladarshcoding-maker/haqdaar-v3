@@ -1,0 +1,14 @@
+{
+  "summary": "एनएसएपी के तहत इंदिरा गांधी राष्ट्रीय वृद्धावस्था पेंशन योजना 60 साल और उससे ज्यादा उम्र के गरीबी रेखा से नीचे रहने वाले भारतीय नागरिकों को हर महीने पेंशन देती है। 79 साल तक 200 रुपये मिलते हैं। उसके बाद 500 रुपये मिलते हैं।",
+  "benefit_text": "यह योजना हर महीने पेंशन देती है। 79 साल तक 200 रुपये मिलते हैं। उसके बाद 500 रुपये मिलते हैं।",
+  "who_can_apply": "आवेदक को भारत का नागरिक होना चाहिए। उसे गरीबी रेखा से नीचे होना चाहिए। उसकी उम्र कम से कम 60 साल होनी चाहिए।",
+  "documents": "जरूरी कागज आधार नंबर और बैंक पासबुक हैं। राशन कार्ड और उम्र का सबूत भी चाहिए। भरा हुआ आवेदन फॉर्म चाहिए। सीएससी केंद्र आपको कागजों की पूरी लिस्ट बताएगा।",
+  "how_to_apply": "आवेदन उमंग ऐप से ऑनलाइन होते हैं। नागरिक मोबाइल नंबर और ओटीपी से लॉगिन करते हैं। नागरिक एनएसएपी खोजते हैं और फोटो के साथ बुनियादी जानकारी भरते हैं।",
+  "en": {
+    "summary": "The Indira Gandhi National Old Age Pension Scheme under NSAP provides a monthly pension of 200 rupees up to age 79 and 500 rupees thereafter to Indian citizens aged 60 and above living below the poverty line.",
+    "benefit_text": "The scheme pays a monthly pension. It pays 200 rupees up to 79 years. It pays 500 rupees after that.",
+    "who_can_apply": "Applicants must be citizens of India. They must live Below Poverty Line. They must be at least 60 years of age.",
+    "documents": "Important papers are Aadhar Number and Bank Passbook. Ration Card and age proof are also needed. A filled application form is needed. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Applications are online through UMANG App. Citizens login with mobile number and OTP. Citizens search for NSAP and fill basic details with photo."
+  }
+}

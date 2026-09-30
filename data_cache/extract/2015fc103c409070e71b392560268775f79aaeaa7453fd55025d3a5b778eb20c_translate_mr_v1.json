@@ -1,0 +1,14 @@
+{
+  "summary": "प्रधानमंत्री आवास योजना ग्रामीण मधून गावात घर बांधण्यासाठी 1,20,000 रुपयांपर्यंत पैशांची मदत मिळते. सोबत शौचालय, एलपीजी, पाणी आणि वीज मिळते. पक्के घर बांधण्यासाठी कमी व्याजावर कर्ज पण मिळते.",
+  "benefit_text": "या योजनेत सपाट भागात प्रत्येक घरासाठी 1,20,000 रुपये मिळतात. डोंगराळ भागात आणि कठीण भागात प्रत्येक घरासाठी 1,30,000 रुपये मिळतात. शौचालयासाठी 12,000 रुपयांपर्यंत मिळतात. घरे कमीत कमी 25 चौरस मीटरची असतात. त्यात स्वच्छ स्वयंपाकासाठी जागा असते.",
+  "who_can_apply": "ज्यांच्याकडे घर नाही अशी कुटुंबे अर्ज करू शकतात. कच्च्या भिंती आणि कच्चे छप्पर असलेल्या 0, 1 किंवा 2 खोल्यांच्या घरात राहणारी कुटुंबे अर्ज करू शकतात. निवारा नसलेली कुटुंबे, निराधार कुटुंबे, हाताने मैला उचलणारे, आदिम आदिवासी गट आणि वेठबिगारातून मुक्त केलेले मजूर यांना प्राधान्य आहे. ग्रामसभा SECC 2011 ची यादी तपासतात.",
+  "documents": "लोकांना आधार नंबर आणि आधार कार्डची कॉपी लागते. लोकांना मनरेगा जॉब कार्ड आणि बँक खात्याची माहिती लागते. कुटुंबाकडे पक्के घर नाही असे सांगणारे शपथपत्र पण लागते. सीएससी केंद्र तुम्हाला कागदांची पूर्ण यादी सांगेल.",
+  "how_to_apply": "लोक अधिकृत पीएमएवाय-जी वेबसाईटवर नोंदणी करू शकतात. लोक वैयक्तिक माहिती, बँकेची माहिती, मनरेगा जॉब कार्ड नंबर आणि एसबीएम नंबर भरतात. शेवटचा भाग संबंधित कार्यालय भरते.",
+  "en": {
+    "summary": "The Pradhan Mantri Awaas Yojana Gramin provides financial assistance up to Rs 1,20,000 for rural housing, with toilets, LPG, water and power convergence, plus low-interest loans for building permanent homes.",
+    "benefit_text": "The scheme pays 1,20,000 rupees per house in plain areas. It pays 1,30,000 rupees per house in hilly areas and difficult areas. It also pays up to 12,000 rupees for toilets. Houses are at least 25 sq m with space for clean cooking.",
+    "who_can_apply": "Houseless households and households in zero, one or two room houses with kutcha walls and kutcha roofs can apply. Priority is for households without shelter, destitute households, manual scavengers, primitive tribal groups and released bonded laborers. Gram Sabhas verify the list from SECC 2011.",
+    "documents": "People need Aadhaar number and Aadhaar card copy. People need MGNREGA job card and bank account details. People also need an affidavit saying the family owns no pucca house. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "People can register on the official PMAY-G website. People fill personal details, bank details, MGNREGA job card number and SBM number. The concerned office fills the last section."
+  }
+}

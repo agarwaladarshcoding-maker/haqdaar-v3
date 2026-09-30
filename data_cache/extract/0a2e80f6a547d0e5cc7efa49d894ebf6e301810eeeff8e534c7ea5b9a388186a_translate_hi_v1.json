@@ -1,0 +1,14 @@
+{
+  "summary": "पीएम स्वनिधि योजना रेहड़ी-पटरी वालों को 10,000 रुपये तक बिना गारंटी का कर्ज देती है। ब्याज 7% है। वेंडिंग सर्टिफिकेट या सिफारिश पत्र होना चाहिए। यह धंधा फिर से शुरू करने में मदद करती है। कर्ज 1 साल में चुकाना है। कोई प्रोसेसिंग फीस नहीं है।",
+  "benefit_text": "यह योजना रेहड़ी-पटरी वालों को धंधा फिर से शुरू करने और बढ़ाने के लिए 10,000 रुपये तक का कर्ज देती है। ब्याज दर 7 प्रतिशत है। कुछ भी गिरवी रखने की जरूरत नहीं है। कोई प्रोसेसिंग फीस नहीं ली जाती। पैसे वापस करने के लिए 1 साल का समय है।",
+  "who_can_apply": "जिन रेहड़ी-पटरी वालों के पास शहरी स्थानीय निकाय से वेंडिंग सर्टिफिकेट या पहचान पत्र है, वे आवेदन कर सकते हैं। जो रेहड़ी-पटरी वाले सर्वे में पहचाने गए हैं, लेकिन उनके पास सर्टिफिकेट या कार्ड नहीं है, वे भी आवेदन कर सकते हैं। जिन रेहड़ी-पटरी वालों के पास शहरी स्थानीय निकाय या टाउन वेंडिंग कमेटी से सिफारिश पत्र है, वे आवेदन कर सकते हैं।",
+  "documents": "जरूरी कागज हैं वेंडिंग प्रमाणपत्र, पहचान पत्र और सिफारिश पत्र। पहचान के सबूत के लिए आधार कार्ड और पैन कार्ड भी चाहिए। सीएससी केंद्र आपको कागजों की पूरी सूची बताएगा।",
+  "how_to_apply": "आवेदन ऑनलाइन और ऑफलाइन दोनों तरह से किए जा सकते हैं। ऑनलाइन फॉर्म में विक्रेता श्रेणी और सर्वे रेफरेंस नंबर भरा जाता है। जरूरी कागजात अपलोड किए जाते हैं और फॉर्म जमा किया जाता है।",
+  "en": {
+    "summary": "The PM SVANidhi scheme provides collateral-free loans up to Rs 10,000 at 7% interest to street vendors with vending certificate or recommendation letter, supporting business restart, with one-year repayment and no processing fee.",
+    "benefit_text": "The scheme gives loans up to ₹10,000 to street vendors to restart and expand business. The interest rate is 7%. No collateral is needed. No processing fee is charged. The repayment period is one year.",
+    "who_can_apply": "Street vendors with Certificate of Vending or Identity Card from Urban Local Bodies can apply. Vendors identified in the survey but without the certificate or card can also apply. Vendors with a Letter of Recommendation from Urban Local Bodies or Town Vending Committee can apply.",
+    "documents": "Important papers are Certificate of Vending, Identity Card and Letter of Recommendation. Aadhaar Card and PAN Card are also needed as identity proof. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Applications can be made online and offline. The form is filled online with vendor category and Survey Reference Number. Relevant documents are uploaded and the form is submitted."
+  }
+}
