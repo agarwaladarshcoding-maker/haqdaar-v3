@@ -1686,3 +1686,13 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   Cumulative quarantine: 3/30 (ab-pmjay, pmsby from scrape; pm-sym from derive) = 10% < 15% (<= 4/30 budget).
 - Occupation cardinality: 4 <= 9 ('apprentice', 'artisan', 'farmer', 'street_vendor'). No >9 ValueError raised; skip P2.
 - Muse spend: 10 calls, 6,246 prompt + 23,480 completion tokens. Total ledger: 138 rows, ₹4.4055 (spent ₹0.48, well under ₹60 cap).
+
+## 30 Sep — Step P3: vocab.py labels check
+- Derived schemes contain 4 occupations: apprentice, artisan, farmer, street_vendor (all subset of the 7 existing values).
+- All 7 values in vocab.OCCUPATION already have en, hi, mr LABELS in vocab.py.
+- Proved with .venv/bin/python -m pytest tests/test_vocab.py -q (5 passed).
+
+## 30 Sep — Step P4: make pipeline-cards
+- make pipeline-cards completed: 28 schemes evaluated, 28 ok, 0 failures in reports/cards.json.
+- Cumulative quarantine unchanged at 3/30 (<= 4/30).
+- Muse spend: 23 new calls, ledger now at 161 rows, ₹6.3599 total (spent ₹1.95 on cards; ₹6.36 << ₹60 cap).
