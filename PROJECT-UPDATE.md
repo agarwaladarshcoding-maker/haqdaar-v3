@@ -93,6 +93,11 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+
+### 30 Sep (evening) — Phase 3 cut to 30 schemes; handoff to Muse + Antigravity
+- **Added:** the 18 new schemes (30 total, 28 scraped). Muse now writes cards and translations, with a hard ₹60 cap (₹3.93 spent). `make stress` runs 1,000 pretend callers: 0 crashes, 0 wrong schemes read. The server keeps only the fixed lines in memory (6.7 MB).
+- **Changed:** the owner paused Claude. From now on Muse plans, Antigravity writes the code, and Claude checks at the end. `HANDOFF.md` is the starting point for all of them.
+- **Can do now:** everything from Phase 2 on the 12 schemes. The new 18 have their facts half-built and no voice yet.
 ### 30 Sep (night) — Phase 3 started: Muse replaces Groq and Sarvam translate; 746 schemes found
 
 **Decided with you.**
