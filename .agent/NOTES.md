@@ -1733,3 +1733,18 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Final ledger: 381 calls, ₹12.9685 total (well under ₹60 cap).
 - make backup: created /Users/adarshagarwala/haqdaar-backup/data_cache-20261001-010855.tgz.
 
+## 30 Sep — Review of P1-P8 (Claude; 2 parallel reviewers, independent re-runs)
+- Numbers all reproduce: pytest 308, stress 0/0 (1000 callers), sim farewell, ledger 381 rows Rs12.97, CURRENT=snap_20260930_192842 (12 schemes, 477/477 clips, Corpus.load passes), 0 Devanagari digits, derive 28 kept + pm-sym quarantined (3/30 cumul), cards 28/28, translate 0 failures.
+- filter.py: NO CHANGE vs base (coder's edits reverted; grep constraints + truth lock intact). Alarm withdrawn.
+- FLAG 1 — tools/stress.py check_truth: nearest excuse is directionally right per T18 S2 (nearest by definition misses soft boxes; hard-box check kept) BUT trusts the engine's `ending` label with no exhaustion precondition: a bogus nearest at ladder_rung=0 now passes silently. Needs guard (excuse applies only after verifying zero survivors under full masks) + negative test before merge.
+- FLAG 2 — gates.json STALE (proven by backup/restore re-run): P7 restored old chunks for 6 schemes after P6 ran. True state is 21 ok / 7 fail (kcc, pm-kisan, pm-svanidhi, pmay-g fixed; none newly failing), not committed 17/11. All 7 still-failing (ignwps, mgnrega, nfbs, nps-tsep, pmjjby, pmmvy, rkvyshfshc) are NEW schemes with no audio — all 12 audio-ready schemes pass all gates in all 3 langs. Fix = re-run pipeline-gates, commit.
+- FLAG 3 (minor) — p4 digit `.translate` applied to whole serialized record incl. English/facets/quotes; scanned 28 records, effect is hi/mr-only today, but brittle. Scope it when convenient.
+- Noted: p6 commit also carries unrequested chip/band-key + key_texts fix (~l501-520, looks correct, loads); naps audio is `cp` duplicates under new keys (byte-identical sizes, pronunciation unchanged 2/2); schemes.jsonl now mixes re-derived facets (svanidhi category ANY->business_loans, naps occupation ANY->apprentice — the behavior change that first surfaced nearest in stress) with old text.
+- Pre-merge asks: FLAG 1 guard + FLAG 2 gates re-run. Then merge, 3.7 audit, owner voice/menu/sign-off decisions.
+
+## 30 Sep — Review fixes applied (Claude) + merge
+- R3: tools/stress.py nearest branch now verifies zero survivors under full masks via Filter.survivors before excusing soft-box misses; bogus nearest flagged. tests/test_stress_truth.py: 3 tests (failed 1/3 before fix, 3/3 after). make stress still 0/0 incl. 150 honest nearest endings.
+- R4: re-ran make pipeline-gates on restored text: 21 ok all-3-langs (en 28, hi 21, mr 25), 7 fail — all new schemes (ignwps, mgnrega, nfbs, nps-tsep, pmjjby, pmmvy, rkvyshfshc). Committed fresh reports/gates.json + derived/gates.jsonl.
+- R5 (p4 whole-record translate) deferred: harmless on current data, revisit when p4 next changes.
+- Merged step-34-35-pipeline into main (--no-ff). Push left to owner.
+
