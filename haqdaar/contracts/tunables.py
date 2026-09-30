@@ -91,6 +91,11 @@ DERIVED_DIR: str = os.environ.get("DERIVED_DIR", "data_cache/derived")
 REPORTS_DIR: str = os.environ.get("REPORTS_DIR", "data_cache/reports")
 
 # Groq model and extraction pipeline (06-BUILD-PLAN.md Step 8)
+# Plan 3.1 discovery: myscheme search, 100 a page, one page every 2 s.
+DISCOVER_PAGE_SIZE: int = int(os.environ.get("DISCOVER_PAGE_SIZE", 100))
+DISCOVER_PAGE_GAP_S: float = float(os.environ.get("DISCOVER_PAGE_GAP_S", 2.0))
+DISCOVER_TIMEOUT_S: float = float(os.environ.get("DISCOVER_TIMEOUT_S", 30.0))
+
 GROQ_MODEL: str = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 GROQ_REASONING_EFFORT: str = os.environ.get("GROQ_REASONING_EFFORT", "low")
 GROQ_POLITE_DELAY_S: float = float(os.environ.get("GROQ_POLITE_DELAY_S", 2.0))

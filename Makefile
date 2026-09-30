@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet pipeline-texts pipeline-cost render listen snapshot backup call-me
+.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet pipeline-texts pipeline-cost render listen snapshot backup call-me
 
 test:
 	$(PYTHON) -m pytest
@@ -42,6 +42,10 @@ demo-fixture:
 	@for p in p1 p2 p3 widened; do \
 		$(PYTHON) -m haqdaar.sim --persona $$p --canned --call-id demo_$$p --logs-dir logs/demo || exit 1; \
 	done
+
+# Plan 3.1: every central scheme on myscheme -> data_cache/derived/candidates.csv (free).
+pipeline-discover:
+	$(PYTHON) -m haqdaar.data.pipeline.p0_discover
 
 pipeline-scrape:
 	$(PYTHON) -m haqdaar.data.pipeline.p1_scrape

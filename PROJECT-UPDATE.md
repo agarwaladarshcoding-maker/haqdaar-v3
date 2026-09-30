@@ -93,6 +93,21 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 30 Sep (night) — Phase 3 started: Muse replaces Groq and Sarvam translate; 746 schemes found
+
+**Decided with you.**
+- Muse Spark 1.3 (Meta) now does both the scheme cards and the translation. It is capped at
+  ₹60 total, at "high" thinking. The key works.
+- It is used only for the offline pipeline, never on live calls, because Meta may learn from what we send.
+- Central (all-India) schemes only. I choose the 110–130 and the 9 kinds of work.
+
+**What was added (3.1).** `make pipeline-discover` lists every central scheme on myscheme into
+`data_cache/derived/candidates.csv`. It found **746**, of which **510 are for individuals**, and
+all 12 of our current schemes are in the list. It is free and takes about 15 seconds.
+
+**Still open with you.** The Twilio account is switched off, so no test calls can be made yet.
+You also still need to pick a voice service for the new schemes (Google Chirp 3 HD is free at our volume).
+
 ### 30 Sep (last) — every clip made; Phase 2 waits only on your calls; Phase 3 planned
 
 - Your new Sarvam key was saved in the Documents copy's `.env` again; I copied it across.
