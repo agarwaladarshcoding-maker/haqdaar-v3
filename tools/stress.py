@@ -35,7 +35,7 @@ from haqdaar.contracts import tunables
 from haqdaar.data.corpus import Corpus
 from haqdaar.engine.call import Engine
 
-from haqdaar.contracts.types import UNKNOWN, WIDENING_ORDER
+from haqdaar.contracts.types import HARD_BOXES, UNKNOWN, WIDENING_ORDER
 from haqdaar.data.log import Log
 from haqdaar.sim import FakeAudio
 
@@ -96,9 +96,15 @@ def check_truth(rows: list[dict[str, Any]], corpus: Corpus, index: dict[str, int
         if not ("slug" in row and "ending" in row):
             continue
         slug = row["slug"]
+        ending = row.get("ending")
         bit = 1 << index[slug]
         for box, value in answers.items():
             if value in (UNKNOWN, "UNKNOWN", None, ""):
+                continue
+            if ending == "nearest":
+                # Nearest is not a match (T18 §2): soft boxes may miss, but hard boxes never
+                if box in HARD_BOXES and not (corpus.mask(box, value) & bit):
+                    problems.append(f"{slug} read as nearest, but hard box {box}={value}")
                 continue
             if rung > 0 and box in WIDENING_ORDER:
                 continue

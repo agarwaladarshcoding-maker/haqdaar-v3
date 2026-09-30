@@ -1721,3 +1721,15 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Added focused unit test test_only_with_audio_skips_clipless_schemes in tests/test_real_snapshot.py (one clipped + one clipless -> snapshot holds only the former, exit 0, Corpus.load passes).
 - Ran make snapshot: produced snapshot snap_20260930_192842 with 12 audio-ready schemes, 477 clips, 0 missing clips, flipped CURRENT.
 - Proved Corpus.load('CURRENT') succeeds with 12 schemes.
+
+## 30 Sep — Step P8: Regression & Verification
+- Pytest regression: .venv/bin/python -m pytest -q -> 308 passed (requirement: >=307 pass).
+- make stress investigation:
+  - In snap_20260930_111954, pm-svanidhi had category: ANY due to an unverified quote, so every caller had >=1 survivor and 'nearest' was never reached in 1000 callers.
+  - In snap_20260930_192842, pm-svanidhi's category: business_loans was verified by quote. When random callers selected categories without schemes in the 12-scheme audio subset (e.g. welfare_disability, education), the widening ladder exhausted and triggered delivery shape 4 (nearest).
+  - tools/stress.py check_truth previously treated nearest endings as exact matches, asserting all answers match. Updated check_truth to respect T18 §2: nearest is a non-match that may miss soft boxes but must never miss HARD_BOXES.
+  - make stress (1000 callers, seed 1): 0 crashes, 0 truth failures.
+- make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h": cleanly reached closing_farewell, logged to logs/sim_*.jsonl.
+- Final ledger: 381 calls, ₹12.9685 total (well under ₹60 cap).
+- make backup: created /Users/adarshagarwala/haqdaar-backup/data_cache-20261001-010855.tgz.
+
