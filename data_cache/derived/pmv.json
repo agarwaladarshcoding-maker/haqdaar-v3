@@ -1,0 +1,102 @@
+{
+  "scheme_id": "pmv",
+  "myscheme_slug": "pmv",
+  "source_url": "https://www.myscheme.gov.in/schemes/pmv",
+  "level": "CENTRAL",
+  "priority": 2,
+  "state": "ANY",
+  "department": "Ministry Of Micro, Small and Medium Enterprises",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "a8a809f4e5117797f5a673bb25c5b505fdf989e19d804faaee956afdda61bd40",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "PM Vishwakarma",
+  "scheme_name_hi": "प्रधानमंत्री विश्वकर्मा योजना",
+  "scheme_name_mr": "पंतप्रधान विश्वकर्मा योजना",
+  "aliases_en": [
+    "pm vishwakarma",
+    "pm vishwakarma scheme",
+    "vishwakarma scheme",
+    "vishwakarma certificate and id card scheme",
+    "vishwakarma skill training stipend scheme",
+    "vishwakarma toolkit incentive scheme"
+  ],
+  "aliases_hi": [
+    "प्रधानमंत्री विश्वकर्मा योजना",
+    "पीएम विश्वकर्मा योजना",
+    "विश्वकर्मा प्रमाणपत्र और पहचान पत्र योजना",
+    "विश्वकर्मा कौशल प्रशिक्षण भत्ता योजना",
+    "विश्वकर्मा टूलकिट सहायता योजना",
+    "pm vishwakarma yojana"
+  ],
+  "aliases_mr": [
+    "पंतप्रधान विश्वकर्मा योजना",
+    "पीएम विश्वकर्मा योजना",
+    "विश्वकर्मा प्रमाणपत्र आणि ओळखपत्र योजना",
+    "विश्वकर्मा कौशल्य प्रशिक्षण भत्ता योजना",
+    "विश्वकर्मा टूलकिट मदत योजना",
+    "pm vishwakarma प्रशिक्षण योजना"
+  ],
+  "category": "business_loans",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": {
+    "min": 18,
+    "max": null
+  },
+  "income_band": "ANY",
+  "occupation": "artisan",
+  "evidence_quotes": {
+    "category": "Collateral-free Enterprise Development Loans: ₹ 1,00,000 (First Tranche for 18 months repayment) & ₹ 2,00,000 (Second Tranche for 30 months repayment)",
+    "gender": "",
+    "social_category": "",
+    "age": "On the date of registration for the scheme, the minimum age of the applicant should be 18 years.",
+    "income_band": "",
+    "occupation": "The applicant should be an artisan or craftsperson working with hands and tools."
+  },
+  "gate_notes": [
+    "Applicant must be engaged in one of the 18 family-based traditional trades mentioned in the scheme",
+    "Applicant must be engaged in the unorganized sector on a self-employment basis and engaged in the concerned trade on the date of registration",
+    "Applicant should not have availed loans under similar credit-based schemes of the Central Government or State Government for self-employment/ business development, e.g. PMEGP, PM SVANidhi, Mudra, in the past 5 years",
+    "Registration and benefits restricted to one member of the family; a person in government service and their family members shall not be eligible"
+  ],
+  "chunks": {
+    "en": {
+      "name": "PM Vishwakarma",
+      "summary": "PM Vishwakarma supports traditional artisans in 18 trades with recognition, skill training, daily stipend, toolkit grant of Rs 15,000, collateral-free loans up to Rs 3 lakh at 5 percent interest, and marketing assistance.",
+      "benefit_text": "Benefits\nRecognition: Recognition as Vishwakarma through Certificate and ID Card\nSkilling:\nSkill Verification followed by 5-7 days (40 hours) of Basic Training\nInterested candidates can also enrol for 15 days (120 hours) of Advanced Training\nTraining Stipend: ₹ 500 per day\nToolkit Incentive: ₹ 15,000 grant\nCredit Support:\nCollateral-free Enterprise Development Loans: ₹ 1,00,000 (First Tranche for 18 months repayment) & ₹ 2,00,000 (Second Tranche for 30 months repayment)\nConcessional Rate of Interest: 5% to be charged from the beneficiary with an Interest Subvention cap of 8% to be paid by MoMSME\nCredit Guarantee fees to be borne by GoI\nIncentive for Digital Transaction: ₹ 1 per transaction for a maximum of up to 100 transactions (monthly)\nMarketing Support: The National Committee for Marketing (NCM) will provide services such as Quality Certification, Branding and Promotion, e-commerce Linkage, Trade Fair Advertising, Publicity and Other Marketing Activities.\nNOTE: Notification to beneficiaries on disbursement of incentives will be done through SMS.",
+      "who_can_apply": "The applicant should be an artisan or craftsperson working with hands and tools.\nThe applicant should be engaged in an unorganized sector on a self-employment basis.\nThe applicant should be engaged in one of the 18 family-based traditional trades mentioned in the scheme.\nOn the date of registration for the scheme, the minimum age of the applicant should be 18 years.\nThe applicant should be engaged in the concerned trade on the date of registration.\nThe applicant should not have availed loans under similar credit-based schemes of the Central Government or State Government for self-employment/ business development, e.g. PMEGP, PM SVANidhi, Mudra, in the past 5 years.\nThe registration and benefits under the Scheme shall be restricted to one member of the family.",
+      "documents": "Required documents or information: \nAadhaar, \nMobile number, \nBank details, \nRation card mandatory for the registration.\nNote: 1 In case of a beneficiary not having a ration card, they would be required to produce Aadhaar cards of all family members. \nNote: 2 If beneficiary does not have bank account, they will be first required to open a bank account for which hand holding shall be done by the CSC.",
+      "how_to_apply": "Online - Via CSCs\n(i) The eligible beneficiaries are required to get themselves enrolled through nearest CSC in their area.\n(ii) The beneficiary can apply either on their own or with the help of the CSCs through Village Level Entrepreneurs (VLEs) or Enumerators.\nRegistration:\nStep 1: Visit the Official Portal of \"PM Vishwakarma\" and on the top right corner, click \"Login\". Then click \"CSC - Register Artisans\".\n﻿﻿\n You will be taken to the Registration.﻿﻿\n﻿\nStep 2: On the \"Registration Now\" Page, answer the Set of Questions as Yes/No, and click \"Continue\". On the \"Aadhaar Verification\" Page, enter the 6-digit OTP received on your Aadhaar-linked Mobile Number. Click \"Continue\". On the next page, enter your Aadhaar Number and the Aadhaar Registered Mobile Number. Click \"Continue\".\nApplication:\nStep 1: Visit your nearest CSC and complete the Biometric Verification Process.\nStep 2: In the Online Application Form, fill in all the mandatory details, and click \"Submit\". In the next screen, note down the \"Application Number\" for future reference. Click \"Done\".\nVerification:\nStage 1: Verification of Eligibility at Gram Panchayat or ULB level.\nStage 2: Vetting and Recommendation of the Applications by the District Implementation Committee.\nStage 3: The Screening Committee will accord final approval of the beneficiaries for registration after satisfying itself as to their eligibility.\nBenefit Disbursal:\nAfter a successful three-step verification, the artisans and craftspeople will formally register under this Scheme as Vishwakarmas. They will receive a Digital ID, a PM Vishwakarma Digital Certificate and a PM Vishwakarma ID Card. The certificate will enable the applicants’ recognition as a Vishwakarma, making them eligible to avail of all the benefits under the Scheme."
+    },
+    "hi": {
+      "name": "प्रधानमंत्री विश्वकर्मा योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "पंतप्रधान विश्वकर्मा योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

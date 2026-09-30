@@ -1,0 +1,102 @@
+{
+  "scheme_id": "pmkmdy",
+  "myscheme_slug": "pmkmdy",
+  "source_url": "https://www.myscheme.gov.in/schemes/pmkmdy",
+  "level": "CENTRAL",
+  "priority": 2,
+  "state": "ANY",
+  "department": "Ministry Of Agriculture and Farmers Welfare",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "fb89bbb7e1744d2cd13fee793fc04ad54b737295f83f0bc80cd2db31a10952bd",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Pradhan Mantri Kisan Maandhan Yojana",
+  "scheme_name_hi": "प्रधानमंत्री किसान मानधन योजना",
+  "scheme_name_mr": "प्रधानमंत्री किसान मानधन योजना",
+  "aliases_en": [
+    "pradhan mantri kisan maandhan yojana",
+    "pm kisan maandhan yojana",
+    "pmkmdy",
+    "kisan maandhan pension scheme",
+    "kisan maandhan three thousand rupees monthly pension scheme",
+    "pradhan mantri kisan maandhan family pension scheme"
+  ],
+  "aliases_hi": [
+    "प्रधानमंत्री किसान मानधन योजना",
+    "किसान मानधन पेंशन योजना",
+    "किसान मानधन तीन हजार पेंशन योजना",
+    "साठ साल के बाद तीन हजार महीना पेंशन वाली किसान मानधन योजना",
+    "किसान मानधन पारिवारिक पेंशन योजना",
+    "pmkmdy किसान मानधन पेंशन योजना"
+  ],
+  "aliases_mr": [
+    "प्रधानमंत्री किसान मानधन योजना",
+    "किसान मानधन पेन्शन योजना",
+    "किसान मानधन तीन हजार रुपये मासिक पेन्शन योजना",
+    "साठी नंतर तीन हजार पेन्शन देणारी किसान मानधन योजना",
+    "किसान मानधन कुटुंब पेन्शन योजना",
+    "pmkmdy किसान पेन्शन योजना"
+  ],
+  "category": "pension",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": {
+    "min": 18,
+    "max": 40
+  },
+  "income_band": "ANY",
+  "occupation": "farmer",
+  "evidence_quotes": {
+    "category": "The subscriber will receive a minimum assured pension of ₹ 3,000/- per month after attaining the age of 60 years.",
+    "gender": "",
+    "social_category": "",
+    "age": "The applicant should be between 18 and 40 years of age at the time of entry.",
+    "income_band": "",
+    "occupation": "The applicant should be a Small or Marginal Farmer."
+  },
+  "gate_notes": [
+    "Requires cultivable landholding up to 2 hectares and name in land records as on 01.08.2019",
+    "Requires Aadhaar card and savings bank account or PM-KISAN account",
+    "Excludes SMFs covered under NPS, Employees State Insurance Corporation scheme, Employees Fund Organization Scheme, Pradhan Mantri Shram Yogi Maandhan Yojana and Pradhan Mantri Vyapari Maandhan",
+    "Excludes institutional landholders, constitutional post holders, Ministers/MPs/MLAs/Mayors/District Panchayat Chairpersons, serving/retired government employees excluding MTS/Class IV/Group D, income tax payers, and practising professionals like Doctors, Engineers, Lawyers, Chartered Accountants, Architects"
+  ],
+  "chunks": {
+    "en": {
+      "name": "Pradhan Mantri Kisan Maandhan Yojana",
+      "summary": "The Pradhan Mantri Kisan Maandhan Yojana provides Rs 3,000 monthly pension after age 60 to small and marginal farmers aged 18 to 40 with up to 2 hectares land, with matching government contribution.",
+      "benefit_text": "Monthly Pension Benefit:\nThe subscriber will receive a minimum assured pension of ₹ 3,000/- per month after attaining the age of 60 years.\nFamily Pension Benefit:\nIn case of death of the subscriber, the spouse will receive 50% of the pension amount as family pension.\nFamily pension is applicable only to the spouse.\nGovernment Matching Contribution:\nThe Government of India will contribute an amount equal to the subscriber’s monthly contribution to the pension fund.\nDisablement Benefit:\nIf the subscriber becomes permanently disabled before the age of 60 years, the spouse can continue the scheme by paying contributions or exit by receiving the subscriber’s contribution with interest.\nExit Benefits:\nIf the subscriber exits within 10 years, only the subscriber’s contribution will be refunded with savings bank interest.\nIf the subscriber exits after 10 years but before 60 years, the subscriber’s contribution will be refunded with accumulated interest or savings bank interest, whichever is higher.\nIf the subscriber dies before 60 years, the spouse can continue the scheme or exit with a refund of the subscriber’s contribution with interest.\nAfter the death of both subscriber and spouse, the corpus will be credited back to the pension fund.\n﻿\n\n﻿",
+      "who_can_apply": "The applicant should be a Small or Marginal Farmer.\nThe applicant should have cultivable landholding up to 2 hectares as per State or Union Territory land records.\nThe applicant should be between 18 and 40 years of age at the time of entry.\nThe applicant’s name should appear in land records as on 01.08.2019.\nThe applicant should possess an Aadhaar card.\nThe applicant should have a savings bank account or PM-KISAN account.\n﻿\n\n﻿",
+      "documents": "Aadhaar Card\nSavings Bank Account Number along with IFSC Code ( Bank Passbook or Cheque Leaf/book or copy of bank statement as evidence of bank account).\n﻿",
+      "how_to_apply": "Online - Via CSCs\nStep 1: The Eligible SMFs desirous of joining the scheme shall visit the nearest Common Service Centre (CSC).\nStep 2: Following are the prerequisites for the enrolment process: \nAadhaar Card\nSavings Bank Account Number along with IFSC Code ( Bank Passbook or Cheque Leave/book or copy of bank statement as evidence of bank account ).\nStep 3: Initial contribution amount in cash will be made to the Village Level Entrepreneur (VLE).\nStep 4: The VLE will key-in the Aadhaar number, Name of subscriber and Date of birth as printed on aadhaar card for authentication.\nStep 5: The VLE will complete the online registration by filling up the details like Bank Account details, Mobile Number, Email Address, Spouse (if any) and Nominee details will be captured.\nStep 6: System will auto calculate monthly contribution payable according to age of the Subscriber.\nStep 7: Subscriber will pay the 1st subscription amount in cash to the VLE.\nStep 8: Enrolment cum Auto Debit mandate form will be printed and will be further signed by the subscriber. VLE will scan the same and upload it into the system.\nStep 9: A unique Kisan Pension Account Number (KPAN) will be generated and Kisan Card will be printed.\n﻿\n\n﻿"
+    },
+    "hi": {
+      "name": "प्रधानमंत्री किसान मानधन योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "प्रधानमंत्री किसान मानधन योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

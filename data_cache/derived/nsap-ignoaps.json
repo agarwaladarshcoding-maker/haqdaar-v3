@@ -1,0 +1,100 @@
+{
+  "scheme_id": "nsap-ignoaps",
+  "myscheme_slug": "nsap-ignoaps",
+  "source_url": "https://www.myscheme.gov.in/schemes/nsap-ignoaps",
+  "level": "CENTRAL",
+  "priority": 1,
+  "state": "ANY",
+  "department": "Ministry Of Rural Development",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "d24ebdf5078f7ef8a0905809be81f08237eda637acc3c840c67db0df121224b3",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "NSAP - Indira Gandhi National Old Age Pension Scheme",
+  "scheme_name_hi": "एनएसएपी - इंदिरा गांधी राष्ट्रीय वृद्धावस्था पेंशन योजना",
+  "scheme_name_mr": "एनएसएपी - इंदिरा गांधी राष्ट्रीय वृद्धापकाळ पेन्शन योजना",
+  "aliases_en": [
+    "indira gandhi national old age pension scheme",
+    "ignoaps",
+    "nsap old age pension scheme",
+    "indira gandhi old age pension",
+    "indira gandhi monthly pension for old aged",
+    "indira gandhi two hundred to five hundred rupees old age pension scheme"
+  ],
+  "aliases_hi": [
+    "इंदिरा गांधी राष्ट्रीय वृद्धावस्था पेंशन योजना",
+    "इंदिरा गांधी बुढ़ापा पेंशन योजना",
+    "इंदिरा गांधी बुजुर्गों वाली मासिक पेंशन योजना",
+    "इंदिरा गांधी दो सौ से पांच सौ रुपये वृद्धा पेंशन योजना",
+    "ignoaps पेंशन योजना",
+    "nsap वाली इंदिरा गांधी बुढ़ापा पेंशन योजना"
+  ],
+  "aliases_mr": [
+    "इंदिरा गांधी राष्ट्रीय वृद्धापकाळ पेन्शन योजना",
+    "इंदिरा गांधी म्हातारपण पेन्शन योजना",
+    "इंदिरा गांधी वृद्धांसाठी मासिक पेन्शन योजना",
+    "इंदिरा गांधी दोनशे ते पाचशे रुपये वृद्ध पेन्शन योजना",
+    "ignoaps पेन्शन योजना",
+    "nsap वृद्धापकाळ पेन्शन योजना"
+  ],
+  "category": "pension",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": {
+    "min": 60,
+    "max": null
+  },
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "A monthly pension of ₹ 200 up to 79 years and ₹ 500 thereafter.",
+    "gender": "",
+    "social_category": "",
+    "age": "The applicant should be at least 60 years of age.",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Requires applicant to be living Below Poverty Line",
+    "Requires applicant to be a citizen of India"
+  ],
+  "chunks": {
+    "en": {
+      "name": "NSAP - Indira Gandhi National Old Age Pension Scheme",
+      "summary": "The Indira Gandhi National Old Age Pension Scheme under NSAP provides a monthly pension of 200 rupees up to age 79 and 500 rupees thereafter to Indian citizens aged 60 and above living below the poverty line.",
+      "benefit_text": "A monthly pension of ₹ 200 up to 79 years and ₹ 500 thereafter.",
+      "who_can_apply": "The applicant should be a citizen of India.\nThe applicant should be living Below Poverty Line.\nThe applicant should be at least 60 years of age.",
+      "documents": "Duly filled and self-attested Application Form (proforma given the annexures of the scheme guidelines).\nDomicile Certificate                                                                                                  \nResidential Proof (Voter card/ Electricity Bill/Aadhar Card)                                                    \nAge Proof (Birth Certificate issued by the School last attended or Municipal authority or SHO or through Medical Board)                                             \nAadhar Number                                                                                            \nBank Passbook                                                                                                                \nRation Card                                                                                                                        \nAffidavit duly attested by Judicial Magistrate/Executive Magistrate that she/he is not in receipt of any pension/ financial assistance from any other source\n﻿",
+      "how_to_apply": "Online\nOne can download UMANG App or visit website https://web.umang.gov.in/web_new/home \nThe citizen can login using mobile number and OTP.\nOnce logged In, citizen can search for NSAP.\nClick on “Apply Online”\nFill the basic details, choose the mode of payment of pension, upload photo and click on “Submit”.\nApply Now"
+    },
+    "hi": {
+      "name": "एनएसएपी - इंदिरा गांधी राष्ट्रीय वृद्धावस्था पेंशन योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "एनएसएपी - इंदिरा गांधी राष्ट्रीय वृद्धापकाळ पेन्शन योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

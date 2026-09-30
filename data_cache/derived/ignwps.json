@@ -1,0 +1,100 @@
+{
+  "scheme_id": "ignwps",
+  "myscheme_slug": "ignwps",
+  "source_url": "https://www.myscheme.gov.in/schemes/ignwps",
+  "level": "CENTRAL",
+  "priority": 1,
+  "state": "ANY",
+  "department": "Ministry Of Rural Development",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "d05115fa2340dfbe2415da9202d06c650f64b180d43926bcf3074b56be835028",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Indira Gandhi National Widow Pension Scheme",
+  "scheme_name_hi": "इंदिरा गांधी राष्ट्रीय विधवा पेंशन योजना",
+  "scheme_name_mr": "इंदिरा गांधी राष्ट्रीय विधवा पेन्शन योजना",
+  "aliases_en": [
+    "indira gandhi national widow pension scheme",
+    "indira gandhi widow pension scheme",
+    "national widow pension scheme",
+    "ignwps",
+    "indira gandhi pension for widows",
+    "indira gandhi three hundred rupees widow pension"
+  ],
+  "aliases_hi": [
+    "इंदिरा गांधी राष्ट्रीय विधवा पेंशन योजना",
+    "इंदिरा गांधी विधवा पेंशन योजना",
+    "राष्ट्रीय विधवा पेंशन योजना",
+    "विधवा पेंशन योजना",
+    "ignwps विधवा पेंशन योजना",
+    "इंदिरा गांधी विधवाओं के लिए तीन सौ रुपये मासिक पेंशन"
+  ],
+  "aliases_mr": [
+    "इंदिरा गांधी राष्ट्रीय विधवा पेन्शन योजना",
+    "इंदिरा गांधी विधवा पेन्शन योजना",
+    "राष्ट्रीय विधवा पेन्शन योजना",
+    "विधवा पेन्शन योजना",
+    "ignwps विधवा पेन्शन योजना",
+    "इंदिरा गांधी विधवांसाठी तीनशे रुपये मासिक पेन्शन"
+  ],
+  "category": "pension",
+  "gender": "female",
+  "social_category": "ANY",
+  "age": {
+    "min": 40,
+    "max": 79
+  },
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "A pension of Rs.300/- per month is provided to Widows between 40 years and 79 years.",
+    "gender": "The applicant must be a widow in the age group of 40-79 years.",
+    "social_category": "",
+    "age": "The applicant must be a widow in the age group of 40-79 years.",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Applicant must be a widow; pension discontinued in case of remarriage of widow",
+    "Applicant must belong to household living below poverty line; pension discontinued once widow moves above poverty line"
+  ],
+  "chunks": {
+    "en": {
+      "name": "Indira Gandhi National Widow Pension Scheme",
+      "summary": "The Indira Gandhi National Widow Pension Scheme provides monthly pension support to widows aged 40 to 79 years from Below Poverty Line households, with Rs 300 per month, increasing to Rs 500 per month after 80 years.",
+      "benefit_text": "A pension of Rs.300/- per month is provided to Widows between 40 years and 79 years. For persons who are 80 years and above the pension is Rs.500/- per month.",
+      "who_can_apply": "The eligibility criteria under Indira Gandhi National Widow Pension Scheme (IGNWPS) is:-\n﻿\n\nThe applicant must be a widow in the age group of 40-79 years.\nThe applicant should belong to a household living below the poverty line according to the criteria prescribed by the Govt. of India",
+      "documents": "Death Certificate of husband – With the name of the surviving wife(widow).\nBPL Card.\nAge Proof - For age, the birth certificate or school certificate may be relied on. In their absence ration card and EPIC may be considered. If there is no valid document, any Medical Officer of any government hospital may be authorized to issue the age certificate.",
+      "how_to_apply": "Online\nOffline\nOne can download UMANG App or visit website https://web.umang.gov.in/web_new/home \nThe citizen can login using mobile number and OTP.\nOnce logged In, citizen can search for NSAP.\nClick on “Apply Online”\nFill the basic details, choose the mode of payment of pension, upload photo and click on “Submit”.\n﻿\n\nApply Now"
+    },
+    "hi": {
+      "name": "इंदिरा गांधी राष्ट्रीय विधवा पेंशन योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "इंदिरा गांधी राष्ट्रीय विधवा पेन्शन योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

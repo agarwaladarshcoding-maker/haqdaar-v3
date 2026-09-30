@@ -1,0 +1,37 @@
+{
+  "facets": {
+    "category": {
+      "value": "business_loans",
+      "quote": "Collateral-free Enterprise Development Loans: ₹ 1,00,000 (First Tranche for 18 months repayment) & ₹ 2,00,000 (Second Tranche for 30 months repayment)"
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 18,
+        "max": null
+      },
+      "quote": "On the date of registration for the scheme, the minimum age of the applicant should be 18 years."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "artisan",
+      "quote": "The applicant should be an artisan or craftsperson working with hands and tools."
+    }
+  },
+  "gate_notes": [
+    "Applicant must be engaged in one of the 18 family-based traditional trades mentioned in the scheme",
+    "Applicant must be engaged in the unorganized sector on a self-employment basis and engaged in the concerned trade on the date of registration",
+    "Applicant should not have availed loans under similar credit-based schemes of the Central Government or State Government for self-employment/ business development, e.g. PMEGP, PM SVANidhi, Mudra, in the past 5 years",
+    "Registration and benefits restricted to one member of the family; a person in government service and their family members shall not be eligible"
+  ]
+}

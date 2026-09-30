@@ -1,0 +1,103 @@
+{
+  "scheme_id": "pmmvy",
+  "myscheme_slug": "pmmvy",
+  "source_url": "https://www.myscheme.gov.in/schemes/pmmvy",
+  "level": "CENTRAL",
+  "priority": 1,
+  "state": "ANY",
+  "department": "Ministry of Women and Child Development",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "32f254a3e0ccf9af79cdfe4a874e2248d40ba99463622432faa7e176f884e01d",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Pradhan Mantri Matru Vandana Yojana",
+  "scheme_name_hi": "प्रधानमंत्री मातृ वंदना योजना",
+  "scheme_name_mr": "प्रधानमंत्री मातृ वंदना योजना",
+  "aliases_en": [
+    "pradhan mantri matru vandana yojana",
+    "pmmvy",
+    "matru vandana yojana",
+    "pm matru vandana maternity benefit scheme",
+    "pregnancy cash benefit scheme for first child",
+    "money for pregnant women on pregnancy registration scheme"
+  ],
+  "aliases_hi": [
+    "प्रधानमंत्री मातृ वंदना योजना",
+    "मातृ वंदना योजना",
+    "गर्भवती महिलाओं को पैसे देने वाली मातृ वंदना योजना",
+    "पहले बच्चे पर नकद सहायता देने वाली योजना",
+    "गर्भावस्था पंजीकरण पर किस्तों में पैसा मिलने वाली योजना",
+    "pmmvy गर्भवती सहायता योजना"
+  ],
+  "aliases_mr": [
+    "प्रधानमंत्री मातृ वंदना योजना",
+    "मातृ वंदना योजना",
+    "गरोदर महिलांना पैसे देणारी मातृ वंदना योजना",
+    "पहिल्या मुलासाठी रोख मदत देणारी योजना",
+    "गरोदरपण नोंदणीवर हप्त्यांमध्ये पैसे मिळणारी योजना",
+    "pmmvy गरोदर मदत योजना"
+  ],
+  "category": "women_children",
+  "gender": "female",
+  "social_category": "ANY",
+  "age": {
+    "min": 19,
+    "max": null
+  },
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "The applicant should be of at least 19 years old and a pregnant women.",
+    "gender": "The applicant should be of at least 19 years old and a pregnant women.",
+    "social_category": "",
+    "age": "The applicant should be of at least 19 years old and a pregnant women.",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Applicable only for the first live birth; second pregnancy eligible only if girl child per PMMVY 2.0 norms including twins/triplets/quadruplets case",
+    "Requires employment with wage-loss due to pregnancy",
+    "Excludes pregnant women and lactating mothers in regular employment with Central Government or State Government or Public Sector Undertaking or in receipt of similar benefits under any law",
+    "Must apply within 270 days from child birth",
+    "Limited to socially and economically disadvantaged sections as listed (SC/ST, disabled, BPL, PMJAY, e-Shram, Kisan Samman Nidhi farmers, MGNREGA, income less than Rs. 8 Lakh, AWW/AWH/ASHA, NFSA ration card)"
+  ],
+  "chunks": {
+    "en": {
+      "name": "Pradhan Mantri Matru Vandana Yojana",
+      "summary": "The Pradhan Mantri Matru Vandana Yojana provides maternity support to pregnant women of Rs 5,000 for the first child in two instalments and Rs 6,000 for a second girl child, linked to registration, check-ups and immunization.",
+      "benefit_text": "The cash incentives is provided in two instalments for the first child as per the schedule provided in\ntable below:\nScheme Condition for First Child\nInstalment \tConditions\tAmount (in Rs.)\nFirst Instalment\tOn registration of pregnancy and at least one Antenatal checkup within six months from last menstrual period date at the Anganwadi Centre or approved Health facilities may be identified by the respective administering State/UT. \t3,000/-\nSecond Instalment\tChildbirth is registered. The child has received all due vaccines till the age of 14 weeks as admissible under the Universal Immunization Programme of Ministry of Health and Family Welfare.\t2,000/-\nScheme Condition for Second Child (if it is a girl child)\nSingle Instalment\tOn registration of pregnancy and at least one Ante-Natal Check-up (ANC) within six months from LMP at the Anganwadi Centre (AWC) approved Health facilities may be identified by the respective administering State/UT. The girl child birth shall be registered under this Scheme. The girl child has received all due vaccines till the girl child attains age of fourteen weeks from the date of birth as admissible under the Universal Immunization Programme of Ministry of Health and Family Welfare.\t6,000/-\nIn case of miscarriage/still birth, the beneficiary would be treated as fresh beneficiary in event of any\nfuture pregnancy.",
+      "who_can_apply": "The applicant should be of at least 19 years old and a pregnant women.\nThe applicant should be employed and experiencing wage-loss due to the pregnancy.\nThe scheme is applicable only for the first live birth.\nEligible beneficiary can apply for the benefit under PMMVY scheme within 270 days from the child birth. \nIf a beneficiary delivers twins/ triplets/ quadruplets in her second pregnancy, with one or more children being girl, she will receive incentive for second girl child as per the PMMVY 2.0 norms.\nCriteria for determining socially and economically disadvantaged sections of society are the following:\nWomen belonging to scheduled castes and scheduled tribes\nWomen who are partially (40%) or fully disabled (Divyang Jan)\nWomen holder of BPL Ration Card\nWomen Beneficiaries under Pradhan Mantri Jan Aarogya Yojana (PMJAY) under Ayushman Bharat.\nWomen holding e-Shram card\nWomen farmers who are beneficiaries under Kisan Samman Nidhi\nWomen holding MGNREGA Job Card\nWomen whose net family income is less than Rs. 8 Lakh per annum\nPregnant and Lactating AWWs/ AWHs/ ASHAs\nWomen holding Ration Card under NFSA Act 2013.\nAny other category as may be prescribed by the Central Government",
+      "documents": "Beneficiaries need documents such as:-\nAadhaar card, \nAadhaar mapped bank/post office,\nBank account details, \nEligibility proof, \nMCP/RCHI card, \nLMP date, \nANC date, \nChild birth certificate, \nChild immunization details etc.\nMentioned below a list of documents which required to upload at the time of registration (any one of\nthese):-\nWomen whose net family income is less than ₹ 8 Lakh per annum.\nWomen holding MGNREGA Job Card.\nWomen farmers who are beneficiaries under Kisan Samman Nidhi.\nWomen holding e-Shram card.\nWomen Beneficiaries under Pradhan Mantri Jan Aarogya Yojana (PMJAY) under Ayushman Bharat.\nWomen holder of BPL ration Card.\nWomen who are partially (40%) or fully disabled (Divyang Jan).\nSC Women.\nST Women.\nPregnant and Lactating AWWS/ AWHS/ASHAS.\nWomen Beneficiaries holding Ration card under National Food Security Act (NFSA), 2013.\nAll the mandatory provisions like Aadhaar, Aadhaar based payment etc. will be checked at the time of registration for smooth and efficient process. Mobile number has been made mandatory for providing information regarding the status of application and disbursement of fund. Mobile App has been introduced for registration under Pradhan Mantri Matru Vandana Yojana (PMMVY).",
+      "how_to_apply": "Online\nCitizen visit the official website of the Ministry and click on the Citizen login tab.\nEnter mobile number and verify. Then enter details like Full Name, State, District, Area, Block, Village and relationship with beneficiary. Then click create account button.  \nOnce account is created. Click on Login tab on main homepage of the website.\nNow, enter the User ID, Password and Captcha code. Then apply for the scheme.\nAfter successful login, click on the \"Data Entry\" tab and choose the option \"Beneficiary Registration\".\nNow, enter all the detailed personal details on the Beneficiary registration page.\nChoose suitable option under the Scheme applying for First Child OR Second Child.\nOnce all the form details are completed. Click Submit Button."
+    },
+    "hi": {
+      "name": "प्रधानमंत्री मातृ वंदना योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "प्रधानमंत्री मातृ वंदना योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

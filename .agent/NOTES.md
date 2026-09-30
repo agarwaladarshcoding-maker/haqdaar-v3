@@ -1671,3 +1671,18 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - 3.4: haqdaar/data/pipeline/muse.py: MuseClient (same call() as GroqClient) + MuseTranslator (same translate() as SarvamTranslator). Cap = sum of "inr" in data_cache/reports/muse_usage.jsonl >= MUSE_CAP_INR (60) -> MuseBudgetError before sending. Reasoning tokens billed as output: output = max(completion, total - prompt). USD_TO_INR 90.
 - make_llm_client() in p2, make_translator() in p4; tunables LLM_PROVIDER / TRANSLATE_PROVIDER ("muse" default).
 - Mistake: the first test run after the switch hit the real Muse (old tests fake Groq/Sarvam by name): 69 calls, ₹0.70. Fixed with an autouse fixture in tests/conftest.py (pins groq/sarvam, Muse network raises). The 69 rows stay in the ledger: it was real money, the cap must count it.
+
+## 30 Sep — planner turn (Muse plans 3.4-finish + 3.5, Antigravity codes)
+- Cache: extract/ has 287 files; facets_v2 32, aliases_v1 32, summary_v1 31, cards_v2 12, translate hi/mr 12 each (old 12 only). Reruns pay cache-misses only; warm run = 0 calls. p2 creates client eagerly (needs MUSE_API_KEY even warm); p3/p4 lazy.
+- p6 `main()` has NO audio filter: includes every scheme in schemes.jsonl, writes empty digest + exit 1 for missing clips, still flips CURRENT. So 3.5 needs an audio-scope change in p6 before `make snapshot`, or CURRENT breaks Corpus.load.
+- vocab: OCCUPATION 7 values (room for 2); test_every_keypad_value_has_trilingual_labels (tests/test_vocab.py:14) already proves LABELS coverage.
+- Quarantine budget: 2/30 already quarantined at scrape (ab-pmjay, pmsby) → derive+cards may quarantine ≤2 more (<15% = ≤4/30).
+- Cost est from earlier note: ~₹40 cards + ~₹15 translate vs ₹60 cap (₹3.93 spent). Tight; check ledger after each paid stage. run_all --cost is stale (ignores muse_usage.jsonl) — non-goal.
+- conftest.py autouse fixture pins groq/sarvam + Muse network raises: tests spend ₹0. Coder must not break it.
+
+## 30 Sep — Step P1: make pipeline-extract
+- make pipeline-extract completed: 28 schemes processed, 77/87 cache hits, 10 Muse calls.
+- Quarantine: pm-sym quarantined (unusable income_band range: 'The applicant must have a monthly income of ₹15,000/- or less.').
+  Cumulative quarantine: 3/30 (ab-pmjay, pmsby from scrape; pm-sym from derive) = 10% < 15% (<= 4/30 budget).
+- Occupation cardinality: 4 <= 9 ('apprentice', 'artisan', 'farmer', 'street_vendor'). No >9 ValueError raised; skip P2.
+- Muse spend: 10 calls, 6,246 prompt + 23,480 completion tokens. Total ledger: 138 rows, ₹4.4055 (spent ₹0.48, well under ₹60 cap).

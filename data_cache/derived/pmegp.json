@@ -5,9 +5,9 @@
   "level": "CENTRAL",
   "priority": 3,
   "state": "ANY",
-  "department": "Government of India",
-  "fetched_on": "2026-09-11",
-  "source_sha256": "5e6f79b6c66dded8dca7612e0de37572083dbb4831e6373562cd8c358a5bd8e5",
+  "department": "Ministry Of Micro, Small and Medium Enterprises",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "1e872fd79a1a2a717e56077a64013b48264f5c434011df298a160401bb2413cb",
   "facets_source": "derived",
   "facets_verified_by": null,
   "facets_verified_on": null,
@@ -27,25 +27,31 @@
   "scheme_name_hi": "प्रधानमंत्री रोजगार सृजन कार्यक्रम",
   "scheme_name_mr": "पंतप्रधान रोजगार निर्मिती कार्यक्रम",
   "aliases_en": [
-    "pmegp margin money subsidy",
+    "prime minister's employment generation programme",
+    "pmegp",
+    "pmegp scheme",
     "prime minister employment generation scheme",
-    "pmegp micro‑enterprise help",
-    "prime minister's job creation programme",
-    "pmegp fund assistance"
+    "employment generation programme",
+    "pmegp margin money subsidy scheme",
+    "pmegp micro enterprise setup subsidy scheme"
   ],
   "aliases_hi": [
-    "pmegp सब्सिडी",
-    "प्रधानमंत्री रोजगार योजना",
-    "pmegp माइक्रो‑उद्यम सहायता",
+    "प्रधानमंत्री रोजगार सृजन कार्यक्रम",
     "प्रधानमंत्री रोजगार सृजन योजना",
-    "pmegp मार्जिन मनी मदद"
+    "pmegp योजना",
+    "pmegp मार्जिन मनी सब्सिडी स्कीम",
+    "रोजगार सृजन कार्यक्रम",
+    "प्रधानमंत्री लघु उद्योग सब्सिडी योजना",
+    "प्रधानमंत्री नया सूक्ष्म उद्योग लगाने वाली सब्सिडी योजना"
   ],
   "aliases_mr": [
-    "pmegp मदत",
-    "पंतप्रधान रोजगार योजना",
-    "pmegp सूक्ष्मउद्यम निधी",
     "पंतप्रधान रोजगार निर्मिती कार्यक्रम",
-    "pmegp मार्जिन मनी सबसिडी"
+    "पंतप्रधान रोजगार निर्मिती योजना",
+    "pmegp योजना",
+    "pmegp रोजगार निर्मिती योजना",
+    "pmegp मार्जिन मनी सबसिडी योजना",
+    "रोजगार निर्मिती कार्यक्रम",
+    "पंतप्रधान सूक्ष्म उद्योग सुरू करण्यासाठी अनुदान योजना"
   ],
   "category": "business_loans",
   "gender": "ANY",
@@ -57,22 +63,28 @@
   "income_band": "ANY",
   "occupation": "ANY",
   "evidence_quotes": {
-    "category": "Funds will be allocated under annual Budget Estimates toward disbursement of Margin Money (subsidy) for setting up new micro-enterprises/units;",
+    "category": "Funds will be allocated under annual Budget Estimates toward disbursement of Margin Money (subsidy) for setting up new micro-enterprises/units; and",
     "gender": "",
     "social_category": "",
     "age": "Any individual, above 18 years of age.",
     "income_band": "",
     "occupation": ""
   },
-  "gate_notes": [],
+  "gate_notes": [
+    "Assistance only for new projects sanctioned specifically under PMEGP; existing units and units that already availed Government Subsidy under any other scheme are not eligible.",
+    "Only one person from one family is eligible where family includes self and spouse.",
+    "For setting up of project costing above Rs.10 lakh in Manufacturing and above Rs 5,00,000 in Business/Service, minimum VIII standard pass educational qualification required.",
+    "Negative list of activities not permitted including meat, intoxicants, liquor outlets, tobacco, toddy, cultivation/plantation, sericulture, horticulture, animal husbandry except value addition/off-farm linked activities.",
+    "Upgradation of existing PMEGP/REGP/MUDRA units requires successful adjustment after 3-year lock-in, successful repayment of first loan, and profit-making unit with growth potential."
+  ],
   "chunks": {
     "en": {
       "name": "Prime Minister's Employment Generation Programme",
-      "summary": "PMEGP offers margin‑money subsidies and linkage support to establish or upgrade micro‑enterprises, providing up to 35% cost assistance for new units and 15% for upgrades, along with training, awareness camps and infrastructure aid.",
+      "summary": "The Prime Minister's Employment Generation Programme supports individuals above 18 in setting up new micro-enterprises with bank loans and margin money subsidy of 15 to 35 percent, plus second loans for upgrading existing units.",
       "benefit_text": "Funds under PMEGP Scheme will be available under two major heads:\n1.  Margin Money Subsidy \na) Funds will be allocated under annual Budget Estimates toward disbursement of Margin Money (subsidy) for setting up new micro-enterprises/units; and \nb) From the funds allocated under BE for the Margin Money subsidy, ₹ 100 Crores or as approved by the competent authority will be earmarked for each FY towards disbursement of Margin Money (subsidy) for the upgradation of existing PMEGP/REGP/MUDRA units. \n2.  Backward and Forward Linkages \n5% of the total allocation under BE for a Financial Year against PMEGP, or as approved by the competent authority, shall be earmarked as funds under Backward and Forward Linkages and will be utilized for arranging awareness camps, State/District level monitoring meetings, Workshops, Exhibitions, Bankers meetings, TNDA, Publicity, Entrepreneurship Development Programme (EDP) training, Physical verification & Geo-tagging, Evaluation & impacts Assessment study, Setting of Entrepreneurship Facilitation Centre (EFC), Center of Excellence (CoE), Engagement of Field Experts and Data Entry Operators (DEOs), Creation and Upgradation of IT infrastructure, Awards, Call Centre facility, PMU, and other related activities and settlement of other residual liabilities by the KVIC. \nLevels of support under PMEGP\n1.  For setting up new micro-enterprise (units) \na) Categories of beneficiaries under PMEGP (for setting up of new enterprises): General Category \nBeneficiary's contribution (of project cost): 10% Rate of Subsidy (of project cost): 15% for Urban Areas, 25% for Rural Areas.\nb) Categories of beneficiaries under PMEGP (for setting up of new enterprises): Special Category (including SC, ST, OBC, Minorities, Women, Ex-Servicemen, Transgenders, Differently abled, NER, Aspirational Districts, Hill and Border areas(as notified by the Government), etc. \n(i) Beneficiary's contribution (of project cost): 05% \n(ii) Rate of Subsidy (of project cost): 25% for Urban Areas, 35% for Rural Areas.\nNote:\nThe maximum cost of the project/unit admissible for Margin Money subsidy under the Manufacturing sector is ₹50,00,000.\nThe maximum cost of the project/unit admissible for the Margin Money subsidy under the Business/Service sector is ₹20,00,000.\nThe balance amount (excluding the own contribution)of the total project cost will be provided by Banks. \nIf the total project cost exceeds ₹50,00,000 or ₹20,00,000 for Manufacturing and Service/Business sector respectively, the balance amount may be provided by Banks without any Government subsidy.\n2.  2nd Loan for Upgradation of Existing PMEGP / REGP / MUDRA Units \na) Categories of beneficiaries under PMEGP (for upgradation of existing units): All Categories\nb) Beneficiary's contribution (of project cost): 10%\nc) Rate of Subsidy (of project cost): 15% (20% in NER and Hill States). \nNote:\n1) The maximum cost of the project/unit admissible for Margin Money subsidy under the Manufacturing sector for upgradation is ₹10,00,00,000. The maximum subsidy would be ₹15,00,000 (₹20,00,000 for NER and Hill States).\n2) The maximum cost of the project/unit admissible for Margin Money subsidy under the Business/Service sector for upgradation is ₹25,00,000. The maximum subsidy would be ₹3,75,000 (₹5,00,000 for NER and Hill States).\n3) The balance amount (excluding the own contribution)of the total project cost will be provided by Banks.\n4) If the total project cost exceeds ₹10,00,00,000 or ₹25,00,000 for Manufacturing and Service/Business sector respectively, the balance amount may be provided by banks without any Government subsidy.",
       "who_can_apply": "For PMEGP new enterprises (Units) \nAny individual, above 18 years of age. \nThere will be no income ceiling for assistance in setting up projects under PMEGP. \nFor setting up of project costing above Rs.10 lakh in the Manufacturing sector and above ₹ 5,00,000 in the Business /Service sector, the beneficiaries should possess at least VIII standard pass educational qualification. \nAssistance under the scheme is available only for new projects sanctioned specifically under the PMEGP. \nExisting Units (under PMRY, REGP, or any other scheme of the Government of India or State Government) and the units that have already availed of Government Subsidy under any other scheme of the Government of India or State Government are not eligible. \nFor up-gradation of existing PMEGP / REGP / MUDRA units\nMargin Money(subsidy)claimed under PMEGP has to be successfully adjusted on the completion of the lock-in period of 3 years. \nThe first loan under PMEGP/REGP/MUDRA has to be successfully repaid in the stipulated time. \nThe unit is profit-making with good turnover and has the potential for further growth in turnover and profit with modernization/upgrading of the technology. \nReservation / Preference / Priority\nPriority will be given to the persons affected by natural calamities/disasters in the areas which are declared as affected by \"disaster\" as defined under Section 2(d) of the Disaster Management Act, 2005 by the Ministry of Home Affairs.",
       "documents": "Caste Certificate \nSpecial Category Certificate, wherever required \nRural Area Certificate \nProject Report \nEducation / EDP / Skill Development Training Certificate \nAny other applicable document",
-      "how_to_apply": "Online\nOffline\nApplication For New Unit:\nStep 1: Visit the official website.﻿\n﻿\nStep 2: Click on the “Apply” button under the “Application For New Unit” tab .\nStep 3: Furnish all the required details on the Online Application Form and click on \"Save Applicant Data\".\nStep 4: On the next page, upload the required documents and proceed for final submission.\nApplication For Existing Units (2nd Loan):\nStep 1: Visit the official website.\nStep 2: Click on the “Apply” button under the “Application For Existing Units (2nd Loan)” tab.\nStep 3: Click on the Online Application tab and fill out the Online Application Form.\nStep 4: Complete the form and click on Next page, upload the required documents and proceed for final submission.\nLogin Form For Registered Applicant of Second Loan Subsidy for Upgrading of Existing Unit:\nStep 1: Visit the official website of the PMEGP Portal.\nStep 2: Enter your User ID and Password and click Log in.\n﻿\n\nApply Now"
+      "how_to_apply": "Online\nOffline\n1. Application For New Unit:\nVisit the official website https://www.kviconline.gov.in/pmegpeportal/pmegphome/index.jsp.\nClick on the “Apply” button under the “Application For New Unit” tab .\nFurnish all the required details on https://www.kviconline.gov.in/pmegpeportal/jsp/pmegponline.jsp and click on Save Applicant Data.\nOn the next page, upload the required documents and proceed for final submission.\n2. Application For Existing Units (2nd Loan):\nVisit the official website https://www.kviconline.gov.in/pmegpeportal/pmegphome/index.jsp.\nClick on the “Apply” button under “Application For Existing Units (2nd Loan)” tab.\nClick on the Online Application tab and fill the complete form on : https://www.kviconline.gov.in/pmegpeportal/pmegpIILOAN/index.jsp.\nComplete the form and click on Next page, upload the required documents and proceed for final submission.\n3. Login Form For Registered Applicant of Second Loan Subsidy for Upgrading of Existing Unit:\nVisit the official website of PMEGP Portal: https://www.kviconline.gov.in/pmegpeportal/pmegpIILOAN/applicantLogin.jsp.\nEnter your User ID and Password and click Log in.\nApply Now"
     },
     "hi": {
       "name": "प्रधानमंत्री रोजगार सृजन कार्यक्रम",

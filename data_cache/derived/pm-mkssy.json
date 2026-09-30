@@ -1,0 +1,98 @@
+{
+  "scheme_id": "pm-mkssy",
+  "myscheme_slug": "pm-mkssy",
+  "source_url": "https://www.myscheme.gov.in/schemes/pm-mkssy",
+  "level": "CENTRAL",
+  "priority": 3,
+  "state": "ANY",
+  "department": "Ministry of Fisheries,Animal Husbandry and Dairying",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "b46b828e9a6121e59d4d627b66e5cf3e3cd23fa8e8305d05cdf22be39727912a",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Pradhan Mantri Matsya Kisan Samridhi Sah-Yojana (PM-MKSSY)",
+  "scheme_name_hi": "प्रधानमंत्री मत्स्य किसान समृद्धि सह-योजना (पीएम-एमकेसएसवाई)",
+  "scheme_name_mr": "प्रधानमंत्री मत्स्य किसान समृद्धी सह-योजना (पीएम-एमकेसएसवाय)",
+  "aliases_en": [
+    "pradhan mantri matsya kisan samridhi sah yojana",
+    "pm-mkssy",
+    "matsya kisan samridhi sah yojana",
+    "pm matsya kisan samridhi registration certificate scheme",
+    "matsya kisan hundred rupees nfdp registration benefit yojana",
+    "pradhan mantri fish farmers samridhi sah yojana"
+  ],
+  "aliases_hi": [
+    "प्रधानमंत्री मत्स्य किसान समृद्धि सह-योजना",
+    "पीएम मत्स्य किसान समृद्धि योजना",
+    "मत्स्य किसान समृद्धि सह योजना",
+    "मत्स्य किसान पंजीकरण प्रमाणपत्र और सौ रुपये वाली समृद्धि योजना",
+    "pm-mkssy मत्स्य किसान समृद्धि योजना",
+    "प्रधानमंत्री मछली किसान समृद्धि पंजीकरण लाभ योजना"
+  ],
+  "aliases_mr": [
+    "प्रधानमंत्री मत्स्य किसान समृद्धी सह-योजना",
+    "पीएम मत्स्य किसान समृद्धी योजना",
+    "मत्स्य किसान समृद्धी सह योजना",
+    "मत्स्य शेतकरी नोंदणी प्रमाणपत्र आणि शंभर रुपये वाली समृद्धी योजना",
+    "pm-mkssy मत्स्य किसान समृद्धी योजना",
+    "प्रधानमंत्री मासे पालन शेतकरी समृद्धी नोंदणी लाभ योजना"
+  ],
+  "category": "farming",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": "ANY",
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "Fisheries and Aquaculture farmers having up to 4hectares aquaculture farm size or equivalent unit shall be eligible for one time aquaculture insurance incentive.",
+    "gender": "",
+    "social_category": "",
+    "age": "",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Only Fisheries and Aquaculture Stakeholders involved in the fisheries value chain and registered on NFDP are covered",
+    "Aquaculture insurance incentive limited to farmers having up to 4hectares aquaculture farm size or equivalent unit",
+    "Performance grant limited to Micro and Small Enterprises with investment and job creation/maintenance; success fee requires successful loan disbursement"
+  ],
+  "chunks": {
+    "en": {
+      "name": "Pradhan Mantri Matsya Kisan Samridhi Sah-Yojana (PM-MKSSY)",
+      "summary": "The Pradhan Mantri Matsya Kisan Samridhi Sah-Yojana supports fisheries stakeholders through NFDP registration with certificate and Rs 100, loan facilitation fees, aquaculture insurance incentive, and performance grants for investment and job creation.",
+      "benefit_text": "Persons Associated with Fisheries and Aquaculture will get a Certificate of Registration along with ₹ 100 after successful completion of one-time registration process on the NFDP platform providing all necessary documents and information as per the approved operational guidelines. \nIndividuals Associated with Fisheries and Aquaculture will get success fees of ₹ 3000 to ₹ 5000 (depending on the loan amount) for successful loan after approval of the loan application and loan disbursement by the bank, the Stakeholder will upload the loan approval letter and documents supporting loan disbursement to the beneficiary on the NFDP.\nIndividuals Associated with Aquaculture will get One time Aquaculture Insurance Incentive upon paid premium purchase of the insurance policy; the insured shall submit a claim for availing the “one-time incentive” on NFDP, against the purchase of aquaculture insurance as per the approved operational guidelines. \nFisheries and Aquaculture Stakeholder will get Performance grant towards the incentive through respective component under Component 2 & 3 of the PM-MKSSY against the Capital Investment and Job Creation / maintenance as per the approved Operational guidelines.\n﻿",
+      "who_can_apply": "Fisheries and Aquaculture Stakeholder (Individual and organisations) involved in the fisheries value chain shall be eligible for registration on the NFDP.\nFisheries and Aquaculture Stakeholder involved in the fisheries value chain shall be eligible for one time success fees on successful disbursement of loan amount.\nFisheries and Aquaculture farmers having up to 4hectares aquaculture farm size or equivalent unit shall be eligible for one time aquaculture insurance incentive.\nFisheries and Aquaculture Stakeholder (Micro and Small Enterprises) will get Performance grant under Component 2 & 3 of the PM-MKSSY against the Investment and Job Creation /maintenance as per the approved Operational guidelines.\n﻿",
+      "documents": "Mobile linked Aadhar Number and Bank account details.\nLoan Disbursement Certificate from Bank or Loan account statement.\nDetails of Aquaculture Insurance Policy details and Farm Size, Social Category etc. and Valid Bank account details.\n﻿",
+      "how_to_apply": "Online\nOnline - Via CSCs\nRegistration Process: Apply as an Individual/Organization\nStep 01: Select New User Registration from the top menu or from the Apply for Sub-scheme Benefits under PM-MKSSY section on the Home Page.\nStep 02: Click Apply as an Individual/Organization button as per your Profile.\nStep 03: Enter Aadhaar Number or Pan card Number. Check consent box, click on 'Validate Aadhaar' button.\nStep 04: Enter OTP received on Aadhaar linked mobile number. Click on validate button. After successful validation next screen will ask for Mobile number.\nStep 05: Enter mobile number. Enter Captcha. Click on Next button.\nStep 06: Enter OTP received on mobile number. Click on validate button. After successful validation, the NFDP Registration form will open.\nStep 07: Fill in the complete Registration details. as per your profile: Personal/Organization Information, Address, Occupation & Bank Details & submit.\nStep 08: Note your NFDP Registration Number and download your Provisional NFDP Registration certificate by clicking the Download Certificate button.\nLogin Process:\nBeneficiary Login- https://nfdp.dof.gov.in/nfdp_benificary/#/login﻿\nCredit Facilitation- https://nfdp.dof.gov.in/nfdp/#/credit-facilitation﻿\nAquaculture Insurance- https://nfdp.dof.gov.in/nfdp/#/insurance﻿\nPerformance grant- https://nfdp.dof.gov.in/nfdp_benificary/#/performance-grant﻿\n﻿"
+    },
+    "hi": {
+      "name": "प्रधानमंत्री मत्स्य किसान समृद्धि सह-योजना (पीएम-एमकेसएसवाई)",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "प्रधानमंत्री मत्स्य किसान समृद्धी सह-योजना (पीएम-एमकेसएसवाय)",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

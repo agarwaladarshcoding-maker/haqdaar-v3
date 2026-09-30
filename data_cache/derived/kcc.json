@@ -5,9 +5,9 @@
   "level": "CENTRAL",
   "priority": 2,
   "state": "ANY",
-  "department": "Government of India",
-  "fetched_on": "2026-09-11",
-  "source_sha256": "6b11d893679d0323c9287aad7aa91c2821cc7d5a922bed705bcb0bdb342b9295",
+  "department": "Ministry Of Agriculture and Farmers Welfare",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "f05421e5da5125500fbfa9f855c65c5f38917b48b0c407fbcb5e01972f473e26",
   "facets_source": "derived",
   "facets_verified_by": null,
   "facets_verified_on": null,
@@ -24,28 +24,31 @@
   "mr_verified_by": null,
   "mr_verified_on": null,
   "scheme_name_en": "Kisan Credit Card",
-  "scheme_name_hi": "किसान क्रेडिट कार्ड",
-  "scheme_name_mr": "शेतकरी क्रेडिट कार्ड",
+  "scheme_name_hi": "किसान क्रेडिट कार्ड योजना",
+  "scheme_name_mr": "शेतकरी क्रेडिट कार्ड योजना",
   "aliases_en": [
     "kisan credit card",
-    "kcc loan limit",
-    "kisan credit card limit",
-    "kcc credit fix",
-    "kisan credit card help"
+    "kcc",
+    "kisan credit card scheme",
+    "kisan credit card loan scheme",
+    "kcc crop loan limit scheme",
+    "kisan credit card credit limit for farmers"
   ],
   "aliases_hi": [
     "किसान क्रेडिट कार्ड",
-    "केसीसी लोन लिमिट",
-    "किसान क्रेडिट कार्ड सीमा",
-    "केसीसी क्रेडिट फिक्स",
-    "kcc सीमा"
+    "किसान क्रेडिट कार्ड योजना",
+    "किसान क्रेडिट कार्ड लोन योजना",
+    "किसान क्रेडिट कार्ड कर्ज सीमा योजना",
+    "kcc योजना",
+    "kisan credit card लोन योजना"
   ],
   "aliases_mr": [
-    "शेतकरी क्रेडिट कार्ड",
-    "केसीसी कर्ज मर्यादा",
-    "शेतकरी क्रेडिट कार्ड मर्यादा",
-    "केसीसी क्रेडिट निश्चिती",
-    "kcc मर्यादा"
+    "किसान क्रेडिट कार्ड",
+    "किसान क्रेडिट कार्ड योजना",
+    "शेतकरी क्रेडिट कार्ड योजना",
+    "किसान क्रेडिट कार्ड कर्ज योजना",
+    "kcc कर्ज योजना",
+    "kisan credit card योजना"
   ],
   "category": "farming",
   "gender": "ANY",
@@ -54,25 +57,25 @@
   "income_band": "ANY",
   "occupation": "farmer",
   "evidence_quotes": {
-    "category": "Farmers - individual/joint borrowers who are owner cultivators; Tenant farmers, oral lessees & share croppers; Self Help Groups (SHGs) or Joint Liability Groups (JLGs) of farmers including tenant farmers, share croppers etc",
+    "category": "Farmers - individual/joint borrowers who are owner cultivators;",
     "gender": "",
     "social_category": "",
     "age": "",
     "income_band": "",
-    "occupation": "Farmers - individual/joint borrowers who are owner cultivators"
+    "occupation": "Farmers - individual/joint borrowers who are owner cultivators;"
   },
   "gate_notes": [],
   "chunks": {
     "en": {
       "name": "Kisan Credit Card",
-      "summary": "The Kisan Credit Card offers flexible short‑term and term loan limits for crop production, asset maintenance, irrigation and allied activities, with sub‑limits, interest subvention and repayment options tailored to farming needs.",
+      "summary": "The Kisan Credit Card initiative offers credit assistance to farmers, tenant cultivators, sharecroppers and farmer groups for crop cultivation, farm maintenance, and allied activities, with short-term and investment loans fixed for five years.",
       "benefit_text": "Fixation of credit limit/Loan amount\nThe short-term limit to arrive for the first year: For farmers raising a single crop in a year: Scale of finance for the crop (as decided by District Level Technical Committee) x Extent of area cultivated + 10% of limit towards post-harvest / household/consumption requirements + 20% of limit towards repairs and maintenance expenses of farm assets + crop insurance, PAIS & asset insurance.\nLimit for second & subsequent year: First-year limit for crop cultivation purposes arrived at as above plus 10% of the limit towards cost escalation/increase in the scale of finance for every successive year ( 2nd, 3rd, 4th and 5th year) and estimated Term loan component for the tenure of Kisan Credit Card, i.e., five years.\nFor farmers raising more than one crop in a year, the limit is to be fixed as above depending upon the crops cultivated as per the proposed cropping pattern for the first year and an additional 10% of the limit towards cost escalation/increase in the scale of finance for every successive year (2nd, 3rd, 4th and 5th year). It is assumed that the farmer adopts the same cropping pattern for the remaining four years also. In case the cropping pattern adopted by the farmer is changed in the subsequent year, the limit may be reworked. \nTerm loans for investments towards land development, minor irrigation, purchase of farm equipment and allied agricultural activities. The banks may fix the quantum of credit for the term and working capital limit for agricultural and allied activities, etc., based on the unit cost of the asset/s proposed to be acquired by the farmer, the allied activities already being undertaken on the farm, the bank’s judgment on repayment capacity vis-a-vis total loan burden devolving on the farmer, including existing loan obligations.\nThe long-term loan limit is based on the proposed investments during the five-year period and the bank’s perception of the repaying capacity of the farmer \nMaximum Permissible Limit: The short-term loan limit arrived for the 5th year plus the estimated long-term loan requirement will be the Maximum Permissible Limit (MPL) and treated as the Kisan Credit Card Limit.\nFixation of Sub-limits for other than Marginal Farmers: \nShort-term loans and term loans are governed by different interest rates. Besides, at present, short-term crop loans are covered under Interest Subvention Scheme/ Prompt Repayment Incentive scheme. Further, repayment schedules and norms are different for short-term and term loans. Hence, in order to have operational and accounting convenience, the card limit is to be bifurcated into separate sub-limits for short-term cash credit limit cum savings account and term loans. \nThe drawing limit for short-term cash credit should be fixed based on the cropping pattern and the amounts for crop production, repairs and maintenance of farm assets and consumption may be allowed to be drawn at the convenience of the farmer. In case the revision of the scale of finance for any year by the district-level committee exceeds the notional hike of 10% contemplated while fixing the five-year limit, a revised drawable limit may be fixed and the farmer is advised about the same. In case such revisions require the card limit itself to be enhanced (4th or 5th year), the same may be done and the farmer be so advised. For term loans, instalments may be allowed to be withdrawn based on the nature of the investment and the repayment schedule drawn as per the economic life of the proposed investments. It is to be ensured that at any point in time, the total liability should be within the drawing limit of the concerned year. \nWherever the card limit/liability so arrived warrants additional security, the banks may take suitable collateral as per their policy.",
-      "who_can_apply": "Farmers - individual/joint borrowers who are owner cultivators;\nTenant farmers, oral lessees & share croppers;\nSelf Help Groups (SHGs) or Joint Liability Groups (JLGs) of farmers including tenant farmers, share croppers etc\n﻿\n\n﻿",
+      "who_can_apply": "Eligibility\nFarmers - individual/joint borrowers who are owner cultivators;\nTenant farmers, oral lessees & share croppers;\nSelf Help Groups (SHGs) or Joint Liability Groups (JLGs) of farmers including tenant farmers, share croppers etc",
       "documents": "Application Form.\nTwo Passport Size Photographs.\nID proof such as Driving License / Aadhar Card / Voter Identity Card / Passport. \nAddress Proof such as Driving License, Aadhar Card.\nProof of landholding duly certified by the revenue authorities.\nCropping pattern (Crops grown) with acreage.\nSecurity documents for loan limit above Rs.1.60 lakhs / Rs.3.00 lakhs, as applicable.\nAny other document as per sanction.\n﻿",
       "how_to_apply": "Online\nOffline\nVisit the website of the bank you wish to apply for the kisan credit card scheme. \nFrom the list of options, choose the Kisan Credit Card.  \nOn clicking the option of ‘Apply’, the website will redirect you to the application page.  \nFill the form with the required details and click on ‘Submit’. \nOn doing so, an application reference number will be sent. If you are eligible, the bank will get back to you for the further process within 3-4 working days.\n﻿"
     },
     "hi": {
-      "name": "किसान क्रेडिट कार्ड",
+      "name": "किसान क्रेडिट कार्ड योजना",
       "summary": "",
       "benefit_text": "",
       "who_can_apply": "",
@@ -80,7 +83,7 @@
       "how_to_apply": ""
     },
     "mr": {
-      "name": "शेतकरी क्रेडिट कार्ड",
+      "name": "शेतकरी क्रेडिट कार्ड योजना",
       "summary": "",
       "benefit_text": "",
       "who_can_apply": "",

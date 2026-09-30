@@ -1,0 +1,98 @@
+{
+  "scheme_id": "nfbs",
+  "myscheme_slug": "nfbs",
+  "source_url": "https://www.myscheme.gov.in/schemes/nfbs",
+  "level": "CENTRAL",
+  "priority": 2,
+  "state": "ANY",
+  "department": "Ministry Of Rural Development",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "853c31ea49324e1369ef596e76239fe6ffe68b11935d3b80f051a89403033715",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "National Family Benefit Scheme",
+  "scheme_name_hi": "राष्ट्रीय पारिवारिक लाभ योजना",
+  "scheme_name_mr": "राष्ट्रीय कुटुंब लाभ योजना",
+  "aliases_en": [
+    "national family benefit scheme",
+    "nfbs",
+    "family benefit scheme",
+    "national family help scheme for breadwinner death",
+    "twenty thousand lump sum help for deceased family head",
+    "breadwinner death family assistance scheme"
+  ],
+  "aliases_hi": [
+    "राष्ट्रीय पारिवारिक लाभ योजना",
+    "राष्ट्रीय परिवार लाभ योजना",
+    "परिवार हित लाभ योजना",
+    "घर के कमाने वाले की मौत पर मिलने वाली सहायता योजना",
+    "मुखिया की मृत्यु पर बीस हजार एकमुश्त सहायता योजना",
+    "nfbs योजना"
+  ],
+  "aliases_mr": [
+    "राष्ट्रीय कुटुंब लाभ योजना",
+    "राष्ट्रीय कुटुंब हित लाभ योजना",
+    "कुटुंब लाभ योजना",
+    "घरातील कर्त्या व्यक्तीच्या मृत्यूनंतर मिळणारी मदत योजना",
+    "कुटुंब प्रमुखाच्या मृत्यूनंतर वीस हजार एकरकमी मदत योजना",
+    "nfbs लाभ योजना"
+  ],
+  "category": "welfare_disability",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": "ANY",
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "₹ 20000/ - will be given as a lump sum assistance to such surviving member of the household of the deceased poor, who after local inquiry, is found to be the head of the household.",
+    "gender": "",
+    "social_category": "",
+    "age": "",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Family must be living Below Poverty Line (BPL)",
+    "Primary breadwinner must be deceased; deceased's age was more than 18 years and less than 60 years",
+    "Applicant must be the succeeding primary breadwinner / head of household found after local inquiry"
+  ],
+  "chunks": {
+    "en": {
+      "name": "National Family Benefit Scheme",
+      "summary": "The National Family Benefit Scheme provides Rs 20,000 lump sum assistance to Indian BPL families upon death of primary breadwinner aged 18 to 60, supporting the surviving head of household after local inquiry.",
+      "benefit_text": "₹ 20000/ - will be given as a lump sum assistance to such surviving member of the household of the deceased poor, who after local inquiry, is found to be the head of the household.\nThe assistance would be given to every case of death of breadwinner in a family.",
+      "who_can_apply": "The applicant must be a citizen of India.\nThe family of the applicant must be living Below Poverty Line (BPL).\nThe primary breadwinner of the applicant's family must have been deceased.\nThe age of the deceased breadwinner must have been more than 18 years and less than 60 years.\nThe applicant must be the succeeding primary breadwinner of the family.",
+      "documents": "Documents related to the Deceased Breadwinner - \nDeath Certificate.\nProof of Identity.\nProof of Address.\nBPL Card / Ration Card of the Family.\nFamily ID / Member ID.\n﻿\n\nDocuments related to the Family Member to be provided Assistance - \nProof of Identity.\nProof of Address.\nProof of Age.\nFamily ID / Member ID.\nDetails of the AADHAAR Seeded Bank Account / Post Office Account.\nPassport Size Photo",
+      "how_to_apply": "Offline\nOnline\nStep 1: Take a print of the application form given in Annexure-III (page no. 47) of the scheme guidelines - \n﻿https://nsap.nic.in/Guidelines/nsap_guidelines_oct2014.pdf \n(The application forms are available with the District Social Welfare Officer (DSWO) or Tehsil Social Welfare Officer (TSWO) free of cost.) \nStep 2: The duly filled-in Application forms along with the required documents are to be submitted to the designated officer appointed by the respective state governments. The applicant has to complete the application form and enclose proof regarding age, income, status, address, and death certificate. Complete case is to be submitted to the concerned TSWO which consolidates the lists and forwards to the Block Level Sanctioning Committee. The cases are then submitted to DSWO for accord of sanction by District level sanctioning committee headed by the Director General, Social Welfare Department.\n﻿\n\nApply Now"
+    },
+    "hi": {
+      "name": "राष्ट्रीय पारिवारिक लाभ योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "राष्ट्रीय कुटुंब लाभ योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}
