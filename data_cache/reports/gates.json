@@ -1,0 +1,129 @@
+{
+  "schemes": 28,
+  "ok": 21,
+  "per_language": {
+    "en": 28,
+    "hi": 21,
+    "mr": 25
+  },
+  "failures": [
+    {
+      "scheme_id": "ignwps",
+      "complete": [],
+      "languages": {
+        "en": {},
+        "hi": {
+          "summary": [
+            "number not in the English: 40",
+            "number not in the English: 79"
+          ]
+        },
+        "mr": {}
+      }
+    },
+    {
+      "scheme_id": "mgnrega",
+      "complete": [],
+      "languages": {
+        "en": {},
+        "hi": {
+          "benefit_text": [
+            "number not in the English: 1",
+            "number not in the English: 15"
+          ]
+        },
+        "mr": {
+          "benefit_text": [
+            "number not in the English: 1",
+            "number not in the English: 15"
+          ]
+        }
+      }
+    },
+    {
+      "scheme_id": "nfbs",
+      "complete": [],
+      "languages": {
+        "en": {},
+        "hi": {
+          "summary": [
+            "length 1.61x the English, over 1.6"
+          ]
+        },
+        "mr": {}
+      }
+    },
+    {
+      "scheme_id": "nps-tsep",
+      "complete": [],
+      "languages": {
+        "en": {},
+        "hi": {
+          "summary": [
+            "number not in the English: 60",
+            "length 1.69x the English, over 1.6"
+          ],
+          "benefit_text": [
+            "number not in the English: 60",
+            "number not in the English: 50"
+          ]
+        },
+        "mr": {
+          "summary": [
+            "number not in the English: 60"
+          ],
+          "benefit_text": [
+            "number not in the English: 60",
+            "number not in the English: 50"
+          ]
+        }
+      }
+    },
+    {
+      "scheme_id": "pmjjby",
+      "complete": [],
+      "languages": {
+        "en": {},
+        "hi": {
+          "benefit_text": [
+            "number not in the English: 1"
+          ],
+          "who_can_apply": [
+            "length 1.61x the English, over 1.6"
+          ]
+        },
+        "mr": {
+          "benefit_text": [
+            "number not in the English: 1"
+          ]
+        }
+      }
+    },
+    {
+      "scheme_id": "pmmvy",
+      "complete": [],
+      "languages": {
+        "en": {},
+        "hi": {
+          "summary": [
+            "number not in the English: 2"
+          ]
+        },
+        "mr": {}
+      }
+    },
+    {
+      "scheme_id": "rkvyshfshc",
+      "complete": [],
+      "languages": {
+        "en": {},
+        "hi": {
+          "documents": [
+            "only 0.00 Devanagari, under 0.8"
+          ]
+        },
+        "mr": {}
+      }
+    }
+  ]
+}
