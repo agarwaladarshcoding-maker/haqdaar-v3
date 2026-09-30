@@ -25,7 +25,7 @@
   "mr_verified_on": null,
   "scheme_name_en": "Pradhan Mantri Fasal Bima Yojna (PMFBY)",
   "scheme_name_hi": "प्रधान मंत्री फसल बीमा योजना (पीएमएफबीवाई)",
-  "scheme_name_mr": "प्रधानमंत्री पिक बीमा योजना (PMFBY)",
+  "scheme_name_mr": "प्रधानमंत्री पीक विमा योजना (पीएमएफबीवाय)",
   "aliases_en": [
     "pmfby crop insurance",
     "prime minister's farm insurance",
@@ -80,7 +80,7 @@
       "how_to_apply": ""
     },
     "mr": {
-      "name": "प्रधानमंत्री पिक बीमा योजना (PMFBY)",
+      "name": "प्रधानमंत्री पीक विमा योजना (पीएमएफबीवाय)",
       "summary": "",
       "benefit_text": "",
       "who_can_apply": "",

@@ -47,10 +47,10 @@ def test_lines_stay_short_enough_to_speak():
 
 
 def _english_only(tmp_path):
-    """lines.yaml as it was before p4 filled in Hindi and Marathi."""
+    """lines.yaml as it was before p4 filled in Hindi and Marathi, and before any line was pinned."""
     path = tmp_path / "lines.yaml"
     text = LINES_PATH.read_text(encoding="utf-8")
-    path.write_text(re.sub(r"(?m)^    (hi|mr): .*\n", "", text), encoding="utf-8")
+    path.write_text(re.sub(r"(?m)^    (hi|mr|pinned): .*\n", "", text), encoding="utf-8")
     return path
 
 

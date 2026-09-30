@@ -87,6 +87,33 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 30 Sep (later) — all 12 schemes pass in all 3 languages; lines corrected; Phase 1 merged
+
+**A hidden bug, found while fixing the 4 bad schemes.** Many Hindi and Marathi texts were
+translations of the *old, long* cards from before 21 Sep. The Marathi for PMMY talked about "women
+entrepreneurs"; the Hindi for PM-Kisan said "no age limit". The English says neither. The cause: a
+saved translation was reused as long as the scheme page was the same, even after its English
+changed. Now a saved translation is only reused for the exact English it was made from. All 12
+schemes were translated again (90 requests, 20,294 characters).
+
+**The last 3 real faults, fixed by hand:** PM-Kisan's Marathi turned "₹10,000" into "10 हजार";
+PMFBY's Marathi name and how-to-apply kept English words ("PMFBY", "Farmer Corner") and said
+"बीमा" for "विमा"; PMMY's Hindi was too wordy. **Result: 12 of 12 schemes pass every check in
+Hindi, Marathi and English** (was 8).
+
+**The fixed lines, corrected:**
+- Hindi talked to the caller sometimes as a woman, sometimes as a man, and sometimes with the
+  rude "तुम". Now it is always the polite "आप" with the normal form used when the gender is not
+  known, and lines that could avoid gender do ("आपका घर किस राज्य में है?").
+- Marathi used the rude "तू" in 6 lines, and asked "तू किती वर्षांची आहेस?". Fixed.
+- The menu said "what you will get" in both, which sounds like a promise. Now "what the scheme has".
+- The greeting now has its Hindi and Marathi parts.
+- 28 corrected lines are pinned, so the pipeline will never write over them.
+
+**Merged:** steps 1.12 to 1.16 are on `main`. Phase 1 is done.
+
+**Tests: 260 passing.** Nothing the call needs is missing.
+
 ### 30 Sep — every fixed line now has Hindi and Marathi
 
 **First, a safety fix.** The last four steps (1.12 to 1.15) and 16 commits on `main` were only on

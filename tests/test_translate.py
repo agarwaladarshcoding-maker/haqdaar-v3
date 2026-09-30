@@ -477,9 +477,9 @@ class FakeLineTranslator:
 
 
 def _write_english_only(path):
-    """lines.yaml as it was before p4 filled in Hindi and Marathi."""
+    """lines.yaml as it was before p4 filled in Hindi and Marathi, and before any line was pinned."""
     text = lines_mod.LINES_PATH.read_text(encoding="utf-8")
-    path.write_text(re.sub(r"(?m)^    (hi|mr): .*\n", "", text), encoding="utf-8")
+    path.write_text(re.sub(r"(?m)^    (hi|mr|pinned): .*\n", "", text), encoding="utf-8")
 
 
 @pytest.fixture
@@ -566,3 +566,17 @@ def test_a_translated_slot_name_is_put_back():
     # Two slots could have swapped places, so they are not guessed at.
     two = "{क} और {ख}"
     assert p4_translate._restore_slot("{a} and {b}", two) == two
+
+
+def test_changed_english_is_translated_again(tmp_path):
+    """A cached translation belongs to the English it was made from, not just to the page."""
+    first = FakeTranslator()
+    english = {"summary": "Farmers get 6000 rupees a year."}
+    translate_scheme("s", "sha", english, "hi", translator=first, cache_dir=tmp_path)
+
+    second = FakeTranslator()
+    texts, from_cache = translate_scheme(
+        "s", "sha", {"summary": "Farmers get 6000 rupees."}, "hi", translator=second, cache_dir=tmp_path,
+    )
+    assert not from_cache and second.requests == 1
+    assert texts["summary"] == "[hi] Farmers get 6000 rupees."

@@ -1,7 +1,14 @@
 {
-  "summary": "अटल पेन्शन योजना वयाच्या 60 व्या वर्षापासून आयुष्यभर 1,000-5,000 रुपये मासिक पेन्शनची हमी देते, मृत्यूनंतर पतीलाही तेवढीच रक्कम देते आणि जमा झालेली रक्कम नामनिर्देशित व्यक्तीला परत करते, तर योगदानाला कर सवलत मिळते.",
+  "summary": "अटल पेन्शन योजना वयाच्या 60 व्या वर्षापासून आयुष्यभर 1,000-5,000 रुपये मासिक पेन्शनची हमी देते, मृत्यूनंतर पतीलाही तेवढीच रक्कम देते आणि जमा झालेली रक्कम नामनिर्देशित व्यक्तीला परत करते, तर योगदानाला करसवलत मिळते.",
   "benefit_text": "या योजनेत वयाच्या 60 वर्षानंतर मृत्यूपर्यंत दरमहा रु. 1000, रु. 2000, रु. 3000, रु. 4000 किंवा रु. 5000 इतके किमान पेन्शनची हमी दिली जाते. सदस्याच्या मृत्यूनंतर तिच्या पतीला/पत्नीला तेवढेच पेन्शन मिळते. दोघांच्या मृत्यूनंतर नामांकित व्यक्तीला जमा झालेले पेन्शन मिळते.",
   "who_can_apply": "18 ते 40 वयोगटातील महिला सदस्य होऊ शकतात. उत्पन्नाची अट नाही. जे नागरिक आयकर भरतात किंवा भरले आहेत, त्या पात्र नाहीत.",
   "documents": "केवायसी साठी सक्रिय बँक किंवा पोस्ट ऑफिस बचत खाते, ओळख पडताळणीसाठी आधार आणि केवायसी अपलोड करण्यासाठी आधार व्हर्च्युअल आयडी किंवा एक्सएमएल फाइल. कागदपत्रांची संपूर्ण यादी सीएससी सेंटर तुम्हाला सांगेल.",
-  "how_to_apply": "eNPS वेबसाइटला भेट द्या आणि अटल पेन्शन योजना निवडा. मूलभूत आणि नामांकित व्यक्तीची माहिती भरा, पेन्शनची रक्कम आणि योगदानाचा वारंवारता निवडा, ऑटो-डेबिटसाठी संमती द्या आणि OTP किंवा XML/Virtual ID अपलोड करून आधार KYC पूर्ण करा."
+  "how_to_apply": "eNPS वेबसाइटला भेट द्या आणि अटल पेन्शन योजना निवडा. मूलभूत आणि नामांकित व्यक्तीची माहिती भरा, पेन्शनची रक्कम आणि योगदानाचा वारंवारता निवडा, ऑटो-डेबिटसाठी संमती द्या आणि OTP किंवा XML/Virtual ID अपलोड करून आधार KYC पूर्ण करा.",
+  "en": {
+    "summary": "Atal Pension Yojana guarantees a monthly pension of Rs 1,000‑5,000 from age 60 for life, extends the same amount to the spouse after death, and returns the accumulated corpus to the nominee, while contributions enjoy tax relief.",
+    "benefit_text": "The scheme gives a guaranteed minimum pension of Rs. 1000, Rs. 2000, Rs. 3000, Rs. 4000 or Rs. 5000 per month after age 60 until death. The spouse receives the same pension after the subscriber’s death. The nominee gets the accumulated pension wealth after both die.",
+    "who_can_apply": "People aged 18 to 40 can join. There is no income requirement. Citizens who are or have been income tax payers are not eligible.",
+    "documents": "Active bank or post office savings account for KYC, Aadhaar for identity verification, and Aadhaar virtual ID or XML file for KYC upload. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Visit the eNPS website and select Atal Pension Yojana. Fill basic and nominee details, choose the pension amount and contribution frequency, give consent for auto‑debit, and complete Aadhaar KYC by OTP or uploading the XML/Virtual ID."
+  }
 }

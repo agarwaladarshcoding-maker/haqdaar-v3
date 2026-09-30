@@ -3,5 +3,12 @@
   "benefit_text": "यह योजना नए सूक्ष्म उद्यमों के लिए मार्जिन मनी सब्सिडी प्रदान करती है। सामान्य श्रेणी 10% का योगदान करती है और शहरी क्षेत्रों में 15% सब्सिडी प्राप्त करती है, ग्रामीण क्षेत्रों में 25%। विशेष श्रेणी 5% का योगदान करती है और शहरी क्षेत्रों में 25%, ग्रामीण क्षेत्रों में 35% प्राप्त करती है। उन्नयन ऋणों पर 15% सब्सिडी मिलती है।",
   "who_can_apply": "18 वर्ष या उससे अधिक आयु की महिलाएं आवेदन कर सकती हैं। कोई आय सीमा नहीं है। सामान्य, विशेष और अन्य श्रेणियां जैसे कि एससी, एसटी, ओबीसी, अल्पसंख्यक, महिलाएं, भूतपूर्व सैनिक, ट्रांसजेंडर, दिव्यांग, एनईआर और आकांक्षी जिले पात्र हैं।",
   "documents": "आवश्यक दस्तावेज़ों में जाति प्रमाण पत्र, यदि आवश्यक हो तो विशेष श्रेणी प्रमाण पत्र, ग्रामीण क्षेत्र प्रमाण पत्र, परियोजना रिपोर्ट, और शिक्षा या कौशल विकास प्रमाण पत्र शामिल हैं। सीएससी सेंटर आपको कागज़ों की पूरी सूची बताएगा।",
-  "how_to_apply": "आधिकारिक PMEGP वेबसाइट पर जाएं, नई इकाई के अंतर्गत अप्लाई पर क्लिक करें, ऑनलाइन फॉर्म भरें, डेटा सहेजें, आवश्यक दस्तावेज़ अपलोड करें और सबमिट करें।"
+  "how_to_apply": "आधिकारिक PMEGP वेबसाइट पर जाएं, नई इकाई के अंतर्गत अप्लाई पर क्लिक करें, ऑनलाइन फॉर्म भरें, डेटा सहेजें, आवश्यक दस्तावेज़ अपलोड करें और सबमिट करें।",
+  "en": {
+    "summary": "PMEGP offers margin‑money subsidies and linkage support to establish or upgrade micro‑enterprises, providing up to 35% cost assistance for new units and 15% for upgrades, along with training, awareness camps and infrastructure aid.",
+    "benefit_text": "The scheme offers margin money subsidy for new micro‑enterprises. General category contributes 10% and receives 15% subsidy in urban areas, 25% in rural. Special category contributes 5% and receives 25% urban, 35% rural. Upgradation loans get 15% subsidy.",
+    "who_can_apply": "Individuals aged 18 years or older can apply. There is no income ceiling. General, special and other categories such as SC, ST, OBC, minorities, women, ex‑servicemen, transgenders, differently abled, NER and aspirational districts are eligible.",
+    "documents": "Required documents include caste certificate, special category certificate if needed, rural area certificate, project report, and education or skill development certificate. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Visit the official PMEGP website, click Apply under New Unit, fill the online form, save data, upload required documents and submit."
+  }
 }

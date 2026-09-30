@@ -3,5 +3,12 @@
   "benefit_text": "या योजनेत पीक वित्तपुरवठ्यावर आधारित पहिल्या वर्षासाठी अल्पकालीन पत मर्यादा निश्चित केली जाते, तसेच काढणीपश्चात गरजांसाठी 10%, दुरुस्ती आणि विम्यासाठी 20% आणि नंतरच्या प्रत्येक वर्षी 10% वाढवले जातात; जमीन विकास, सिंचन, उपकरणे आणि संबंधित कामांसाठी मुदत कर्ज देखील दिले जाते.",
   "who_can_apply": "ज्या शेतकरी महिलांच्या मालकीची जमीन आहे, त्या अर्ज करू शकतात, तसेच भाडेकरू शेतकरी, तोंडी भाडेपट्टीदार आणि बटाईदार देखील अर्ज करू शकतात. शेतकरी महिलांचे स्वयं-सहायता गट किंवा संयुक्त दायित्व गट, ज्यात भाडेकरू शेतकरी आणि बटाईदार यांचा समावेश आहे, ते देखील पात्र आहेत.",
   "documents": "आवश्यक कागदपत्रे म्हणजे अर्जाचा नमुना, दोन पासपोर्ट आकाराचे फोटो, आधार कार्डसारखे ओळखपत्र, पत्त्याचा पुरावा, जमिनीच्या मालकीचा प्रमाणित पुरावा आणि एकरानुसार लागवडीचा प्रकार. CSC सेंटर तुम्हाला कागदपत्रांची संपूर्ण यादी सांगेल.",
-  "how_to_apply": "निवडलेल्या बँकेच्या वेबसाइटला भेट द्या, किसान क्रेडिट कार्ड निवडा आणि अर्ज करा वर क्लिक करा. ऑनलाइन फॉर्म भरा आणि सबमिट करा. अर्ज संदर्भ क्रमांक पाठवला जाईल आणि बँक काही कार्यालयीन दिवसांमध्ये अर्जदाराशी संपर्क साधेल."
+  "how_to_apply": "निवडलेल्या बँकेच्या वेबसाइटला भेट द्या, किसान क्रेडिट कार्ड निवडा आणि अर्ज करा वर क्लिक करा. ऑनलाइन फॉर्म भरा आणि सबमिट करा. अर्ज संदर्भ क्रमांक पाठवला जाईल आणि बँक काही कार्यालयीन दिवसांमध्ये अर्जदाराशी संपर्क साधेल.",
+  "en": {
+    "summary": "The Kisan Credit Card offers flexible short‑term and term loan limits for crop production, asset maintenance, irrigation and allied activities, with sub‑limits, interest subvention and repayment options tailored to farming needs.",
+    "benefit_text": "The scheme fixes a short‑term credit limit for the first year based on crop finance, plus 10% for post‑harvest needs, 20% for repairs, and insurance, and adds 10% each later year; term loans are also provided for land development, irrigation, equipment and allied activities.",
+    "who_can_apply": "Farmers who own land can apply, as can tenant farmers, oral lessees and share‑croppers. Self Help Groups or Joint Liability Groups of farmers, including tenant farmers and share‑croppers, are also eligible.",
+    "documents": "Required papers are the application form, two passport‑size photographs, an identity proof such as Aadhar card, an address proof, a certified proof of landholding and the cropping pattern with acreage. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Visit the chosen bank’s website, select Kisan Credit Card and click Apply. Fill the online form and submit. An application reference number is sent, and the bank contacts the applicant within a few working days."
+  }
 }

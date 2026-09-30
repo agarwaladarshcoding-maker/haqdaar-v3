@@ -24,8 +24,12 @@ lines:
   # The one line rendered as a single file in all three languages, played hi -> mr -> en
   # (p6_snapshot.py builds it with the "all" render key). It must name the languages in the
   # language the caller is being offered, so English alone cannot carry it. The English below
-  # is what the English third of the file says.
+  # is what the English third of the file says. The hi and mr parts each offer only their own
+  # language, in that language; the render (Phase 2) plays hi -> mr -> en as one file.
   greeting_trilingual:
+    pinned: true
+    hi: "नमस्ते। यह हकदार है। हिंदी के लिए 1 दबाएँ।"
+    mr: "नमस्कार. हे हकदार आहे. मराठीसाठी 2 दाबा."
     en: "Namaste. This is Haqdaar. For Hindi press 1. For Marathi press 2. For English press 3."
 
   consent_notice:
@@ -34,8 +38,9 @@ lines:
     mr: "हा कॉल रेकॉर्ड केला जात आहे. ही सेवा अधिक चांगली करण्यासाठी आम्ही तो जपून ठेवतो. पुढे जाण्यासाठी लाईनवर रहा."
 
   opener_prompt:
+    pinned: true
     en: "Tell me what you need help with. You can also say the name of a scheme."
-    hi: "मुझे बताओ कि तुम्हें किस चीज़ में मदद चाहिए। तुम किसी योजना का नाम भी बता सकती हो।"
+    hi: "बताइए, आपको किस बात में मदद चाहिए। आप किसी योजना का नाम भी बता सकते हैं।"
     mr: "तुम्हाला कशात मदत हवी आहे ते सांगा. तुम्ही योजनेचे नाव देखील सांगू शकता."
 
   unclear_prompt:
@@ -44,9 +49,10 @@ lines:
     mr: "माफ करा, मला ते समजले नाही. कृपया ते पुन्हा सांगा."
 
   anything_else:
+    pinned: true
     en: "Do you want to hear anything else? Press 1 for yes. Press 2 for no."
     hi: "क्या आप कुछ और सुनना चाहते हैं? हाँ के लिए 1 दबाएँ। नहीं के लिए 2 दबाएँ।"
-    mr: "तुम्हाला आणखी काही ऐकायचे आहे का? होकारार्थी 1 दाबा. नकारार्थी 2 दाबा."
+    mr: "तुम्हाला आणखी काही ऐकायचे आहे का? हो साठी 1 दाबा. नाही साठी 2 दाबा."
 
   # --- door A · the caller named a scheme --------------------------------
   # One candidate is simply read out. Two get one keypad turn naming both. Three or more fall
@@ -67,21 +73,24 @@ lines:
     mr: "तुम्हाला यापैकी काहीही नको असल्यास 3 दाबा."
 
   door_a_downgrade_to_b:
+    pinned: true
     en: "I will ask you a few short questions instead."
     hi: "इसके बजाय, मैं आपसे कुछ छोटे सवाल पूछूंगी।"
-    mr: "त्याऐवजी, मी तुला काही छोटे प्रश्न विचारेन."
+    mr: "त्याऐवजी, मी तुम्हाला काही छोटे प्रश्न विचारेन."
 
   # --- the questions -----------------------------------------------------
   q_state:
+    pinned: true
     en: "Which state do you live in?"
-    hi: "आप किस राज्य में रहती हैं?"
+    hi: "आप किस राज्य में रहते हैं?"
     mr: "तुम्ही कोणत्या राज्यात राहता?"
 
   # Asked in place of q_state where only Maharashtra schemes are loaded, so the caller is not
   # asked an open question the corpus cannot answer.
   state_q_maharashtra:
+    pinned: true
     en: "Do you live in Maharashtra? Press 1 for yes. Press 2 for no."
-    hi: "क्या आप महाराष्ट्र में रहती हैं? हाँ के लिए 1 दबाएँ। नहीं के लिए 2 दबाएँ।"
+    hi: "क्या आप महाराष्ट्र में रहते हैं? हाँ के लिए 1 दबाएँ। नहीं के लिए 2 दबाएँ।"
     mr: "तुम्ही महाराष्ट्रात राहता का? होय म्हणण्यासाठी 1 दाबा. नाही म्हणण्यासाठी 2 दाबा."
 
   q_gender:
@@ -95,9 +104,10 @@ lines:
     mr: "तुम्ही कोणत्या वर्गात मोडता? सामान्य, ओबीसी, एससी, की एसटी?"
 
   q_age:
+    pinned: true
     en: "How old are you?"
     hi: "आपकी उम्र क्या है?"
-    mr: "तू किती वर्षांची आहेस?"
+    mr: "तुमचे वय किती आहे?"
 
   q_income_band:
     en: "About how much does your family earn in a year?"
@@ -105,14 +115,16 @@ lines:
     mr: "तुमचे कुटुंब वर्षाला किती कमावते?"
 
   q_occupation:
+    pinned: true
     en: "What work do you do?"
-    hi: "आप क्या काम करती हैं?"
+    hi: "आप क्या काम करते हैं?"
     mr: "तुम्ही काय काम करता?"
 
   # --- asked a second time, in other words -------------------------------
   rephrase_state:
+    pinned: true
     en: "Which state is your home in?"
-    hi: "आप किस राज्य में रहती हैं?"
+    hi: "आपका घर किस राज्य में है?"
     mr: "तुम्ही कोणत्या राज्यात राहता?"
 
   rephrase_gender:
@@ -121,8 +133,9 @@ lines:
     mr: "कृपया स्त्री, पुरुष किंवा इतर असे म्हणा."
 
   rephrase_social_category:
+    pinned: true
     en: "Please say your category. General, O B C, S C, or S T. You can also say you do not want to tell."
-    hi: "कृपया अपनी श्रेणी बताएं। सामान्य, ओबीसी, एससी, या एसटी। आप यह भी कह सकती हैं कि आप बताना नहीं चाहतीं।"
+    hi: "कृपया अपनी श्रेणी बताइए। सामान्य, ओबीसी, एससी, या एसटी। अगर आप नहीं बताना चाहते, तो यह भी कह सकते हैं।"
     mr: "कृपया तुमची श्रेणी सांगा. सामान्य, ओबीसी, एससी, किंवा एसटी. तुम्ही सांगू इच्छित नाही असेही तुम्ही म्हणू शकता."
 
   rephrase_age:
@@ -136,8 +149,9 @@ lines:
     mr: "संपूर्ण कुटुंबाची एका वर्षातील कमाई किती आहे ते कृपया सांगा."
 
   rephrase_occupation:
+    pinned: true
     en: "Please say the work you do, like farming or a shop."
-    hi: "कृपया वह काम बताएं जो आप करती हैं, जैसे खेती या दुकान।"
+    hi: "कृपया अपना काम बताइए, जैसे खेती या दुकान।"
     mr: "तुम्ही जे काम करता ते सांगा, जसे शेती किंवा दुकान."
 
   # --- dropped to the keypad ---------------------------------------------
@@ -153,31 +167,36 @@ lines:
     mr: "चला कीपॅड वापरूया."
 
   keypad_age:
+    pinned: true
     en: "Let us use the keypad. Press the key for your age group."
-    hi: "चलिए कीपैड का उपयोग करते हैं। अपनी आयु वर्ग के लिए कुंजी दबाएँ।"
-    mr: "चला कीपॅड वापरूया. तुमच्या वयोगटासाठी असलेले बटण दाबा."
+    hi: "चलिए कीपैड का उपयोग करते हैं। अपनी उम्र के लिए बटन दबाएँ।"
+    mr: "चला कीपॅड वापरूया. तुमच्या वयासाठी बटण दाबा."
 
   keypad_income_band:
+    pinned: true
     en: "Let us use the keypad. Press the key for your yearly family earning."
-    hi: "चलिए कीपैड का उपयोग करते हैं। अपनी वार्षिक पारिवारिक आय के लिए कुंजी दबाएँ।"
-    mr: "चला कीपॅड वापरूया. तुमच्या वार्षिक कौटुंबिक कमाईसाठी की दाबा."
+    hi: "चलिए कीपैड का उपयोग करते हैं। परिवार की साल भर की कमाई के लिए बटन दबाएँ।"
+    mr: "चला कीपॅड वापरूया. कुटुंबाच्या वर्षाच्या कमाईसाठी बटण दाबा."
 
   keypad_occupation:
+    pinned: true
     en: "Let us use the keypad. Press the key for your work."
-    hi: "चलिए कीपैड का उपयोग करते हैं। अपने काम के लिए कुंजी दबाएँ।"
-    mr: "चला कीपॅड वापरूया. तुमच्या कामासाठी की दाबा."
+    hi: "चलिए कीपैड का उपयोग करते हैं। अपने काम के लिए बटन दबाएँ।"
+    mr: "चला कीपॅड वापरूया. तुमच्या कामासाठी बटण दाबा."
 
   # Appended after the last chip, so a caller who does not fit any of them has a way out.
   keypad_unknown_suffix:
+    pinned: true
     en: "Press 9 if you do not want to say."
-    hi: "अगर आप नहीं कहना चाहती हैं तो 9 दबाएँ।"
+    hi: "अगर आप नहीं बताना चाहते, तो 9 दबाएँ।"
     mr: "तुम्हाला काही सांगायचे नसेल तर 9 दाबा."
 
   # --- confirming what was heard -----------------------------------------
   bundle_confirm_intro:
+    pinned: true
     en: "Let me say back what I heard."
-    hi: "मुझे जो कुछ मैंने सुना है, उसे वापस कहने दो।"
-    mr: "मी जे ऐकले ते परत सांगू दे."
+    hi: "मैंने जो सुना, वह दोहराती हूँ।"
+    mr: "मी जे ऐकले ते परत सांगते."
 
   confirm_bundle_opener:
     en: "You said {bundle}."
@@ -197,9 +216,10 @@ lines:
 
   # --- reading a scheme out ----------------------------------------------
   section_menu:
+    pinned: true
     en: "Press 1 for what you get. Press 2 for how to apply. Press 3 for the papers needed. Press 4 for who can apply. Press 9 for the next scheme."
-    hi: "आपको क्या मिलेगा इसके लिए 1 दबाएँ। आवेदन कैसे करें इसके लिए 2 दबाएँ। आवश्यक कागजात के लिए 3 दबाएँ। कौन आवेदन कर सकती है इसके लिए 4 दबाएँ। अगली योजना के लिए 9 दबाएँ।"
-    mr: "तुम्हाला काय मिळेल यासाठी 1 दाबा. अर्ज कसा करायचा यासाठी 2 दाबा. आवश्यक कागदपत्रांसाठी 3 दाबा. कोण अर्ज करू शकते यासाठी 4 दाबा. पुढील योजनेसाठी 9 दाबा."
+    hi: "योजना में क्या मिलता है, इसके लिए 1 दबाएँ। आवेदन कैसे करें, इसके लिए 2 दबाएँ। कौन से कागज़ चाहिए, इसके लिए 3 दबाएँ। कौन आवेदन कर सकता है, इसके लिए 4 दबाएँ। अगली योजना के लिए 9 दबाएँ।"
+    mr: "योजनेत काय मिळते यासाठी 1 दाबा. अर्ज कसा करायचा यासाठी 2 दाबा. कोणती कागदपत्रे लागतात यासाठी 3 दाबा. कोण अर्ज करू शकते यासाठी 4 दाबा. पुढील योजनेसाठी 9 दाबा."
 
   # Said before a section so the caller knows whose words these are: the government's, not ours.
   section_source_frame:
@@ -224,20 +244,23 @@ lines:
 
   # --- things the caller must be told plainly ----------------------------
   keypad_only_mode:
+    pinned: true
     en: "I am having trouble hearing you. We will use the keypad from now on."
     hi: "मुझे आपको सुनने में परेशानी हो रही है। अब से हम कीपैड का उपयोग करेंगे।"
-    mr: "मला तुला ऐकण्यात अडचण येत आहे. आतापासून आपण कीपॅड वापरू."
+    mr: "मला तुमचे बोलणे नीट ऐकू येत नाही. आतापासून आपण कीपॅड वापरू."
 
   state_unknown_disclaimer:
+    pinned: true
     en: "I do not know your state, so some of these may not run where you live."
     hi: "मुझे आपके राज्य के बारे में नहीं पता, इसलिए इनमें से कुछ आपके क्षेत्र में नहीं चल सकते हैं।"
-    mr: "मला तुमचे राज्य माहीत नाही, त्यामुळे यातील काही तुमच्या राज्यात चालणार नाहीत."
+    mr: "मला तुमचे राज्य माहीत नाही, त्यामुळे यातील काही योजना तुमच्या राज्यात लागू नसतील."
 
   # --- the five endings --------------------------------------------------
   results_exact_preamble:
+    pinned: true
     en: "Here is what matches what you told me."
-    hi: "यहाँ वह है जो आपके द्वारा बताई गई बात से मेल खाता है।"
-    mr: "तुम्ही मला जे सांगितले, त्याच्याशी हे जुळते."
+    hi: "आपने जो बताया, उससे ये योजनाएँ मेल खाती हैं।"
+    mr: "तुम्ही जे सांगितले, त्याच्याशी या योजना जुळतात."
 
   results_overflow:
     en: "Many schemes match. Here are the closest ones first."
@@ -246,44 +269,52 @@ lines:
 
   # Bad news first: the caller is told nothing matched before any name is read.
   terminal_widened_preamble:
+    pinned: true
     en: "Nothing matched everything you told me."
-    hi: "तुमने जो कुछ भी बताया, उससे कुछ भी मेल नहीं खाता।"
-    mr: "तू मला सांगितलेल्या प्रत्येक गोष्टीशी काहीच जुळले नाही."
+    hi: "आपने जो कुछ बताया, उस सब से कोई योजना मेल नहीं खाती।"
+    mr: "तुम्ही सांगितलेल्या सगळ्या गोष्टींशी कोणतीही योजना जुळली नाही."
 
   drop_income_band:
+    pinned: true
     en: "I have set aside what your family earns."
-    hi: "मैंने तुम्हारे परिवार की कमाई अलग रख दी है।"
-    mr: "तुमच्या कुटुंबाचे उत्पन्न काय आहे ते मी बाजूला ठेवले आहे."
+    hi: "मैंने आपके परिवार की कमाई वाली बात अलग रख दी है।"
+    mr: "मी तुमच्या कुटुंबाच्या कमाईची गोष्ट बाजूला ठेवली आहे."
 
   drop_age:
+    pinned: true
     en: "I have set aside your age."
-    hi: "मैंने तुम्हारी उम्र को अलग रख दिया है।"
-    mr: "मी तुमचे वय बाजूला ठेवले आहे."
+    hi: "मैंने आपकी उम्र वाली बात अलग रख दी है।"
+    mr: "मी तुमच्या वयाची गोष्ट बाजूला ठेवली आहे."
 
   drop_occupation:
+    pinned: true
     en: "I have set aside your work."
-    hi: "मैंने तुम्हारा काम अलग रख दिया है।"
-    mr: "मी तुझे काम बाजूला ठेवले आहे."
+    hi: "मैंने आपके काम वाली बात अलग रख दी है।"
+    mr: "मी तुमच्या कामाची गोष्ट बाजूला ठेवली आहे."
 
   drop_category:
+    pinned: true
     en: "I have set aside your category."
-    hi: "मैंने आपकी श्रेणी अलग रख दी है।"
-    mr: "मी तुझी श्रेणी बाजूला ठेवली आहे."
+    hi: "मैंने आपकी श्रेणी वाली बात अलग रख दी है।"
+    mr: "मी तुमच्या श्रेणीची गोष्ट बाजूला ठेवली आहे."
 
   results_widened_lead:
+    pinned: true
     en: "With that set aside, these schemes match."
-    hi: "उस सेट को अलग रखने के बाद, ये योजनाएँ मेल खाती हैं।"
+    hi: "उसे अलग रखकर, ये योजनाएँ मेल खाती हैं।"
     mr: "ते बाजूला ठेवल्यावर, या योजना जुळतात."
 
   terminal_nearest_preamble:
+    pinned: true
     en: "Nothing matched. These are the nearest ones. Check the rules before you apply."
-    hi: "कुछ भी मेल नहीं खा रहा था। ये सबसे नज़दीकी हैं। आवेदन करने से पहले नियम जाँच लें।"
+    hi: "कोई योजना पूरी तरह मेल नहीं खाई। ये सबसे नज़दीकी हैं। आवेदन करने से पहले नियम जाँच लें।"
     mr: "काहीही जुळले नाही. ह्या सर्वात जवळच्या आहेत. अर्ज करण्यापूर्वी नियम तपासा."
 
   terminal_empty:
+    pinned: true
     en: "I could not find a scheme for you today. Your nearest C S C centre can help you look."
-    hi: "मुझे आज आपके लिए कोई योजना नहीं मिली। आपका सबसे नज़दीकी सी.एस.सी. केंद्र आपको खोजने में मदद कर सकता है।"
-    mr: "आज मला तुमच्यासाठी कोणतीही योजना सापडली नाही. तुमचे जवळचे सी. एस. सी. केंद्र तुम्हाला शोधण्यात मदत करू शकते."
+    hi: "आज मुझे आपके लिए कोई योजना नहीं मिली। आपके पास का सीएससी केंद्र खोजने में मदद कर सकता है।"
+    mr: "आज मला तुमच्यासाठी कोणतीही योजना सापडली नाही. तुमच्या जवळचे सीएससी केंद्र शोधायला मदत करू शकते."
 
   closing_farewell:
     en: "Thank you for calling Haqdaar. Goodbye."

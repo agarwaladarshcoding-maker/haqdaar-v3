@@ -3,5 +3,12 @@
   "benefit_text": "यह योजना प्रत्येक ग्रामीण गरीब परिवार से एक सदस्य, अधिमानतः एक महिला, को स्वयं सहायता समूह नेटवर्क में लाती है। महिला स्वयं सहायता समूहों को बैंक लिंकेज, क्षमता निर्माण, आजीविका संवर्धन और वित्तीय समावेशन मिलता है। परिक्रामी निधि और ब्याज सहायता स्वयं सहायता समूह ऋण का समर्थन करती है।",
   "who_can_apply": "ऐसे स्वयं सहायता समूह जो कम से कम छह महीने से सक्रिय हैं और नियमित बैठकें, बचत, अंतर-ऋण, समय पर पुनर्भुगतान और अद्यतित खातों का पालन करते हैं, वे पात्र हैं। नाबार्ड मानकों द्वारा वर्गीकृत समूह योग्य हैं। निष्क्रिय समूह तीन महीने के लिए पुनर्जीवित होने के बाद शामिल हो सकते हैं।",
   "documents": "आधार नंबर, पहचान प्रमाण, निवास प्रमाण, वोटर आईडी कार्ड, पासपोर्ट साइज फोटो आवश्यक हैं। सीएससी सेंटर आपको कागज़ों की पूरी सूची बताएगा।",
-  "how_to_apply": "DAY-NRLM पंजीकरण पोर्टल पर ऑनलाइन जाएं। नाम, ईमेल और संपर्क नंबर जैसे अनिवार्य फ़ील्ड भरें। एक उपयोगकर्ता नाम प्रदान करें, एक पासवर्ड बनाएं और पुष्टि करें, फिर नया खाता बनाएं पर क्लिक करें।"
+  "how_to_apply": "DAY-NRLM पंजीकरण पोर्टल पर ऑनलाइन जाएं। नाम, ईमेल और संपर्क नंबर जैसे अनिवार्य फ़ील्ड भरें। एक उपयोगकर्ता नाम प्रदान करें, एक पासवर्ड बनाएं और पुष्टि करें, फिर नया खाता बनाएं पर क्लिक करें।",
+  "en": {
+    "summary": "The scheme links rural poor households to women-led Self Help Groups, offering bank‑linked credit, revolving and community investment funds, interest subvention, skill training, and market support to boost livelihoods and financial inclusion.",
+    "benefit_text": "The scheme brings one member, preferably a woman, from each rural poor household into a Self Help Group network. Women SHGs get bank linkage, capacity building, livelihood promotion and financial inclusion. Revolving funds and interest subvention support SHG credit.",
+    "who_can_apply": "Self Help Groups that have been active for at least six months and follow regular meetings, savings, inter‑loaning, timely repayment and up‑to‑date accounts are eligible. Groups graded by NABARD standards qualify. Defunct groups can join after reviving for three months.",
+    "documents": "Aadhar number, proof of identity, proof of residence, voter ID card, passport size photo are required. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Visit the DAY‑NRLM registration portal online. Fill mandatory fields such as name, email and contact number. Provide a username, create and confirm a password, then click Create New Account."
+  }
 }

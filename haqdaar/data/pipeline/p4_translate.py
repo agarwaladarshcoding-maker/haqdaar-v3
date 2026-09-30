@@ -226,9 +226,14 @@ def translate_scheme(
     cache_dir = cache_dir if cache_dir is not None else EXTRACT_CACHE_DIR
     task = f"translate_{lang}"
 
-    cached = read_from_cache(source_sha256, task, cache_dir)
-    if cached is not None and all(field in cached for field in TRANSLATED_FIELDS):
-        return {field: cached[field] for field in TRANSLATED_FIELDS}, True
+    # A cached translation is reused only for the exact English it was made from. The key alone
+    # (the source page) is not enough: when p3's cards were retuned on 21 Sep, the old translations
+    # of the old, longer cards kept being served, and a Hindi card said "no age limit" that the
+    # English no longer said. Rows written before this check carry no "en" and are redone once.
+    source_english = {field: english.get(field, "") for field in TRANSLATED_FIELDS}
+    cached = _cached_translation(source_sha256, task, source_english, cache_dir)
+    if cached is not None:
+        return cached, True
 
     if translator is None:
         translator = SarvamTranslator()
@@ -237,8 +242,19 @@ def translate_scheme(
     for field in TRANSLATED_FIELDS:
         texts[field] = translator.translate(english.get(field, ""), lang, slug=slug, field=field)
 
-    write_to_cache(source_sha256, task, texts, cache_dir)
+    write_to_cache(source_sha256, task, {**texts, "en": source_english}, cache_dir)
     return texts, False
+
+
+def _cached_translation(
+    source_sha256: str, task: str, source_english: dict[str, str], cache_dir: Path,
+) -> Optional[dict[str, str]]:
+    cached = read_from_cache(source_sha256, task, cache_dir)
+    if cached is None or cached.get("en") != source_english:
+        return None
+    if not all(field in cached for field in TRANSLATED_FIELDS):
+        return None
+    return {field: cached[field] for field in TRANSLATED_FIELDS}
 
 
 def _clear_untranslated(record: dict[str, Any], lang: Optional[str] = None) -> None:
@@ -328,8 +344,9 @@ def run_translate(
 
         for lang in TARGET_LANGS:
             try:
-                if translator is None and read_from_cache(
-                    record.get("source_sha256", ""), f"translate_{lang}", cache_dir,
+                if translator is None and _cached_translation(
+                    record.get("source_sha256", ""), f"translate_{lang}",
+                    {field: english.get(field, "") for field in TRANSLATED_FIELDS}, cache_dir,
                 ) is None:
                     # The key is only needed once something misses cache, so a fully warm run
                     # needs no SARVAM_API_KEY at all.

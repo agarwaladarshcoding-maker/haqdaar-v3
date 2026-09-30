@@ -1,7 +1,14 @@
 {
   "summary": "पीएमएफबीवाय (PMFBY) शेतकऱ्यांना कमी प्रीमियम देते- खरीप अन्न/तेलबियांसाठी 2%, रबीसाठी 1.5%, व्यापारी पिकांसाठी 5% - ईशान्येकडील राज्यांमध्ये पूर्ण अनुदानासह, ज्यात नैसर्गिक आपत्ती, कीड, काढणीपश्चात नुकसान आणि जलद दाव्यांची पूर्तता यांचा समावेश आहे.",
-  "benefit_text": "खरीप पिकांसाठी प्रीमियम 2% पर्यंत, रब्बी पिकांसाठी 1.5% आणि फळबाग पिकांसाठी 5% पर्यंत आहे. उर्वरित रकमेवर सरकार अनुदान देते आणि ईशान्येकडील राज्ये, जम्मू, काश्मीर आणि हिमाचल प्रदेशमध्ये प्रीमियम भरते. या योजनेत नैसर्गिक आपत्ती, कीड, रोग आणि काढणीपश्चात होणारे नुकसान समाविष्ट आहे आणि दाव्यांचे जलद निवारण केले जाते.",
+  "benefit_text": "खरीप पिकांसाठी प्रीमियम 2% पर्यंत, रब्बी पिकांसाठी 1.5% आणि फळबाग पिकांसाठी 5% पर्यंत आहे. उर्वरित रकमेवर सरकार अनुदान देते आणि ईशान्येकडील राज्ये, जम्मू, काश्मीर आणि हिमाचल प्रदेशमध्ये प्रीमियम भरते. या योजनेत नैसर्गिक आपत्ती, कीड, रोग आणि काढणीपश्चात होणारे नुकसान यांचा समावेश आहे आणि दाव्यांचे जलद निवारण केले जाते.",
   "who_can_apply": "अधिसूचित क्षेत्रातील अधिसूचित पिके घेणाऱ्या सर्व शेतकरी, भाडेकरू आणि कुळवंट्या अर्ज करू शकतात. अर्जदाराचा पिकांमध्ये विमायोग्य हितसंबंध आणि वैध जमीन मालकी प्रमाणपत्र किंवा भाडेकरार असणे आवश्यक आहे. पेरणी हंगाम सुरू झाल्यापासून दोन आठवड्यांच्या आत अर्ज करणे आवश्यक आहे.",
   "documents": "पासपोर्ट साईज फोटो, आधार किंवा पॅनसारखे ओळखपत्र, आरओआर किंवा एलपीसीसारखी जमीन अभिलेख कागदपत्रे आणि पेरलेल्या पिकाबद्दल घोषणापत्र. कागदपत्रांची संपूर्ण यादी सीएससी सेंटर सांगेल.",
-  "how_to_apply": "पीएमएफबीवाय (PMFBY) च्या अधिकृत वेबसाइटला भेट द्या, 'Farmer Corner' वर क्लिक करा आणि नोंदणी करण्यासाठी 'Guest Farmer' निवडा. नोंदणी केल्यानंतर, लॉग इन करा, अर्ज भरा, आवश्यक कागदपत्रे अपलोड करा आणि नंतर पैसे भरणे किंवा पेमेंट करणे निवडा."
+  "how_to_apply": "पीएमएफबीवाय च्या अधिकृत वेबसाइटला भेट द्या, 'फार्मर कॉर्नर' वर क्लिक करा आणि नोंदणी करण्यासाठी 'गेस्ट फार्मर' निवडा. नोंदणी केल्यानंतर, लॉग इन करा, अर्ज भरा, आवश्यक कागदपत्रे अपलोड करा आणि नंतर पैसे भरायचे की आत्ताच भरायचे ते निवडा.",
+  "en": {
+    "summary": "PMFBY offers farmers low premiums—2% for Kharif food/oilseed, 1.5% for Rabi, 5% for commercial crops—with full subsidy in NE states, covering natural disasters, pests, post‑harvest losses, and fast claim settlement.",
+    "benefit_text": "Premiums are up to 2 % for Kharif crops, 1.5 % for Rabi crops and 5 % for horticultural crops. Government subsidizes the rest and pays premiums in North‑Eastern States, Jammu, Kashmir and Himachal Pradesh. Scheme covers natural disasters, pests, diseases and post‑harvest losses, and settles claims quickly.",
+    "who_can_apply": "All farmers, tenant farmers and sharecroppers who grow notified crops in notified areas can apply. Applicants must have an insurable interest in the crops and a valid land ownership certificate or tenancy agreement. Applications must be made within two weeks of sowing season start.",
+    "documents": "Passport‑sized photograph, identity proof such as Aadhaar or PAN, land record documents like RoR or LPC, and a declaration about the crop sown. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Visit the PMFBY official website, click Farmer Corner and select Guest Farmer to register. After registration, log in, fill the application form, upload required documents and choose to pay later or make payment."
+  }
 }

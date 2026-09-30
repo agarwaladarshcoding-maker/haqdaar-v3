@@ -1,7 +1,14 @@
 {
-  "summary": "पीएम-किसान सरकार के माध्यम से देश भर में कृषि परिवारों का समर्थन करते हुए भूमिधारक किसान परिवारों को प्रति वर्ष कुल 6,000 रुपये तीन समान 2,000 रुपये की किश्तों में प्रदान करता है।",
-  "benefit_text": "किसानों को ₹6,000 प्रति वर्ष की वित्तीय सहायता हर चार महीने में ₹2,000 की तीन समान किश्तों में मिलती है।",
-  "who_can_apply": "कोई भी किसान परिवार जिसके नाम पर कृषि योग्य भूमि हो, आवेदन कर सकती है। योजना में कोई आयु सीमा और कोई आय सीमा नहीं बताई गई है।",
-  "documents": "आधार कार्ड, भूमि स्वामित्व के कागजात, बचत बैंक खाते का विवरण। सीएससी सेंटर आपको कागज़ों की पूरी सूची बताएगा।",
-  "how_to_apply": "पीएम-किसान पोर्टल पर ऑनलाइन जाएं। नया किसान पंजीकरण चुनें, अपना आधार और मोबाइल नंबर दर्ज करें, ओटीपी से सत्यापित करें, विवरण भरें, आवश्यक दस्तावेज अपलोड करें और सबमिट करें।"
+  "summary": "पीएम-किसान सरकार के माध्यम से देश भर में कृषि परिवारों का समर्थन करते हुए भूमिधारक किसान परिवारों को 2,000 रुपये की तीन समान किश्तों में प्रति वर्ष कुल 6,000 रुपये प्रदान करता है।",
+  "benefit_text": "यह योजना प्रत्येक पात्र परिवार को हर चार महीने में 2,000 रुपये की तीन समान किश्तों में प्रति वर्ष 6,000 रुपये प्रदान करती है।",
+  "who_can_apply": "जिन भूमिधारक किसान परिवारों के नाम पर कृषि योग्य भूमि है, वे पात्र हैं। संस्थागत भूमि धारक, संवैधानिक पदों के सदस्य, मंत्री, सांसद, महापौर, सरकारी अधिकारी, 10,000 या उससे अधिक रुपये कमाने वाले पेंशनभोगी, करदाता और पेशेवर बाहर हैं।",
+  "documents": "आधार कार्ड, भूमि स्वामित्व के कागजात और बचत बैंक खाता आवश्यक हैं। सीएससी केंद्र आपको कागज़ों की पूरी सूची बताएगा।",
+  "how_to_apply": "पीएम-किसान पोर्टल पर जाएं, नया किसान पंजीकरण चुनें, आधार और मोबाइल नंबर दर्ज करें, ओटीपी से सत्यापित करें, विवरण भरें, आधार, भूमि और बैंक दस्तावेज़ अपलोड करें, फिर सबमिट करें।",
+  "en": {
+    "summary": "PM-Kisan delivers a total of ₹6,000 each year to landholding farmer families in three equal ₹2,000 installments, supporting agricultural households across the nation through the government.",
+    "benefit_text": "The scheme provides ₹6,000 per year in three equal installments of ₹2,000 every four months to each eligible family.",
+    "who_can_apply": "Landholding farmer families that have cultivable land in their names are eligible. Institutional land holders, members of constitutional posts, ministers, MPs, mayors, government officers, pensioners earning ₹10,000 or more, tax payers and professionals are excluded.",
+    "documents": "Aadhaar card, landholding papers, and savings bank account are required. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Visit the PM‑Kisan portal, choose New Farmer Registration, enter Aadhaar and mobile number, verify with OTP, fill details, upload Aadhaar, land and bank documents, then submit."
+  }
 }

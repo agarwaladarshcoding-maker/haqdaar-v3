@@ -1,7 +1,14 @@
 {
   "summary": "पीएम-किसान योजनेअंतर्गत शेतकरी कुटुंबांना सरकारमार्फत देशभरातील शेती करणाऱ्या कुटुंबांना दरवर्षी प्रत्येकी 6,000 रुपये, प्रत्येकी 2,000 रुपयांच्या तीन समान हप्त्यांमध्ये दिले जातात.",
-  "benefit_text": "शेतकऱ्यांना दर चार महिन्यांनी प्रत्येकी 2,000 रुपयांच्या तीन समान हप्त्यांमध्ये दरवर्षी 6,000 रुपयांची आर्थिक मदत मिळते.",
-  "who_can_apply": "ज्या शेतकरी कुटुंबाच्या नावावर लागवडीयोग्य जमीन आहे, ती अर्ज करू शकते. योजनेत वयाची अट नाही आणि उत्पन्नाची मर्यादा नमूद केलेली नाही.",
-  "documents": "आधार कार्ड, जमिनीची कागदपत्रे, बचत बँक खात्याचे स्टेटमेंट. कागदपत्रांची संपूर्ण यादी सीएससी सेंटर तुम्हाला सांगेल.",
-  "how_to_apply": "पीएम-किसान पोर्टलला ऑनलाइन भेट द्या. नवीन शेतकरी नोंदणी निवडा, तुमचा आधार आणि मोबाईल नंबर टाका, ओटीपीने पडताळा करा, तपशील भरा, आवश्यक कागदपत्रे अपलोड करा आणि सबमिट करा."
+  "benefit_text": "या योजनेअंतर्गत प्रत्येक पात्र कुटुंबाला दर चार महिन्यांनी 2000 रुपयांच्या तीन समान हप्त्यांमध्ये दरवर्षी 6000 रुपये दिले जातात.",
+  "who_can_apply": "ज्या जमीनधारक शेतकरी कुटुंबांच्या नावावर लागवडीयोग्य जमीन आहे, त्या पात्र आहेत. संस्थात्मक जमीनधारक, घटनात्मक पदांचे सदस्य, मंत्री, खासदार, महापौर, सरकारी अधिकारी, 10,000 रुपये किंवा त्याहून अधिक पगार घेणारे निवृत्तीवेतनधारक, करदाते आणि व्यावसायिक वगळले आहेत.",
+  "documents": "आधार कार्ड, जमिनीची कागदपत्रे आणि बचत खाते आवश्यक आहे. सीएससी सेंटर तुम्हाला कागदपत्रांची संपूर्ण यादी सांगेल.",
+  "how_to_apply": "पीएम-किसान पोर्टलला भेट द्या, नवीन शेतकरी नोंदणी निवडा, आधार आणि मोबाईल नंबर टाका, ओटीपीने पडताळा करा, तपशील भरा, आधार, जमीन आणि बँकेची कागदपत्रे अपलोड करा, नंतर सबमिट करा.",
+  "en": {
+    "summary": "PM-Kisan delivers a total of ₹6,000 each year to landholding farmer families in three equal ₹2,000 installments, supporting agricultural households across the nation through the government.",
+    "benefit_text": "The scheme provides ₹6,000 per year in three equal installments of ₹2,000 every four months to each eligible family.",
+    "who_can_apply": "Landholding farmer families that have cultivable land in their names are eligible. Institutional land holders, members of constitutional posts, ministers, MPs, mayors, government officers, pensioners earning ₹10,000 or more, tax payers and professionals are excluded.",
+    "documents": "Aadhaar card, landholding papers, and savings bank account are required. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Visit the PM‑Kisan portal, choose New Farmer Registration, enter Aadhaar and mobile number, verify with OTP, fill details, upload Aadhaar, land and bank documents, then submit."
+  }
 }

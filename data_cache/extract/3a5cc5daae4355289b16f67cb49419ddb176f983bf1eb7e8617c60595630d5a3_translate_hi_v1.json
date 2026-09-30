@@ -3,5 +3,12 @@
   "benefit_text": "यह योजना निर्दिष्ट और वैकल्पिक व्यवसायों में शिक्षुता प्रशिक्षण प्रदान करती है। आईटीआई उत्तीर्ण करने वालों के लिए प्रशिक्षण एक वर्ष, गैर-आईटीआई के लिए दो वर्ष और वैकल्पिक व्यवसायों के लिए छह से बारह महीने का होता है। वजीफा ₹5,000 से शुरू होकर ₹9,000 प्रति माह तक जाता है; सरकार 25% तक जोड़ती है जो ₹1,500 तक सीमित है।",
   "who_can_apply": "14 से 35 वर्ष की आयु के उम्मीदवार आवेदन कर सकते हैं। आय की कोई सीमा नहीं है। डीडीयूजीकेवाई, एनयूएलएम और पीएमकेवीवाई जैसे कौशल कार्यक्रमों से प्रशिक्षु प्रोत्साहित किए जाते हैं। आवेदकों के पास एक अद्यतन आधार नंबर और प्रशिक्षुता पोर्टल पर पूर्ण ई-केवाईसी होना चाहिए।",
   "documents": "आधार कार्ड और चुने हुए ट्रेड के लिए आवश्यक दस्तावेज़। सीएससी सेंटर आपको कागज़ों की पूरी सूची बताएगा।",
-  "how_to_apply": "Apprenticeshipindia.gov.in पर अप्रेंटिसशिप पोर्टल पर जाएँ। उम्मीदवार विकल्प चुनें और मोबाइल नंबर, ईमेल और आधार के साथ पंजीकरण करें। ई-केवाईसी और मोबाइल ओटीपी प्रमाणीकरण पूरा करें। पंजीकरण के बाद, पोर्टल पर अप्रेंटिसशिप के लिए आवेदन करें।"
+  "how_to_apply": "Apprenticeshipindia.gov.in पर अप्रेंटिसशिप पोर्टल पर जाएँ। उम्मीदवार विकल्प चुनें और मोबाइल नंबर, ईमेल और आधार के साथ पंजीकरण करें। ई-केवाईसी और मोबाइल ओटीपी प्रमाणीकरण पूरा करें। पंजीकरण के बाद, पोर्टल पर अप्रेंटिसशिप के लिए आवेदन करें।",
+  "en": {
+    "summary": "The National Apprenticeship Promotion Scheme‑2 offers designated and optional trade training, with stipends up to ₹9,000, and government contributes up to ₹1,500 per apprentice monthly through direct bank transfers.",
+    "benefit_text": "The scheme offers apprenticeship training in Designated and Optional Trades. Training is one year for ITI pass‑outs, two years for non‑ITI, and six to twelve months for Optional Trades. Stipends start at ₹5,000, go to ₹9,000 per month; the government adds up to 25% limited to ₹1,500.",
+    "who_can_apply": "Candidates aged 14 to 35 years can apply. There is no income restriction. Apprentices from skill programmes such as DDUGKY, NULM and PMKVY are encouraged. Applicants must have an updated Aadhaar number and complete e‑KYC on the apprenticeship portal.",
+    "documents": "Aadhaar Card and documents required for the chosen trade. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Visit the Apprenticeship Portal at apprenticeshipindia.gov.in. Choose the Candidate option and register with mobile number, email and Aadhaar. Complete e‑KYC and mobile OTP authentication. After registration, apply for the apprenticeship on the portal."
+  }
 }

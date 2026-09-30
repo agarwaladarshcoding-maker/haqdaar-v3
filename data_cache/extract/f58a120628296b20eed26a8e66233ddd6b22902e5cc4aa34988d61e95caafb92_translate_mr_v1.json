@@ -1,7 +1,14 @@
 {
-  "summary": "ही योजना ग्रामीण गरीब कुटुंबांना महिलांच्या नेतृत्वाखालील स्वयं-सहायता समूहांशी जोडते, ज्यामुळे बँक-संलग्न कर्ज, फिरते आणि सामुदायिक गुंतवणूक निधी, व्याज सवलत, कौशल्य प्रशिक्षण आणि बाजारपेठेतील समर्थन देऊन उपजीविका आणि आर्थिक समावेशनाला चालना मिळते.",
+  "summary": "ही योजना ग्रामीण गरीब कुटुंबांना महिलांच्या नेतृत्वाखालील स्वयं-सहायता समूहांशी जोडते, ज्यामुळे बँक-संलग्न कर्ज, फिरता आणि सामुदायिक गुंतवणूक निधी, व्याज सवलत, कौशल्य प्रशिक्षण आणि बाजारपेठेतील समर्थन देऊन उपजीविका आणि आर्थिक समावेशनाला चालना मिळते.",
   "benefit_text": "या योजनेअंतर्गत प्रत्येक ग्रामीण गरीब कुटुंबातील एक सदस्या, शक्यतो एक महिला, स्वयंसहायता गट नेटवर्कमध्ये सामील होते. महिला स्वयंसहायता गटांना बँक जोडणी, क्षमता विकास, उपजीविका प्रोत्साहन आणि आर्थिक समावेश मिळतो. फिरता निधी आणि व्याज सवलत स्वयंसहायता गटांना कर्जासाठी मदत करतात.",
-  "who_can_apply": "किमान सहा महिने कार्यरत असलेल्या आणि नियमित बैठका, बचत, आंतर-कर्ज, वेळेवर परतफेड आणि अद्ययावत खाती असणाऱ्या स्वयंसहाय्यक गटांना पात्रता आहे. नाबार्ड मानकांनुसार वर्गीकृत गट पात्र ठरतात. निष्क्रिय गट तीन महिन्यांसाठी पुनरुज्जीवित झाल्यानंतर सामील होऊ शकतात.",
+  "who_can_apply": "किमान सहा महिने कार्यरत असलेल्या आणि नियमित बैठका, बचत, आंतर-कर्ज, वेळेवर परतफेड आणि अद्ययावत खाती असणाऱ्या स्वयं-सहायता गट पात्र आहेत. नाबार्ड मानकांनुसार वर्गीकृत गट पात्र ठरतात. निष्क्रिय गट तीन महिन्यांसाठी पुनरुज्जीवित झाल्यानंतर सामील होऊ शकतात.",
   "documents": "आधार क्रमांक, ओळखीचा पुरावा, रहिवासी पुरावा, मतदार ओळखपत्र, पासपोर्ट साईज फोटो आवश्यक आहेत. सीएससी सेंटर तुम्हाला कागदपत्रांची संपूर्ण यादी सांगेल.",
-  "how_to_apply": "DAY-NRLM नोंदणी पोर्टलला ऑनलाइन भेट द्या. नाव, ईमेल आणि संपर्क क्रमांक यांसारखी अनिवार्य फील्ड भरा. एक वापरकर्तानाव द्या, पासवर्ड तयार करा आणि निश्चित करा, नंतर नवीन खाते तयार करा वर क्लिक करा."
+  "how_to_apply": "DAY-NRLM नोंदणी पोर्टलला ऑनलाइन भेट द्या. नाव, ईमेल आणि संपर्क क्रमांक यांसारखी अनिवार्य फील्ड भरा. एक वापरकर्तानाव द्या, पासवर्ड तयार करा आणि निश्चित करा, नंतर नवीन खाते तयार करा वर क्लिक करा.",
+  "en": {
+    "summary": "The scheme links rural poor households to women-led Self Help Groups, offering bank‑linked credit, revolving and community investment funds, interest subvention, skill training, and market support to boost livelihoods and financial inclusion.",
+    "benefit_text": "The scheme brings one member, preferably a woman, from each rural poor household into a Self Help Group network. Women SHGs get bank linkage, capacity building, livelihood promotion and financial inclusion. Revolving funds and interest subvention support SHG credit.",
+    "who_can_apply": "Self Help Groups that have been active for at least six months and follow regular meetings, savings, inter‑loaning, timely repayment and up‑to‑date accounts are eligible. Groups graded by NABARD standards qualify. Defunct groups can join after reviving for three months.",
+    "documents": "Aadhar number, proof of identity, proof of residence, voter ID card, passport size photo are required. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Visit the DAY‑NRLM registration portal online. Fill mandatory fields such as name, email and contact number. Provide a username, create and confirm a password, then click Create New Account."
+  }
 }

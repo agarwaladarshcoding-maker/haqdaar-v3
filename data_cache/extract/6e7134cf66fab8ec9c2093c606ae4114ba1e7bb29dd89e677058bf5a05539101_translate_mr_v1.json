@@ -1,7 +1,14 @@
 {
-  "summary": "एसएमएएम उपक्रम आर्थिकदृष्ट्या दुर्बळ, लहान जमीन मालकी असलेल्या आणि महिला शेतकऱ्यांना प्राधान्य देऊन, उत्पादकता आणि उत्पन्न वाढवण्यासाठी कस्टम हायरिंग सेंटर्स, जनजागृती मोहीम, हाय-टेक हब आणि प्रमाणपत्रांना प्रोत्साहन देऊन कृषी यंत्रसामग्रीच्या खर्चाच्या 50-80% पर्यंत अनुदान देते.",
-  "benefit_text": "शेतकरी जेव्हा शेतीची उपकरणे खरेदी करतात तेव्हा त्यांना 50 ते 80 टक्के अनुदान मिळते, ज्यामुळे उपकरणे स्वस्त होतात. या योजनेमुळे कस्टम हायरिंग सेंटर्सना प्रोत्साहन मिळते आणि उच्च-तंत्रज्ञान शेती उपकरणांसाठी हब विकसित होतात, ज्यामुळे शेतकऱ्यांना जलद काम करता येते आणि उत्पादन वाढवता येते.",
-  "who_can_apply": "सर्व जमीनधारक शेतकरी आणि त्यांचे कुटुंब, स्वयंसहाय्य गट, वापरकर्ता गट, सहकारी संस्था, एफपीओ आणि उद्योजक अर्ज करू शकतात. शेतकरी हा भारताचा मूळ रहिवासी आणि आर्थिकदृष्ट्या दुर्बल असावा. महिला शेतकऱ्यांना प्राधान्य दिले जाते आणि ज्यांनी यापूर्वी दुसरे केंद्रीय अनुदान घेतलेले नाही, त्या अर्ज करू शकतात.",
-  "documents": "आधार कार्ड, जमिनीच्या हक्काचा दाखला, बँक पासबुकच्या पहिल्या पानाची प्रत, पासपोर्ट साईज फोटो, वाहन परवाना किंवा मतदार ओळखपत्र यासारखे कोणतेही ओळखपत्र. सीएससी केंद्र तुम्हाला कागदपत्रांची संपूर्ण यादी सांगेल.",
-  "how_to_apply": "agrimachinery.nic.in या पोर्टलला भेट द्या, नोंदणीचा पर्याय निवडा, योग्य जिल्हा, तालुका आणि वैयक्तिक तपशील भरून अर्ज ऑनलाइन सबमिट करा."
+  "summary": "एसएमएएम उपक्रम आर्थिकदृष्ट्या दुर्बळ, लहान जमीनधारक आणि महिला शेतकर्‍यांना प्राधान्य देऊन, उत्पादकता आणि उत्पन्न वाढवण्यासाठी कस्टम हायरिंग सेंटर्स, जनजागृती मोहीम, हाय-टेक हब आणि प्रमाणन वाढवून कृषी यंत्रसामग्रीच्या खर्चाच्या 50-80% पर्यंत अनुदान देते.",
+  "benefit_text": "ही योजना शेतीची यंत्रे खरेदी करण्यासाठी 50 ते 80 टक्के अनुदान देते, ज्यामुळे शेतकरी कमी खर्चात उपकरणे खरेदी करू शकतात आणि उत्पादन वाढवू शकतात.",
+  "who_can_apply": "भारतीय मूळ रहिवासी असलेल्या सर्व जमीनधारक शेतकरी कुटुंबांना, स्वयंसहाय्य गट, वापरकर्ता गट, सहकारी संस्था, एफपीओ आणि आर्थिकदृष्ट्या दुर्बल असलेल्या उद्योजकांना अर्ज करता येईल. महिला शेतकऱ्यांना प्राधान्य दिले जाते. अर्जदाराने इतर कोणतेही केंद्रीय अनुदान घेतलेले नसावे.",
+  "documents": "आधार कार्ड, पासपोर्ट साईज फोटो, जमिनीच्या हक्काचा रेकॉर्ड, बँक पासबुकचे पहिले पान आणि आधार, वाहन परवाना, मतदार ओळखपत्र, पॅन किंवा पासपोर्ट यासारखे कोणतेही ओळखपत्र. सीएससी सेंटर तुम्हाला कागदपत्रांची संपूर्ण यादी सांगेल.",
+  "how_to_apply": "agrimachinery.nic.in या पोर्टलला भेट द्या, ड्रॉपडाउनमधून नोंदणी निवडा, आवश्यक माहिती भरा आणि फॉर्म ऑनलाइन सबमिट करा.",
+  "en": {
+    "summary": "The SMAM initiative subsidises 50‑80% of agricultural machinery costs, prioritising financially weak, small‑land and women farmers, fostering custom hiring centres, awareness drives, hi‑tech hubs and certification to boost productivity and income.",
+    "benefit_text": "The scheme provides subsidies of 50 to 80 percent for purchasing agricultural machinery, helping farmers buy equipment at lower cost and increase yield.",
+    "who_can_apply": "All landholding farmer families, SHGs, user groups, cooperative societies, FPOs and entrepreneurs who are Indian natives and financially weak can apply. Women farmers receive priority. Applicants must not have taken any other central subsidy.",
+    "documents": "Aadhar card, passport size photo, Record of Rights of land, first page of bank passbook, and any ID proof such as Aadhar, driving licence, voter ID, PAN or passport. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Visit the portal agrimachinery.nic.in, choose Registration from the dropdown, fill the required information and submit the form online."
+  }
 }

@@ -3,5 +3,12 @@
   "benefit_text": "खरीफ फसलों के लिए प्रीमियम 2% तक, रबी फसलों के लिए 1.5% और बागवानी फसलों के लिए 5% तक है। सरकार बाकी का सब्सिडी देती है और पूर्वोत्तर राज्यों, जम्मू, कश्मीर और हिमाचल प्रदेश में प्रीमियम का भुगतान करती है। योजना में प्राकृतिक आपदाएं, कीट, रोग और कटाई के बाद होने वाले नुकसान शामिल हैं, और यह दावों का निपटान जल्दी करती है।",
   "who_can_apply": "अधिसूचित क्षेत्रों में अधिसूचित फसलें उगाने वाली सभी किसान, किरायेदार किसान और बटाईदार आवेदन कर सकते हैं। आवेदकों का फसलों में बीमा योग्य हित और एक वैध भूमि स्वामित्व प्रमाण पत्र या किरायेदारी समझौता होना चाहिए। आवेदन बुवाई के मौसम की शुरुआत के दो सप्ताह के भीतर किए जाने चाहिए।",
   "documents": "पासपोर्ट आकार की फोटो, पहचान प्रमाण जैसे आधार या पैन, भूमि रिकॉर्ड दस्तावेज़ जैसे आरओआर या एलपीसी, और बोई गई फसल के बारे में घोषणा। सीएससी सेंटर आपको कागजात की पूरी सूची बताएगा।",
-  "how_to_apply": "पीएमएफबीवाई की आधिकारिक वेबसाइट पर जाएं, फार्मर कॉर्नर पर क्लिक करें और पंजीकरण करने के लिए गेस्ट फार्मर चुनें। पंजीकरण के बाद, लॉग इन करें, आवेदन पत्र भरें, आवश्यक दस्तावेज अपलोड करें और बाद में भुगतान करना या भुगतान करना चुनें।"
+  "how_to_apply": "पीएमएफबीवाई की आधिकारिक वेबसाइट पर जाएं, फार्मर कॉर्नर पर क्लिक करें और पंजीकरण करने के लिए गेस्ट फार्मर चुनें। पंजीकरण के बाद, लॉग इन करें, आवेदन पत्र भरें, आवश्यक दस्तावेज अपलोड करें और बाद में भुगतान करना या भुगतान करना चुनें।",
+  "en": {
+    "summary": "PMFBY offers farmers low premiums—2% for Kharif food/oilseed, 1.5% for Rabi, 5% for commercial crops—with full subsidy in NE states, covering natural disasters, pests, post‑harvest losses, and fast claim settlement.",
+    "benefit_text": "Premiums are up to 2 % for Kharif crops, 1.5 % for Rabi crops and 5 % for horticultural crops. Government subsidizes the rest and pays premiums in North‑Eastern States, Jammu, Kashmir and Himachal Pradesh. Scheme covers natural disasters, pests, diseases and post‑harvest losses, and settles claims quickly.",
+    "who_can_apply": "All farmers, tenant farmers and sharecroppers who grow notified crops in notified areas can apply. Applicants must have an insurable interest in the crops and a valid land ownership certificate or tenancy agreement. Applications must be made within two weeks of sowing season start.",
+    "documents": "Passport‑sized photograph, identity proof such as Aadhaar or PAN, land record documents like RoR or LPC, and a declaration about the crop sown. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Visit the PMFBY official website, click Farmer Corner and select Guest Farmer to register. After registration, log in, fill the application form, upload required documents and choose to pay later or make payment."
+  }
 }
