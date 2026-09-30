@@ -281,6 +281,7 @@ def check_forbidden_words(text: str, forbidden_list: Sequence[str]) -> Optional[
 PROMPT_VERSIONS: dict[str, int] = {
     "facets": 2, "aliases": 1, "summary": 1, "cards": 2,
     "translate_hi": 1, "translate_mr": 1,
+    "line_translate_hi": 1, "line_translate_mr": 1,
 }
 
 

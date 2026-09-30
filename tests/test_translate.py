@@ -451,3 +451,104 @@ def test_failed_language_is_cleared_not_left_stale(tmp_path, monkeypatch):
 
     out = json.loads(open(derived / "schemes.jsonl", encoding="utf-8").readline())
     assert out["chunks"]["hi"]["summary"] == ""
+
+
+# --- the fixed lines -------------------------------------------------------------------------
+
+import re
+import shutil
+
+from haqdaar.audio import lines as lines_mod
+
+
+class FakeLineTranslator:
+    """Turns every English word into a Devanagari one, keeping numbers and {slots} as they are."""
+
+    def __init__(self, broken: tuple[str, ...] = ()):
+        self.requests = 0
+        self.chars = 0
+        self.broken = broken
+
+    def translate(self, text: str, lang: str, slug: str = "", field: str = "") -> str:
+        self.requests += 1
+        self.chars += len(text)
+        if slug in self.broken:
+            return text  # comes back untranslated: G4 must stop it
+        return re.sub(r"(?<!\{)\b[A-Za-z][A-Za-z']*\b(?![a-z0-9_]*\})", "शब्द", text)
+
+
+@pytest.fixture
+def lines_copy(tmp_path):
+    path = tmp_path / "lines.yaml"
+    shutil.copy(lines_mod.LINES_PATH, path)
+    yield path
+    lines_mod.load_lines.cache_clear()
+
+
+def _untranslated_count(path) -> int:
+    lines_mod.load_lines.cache_clear()
+    return len(lines_mod.untranslated(path))
+
+
+def test_lines_are_translated_and_written_back(lines_copy, tmp_path, monkeypatch):
+    fake = FakeLineTranslator()
+    monkeypatch.setattr(p4_translate, "SarvamTranslator", lambda *a, **k: fake)
+    before = _untranslated_count(lines_copy)
+    assert before > 0
+
+    p4_translate.run_translate_lines(lines_copy, tmp_path / "reports", tmp_path / "cache")
+
+    assert _untranslated_count(lines_copy) == 0
+    # Two lines with the same English share one cached translation.
+    distinct = {
+        (texts["en"], lang) for line_id, texts in lines_mod.load_lines(lines_copy).items()
+        if line_id != lines_mod.TRILINGUAL_LINE_ID for lang in ("hi", "mr")
+    }
+    assert fake.requests == len(distinct) <= before
+    texts = lines_mod.load_lines(lines_copy)
+    assert "{scheme_1}" in texts["door_a_option_1"]["hi"]
+    # The trilingual greeting is one hand-made recording, never machine-translated.
+    assert set(texts[lines_mod.TRILINGUAL_LINE_ID]) == {"en"}
+    # The house-style comments survive the write.
+    assert "House style" in lines_copy.read_text(encoding="utf-8")
+
+
+def test_second_lines_run_makes_zero_requests(lines_copy, tmp_path, monkeypatch):
+    monkeypatch.setattr(p4_translate, "SarvamTranslator", lambda *a, **k: FakeLineTranslator())
+    p4_translate.run_translate_lines(lines_copy, tmp_path / "reports", tmp_path / "cache")
+
+    fresh = tmp_path / "fresh.yaml"
+    shutil.copy(lines_mod.LINES_PATH, fresh)
+    boom = lambda *a, **k: pytest.fail("a warm run must not need Sarvam")
+    monkeypatch.setattr(p4_translate, "SarvamTranslator", boom)
+    p4_translate.run_translate_lines(fresh, tmp_path / "reports", tmp_path / "cache")
+    assert _untranslated_count(fresh) == 0
+
+
+def test_pinned_line_is_left_alone(lines_copy, tmp_path, monkeypatch):
+    text = lines_copy.read_text(encoding="utf-8")
+    lines_copy.write_text(
+        text.replace("  consent_notice:\n", "  consent_notice:\n    pinned: true\n"), encoding="utf-8"
+    )
+    monkeypatch.setattr(p4_translate, "SarvamTranslator", lambda *a, **k: FakeLineTranslator())
+    p4_translate.run_translate_lines(lines_copy, tmp_path / "reports", tmp_path / "cache")
+
+    lines_mod.load_lines.cache_clear()
+    assert set(lines_mod.load_lines(lines_copy)["consent_notice"]) == {"en"}
+
+
+def test_a_line_that_fails_a_gate_is_not_written(lines_copy, tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        p4_translate, "SarvamTranslator", lambda *a, **k: FakeLineTranslator(broken=("opener_prompt",))
+    )
+    p4_translate.run_translate_lines(lines_copy, tmp_path / "reports", tmp_path / "cache")
+
+    lines_mod.load_lines.cache_clear()
+    assert set(lines_mod.load_lines(lines_copy)["opener_prompt"]) == {"en"}
+    report = json.loads((tmp_path / "reports" / "lines_translate.json").read_text(encoding="utf-8"))
+    assert {f["line"] for f in report["failures"]} == {"opener_prompt"}
+
+
+def test_gate_line_catches_a_lost_slot():
+    assert p4_translate.gate_line("Press 1 for {scheme_1}.", "1 दबाएँ योजना के लिए।", "hi")
+    assert not p4_translate.gate_line("Press 1 for {scheme_1}.", "{scheme_1} के लिए 1 दबाएँ।", "hi")

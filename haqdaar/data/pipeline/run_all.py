@@ -59,6 +59,7 @@ def _steps() -> list[Step]:
         Step("p2 derive", paid=True, run=p2_derive.run_pipeline_extract),
         Step("p3 cards", paid=True, run=p3_cards.run_cards),
         Step("p4 translate", paid=True, run=p4_translate.run_translate),
+        Step("p4 lines", paid=True, run=p4_translate.run_translate_lines),
         Step("p5 gates", paid=False, run=p5_gates.run_gates),
         Step("p6 snapshot", paid=False, run=_run_snapshot),
     ]

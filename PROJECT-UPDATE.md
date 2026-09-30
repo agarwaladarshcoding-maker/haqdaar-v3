@@ -87,6 +87,29 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 30 Sep — the fixed lines can now get their Hindi and Marathi (waiting on Sarvam credit)
+
+**First, a safety fix.** The last four steps (1.12 to 1.15) and 16 commits on `main` were only on
+this laptop. The folder in `~/Documents` is inside iCloud, and iCloud had pushed 267 pieces of git
+data off the disk, so every push hung. The copy in `~/code/haqdaar-v2` still had those pieces, so
+the branches were moved there and pushed. **Everything is on GitHub now. Work in `~/code` from now on.**
+
+**Added:** the translate step now also does the fixed lines (the 49 things the call always says,
+like "Press 1 for yes"). It:
+- skips any line you have fixed by hand (`pinned: true`) and any line already done;
+- keeps the `{scheme_1}` style blanks exactly as they are;
+- runs the same checks a scheme gets: numbers, no promises, not padded, really in Devanagari;
+- writes only the lines that pass back into `lines.yaml`, and keeps the file's notes;
+- remembers each result, so a second run costs nothing.
+
+It is also part of `make pipeline` as the step "p4 lines".
+
+**Blocked:** the real run was stopped by Sarvam: "No credits available". Nothing was written and
+nothing was spent. It needs about 96 requests and 4,400 characters. Once the account has credit,
+run `make pipeline-translate`. Then `make lines-sheet` gives you the sheet to correct.
+
+**Tests: 258 passing** (was 253).
+
 ### 21 Sep (later) — the cards got short, and three quiet bugs came out with them
 
 **The blocker is gone.** Only 3 of the 12 schemes had usable spoken cards. Now all 12 do.
