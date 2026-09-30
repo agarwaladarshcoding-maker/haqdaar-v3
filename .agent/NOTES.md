@@ -1746,5 +1746,7 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - R3: tools/stress.py nearest branch now verifies zero survivors under full masks via Filter.survivors before excusing soft-box misses; bogus nearest flagged. tests/test_stress_truth.py: 3 tests (failed 1/3 before fix, 3/3 after). make stress still 0/0 incl. 150 honest nearest endings.
 - R4: re-ran make pipeline-gates on restored text: 21 ok all-3-langs (en 28, hi 21, mr 25), 7 fail — all new schemes (ignwps, mgnrega, nfbs, nps-tsep, pmjjby, pmmvy, rkvyshfshc). Committed fresh reports/gates.json + derived/gates.jsonl.
 - R5 (p4 whole-record translate) deferred: harmless on current data, revisit when p4 next changes.
-- Merged step-34-35-pipeline into main (--no-ff). Push left to owner.
+- Merged step-34-35-pipeline into main (--no-ff, 1ecbef1). pytest on main: 311 passed. Push left to owner (not requested).
+- Next: 3.7 audit. No card-audit exporter exists; sample of 20 undefined; pass criteria undefined. Work order written: tools/cards_sheet.py (modeled on lines_sheet.py), stratified seeded sample (7 gate-failing + 13 seeded-random), listen.py cards mode, verdicts to data_cache/reports/audit_3_7.md. Defaults recorded in .agent/OPEN-QUESTIONS.md (OQ3/OQ4).
+- 1 Oct (Muse check): "stopped terminal" scare investigated — nothing stopped mid-step. R3/R4 fixes + merge 1ecbef1 all committed; gates.json fresh (21 ok/7 fail); pytest re-run 311 passed. TASK.md duplicate R4 line removed. Push (28 commits) still left to owner.
 
