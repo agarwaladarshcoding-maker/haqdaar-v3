@@ -1749,5 +1749,36 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Merged step-34-35-pipeline into main (--no-ff, 1ecbef1). pytest on main: 311 passed. Push left to owner (not requested).
 - Next: 3.7 audit. No card-audit exporter exists; sample of 20 undefined; pass criteria undefined. Work order written: tools/cards_sheet.py (modeled on lines_sheet.py), stratified seeded sample (7 gate-failing + 13 seeded-random), listen.py cards mode, verdicts to data_cache/reports/audit_3_7.md. Defaults recorded in .agent/OPEN-QUESTIONS.md (OQ3/OQ4).
 - 1 Oct (Muse check): "stopped terminal" scare investigated — nothing stopped mid-step. R3/R4 fixes + merge 1ecbef1 all committed; gates.json fresh (21 ok/7 fail); pytest re-run 311 passed. TASK.md duplicate R4 line removed. Push (28 commits) still left to owner.
-- 1 Oct: committed f39cb16, pushed main (cf503b8..f39cb16, 29 commits, now in sync). Push needed one unsandboxed run (sandbox blocks the SSH agent). Wrote PROMPT-ANTIGRAVITY-3.7.md — A1 work order (cards_sheet.py, audit template, listen cards mode).
+## 1 Oct — Step 3.7: Audit Tooling (A1)
+- Switched to new branch step-3.7-audit off main.
+- Inputs verified:
+  - data_cache/derived/schemes.jsonl: 28 schemes total, chunks.<lang> has (name, summary, benefit_text, who_can_apply, documents, how_to_apply).
+  - data_cache/reports/gates.json: 21 passing, 7 failing (ignwps, mgnrega, nfbs, nps-tsep, pmjjby, pmmvy, rkvyshfshc).
+  - snapshots/CURRENT: snap_20260930_192842 with 12 audio-ready schemes.
+  - audio pool: exactly 72 hi and 72 mr chunk clips exist for the 12 snapshot schemes; clipless schemes have no audio.
+- Built tools/cards_sheet.py:
+  - Seed constant SEED = 42.
+  - Selects all 7 failing schemes + 13 seeded-random passing schemes -> exactly 20 cards.
+  - Writes data_cache/reports/audit_sample_3_7.json: {seed, sample_ids, failing_ids}.
+  - Writes data_cache/reports/cards_sheet.md: one ### <scheme_id> per card, source URL, gate notes & failure reasons for failing schemes only, all 3 languages (English, Hindi, Marathi) with all 6 card chunk fields + official name.
+  - Scaffolds data_cache/reports/audit_3_7.md: 20 sections with source_url, status, read checkboxes (en, hi, mr), listen checkboxes (hi, mr), verdict: PENDING, notes: ; never overwrites if file exists.
+- Added cards mode to tools/listen.py:
+  - CLI: python -m tools.listen cards <L> <N> with L in {hi, mr}.
+  - Reads CURRENT snapshot to filter to 12 audio-ready schemes.
+  - Reuses existing play path (ulaw_to_wav temp file, afplay).
+  - Skips non-rendered clips with "(missing: not rendered yet)".
+- Added Makefile targets:
+  - cards-sheet: $(PYTHON) -m tools.cards_sheet
+  - listen-cards: $(PYTHON) -m tools.listen cards $(L) $(N)
+  - Both added to .PHONY.
+- Added tests/test_cards_sheet.py:
+  - test_seeded_sample_reproducibility: checks same seed gives same 20 ids, all 7 failing ids present.
+  - test_cards_sheet_contains_all_sampled_ids: checks all 20 ids present, 3 languages, failing notes.
+  - test_audit_template_not_overwritten_on_rerun: checks existing audit_3_7.md preserved on re-run.
+  - 3 tests passed in 0.02s.
+- Verifications passed:
+  - pytest -q: 314 passed (stayed green).
+  - make stress: 1000 callers, 0 crashes, 0 truth failures.
+  - make cards-sheet: successfully created/verified audit_sample_3_7.json, cards_sheet.md, audit_3_7.md.
+  - make listen-cards L=hi N=2: smoke check successfully played 2 clips (apy, kcc summary chunks).
 

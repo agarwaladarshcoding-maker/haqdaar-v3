@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet pipeline-texts pipeline-cost render listen snapshot backup call-me
+.PHONY: run call calls sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards snapshot backup call-me
 
 test:
 	$(PYTHON) -m pytest
@@ -68,6 +68,10 @@ pipeline-gates:
 lines-sheet:
 	$(PYTHON) -m tools.lines_sheet
 
+# Step 3.7: 20 sampled cards review sheet. Free and offline.
+cards-sheet:
+	$(PYTHON) -m tools.cards_sheet
+
 # What the call can say, and what is still missing. Free and offline.
 pipeline-texts:
 	$(PYTHON) -m haqdaar.data.pipeline.texts
@@ -95,6 +99,11 @@ render:
 # make listen L=mr N=5   (N=lines plays every fixed line)
 listen:
 	$(PYTHON) -m tools.listen $(L) $(N)
+
+# Step 3.7: listen to N card-chunk clips in language L from audio-ready snapshot schemes
+# make listen-cards L=hi N=2
+listen-cards:
+	$(PYTHON) -m tools.listen cards $(L) $(N)
 
 # Plan 2.3: build the real snapshot from the 12 schemes and flip snapshots/CURRENT to it.
 snapshot:
