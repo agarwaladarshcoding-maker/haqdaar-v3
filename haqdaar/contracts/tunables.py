@@ -147,3 +147,24 @@ GATES_FILE: str = os.environ.get("GATES_FILE", "data_cache/derived/gates.jsonl")
 # G3 counts words, not characters (Devanagari uses more characters per word), and skips text
 # shorter than this: turning "Aadhaar Card." into a spoken sentence must add words.
 GATE_LENGTH_MIN_WORDS: int = int(os.environ.get("GATE_LENGTH_MIN_WORDS", 12))
+
+# Plan 3.3: Playwright's own Chromium is not installed on the owner's Mac; the system Chrome is.
+# None = Playwright's bundled browser.
+SCRAPE_BROWSER_CHANNEL: str | None = "chrome"
+
+# Plan 3.4 / 3.5 (owner, 30 Sep): Muse Spark 1.3 Contributor does the cards and the translation,
+# at "high" reasoning, with a hard ₹60 cap over every run (haqdaar/data/pipeline/muse.py).
+# "groq" / "sarvam" bring the old clients back.
+LLM_PROVIDER: str = os.environ.get("LLM_PROVIDER", "muse")
+TRANSLATE_PROVIDER: str = os.environ.get("TRANSLATE_PROVIDER", "muse")
+MUSE_MODEL: str = os.environ.get("MUSE_MODEL", "muse-spark-1.3-contributor")
+MUSE_REASONING_EFFORT: str = os.environ.get("MUSE_REASONING_EFFORT", "high")
+MUSE_CAP_INR: float = float(os.environ.get("MUSE_CAP_INR", 60.0))
+MUSE_USD_PER_M_IN: float = 0.10
+MUSE_USD_PER_M_OUT: float = 0.20
+USD_TO_INR: float = 90.0  # rounded up, so the cap trips a little early rather than late
+MUSE_TIMEOUT_S: float = 180.0  # "high" reasoning on a long card prompt can think for a while
+MUSE_POLITE_DELAY_S: float = 1.0
+MUSE_MAX_RETRIES: int = 5
+MUSE_RETRY_SLEEP_S: float = 3.0
+MUSE_429_WAIT_S: float = 20.0

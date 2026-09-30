@@ -221,6 +221,18 @@ def _extract_section_text(page: Page, section_ids: List[str], block_name: str) -
     return ""
 
 
+def load_listing(path: Optional[Path] = None) -> Dict[str, Dict[str, str]]:
+    """Plan 3.3: level and ministry for each slug, from p0_discover's candidates.csv (the site's
+    own search index). Empty if p0 has not run; the caller then leaves them out."""
+    import csv
+
+    path = path or Path(__file__).resolve().parents[3] / tunables.DERIVED_DIR / "candidates.csv"
+    if not path.exists():
+        return {}
+    with open(path, encoding="utf-8", newline="") as f:
+        return {r["slug"]: r for r in csv.DictReader(f)}
+
+
 def scrape_scheme(
     slug: str,
     page: Page,
@@ -306,6 +318,10 @@ def scrape_scheme(
         "apply": apply,
         "source_sha256": source_sha256,
     }
+    listed = load_listing().get(slug)
+    if listed:
+        record["level"] = listed["level"].upper()  # "Central" -> "CENTRAL"
+        record["department"] = listed["ministry"]
 
     # Atomic write to cache
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -416,6 +432,7 @@ def run_pipeline_scrape(
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
+            channel=tunables.SCRAPE_BROWSER_CHANNEL,
             args=[
                 "--disable-gpu",
                 "--no-sandbox",

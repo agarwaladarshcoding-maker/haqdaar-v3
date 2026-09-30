@@ -28,3 +28,41 @@ schemes:
     priority: 2
   - slug: naps # National Apprenticeship Promotion Scheme
     priority: 3
+  # --- Phase 3.2 (30 Sep): 18 more, picked from p0_discover's candidates.csv. Owner: 30 for now.
+  # Rules: for individuals or families, open now, a direct benefit, fits rural and informal-work families.
+  - slug: mgnrega # Mahatma Gandhi National Rural Employment Guarantee Act
+    priority: 1
+  - slug: pmuy2 # Pradhan Mantri Ujjwala Yojana 2.0
+    priority: 1
+  - slug: pmjjby # Pradhan Mantri Jeevan Jyoti Bima Yojana
+    priority: 1
+  - slug: pmsby # Pradhan Mantri Suraksha Bima Yojana
+    priority: 1
+  - slug: pm-sym # Pradhan Mantri Shram Yogi Maan-dhan
+    priority: 1
+  - slug: pmkmdy # Pradhan Mantri Kisan Maandhan Yojana
+    priority: 2
+  - slug: pmmvy # Pradhan Mantri Matru Vandana Yojana
+    priority: 1
+  - slug: jsy1 # Janani Suraksha Yojana
+    priority: 2
+  - slug: nsap-ignoaps # Indira Gandhi National Old Age Pension Scheme
+    priority: 1
+  - slug: ignwps # Indira Gandhi National Widow Pension Scheme
+    priority: 1
+  - slug: igndps # Indira Gandhi National Disability Pension Scheme
+    priority: 2
+  - slug: nfbs # National Family Benefit Scheme
+    priority: 2
+  - slug: pmv # PM Vishwakarma
+    priority: 2
+  - slug: pmkvy-stt # Pradhan Mantri Kaushal Vikas Yojana 4.0 - Short-Term Training
+    priority: 3
+  - slug: nps-tsep # National Pension Scheme for Traders And Self Employed Persons
+    priority: 3
+  - slug: pmsfss # Post-Matric Scholarship for SC students
+    priority: 2
+  - slug: rkvyshfshc # RKVY Soil Health and Fertility - Soil Health Card
+    priority: 3
+  - slug: pm-mkssy # Pradhan Mantri Matsya Kisan Samridhi Sah-Yojana
+    priority: 3
