@@ -11,7 +11,8 @@ silence, noise, and an early hang-up. Every call's delivery log is then read bac
   crash         the engine raised. Must be 0.
   truth         a scheme was read that contradicts an answer: an answered box whose mask does
                 not include the scheme. Boxes the widening ladder may drop (WIDENING_ORDER) are
-                excused only on a call whose log says ladder_rung > 0. Must be 0.
+                excused only on a call whose log says ladder_rung > 0. A "nearest" read may miss
+                soft boxes only when zero survivors exist under the full masks. Must be 0.
 
 It also reports questions per call, schemes read, endings, and how long each keypad menu is
 (the chips and "press N" clips in seconds), so a menu too long to sit through shows up here.
@@ -36,6 +37,7 @@ from haqdaar.data.corpus import Corpus
 from haqdaar.engine.call import Engine
 
 from haqdaar.contracts.types import HARD_BOXES, UNKNOWN, WIDENING_ORDER
+from haqdaar.engine.filter import Filter
 from haqdaar.data.log import Log
 from haqdaar.sim import FakeAudio
 
@@ -98,13 +100,22 @@ def check_truth(rows: list[dict[str, Any]], corpus: Corpus, index: dict[str, int
         slug = row["slug"]
         ending = row.get("ending")
         bit = 1 << index[slug]
-        for box, value in answers.items():
-            if value in (UNKNOWN, "UNKNOWN", None, ""):
-                continue
-            if ending == "nearest":
-                # Nearest is not a match (T18 §2): soft boxes may miss, but hard boxes never
+        if ending == "nearest":
+            # Nearest is not a match (T18 §2): soft boxes may miss, but hard
+            # boxes never. The excuse applies only if the ladder truly
+            # exhausted — zero survivors under the full (pre-widening) masks —
+            # else a bogus nearest would pass silently.
+            full = {b: v for b, v in answers.items() if v not in (UNKNOWN, "UNKNOWN", None, "")}
+            if Filter.survivors(full, corpus):
+                problems.append(f"{slug} read as nearest, but survivors exist under full masks")
+            for box, value in answers.items():
+                if value in (UNKNOWN, "UNKNOWN", None, ""):
+                    continue
                 if box in HARD_BOXES and not (corpus.mask(box, value) & bit):
                     problems.append(f"{slug} read as nearest, but hard box {box}={value}")
+            continue
+        for box, value in answers.items():
+            if value in (UNKNOWN, "UNKNOWN", None, ""):
                 continue
             if rung > 0 and box in WIDENING_ORDER:
                 continue
