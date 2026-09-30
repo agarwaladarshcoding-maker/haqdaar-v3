@@ -253,6 +253,24 @@ def build_range_bands(
     return bands
 
 
+def scheme_has_all_clips(scheme: Mapping[str, Any], audio_path: Path) -> bool:
+    """True when every one of a scheme's 18 chunks (6 chunks x 3 langs) has a .ulaw file."""
+    sid = scheme.get("scheme_id", "")
+    for lang in ("en", "hi", "mr"):
+        for chunk_name in SCHEME_CHUNKS:
+            text = ""
+            if "chunks" in scheme and lang in scheme["chunks"] and chunk_name in scheme["chunks"][lang]:
+                text = scheme["chunks"][lang][chunk_name]
+            elif f"{chunk_name}_{lang}" in scheme:
+                text = scheme[f"{chunk_name}_{lang}"]
+            elif chunk_name == "name":
+                text = scheme.get(f"scheme_name_{lang}", f"Scheme {sid}")
+            rk = compute_render_key(text, lang)
+            if not (audio_path / f"{rk}.ulaw").exists():
+                return False
+    return True
+
+
 def build_snapshot(
     schemes_data: list[dict[str, Any]],
     templates_data: dict[str, Any] | None = None,
@@ -261,6 +279,7 @@ def build_snapshot(
     audio_dir: str | Path | None = None,
     render_stubs: bool = False,
     enforce_readback_gate: bool = False,
+    only_with_audio: bool = False,
 ) -> str:
     """Build a complete snapshot adhering to 05-DATA-CONTRACT.md §2.
 
@@ -283,6 +302,9 @@ def build_snapshot(
     snap_dir = snapshots_path / snapshot_id
     snap_dir.mkdir(parents=True, exist_ok=True)
     audio_path.mkdir(parents=True, exist_ok=True)
+
+    if only_with_audio:
+        schemes_data = [s for s in schemes_data if scheme_has_all_clips(s, audio_path)]
 
     if enforce_readback_gate:
         for s in schemes_data:
@@ -646,16 +668,37 @@ def build_snapshot(
     return snapshot_id
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """Build a snapshot from the real schemes (what p2..p5 wrote) and flip CURRENT to it.
 
-    No stubs: a clip that is not rendered yet is recorded with an empty digest, and
-    Corpus.load refuses the snapshot until `make render YES=1` has made it.
+    When only_with_audio is True (default), schemes missing any .ulaw clip are skipped,
+    so CURRENT only flips to a snapshot that Corpus.load can load.
     """
+    import argparse
     from haqdaar.data.pipeline.texts import _load_schemes, missing
 
+    parser = argparse.ArgumentParser(description="Build snapshot from derived schemes.")
+    parser.add_argument(
+        "--only-with-audio",
+        dest="only_with_audio",
+        action="store_true",
+        default=True,
+        help="Skip schemes missing audio clips (default).",
+    )
+    parser.add_argument(
+        "--all-schemes",
+        dest="only_with_audio",
+        action="store_false",
+        help="Include all schemes even if missing audio clips.",
+    )
+    args = parser.parse_args(argv if argv is not None else sys.argv[1:])
+
     schemes = _load_schemes(Path(tunables.CARDS_FILE).parent)
-    snap = build_snapshot(schemes, enforce_readback_gate=True)
+    snap = build_snapshot(
+        schemes,
+        enforce_readback_gate=True,
+        only_with_audio=args.only_with_audio,
+    )
     manifest = json.loads(
         (Path(tunables.SNAPSHOTS_DIR) / snap / "manifest.json").read_text(encoding="utf-8")
     )

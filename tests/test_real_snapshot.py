@@ -55,3 +55,38 @@ def test_a_deleted_clip_stops_the_load(real_snap):
     (real_snap / "audio" / f"{victim}.ulaw").unlink()
     with pytest.raises(CorpusError):
         Corpus.load("CURRENT")
+
+
+def test_only_with_audio_skips_clipless_schemes(tmp_path, monkeypatch):
+    monkeypatch.setattr(tunables, "SNAPSHOTS_DIR", str(tmp_path / "snapshots"))
+    monkeypatch.setattr(tunables, "AUDIO_DIR", str(tmp_path / "audio"))
+
+    all_schemes = _load_schemes(DERIVED)
+    assert len(all_schemes) >= 2
+    s1 = dict(all_schemes[0])
+    s2 = dict(all_schemes[1])
+
+    audio_dir = tmp_path / "audio"
+    audio_dir.mkdir(parents=True, exist_ok=True)
+
+    # Render audio stubs for s1 (and templates)
+    build_snapshot(
+        [s1],
+        snapshot_id="temp_stub",
+        snapshots_dir=tmp_path / "snapshots",
+        audio_dir=audio_dir,
+        render_stubs=True,
+    )
+
+    # s2 has no clips in audio_dir. Monkeypatch _load_schemes to return [s1, s2]
+    monkeypatch.setattr("haqdaar.data.pipeline.texts._load_schemes", lambda _: [s1, s2])
+
+    from haqdaar.data.pipeline.p6_snapshot import main
+    code = main(["--only-with-audio"])
+    assert code == 0
+
+    # Corpus.load on CURRENT must pass and hold only s1
+    corpus = Corpus.load("CURRENT")
+    assert len(corpus._scheme_ids) == 1
+    assert corpus.scheme_id(0) == s1["scheme_id"]
+

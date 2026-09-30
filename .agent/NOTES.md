@@ -1712,3 +1712,12 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   - ok in all 3 languages: 17 schemes.
   - failures: 11 schemes (ignwps, kcc, mgnrega, nfbs, nps-tsep, pm-kisan, pm-svanidhi, pmay-g, pmjjby, pmmvy, rkvyshfshc) tripped G1 (digits from English spelled-out numbers like 'three'->'3'), G3 length ratio (e.g. 1.61x), or G4 script.
 - Binding rule (3) 'Never loosen a gate to pass' strictly preserved.
+
+## 30 Sep — Step P7: p6_snapshot only_with_audio scope + snapshot build
+- Modified haqdaar/data/pipeline/p6_snapshot.py:
+  - Added scheme_has_all_clips(scheme, audio_path) helper.
+  - Added only_with_audio: bool = False to build_snapshot() (default behavior unchanged, Gate 3 untouched).
+  - Wired only_with_audio (default True) into main() via CLI args.
+- Added focused unit test test_only_with_audio_skips_clipless_schemes in tests/test_real_snapshot.py (one clipped + one clipless -> snapshot holds only the former, exit 0, Corpus.load passes).
+- Ran make snapshot: produced snapshot snap_20260930_192842 with 12 audio-ready schemes, 477 clips, 0 missing clips, flipped CURRENT.
+- Proved Corpus.load('CURRENT') succeeds with 12 schemes.
