@@ -93,6 +93,18 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 30 Sep (last) — every clip made; Phase 2 waits only on your calls; Phase 3 planned
+
+- Your new Sarvam key was saved in the Documents copy's `.env` again; I copied it across.
+- The last 30 clips are made ("press 1".."press 9", "press 0"). All **477 clips** exist, and the
+  snapshot was rebuilt with them.
+- Checked: every word the call can say, in all 3 languages, for all 12 schemes, finds its real
+  clip (552 clips, 78 minutes of speech). 300 tests pass.
+- Phase 3 plan now has real numbers: ~630k Sarvam characters (paid), ~1.2M Groq tokens, ~300 MB of
+  audio, 2–3 hours of voice render. One new item (3.8): do not load all audio into memory at once.
+
+**Project can now:** everything for a real keypad call is ready. Only your 3 test calls are left.
+
 ### 30 Sep (late night) — Phase 2 built: the phone call is ready to try
 
 **What was added** (steps 2.2 to 2.7, each on its own branch, all pushed, not merged yet).
