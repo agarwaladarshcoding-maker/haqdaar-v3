@@ -1,0 +1,14 @@
+{
+  "summary": "नेशनल अप्रेंटिसशिप प्रमोशन स्कीम-2 तय और वैकल्पिक ट्रेडों में काम के साथ प्रशिक्षण देती है। 14 से 35 साल की उम्र के प्रशिक्षुओं को सरकार DBT से हर महीने स्टाइपेंड का 25 प्रतिशत देती है। यह 1500 रुपये तक होता है।",
+  "benefit_text": "यह योजना निर्धारित ट्रेड और वैकल्पिक ट्रेड में ट्रेनिंग देती है। सरकार बैंक ट्रांसफर से स्टाइपेंड का 25% देती है, हर महीने 1500 रुपये तक। पढ़ाई और सर्टिफिकेट के आधार पर कम से कम स्टाइपेंड हर महीने 5000 रुपये से 9000 रुपये तक होता है।",
+  "who_can_apply": "अप्रेंटिस की उम्र 14 से 35 साल होनी चाहिए। खतरनाक कामों के लिए उम्र 18 साल होनी चाहिए। उम्मीदवारों को आधार नंबर चाहिए और अप्रेंटिसशिप पोर्टल पर ई-केवाईसी करानी होगी।",
+  "documents": "रजिस्ट्रेशन के लिए आधार कार्ड चाहिए। चुने गए ट्रेड के हिसाब से जरूरी कागजात चाहिए। सीएससी सेंटर आपको कागजों की पूरी सूची बताएगा।",
+  "how_to_apply": "उम्मीदवार आधिकारिक अप्रेंटिसशिप पोर्टल पर जाएं और उम्मीदवार के रूप में रजिस्टर चुनें। उम्मीदवार मोबाइल नंबर और ईमेल आईडी के साथ आधार नंबर डालें। उम्मीदवार ई-केवाईसी और मोबाइल ओटीपी सत्यापन पूरा करें।",
+  "en": {
+    "summary": "The National Apprenticeship Promotion Scheme-2 provides on-the-job training in designated and optional trades, with government stipend support of 25 percent up to Rs 1,500 monthly through DBT for apprentices aged 14 to 35.",
+    "benefit_text": "The scheme gives training in Designated Trades and Optional Trades. Government pays 25% of stipend up to Rs.1,500 per month through bank transfer. Minimum stipend is Rs.5,000 to Rs.9,000 per month based on schooling and certificates.",
+    "who_can_apply": "Apprentices must be 14 to 35 years old. Age is 18 years for hazardous trades. Candidates need Aadhaar number and e-KYC on the apprenticeship portal.",
+    "documents": "Aadhaar Card is needed for registration. Documents required as per selected trade are needed. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Candidates go to the official Apprenticeship Portal and choose register as candidate. Candidates enter mobile number and email ID with Aadhaar number. Candidates complete e-KYC and mobile OTP authentication."
+  }
+}

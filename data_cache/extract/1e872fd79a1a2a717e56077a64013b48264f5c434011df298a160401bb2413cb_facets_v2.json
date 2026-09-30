@@ -1,0 +1,38 @@
+{
+  "facets": {
+    "category": {
+      "value": "business_loans",
+      "quote": "Funds will be allocated under annual Budget Estimates toward disbursement of Margin Money (subsidy) for setting up new micro-enterprises/units; and"
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 18,
+        "max": null
+      },
+      "quote": "Any individual, above 18 years of age."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Assistance only for new projects sanctioned specifically under PMEGP; existing units and units that already availed Government Subsidy under any other scheme are not eligible.",
+    "Only one person from one family is eligible where family includes self and spouse.",
+    "For setting up of project costing above Rs.10 lakh in Manufacturing and above Rs 5,00,000 in Business/Service, minimum VIII standard pass educational qualification required.",
+    "Negative list of activities not permitted including meat, intoxicants, liquor outlets, tobacco, toddy, cultivation/plantation, sericulture, horticulture, animal husbandry except value addition/off-farm linked activities.",
+    "Upgradation of existing PMEGP/REGP/MUDRA units requires successful adjustment after 3-year lock-in, successful repayment of first loan, and profit-making unit with growth potential."
+  ]
+}

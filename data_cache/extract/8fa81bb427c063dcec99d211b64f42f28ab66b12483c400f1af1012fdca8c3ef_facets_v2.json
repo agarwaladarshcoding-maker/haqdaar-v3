@@ -1,0 +1,36 @@
+{
+  "facets": {
+    "category": {
+      "value": "women_children",
+      "quote": "The applicant must be a pregnant woman."
+    },
+    "gender": {
+      "value": "female",
+      "quote": "The applicant must be a pregnant woman."
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": null,
+        "max": null
+      },
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "State-category split not capturable: LPS government delivery is open to all pregnant women without BPL certification, while HPS requires Below Poverty Line (BPL) household and Scheduled Caste (SC)/Scheduled Tribe (ST) status.",
+    "Accredited private institutions in LPS & HPS require BPL household plus SC/ST status with proper Below Poverty Line or Scheduled Caste/Scheduled Tribe certificate plus referral slip and JSY card.",
+    "Home delivery in all States/UTs requires BPL household with BPL certificate; institutional delivery must be in government health centre or accredited private health institution."
+  ]
+}

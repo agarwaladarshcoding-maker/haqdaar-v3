@@ -1,0 +1,99 @@
+{
+  "scheme_id": "pmjjby",
+  "myscheme_slug": "pmjjby",
+  "source_url": "https://www.myscheme.gov.in/schemes/pmjjby",
+  "level": "CENTRAL",
+  "priority": 1,
+  "state": "ANY",
+  "department": "Ministry Of Finance",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "e7234432610c30b1b77cb4ab42be11672af109ee2adc10ae543e386de3119222",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Pradhan Mantri Jeevan Jyoti Bima Yojana",
+  "scheme_name_hi": "प्रधानमंत्री जीवन ज्योति बीमा योजना",
+  "scheme_name_mr": "प्रधानमंत्री जीवन ज्योती विमा योजना",
+  "aliases_en": [
+    "pradhan mantri jeevan jyoti bima yojana",
+    "pmjjby",
+    "pm jeevan jyoti bima yojana",
+    "jeevan jyoti bima yojana",
+    "jeevan jyoti life insurance scheme",
+    "pmjjby two lakh life cover scheme"
+  ],
+  "aliases_hi": [
+    "प्रधानमंत्री जीवन ज्योति बीमा योजना",
+    "जीवन ज्योति बीमा योजना",
+    "पीएम जीवन ज्योति बीमा योजना",
+    "pmjjby जीवन ज्योति बीमा योजना",
+    "pmjjby वाली दो लाख की जीवन बीमा योजना",
+    "चार सौ छत्तीस रुपये प्रीमियम वाली जीवन ज्योति बीमा योजना"
+  ],
+  "aliases_mr": [
+    "प्रधानमंत्री जीवन ज्योती विमा योजना",
+    "जीवन ज्योती विमा योजना",
+    "पीएम जीवन ज्योती विमा योजना",
+    "pmjjby जीवन ज्योती विमा योजना",
+    "pmjjby चा दोन लाखांचा जीवन विमा",
+    "चारशे छत्तीस रुपये हप्त्याची जीवन ज्योती विमा योजना"
+  ],
+  "category": "welfare_disability",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": {
+    "min": 18,
+    "max": 50
+  },
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "It covers death due to any reason.",
+    "gender": "",
+    "social_category": "",
+    "age": "The age of the applicant must be between 18 to 50 Years.",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Requires an individual bank / post office account for premium auto-debit"
+  ],
+  "chunks": {
+    "en": {
+      "name": "Pradhan Mantri Jeevan Jyoti Bima Yojana",
+      "summary": "Pradhan Mantri Jeevan Jyoti Bima Yojana offers one-year term life cover of Rs 2 lakh for death due to any reason. Individuals aged 18 to 50 with a bank or post office account contribute Rs 436 annually via auto-debit.",
+      "benefit_text": "PMJJBY offers one- year term life cover of ₹ 2.00 Lakh to all the subscribers in the age group of 18-50 years.\nIt covers death due to any reason.\nPremium payable is ₹ 436/- per annum per subscriber, to be auto debited from the subscriber’s bank/post office account.",
+      "who_can_apply": "The age of the applicant must be between 18 to 50 Years.\nThe applicant must hold an individual bank / post office account.",
+      "documents": "﻿",
+      "how_to_apply": "Offline\nOnline\nOffline\nStep 01: Download and take print of the “CONSENT-CUM-DECLARATION FORM” given in the link below: https://www.jansuraksha.gov.in/Files/PMJJBY/English/ApplicationForm.pdf#zoom=250 \nStep 02: Duly fill and sign the application form, attach the self-attested copies of the required documents, and submit the case to the authorised official of Bank / Post Office. The official will return you the “ACKNOWLEDGEMENT SLIP CUM CERTIFICATE OF INSURANCE”."
+    },
+    "hi": {
+      "name": "प्रधानमंत्री जीवन ज्योति बीमा योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "प्रधानमंत्री जीवन ज्योती विमा योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

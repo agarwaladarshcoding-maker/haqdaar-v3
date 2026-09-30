@@ -62,6 +62,11 @@ Each entry says: what was added, what was changed, and what the project can do a
 | File | What it does |
 |---|---|
 | `pool.py` | Keeps audio clips ready: a small set always loaded, the rest loaded when needed. |
+| `mouth.py` | What the caller hears: sends the voice down the line, stops it on a key, repeats on `#`. |
+| `turn.py` | Keys and silence from the caller; a key pressed while the call talks is kept. |
+| `phone.py` | Connects the call brain to the phone: finds each clip, adds the keypad menus. |
+| `telephony/base.py` | The common shape every phone company must fit. |
+| `render.py` | Makes the real voice: asks Sarvam to speak every line, button word and scheme text, and saves each clip. `make render`. |
 | `telephony/twilio.py` | Telephony wire codec (parse 6 inbound events, build 3 outbound events). |
 | `telephony/__init__.py` | Isolates telephony wire codecs so vendor names never leak outside telephony. |
 
@@ -71,6 +76,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 | `haqdaar/server.py` | FastAPI app exposing `/health`, `/answer` (TwiML Stream XML), `/stream` (audio WS). |
 | `tools/tone.py` | 8 kHz μ-law 440 Hz 1-second pure tone generator (no WAV/RIFF headers). |
 | `tools/run_demo.py` | `make call-me`: tunnel + server + rings your phone, in one command. |
+| `tools/listen.py` | Plays saved clips on the Mac, with their words printed first. `make listen L=mr N=5`. |
 
 ### Other
 | File | What it does |
@@ -81,11 +87,119 @@ Each entry says: what was added, what was changed, and what the project can do a
 | `Makefile` | Short commands: `make test`, `make sim`, `make run`, `make pipeline-scrape`, `make pipeline-extract`. |
 
 ### Not written yet
-`p3_translate.py` · `p4_gates.py` (Step 9) · render (Step 10) · `model/` · `ear.py` `mouth.py` `turn.py`.
+`p3_translate.py` · `p4_gates.py` (Step 9) · `model/` · `ear.py` (speech, later).
 
 ---
 
 ## 3 · Log — newest first
+
+
+### 30 Sep (setup) — Antigravity took over, checks passed
+- Antigravity took over and verified the system against steps 2–7 of PROMPT-ANTIGRAVITY-SETUP.md. All checks passed: branch `step-3.2-choose` clean, all 6 required `.env` keys present, 307 tests pass (0 fail), `make stress` (1,000 callers: 0 crashes, 0 truth failures), `make sim` finished at `closing_farewell`, and Muse spend is ₹3.93 (under ₹60 cap).
+- Wrote `MUSE-BRIEF.md` for Muse Spark 1.3 Contributor to plan steps 3.4-finish and 3.5.
+
+### 30 Sep (evening) — Phase 3 cut to 30 schemes; handoff to Muse + Antigravity
+- **Added:** the 18 new schemes (30 total, 28 scraped). Muse now writes cards and translations, with a hard ₹60 cap (₹3.93 spent). `make stress` runs 1,000 pretend callers: 0 crashes, 0 wrong schemes read. The server keeps only the fixed lines in memory (6.7 MB).
+- **Changed:** the owner paused Claude. From now on Muse plans, Antigravity writes the code, and Claude checks at the end. `HANDOFF.md` is the starting point for all of them.
+- **Can do now:** everything from Phase 2 on the 12 schemes. The new 18 have their facts half-built and no voice yet.
+### 30 Sep (night) — Phase 3 started: Muse replaces Groq and Sarvam translate; 746 schemes found
+
+**Decided with you.**
+- Muse Spark 1.3 (Meta) now does both the scheme cards and the translation. It is capped at
+  ₹60 total, at "high" thinking. The key works.
+- It is used only for the offline pipeline, never on live calls, because Meta may learn from what we send.
+- Central (all-India) schemes only. I choose the 110–130 and the 9 kinds of work.
+
+**What was added (3.1).** `make pipeline-discover` lists every central scheme on myscheme into
+`data_cache/derived/candidates.csv`. It found **746**, of which **510 are for individuals**, and
+all 12 of our current schemes are in the list. It is free and takes about 15 seconds.
+
+**Still open with you.** The Twilio account is switched off, so no test calls can be made yet.
+You also still need to pick a voice service for the new schemes (Google Chirp 3 HD is free at our volume).
+
+### 30 Sep (last) — every clip made; Phase 2 waits only on your calls; Phase 3 planned
+
+- Your new Sarvam key was saved in the Documents copy's `.env` again; I copied it across.
+- The last 30 clips are made ("press 1".."press 9", "press 0"). All **477 clips** exist, and the
+  snapshot was rebuilt with them.
+- Checked: every word the call can say, in all 3 languages, for all 12 schemes, finds its real
+  clip (552 clips, 78 minutes of speech). 300 tests pass.
+- Phase 3 plan now has real numbers: ~630k Sarvam characters (paid), ~1.2M Groq tokens, ~300 MB of
+  audio, 2–3 hours of voice render. One new item (3.8): do not load all audio into memory at once.
+
+**Project can now:** everything for a real keypad call is ready. Only your 3 test calls are left.
+
+### 30 Sep (late night) — Phase 2 built: the phone call is ready to try
+
+**What was added** (steps 2.2 to 2.7, each on its own branch, all pushed, not merged yet).
+- **All 450 voice clips are made**, with your new Sarvam key: every line, button word and scheme text in 3 languages.
+- **Many clips at once (2.2).** The call could only open about 250 clips at a time before crashing. Now it can open all of them.
+- **The real 12 schemes as a snapshot (2.3).** `make snapshot` builds it. A terminal call on it works in all 3 languages:
+  `make sim SNAP=snapshots/CURRENT`. Loading it takes 0.02 seconds.
+  - Found and fixed on the way: 87 button words were filed under the wrong name, so the call would
+    have found no sound for them.
+- **Any phone company (2.4).** The phone code now has one common shape, so an Indian provider can be added later as one file.
+- **The mouth (2.5).** Plays the voice down the line. A key press stops it at once (under 0.2 s in the test).
+  `#` repeats; `#` twice repeats slower. The demo's 10-second freeze on a key press cannot happen here.
+- **The ears (2.6).** Reads keys and silence. A key pressed while the call is talking is never lost.
+- **The real call (2.7).** Ringing the line now runs the whole call with the real voice. The log
+  keeps only a scrambled form (hash) of the caller's number, never the number itself.
+- **Keypad menus.** A keypad question used to say "press the key for your work" and then list nothing.
+  Now it reads every choice with its key ("Farmer, press 1. Street vendor, press 2."), then
+  "if you do not know, press 0". It used to say "press 9", which clashed with the 9th topic.
+- Tests: **300 passed**.
+
+**What you need to do (all your jobs for Phase 2 are here).**
+1. Sarvam's free credit ran out before the last 30 small clips ("press 1".."press 9" and the new
+   "press 0" line; 361 characters). Top up, then run `make render YES=1`, then `make snapshot`.
+2. Listen: `make listen L=mr N=lines`, and `N=5` for `L=hi`, `L=mr`, `L=en`.
+3. Make 3 real calls (Hindi, Marathi, English) with `make run` in one terminal and `make call-me` in another.
+   Tell me when done: I read `logs/server.log` and `logs/calls/`.
+4. If the calls are good: I merge into main and tag `v1-keypad`.
+
+**Please listen for these two on the calls.**
+- Every call starts with "I am having trouble hearing you. We will use the keypad from now on."
+- The topic question says "you can also say the name of a scheme", but this call has no speech yet.
+
+Both lines come from the speech design. Tell me if you want them changed for keypad-only calls.
+
+**Project can now:** take a real phone call on the 12 schemes with a real voice, keypad only.
+
+### 30 Sep (night) — Phase 2 step 2.1: the call has a real voice (most of it)
+
+**What was added.**
+- `haqdaar/audio/render.py` — asks Sarvam to speak every text the call can say and saves each
+  clip in the phone's own sound format. It reads the same list the snapshot uses, so the two can
+  never disagree about which clips must exist.
+  - `make render` only counts what is missing and spends nothing. `make render YES=1` pays.
+  - It picks up where it stopped: a clip already saved is never asked for again.
+  - It stops at once if Sarvam says "no credits", instead of failing 400 times.
+  - It sends at most one request every 1.3 seconds, because Sarvam refused us after ~50 in a minute.
+- `tools/listen.py` — plays clips on the Mac with the words printed first:
+  `make listen L=mr N=lines` plays every Marathi fixed line, `make listen L=hi N=5` plays 5 random Hindi clips.
+- `make pipeline-cost` now also shows what the voice has cost.
+- 12 new tests. Full suite: **272 passed**.
+
+**What was changed.**
+- One voice per language, all set in `tunables`. All three are "priya", a woman's voice, because
+  the call speaks of itself as a woman in Hindi and Marathi. Speed is 0.9 (you said 1.0 was too fast).
+- Changing a voice or the speed re-makes only the clips it affects, because both are part of each clip's name.
+- The three-language greeting now really plays Hindi, then Marathi, then English (18.8 seconds).
+  Before, only its English was going to be spoken.
+
+**Where it stopped.** Sarvam ran out of credits partway. 273 of 450 clips are made: **every fixed
+line in all 3 languages, every button word, every age and income band, and the greeting.** What is
+left is 177 scheme texts (34,535 characters). This run spent 15,878 characters in all (275 requests).
+
+**What you need to do.**
+1. Top up Sarvam, then run `make render YES=1`. When `make render` says `missing: 0`, it is done.
+2. Listen: `make listen L=mr N=lines` (all Marathi lines), and `make listen L=hi N=5`,
+   `make listen L=mr N=5`, `make listen L=en N=5`. If the Marathi voice sounds wrong, tell me: we
+   change `TTS_SPEAKER_MR` and only Marathi is re-made.
+
+**Note.** The clips live in `audio/`, which is not in git. They cost money, so do not delete that folder.
+
+**Project can now:** speak every fixed line, button word and greeting in a real voice, in Hindi, Marathi and English.
 
 ### 30 Sep (later) — all 12 schemes pass in all 3 languages; lines corrected; Phase 1 merged
 

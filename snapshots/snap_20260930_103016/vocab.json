@@ -1,0 +1,174 @@
+{
+  "snapshot_id": "snap_20260930_103016",
+  "num_schemes": 12,
+  "word_bytes": 8,
+  "boxes": {
+    "category": {
+      "values": [
+        "farming",
+        "business_loans",
+        "jobs_skills",
+        "health",
+        "housing",
+        "pension",
+        "education",
+        "women_children",
+        "welfare_disability"
+      ],
+      "code_map": {
+        "farming": 0,
+        "business_loans": 1,
+        "jobs_skills": 2,
+        "health": 3,
+        "housing": 4,
+        "pension": 5,
+        "education": 6,
+        "women_children": 7,
+        "welfare_disability": 8
+      },
+      "vocab_source": "authored"
+    },
+    "state": {
+      "values": [
+        "MAHARASHTRA",
+        "OTHER"
+      ],
+      "code_map": {
+        "MAHARASHTRA": 0,
+        "OTHER": 1
+      },
+      "vocab_source": "authored"
+    },
+    "gender": {
+      "values": [
+        "female",
+        "male",
+        "other"
+      ],
+      "code_map": {
+        "female": 0,
+        "male": 1,
+        "other": 2
+      },
+      "vocab_source": "authored"
+    },
+    "social_category": {
+      "values": [
+        "GEN",
+        "OBC",
+        "SC",
+        "ST"
+      ],
+      "code_map": {
+        "GEN": 0,
+        "OBC": 1,
+        "SC": 2,
+        "ST": 3
+      },
+      "vocab_source": "authored"
+    },
+    "age": {
+      "values": [
+        "0-13",
+        "14-17",
+        "18-35",
+        "36-40",
+        "41+"
+      ],
+      "code_map": {
+        "0-13": 0,
+        "14-17": 1,
+        "18-35": 2,
+        "36-40": 3,
+        "41+": 4
+      },
+      "vocab_source": "authored",
+      "bands": [
+        {
+          "code": "0-13",
+          "lo": 0,
+          "hi": 13
+        },
+        {
+          "code": "14-17",
+          "lo": 14,
+          "hi": 17
+        },
+        {
+          "code": "18-35",
+          "lo": 18,
+          "hi": 35
+        },
+        {
+          "code": "36-40",
+          "lo": 36,
+          "hi": 40
+        },
+        {
+          "code": "41+",
+          "lo": 41,
+          "hi": null
+        }
+      ]
+    },
+    "income_band": {
+      "values": [],
+      "code_map": {},
+      "vocab_source": "authored",
+      "bands": []
+    },
+    "occupation": {
+      "values": [
+        "farmer",
+        "street_vendor",
+        "apprentice",
+        "entrepreneur",
+        "artisan",
+        "weaver",
+        "worker"
+      ],
+      "code_map": {
+        "farmer": 0,
+        "street_vendor": 1,
+        "apprentice": 2,
+        "entrepreneur": 3,
+        "artisan": 4,
+        "weaver": 5,
+        "worker": 6
+      },
+      "vocab_source": "corpus_prose_cut"
+    }
+  },
+  "mask_offsets": {
+    "age:0-13": 16,
+    "age:14-17": 24,
+    "age:18-35": 32,
+    "age:36-40": 40,
+    "age:41+": 48,
+    "category:farming": 56,
+    "category:business_loans": 64,
+    "category:jobs_skills": 72,
+    "category:health": 80,
+    "category:housing": 88,
+    "category:pension": 96,
+    "category:education": 104,
+    "category:women_children": 112,
+    "category:welfare_disability": 120,
+    "gender:female": 128,
+    "gender:male": 136,
+    "gender:other": 144,
+    "occupation:farmer": 152,
+    "occupation:street_vendor": 160,
+    "occupation:apprentice": 168,
+    "occupation:entrepreneur": 176,
+    "occupation:artisan": 184,
+    "occupation:weaver": 192,
+    "occupation:worker": 200,
+    "social_category:GEN": 208,
+    "social_category:OBC": 216,
+    "social_category:SC": 224,
+    "social_category:ST": 232,
+    "state:MAHARASHTRA": 240,
+    "state:OTHER": 248
+  }
+}

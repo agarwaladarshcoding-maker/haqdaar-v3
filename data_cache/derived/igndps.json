@@ -1,0 +1,101 @@
+{
+  "scheme_id": "igndps",
+  "myscheme_slug": "igndps",
+  "source_url": "https://www.myscheme.gov.in/schemes/igndps",
+  "level": "CENTRAL",
+  "priority": 2,
+  "state": "ANY",
+  "department": "Ministry Of Rural Development",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "481f641b50fe3146be841dac2b73f42968e7869027a0f130f66bf8f98574cf51",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Indira Gandhi National Disability Pension Scheme",
+  "scheme_name_hi": "इंदिरा गांधी राष्ट्रीय दिव्यांग पेंशन योजना",
+  "scheme_name_mr": "इंदिरा गांधी राष्ट्रीय दिव्यांग पेन्शन योजना",
+  "aliases_en": [
+    "indira gandhi national disability pension scheme",
+    "indira gandhi disability pension scheme",
+    "igndps pension for divyangjan",
+    "indira gandhi divyang monthly pension of three hundred rupees",
+    "indira gandhi pension for disabled persons aged eighteen to seventy nine",
+    "indira gandhi five hundred rupees pension for disabled above eighty years"
+  ],
+  "aliases_hi": [
+    "इंदिरा गांधी राष्ट्रीय दिव्यांग पेंशन योजना",
+    "इंदिरा गांधी विकलांग पेंशन योजना",
+    "इंदिरा गांधी दिव्यांगजन मासिक पेंशन योजना",
+    "अठारह से उन्यासी साल के दिव्यांगों के लिए इंदिरा गांधी तीन सौ रुपये पेंशन",
+    "अस्सी साल से ऊपर के दिव्यांगों के लिए इंदिरा गांधी पांच सौ रुपये पेंशन",
+    "igndps दिव्यांग पेंशन योजना"
+  ],
+  "aliases_mr": [
+    "इंदिरा गांधी राष्ट्रीय दिव्यांग पेन्शन योजना",
+    "इंदिरा गांधी अपंग पेन्शन योजना",
+    "इंदिरा गांधी दिव्यांगजन मासिक पेन्शन योजना",
+    "अठरा ते एकोणऐंशी वयोगटातील दिव्यांगांसाठी इंदिरा गांधी तीनशे रुपये पेन्शन",
+    "ऐंशी वर्षांवरील दिव्यांगांसाठी इंदिरा गांधी पाचशे रुपये पेन्शन",
+    "igndps दिव्यांग पेन्शन योजना"
+  ],
+  "category": "welfare_disability",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": {
+    "min": 18,
+    "max": null
+  },
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "The applicant should be a physically or mentally disabled person.",
+    "gender": "",
+    "social_category": "",
+    "age": "The age of the applicant should be 18 years and above.",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Requires disability more than 80% - not captured in columns",
+    "Requires Below Poverty Line status - no numeric income threshold given so income_band is ANY",
+    "Requires resident of India"
+  ],
+  "chunks": {
+    "en": {
+      "name": "Indira Gandhi National Disability Pension Scheme",
+      "summary": "The Indira Gandhi National Disability Pension Scheme provides Rs 300 monthly to Divyangjan aged 18 to 79 and Rs 500 monthly after 80, for Indian residents with over 80 percent disability from Below Poverty Line families.",
+      "benefit_text": "A pension of Rs.300/- per month is provided to Divyangjan between 18-79 years. \nA pension of Rs.500/- per month will be provided to Divyangjan aged 80 years and above. \n﻿",
+      "who_can_apply": "The eligibility criteria for a disabled person to avail of the benefits are as follows.\n﻿\n\nThe age of the applicant should be 18 years and above.\nThe applicant should be a resident of India.\nThe applicant should be a physically or mentally disabled person.\nThe applicant’s disability should be more than 80%.\nDwarfs are also eligible for this scheme.\nThe applicant should belong to the Below Poverty Line.",
+      "documents": "BPL Card\nAadhaar card\nAge Proof - For age, the birth certificate or school certificate may be relied on. In their absence ration card and EPIC may be considered. If there is no valid document, any Medical Officer of any government hospital may be authorized to issue the age certificate.\nDisability certificate:- Disability certificate (80% and More) issued from Chief Medical Officer, Community Health Centre or Primary Health Centre will be accepted.\nPassport Size Photographs.\n﻿",
+      "how_to_apply": "Online\nOffline\nOne can download UMANG App or visit website https://web.umang.gov.in/web_new/home \nThe citizen can login using mobile number and OTP.\nOnce logged In, citizen can search for NSAP.\nClick on “Apply Online”\nFill the basic details, choose the mode of payment of pension, upload photo and click on “Submit”.\n﻿\n\nApply Now"
+    },
+    "hi": {
+      "name": "इंदिरा गांधी राष्ट्रीय दिव्यांग पेंशन योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "इंदिरा गांधी राष्ट्रीय दिव्यांग पेन्शन योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

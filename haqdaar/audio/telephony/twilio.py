@@ -8,69 +8,20 @@ Outbound events: media, mark, clear.
 """
 from __future__ import annotations
 import base64
-from dataclasses import dataclass, field
 import json
-from typing import Any, Union
+from typing import Any
 
-
-@dataclass(frozen=True)
-class ConnectedEvent:
-    protocol: str = "Call"
-    version: str = "1.0.0"
-    raw: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class StartEvent:
-    stream_sid: str
-    call_sid: str
-    account_sid: str
-    tracks: list[str] = field(default_factory=list)
-    media_format: dict[str, Any] = field(default_factory=dict)
-    custom_parameters: dict[str, Any] = field(default_factory=dict)
-    raw: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class MediaEvent:
-    stream_sid: str
-    payload: str  # base64 encoded string
-    track: str = "inbound"
-    chunk: str = ""
-    timestamp: str = ""
-    raw: dict[str, Any] = field(default_factory=dict)
-
-    @property
-    def payload_bytes(self) -> bytes:
-        return base64.b64decode(self.payload)
-
-
-@dataclass(frozen=True)
-class DtmfEvent:
-    stream_sid: str
-    digit: str
-    track: str = ""
-    raw: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class MarkEvent:
-    stream_sid: str
-    name: str
-    raw: dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class StopEvent:
-    stream_sid: str
-    call_sid: str = ""
-    account_sid: str = ""
-    raw: dict[str, Any] = field(default_factory=dict)
-
-
-InboundEvent = Union[
-    ConnectedEvent, StartEvent, MediaEvent, DtmfEvent, MarkEvent, StopEvent
-]
+# The events are the provider-neutral ones from base.py (D12); this file only maps Twilio's
+# JSON onto them and back. Re-exported so `from ...twilio import StartEvent` keeps working.
+from haqdaar.audio.telephony.base import (  # noqa: F401
+    ConnectedEvent,
+    DtmfEvent,
+    InboundEvent,
+    MarkEvent,
+    MediaEvent,
+    StartEvent,
+    StopEvent,
+)
 
 
 def _to_dict(data: str | dict[str, Any]) -> dict[str, Any]:

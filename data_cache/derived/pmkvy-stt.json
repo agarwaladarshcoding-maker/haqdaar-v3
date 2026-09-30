@@ -1,0 +1,102 @@
+{
+  "scheme_id": "pmkvy-stt",
+  "myscheme_slug": "pmkvy-stt",
+  "source_url": "https://www.myscheme.gov.in/schemes/pmkvy-stt",
+  "level": "CENTRAL",
+  "priority": 3,
+  "state": "ANY",
+  "department": "Ministry Of Skill Development And Entrepreneurship",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "5acc8e760e60e24b8b13ba5aee161fa3c6d0ba25d0d54c99d3acfc089956922a",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Pradhan Mantri Kaushal Vikas Yojana - Short Term Training",
+  "scheme_name_hi": "प्रधानमंत्री कौशल विकास योजना - अल्पकालिक प्रशिक्षण",
+  "scheme_name_mr": "प्रधानमंत्री कौशल विकास योजना - अल्पकालीन प्रशिक्षण",
+  "aliases_en": [
+    "pradhan mantri kaushal vikas yojana short term training",
+    "pmkvy short term training scheme",
+    "pmkvy free short term skill training course",
+    "pm kaushal vikas short duration training with counselling support",
+    "pmkvy stt course with soft skills, digital literacy and accidental insurance",
+    "pradhan mantri kaushal vikas short term skill development training"
+  ],
+  "aliases_hi": [
+    "प्रधानमंत्री कौशल विकास योजना अल्पकालिक प्रशिक्षण",
+    "pmkvy अल्पकालिक प्रशिक्षण योजना",
+    "प्रधानमंत्री कौशल विकास लघु अवधि निःशुल्क स्किल प्रशिक्षण",
+    "पीएम कौशल विकास सॉफ्ट स्किल और डिजिटल साक्षरता वाला शॉर्ट टर्म कोर्स",
+    "प्रधानमंत्री कौशल विकास परामर्श सहायता और अल्पकालिक प्रशिक्षण कार्यक्रम",
+    "कौशल विकास अल्पकालिक प्रशिक्षण दुर्घटना बीमा सहायता सहित"
+  ],
+  "aliases_mr": [
+    "प्रधानमंत्री कौशल विकास योजना अल्पकालीन प्रशिक्षण",
+    "pmkvy short term training योजना",
+    "पंतप्रधान कौशल विकास मोफत अल्पमुदती कौशल्य प्रशिक्षण अभ्यासक्रम",
+    "पीएम कौशल विकास सॉफ्ट स्किल्स आणि डिजिटल साक्षरता प्रशिक्षण",
+    "प्रधानमंत्री कौशल विकास समुपदेशन आणि जिल्हा कौशल्य माहिती केंद्र प्रशिक्षण",
+    "कौशल विकास अल्पकालीन प्रशिक्षण अपघाती विमा मदतीसह"
+  ],
+  "category": "jobs_skills",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": {
+    "min": 15,
+    "max": 45
+  },
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "Training in Soft Skills, Entrepreneurship, Financial and Digital Literacy",
+    "gender": "",
+    "social_category": "",
+    "age": "Is aged between 15-45 years",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Requires Indian nationality - applicable to any candidate of Indian nationality",
+    "Requires Aadhaar card and Aadhaar linked bank account and mandatory Aadhaar ID during enrolment",
+    "Requires 70% attendance to be eligible to appear in assessments",
+    "Must fulfil other criteria for the respective job role as defined by the awarding body"
+  ],
+  "chunks": {
+    "en": {
+      "name": "Pradhan Mantri Kaushal Vikas Yojana - Short Term Training",
+      "summary": "The Pradhan Mantri Kaushal Vikas Yojana Short Term Training offers skill training to Indian citizens aged 15 to 45, including soft skills, digital literacy, counselling, placement support, insurance, and financial assistance for training-related costs.",
+      "benefit_text": "Counselling:\nOnline Information / Counselling Platform\nThrough Counselling Helpline\nThrough District-level skill information centre \nTraining:\nDigital Content\nTraining in Soft Skills, Entrepreneurship, Financial and Digital Literacy\nAdditional Support\nAccidental Insurance\nOne-time incentive to all certified candidates \nBoarding and lodging cost support \nConveyance cost \nPost Placement Stipend \nAdditional support to PwD candidates \nInduction kit and participant handbook \nYearly incentive to Training Provider \nOne-time placement travel cost \nCareer progression support\nSpecial Incentive for foreign placements\nPost Placement Tracking Allowance\nPlacement\nPost Training Support\nThe scheme will be compatible with the international standards by provisioning  add-on bridge courses and language courses\n﻿\n\nThe scheme will be compatible with the international standards by provisioning  add-on bridge courses and language courses.\n﻿\n\nNote:\nIt is mandatory for the candidates to have an Aadhaar ID during the enrolment process. It is also mandatory for the students to maintain 70% attendance to be eligible to appear in the assessments\n﻿",
+      "who_can_apply": "This scheme is applicable to any candidate of Indian nationality who:\n﻿\n\nIs aged between 15-45 years\nPossesses an Aadhaar card and an Aadhaar linked bank account\nFulfils other criteria for the respective job role as defined by the awarding body",
+      "documents": "As required for the job role.",
+      "how_to_apply": "Offline\nThe interested candidate can contact the nearest Training Center to apply.\nTraining Center: \nhttps://www.pmkvyofficial.org/trainingcenter \n﻿"
+    },
+    "hi": {
+      "name": "प्रधानमंत्री कौशल विकास योजना - अल्पकालिक प्रशिक्षण",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "प्रधानमंत्री कौशल विकास योजना - अल्पकालीन प्रशिक्षण",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

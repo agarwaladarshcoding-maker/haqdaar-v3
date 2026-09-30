@@ -180,6 +180,18 @@ class GroqClient:
         raise RuntimeError(f"Groq call failed after {max_retries} retries.")
 
 
+def make_llm_client() -> Any:
+    """The card and facet model (plan 3.4): Muse by default, Groq if LLM_PROVIDER=groq."""
+    if tunables.LLM_PROVIDER == "muse":
+        from haqdaar.data.pipeline.muse import MuseClient
+
+        return MuseClient()
+    return GroqClient()
+
+
+_DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
+
+
 def normalize_text(text: str) -> str:
     """Lowercase and collapse whitespace."""
     return re.sub(r"\s+", " ", text.strip().lower())
@@ -587,7 +599,7 @@ def run_pipeline_extract(
     priorities = load_scheme_priorities(schemes_file)
 
     if client is None:
-        client = GroqClient()
+        client = make_llm_client()
 
     logger.info("Starting derivation pass for %d schemes...", len(raw_files))
 
@@ -684,9 +696,8 @@ def run_pipeline_extract(
         summary_res = item["summary_res"]
 
         # state comes from level, never from the model (D6): the model is never asked, so it
-        # can never invent a state. p1 does not write a level yet, so this still hard-codes
-        # CENTRAL for every real scheme until step 3.3; raw_data.get() only lets a level
-        # travel through when a future p1 (or a test) sets one.
+        # can never invent a state. p1 writes level from the site's search index (3.3); an old
+        # raw record without one counts as CENTRAL (every scheme so far is central).
         level = raw_data.get("level", "CENTRAL")
         if level == "CENTRAL":
             state_value = ANY
@@ -816,11 +827,11 @@ def run_pipeline_extract(
 
         # Clean aliases
         aliases_en = [normalize_text(a) for a in aliases_res.get("aliases_en", []) if normalize_text(a)]
-        aliases_hi = [normalize_text(a) for a in aliases_res.get("aliases_hi", []) if normalize_text(a)]
-        aliases_mr = [normalize_text(a) for a in aliases_res.get("aliases_mr", []) if normalize_text(a)]
+        aliases_hi = [normalize_text(a).translate(_DEVANAGARI_DIGITS) for a in aliases_res.get("aliases_hi", []) if normalize_text(a)]
+        aliases_mr = [normalize_text(a).translate(_DEVANAGARI_DIGITS) for a in aliases_res.get("aliases_mr", []) if normalize_text(a)]
 
-        title_hi = aliases_res.get("scheme_name_hi", title_en)
-        title_mr = aliases_res.get("scheme_name_mr", title_en)
+        title_hi = aliases_res.get("scheme_name_hi", title_en).translate(_DEVANAGARI_DIGITS)
+        title_mr = aliases_res.get("scheme_name_mr", title_en).translate(_DEVANAGARI_DIGITS)
 
         scheme_record: dict[str, Any] = {
             "scheme_id": slug,
@@ -829,7 +840,7 @@ def run_pipeline_extract(
             "level": level,
             "priority": priorities.get(slug, DEFAULT_PRIORITY),
             "state": state_value,
-            "department": "Government of India",
+            "department": raw_data.get("department") or "Government of India",
             "fetched_on": raw_data["fetched_on"],
             "source_sha256": sha,
             "facets_source": "derived",

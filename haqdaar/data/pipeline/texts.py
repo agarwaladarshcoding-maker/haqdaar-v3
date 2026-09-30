@@ -19,7 +19,7 @@ import sys
 from pathlib import Path
 from typing import Any, Iterator, NamedTuple, Optional
 
-from haqdaar.audio.lines import TRILINGUAL_LINE_ID, band_label, load_lines
+from haqdaar.audio.lines import MENU_KEYS, TRILINGUAL_LINE_ID, band_label, key_label, load_lines
 from haqdaar.contracts import tunables, vocab
 from haqdaar.contracts.types import (
     FIXED_LINE_IDS,
@@ -28,6 +28,8 @@ from haqdaar.contracts.types import (
 )
 
 LANGS: tuple[str, ...] = ("en", "hi", "mr")
+# greeting_trilingual plays Hindi, then Marathi, then English.
+TRILINGUAL_ORDER: tuple[str, ...] = ("hi", "mr", "en")
 
 
 class Text(NamedTuple):
@@ -36,7 +38,7 @@ class Text(NamedTuple):
     key: str       # the render key: sha over (text, lang, voice, model, rate)
     lang: str
     text: str
-    kind: str      # "line" | "chip" | "band" | "chunk"
+    kind: str      # "line" | "chip" | "key" | "band" | "chunk"
     ref: str       # line_id, chip id, band id, or "<scheme_id>/<chunk>"
 
 
@@ -48,15 +50,18 @@ def fixed_line_texts(lines_path: Path | str | None = None) -> Iterator[Text]:
     """The fixed lines, in every language they have been written or translated into.
 
     greeting_trilingual is one recording covering all three languages, so it is keyed on
-    "all" exactly as p6 keys it, and never yielded per language.
+    "all" exactly as p6 keys it, and never yielded per language. Its text is the parts in play
+    order, one per line, so a change to any part changes the key; the renderer speaks each part
+    in its own language (TRILINGUAL_ORDER) and joins them. Until all three parts exist it is
+    not yielded, so missing() is what reports it.
     """
     lines = load_lines(lines_path)
     for line_id in FIXED_LINE_IDS:
         texts = lines[line_id]
         if line_id == TRILINGUAL_LINE_ID:
-            text = texts.get("en", "")
-            if text:
-                yield _text("all", text, "line", line_id)
+            parts = [texts.get(lang, "").strip() for lang in TRILINGUAL_ORDER]
+            if all(parts):
+                yield _text("all", "\n".join(parts), "line", line_id)
             continue
         for lang in LANGS:
             text = texts.get(lang, "").strip()
@@ -75,6 +80,13 @@ def chip_texts() -> Iterator[Text]:
                 text = (label.get(lang) or "").strip()
                 if text:
                     yield _text(lang, text, "chip", f"chip_{box}_{value}")
+
+
+def key_texts() -> Iterator[Text]:
+    """ "press 1." .. "press 9." — spoken after each chip in a keypad menu."""
+    for n in MENU_KEYS:
+        for lang in LANGS:
+            yield _text(lang, key_label(n, lang), "key", f"key_{n}")
 
 
 def band_texts(bands_by_box: dict[str, list[dict[str, Any]]]) -> Iterator[Text]:
@@ -123,6 +135,7 @@ def all_texts(
     for item in (
         *fixed_line_texts(lines_path),
         *chip_texts(),
+        *key_texts(),
         *band_texts(bands_by_box or {}),
         *scheme_chunk_texts(schemes or []),
     ):
@@ -140,6 +153,9 @@ def missing(schemes: list[dict[str, Any]], lines_path: Path | str | None = None)
     lines = load_lines(lines_path)
     for line_id in FIXED_LINE_IDS:
         if line_id == TRILINGUAL_LINE_ID:
+            for lang in TRILINGUAL_ORDER:
+                if not (lines[line_id].get(lang) or "").strip():
+                    gaps.append(f"line {line_id} has no {lang}")
             continue
         for lang in LANGS:
             if not (lines[line_id].get(lang) or "").strip():

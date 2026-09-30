@@ -1,0 +1,14 @@
+{
+  "summary": "इंदिरा गांधी राष्ट्रीय विधवा पेन्शन योजना दारिद्र्य रेषेखालील कुटुंबातील 40 ते 79 वर्षे वयाच्या विधवांना दरमहा पेन्शन देते. दरमहा 300 रुपये मिळतात. 80 वर्षांनंतर दरमहा 500 रुपये मिळतात.",
+  "benefit_text": "ही योजना 40 ते 79 वर्षे वयाच्या विधवांना दर महिन्याला 300 रुपये देते. ही योजना 80 वर्षे आणि त्यापेक्षा जास्त वयाच्या लोकांना दर महिन्याला 500 रुपये देते.",
+  "who_can_apply": "40 ते 79 वर्षे वयाच्या विधवा अर्ज करू शकतात. त्या गरिबी रेषेखालील कुटुंबातील असल्या पाहिजेत.",
+  "documents": "पतीचा मृत्यू दाखला लागतो. त्यात विधवेचे नाव पाहिजे. बीपीएल कार्ड लागते. वयाच्या पुराव्यासाठी जन्म दाखला किंवा शाळेचा दाखला लागतो. सीएससी सेंटर तुम्हाला कागदांची पूर्ण यादी सांगेल.",
+  "how_to_apply": "लोक उमंग अ‍ॅप वापरतात आणि एनएसएपी शोधतात. लोक मोबाईल नंबर आणि ओटीपीने लॉगिन करतात. लोक साधी माहिती भरतात आणि फोटो अपलोड करून जमा करतात.",
+  "en": {
+    "summary": "The Indira Gandhi National Widow Pension Scheme provides monthly pension support to widows aged 40 to 79 years from Below Poverty Line households, with Rs 300 per month, increasing to Rs 500 per month after 80 years.",
+    "benefit_text": "The scheme pays 300 rupees per month to widows between 40 years and 79 years. The scheme pays 500 rupees per month to persons who are 80 years and above.",
+    "who_can_apply": "Widows in the age group of 40 to 79 years can apply. Widows must belong to a household living below the poverty line.",
+    "documents": "The papers are death certificate of husband with name of widow. BPL card is needed. Age proof like birth certificate or school certificate is needed. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "People use UMANG App and search for NSAP. People login with mobile number and OTP. People fill basic details and upload photo and submit."
+  }
+}

@@ -48,6 +48,8 @@ TRANSLATED_FIELDS = ("summary", "benefit_text", "who_can_apply", "documents", "h
 TARGET_LANGS = {"hi": "hi-IN", "mr": "mr-IN"}
 SOURCE_LANG = "en-IN"
 
+_DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
+
 
 class TranslateError(Exception):
     """A translation could not be completed. The text is left empty rather than half-written."""
@@ -187,6 +189,15 @@ class SarvamTranslator:
         return translated.strip()
 
 
+def make_translator() -> Any:
+    """Plan 3.5: Muse by default, Sarvam if TRANSLATE_PROVIDER=sarvam."""
+    if tunables.TRANSLATE_PROVIDER == "muse":
+        from haqdaar.data.pipeline.muse import MuseTranslator
+
+        return MuseTranslator()
+    return SarvamTranslator()
+
+
 def _split_for_limit(text: str, limit: int) -> list[str]:
     """Split `text` into pieces of at most `limit` characters, preferring sentence ends."""
     if len(text) <= limit:
@@ -236,7 +247,7 @@ def translate_scheme(
         return cached, True
 
     if translator is None:
-        translator = SarvamTranslator()
+        translator = make_translator()
 
     texts: dict[str, str] = {}
     for field in TRANSLATED_FIELDS:
@@ -350,7 +361,7 @@ def run_translate(
                 ) is None:
                     # The key is only needed once something misses cache, so a fully warm run
                     # needs no SARVAM_API_KEY at all.
-                    translator = SarvamTranslator()
+                    translator = make_translator()
                 texts, _from_cache = translate_scheme(
                     slug,
                     record.get("source_sha256", ""),
@@ -375,7 +386,7 @@ def run_translate(
     tmp = schemes_path.with_suffix(".tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         for record in records:
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            f.write(json.dumps(record, ensure_ascii=False).translate(_DEVANAGARI_DIGITS) + "\n")
     tmp.replace(schemes_path)
 
     reports_dir.mkdir(parents=True, exist_ok=True)
@@ -514,7 +525,7 @@ def run_translate_lines(
                     translated = cached["text"]
                 else:
                     if translator is None:
-                        translator = SarvamTranslator()
+                        translator = make_translator()
                     translated = translator.translate(english, lang, slug=line_id, field="line")
                     write_to_cache(sha, task, {"en": english, "text": translated}, cache_dir)
             except Exception as e:

@@ -1,0 +1,39 @@
+{
+  "facets": {
+    "category": {
+      "value": "pension",
+      "quote": "A minimum assured pension of ₹3,000/- per month is provided to the subscriber after attaining the age of 60 years."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 18,
+        "max": 40
+      },
+      "quote": "The applicant must have an entry age between 18 and 40 years."
+    },
+    "income_band": {
+      "value": {
+        "min": null,
+        "max": 180000
+      },
+      "quote": "The applicant must have a monthly income of ₹15,000/- or less."
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Must not be an income tax payer",
+    "Must not be engaged in the organized sector or hold membership in EPFO, NPS, ESIC or NPS-Traders scheme",
+    "Must possess a Savings Bank Account or Jan Dhan account number with an Indian Financial System Code"
+  ]
+}

@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet pipeline-texts pipeline-cost backup call-me
+.PHONY: run call calls sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet pipeline-texts pipeline-cost render listen snapshot backup call-me
 
 test:
 	$(PYTHON) -m pytest
@@ -32,7 +32,7 @@ call-me:
 	caffeinate -dimsu $(PYTHON) -m tools.run_demo
 
 sim:
-	$(PYTHON) -m haqdaar.sim
+	$(PYTHON) -m haqdaar.sim $(if $(SNAP),--snapshot $(SNAP),) $(if $(KEYS),--keys "$(KEYS)",)
 
 # T17 §4: a whole call against the four fakes, printing the LOG. One run per
 # keypad-only persona, so an interface break shows up on day one, not day nine.
@@ -42,6 +42,10 @@ demo-fixture:
 	@for p in p1 p2 p3 widened; do \
 		$(PYTHON) -m haqdaar.sim --persona $$p --canned --call-id demo_$$p --logs-dir logs/demo || exit 1; \
 	done
+
+# Plan 3.1: every central scheme on myscheme -> data_cache/derived/candidates.csv (free).
+pipeline-discover:
+	$(PYTHON) -m haqdaar.data.pipeline.p0_discover
 
 pipeline-scrape:
 	$(PYTHON) -m haqdaar.data.pipeline.p1_scrape
@@ -83,3 +87,19 @@ pipeline-cost:
 
 smoke:
 	@echo "smoke target (telephony / pre-demo verification checklist)"
+
+# Plan 2.1: real voice for every text. Without YES=1 it only counts what is missing.
+render:
+	$(PYTHON) -m haqdaar.audio.render $(if $(YES),--yes,)
+
+# make listen L=mr N=5   (N=lines plays every fixed line)
+listen:
+	$(PYTHON) -m tools.listen $(L) $(N)
+
+# Plan 2.3: build the real snapshot from the 12 schemes and flip snapshots/CURRENT to it.
+snapshot:
+	$(PYTHON) -m haqdaar.data.pipeline.p6_snapshot
+
+# Plan 3.6: random keypad callers on the real snapshot; 0 crashes and 0 truth failures.
+stress:
+	$(PYTHON) -m tools.stress -n $(or $(N),1000) --seed $(or $(SEED),1)

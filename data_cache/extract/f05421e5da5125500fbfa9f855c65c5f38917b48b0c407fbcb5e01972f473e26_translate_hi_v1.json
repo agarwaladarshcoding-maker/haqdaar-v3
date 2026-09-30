@@ -1,0 +1,14 @@
+{
+  "summary": "किसान क्रेडिट कार्ड योजना किसानों, किराये पर खेती करने वालों, बटाईदारों और किसान समूहों को फसल उगाने, खेत की देखभाल और खेती से जुड़े कामों के लिए कर्ज की मदद देती है। इसमें छोटी अवधि और निवेश के कर्ज 5 साल के लिए तय हैं।",
+  "benefit_text": "बैंक किसान क्रेडिट कार्ड से फसल के लिए कर्ज देते हैं। पहले साल की सीमा में फसल की लागत और रकबा शामिल है, घर की जरूरत के लिए 10% और खेत की मरम्मत के लिए 20% मिलता है। बाद के सालों में बढ़ती लागत के लिए 10% जोड़ा जाता है। लंबी अवधि का कर्ज जमीन और खेती के औजारों के लिए मिलता है।",
+  "who_can_apply": "जिन किसानों के पास अपनी जमीन है और जो अकेले या मिलकर खेती करते हैं, वे आवेदन कर सकते हैं। किराए पर जमीन लेकर खेती करने वाले किसान और बटाई पर खेती करने वाले किसान भी आवेदन कर सकते हैं। साथ मिलकर काम करने वाले किसानों के समूह भी आवेदन कर सकते हैं।",
+  "documents": "2 फोटो और भरा हुआ फॉर्म चाहिए। आधार कार्ड जैसा पहचान पत्र चाहिए। पते का सबूत और राजस्व दफ्तर से जमीन के कागज चाहिए। सीएससी केंद्र आपको कागजों की पूरी लिस्ट बताएगा।",
+  "how_to_apply": "लोग बैंक की वेबसाइट पर जा सकते हैं और किसान क्रेडिट कार्ड चुन सकते हैं। लोग फॉर्म भरते हैं और सबमिट दबाते हैं। बैंक रेफरेंस नंबर देता है और 3-4 काम के दिनों में संपर्क करता है।",
+  "en": {
+    "summary": "The Kisan Credit Card initiative offers credit assistance to farmers, tenant cultivators, sharecroppers and farmer groups for crop cultivation, farm maintenance, and allied activities, with short-term and investment loans fixed for five years.",
+    "benefit_text": "Banks give crop loans through the Kisan Credit Card. The first year limit covers crop cost and area plus 10% for home needs and 20% for farm repairs. Later years add 10% for higher costs. Term loans cover land and farm tools.",
+    "who_can_apply": "Farmers who own land and farm alone or together can apply. Tenant farmers and share croppers can also apply. Groups of farmers who work together can also apply.",
+    "documents": "Two photos and the filled form are needed. ID proof like Aadhar Card is needed. Address proof and land papers from revenue office are needed. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "People can go to the bank website and choose Kisan Credit Card. People fill the form and press submit. The bank gives a reference number and contacts in 3-4 working days."
+  }
+}

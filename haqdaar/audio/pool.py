@@ -5,14 +5,16 @@ Internal to haqdaar/audio. NOT imported by corpus.py.
 
 Tiers:
   tier 0: RAM, pinned (139 fixed lines + ~600 chips, ~35 MB, never evicted)
-  tier 1: Local SSD, mmap + byte-bounded LRU at AUDIO_CACHE_MB
+  tier 1: Local SSD, read once + byte-bounded LRU at AUDIO_CACHE_MB. No file stays open:
+          Python's mmap keeps its own copy of the file handle, so 400 mapped clips were 400
+          open files, over macOS's default limit of 256 (F12). Clips are small (a scheme
+          chunk is ~100 KB), so reading them into the LRU costs little and holds no handle.
   tier 2: S3 / R2, read-through into tier 1 behind AUDIO_TIER2 (default "none")
 
 Runtime imports no TTS client and no S3 client when AUDIO_TIER2=none.
 """
 from __future__ import annotations
 from collections import OrderedDict
-import mmap
 import os
 from pathlib import Path
 from typing import Any, Iterable, Mapping
@@ -39,9 +41,9 @@ class AudioPool:
         # Tier 0: Pinned in RAM (never evicted)
         self._tier0_pinned: dict[RenderKey, bytes] = {}
 
-        # Tier 1: Local SSD mmap + byte-bounded LRU
-        # Maps render_key -> (mmap_obj, file_obj, size_bytes)
-        self._tier1_lru: OrderedDict[RenderKey, tuple[mmap.mmap, Any, int]] = OrderedDict()
+        # Tier 1: clips read from local disk + byte-bounded LRU
+        # Maps render_key -> (clip bytes, size_bytes)
+        self._tier1_lru: OrderedDict[RenderKey, tuple[bytes, int]] = OrderedDict()
         self._tier1_current_bytes: int = 0
         self._tier1_max_bytes: int = self._cache_mb * 1024 * 1024
 
@@ -75,23 +77,13 @@ class AudioPool:
                     self._tier0_pinned[key] = f.read()
                 # If it was in tier 1, remove and reclaim tier 1 LRU space
                 if key in self._tier1_lru:
-                    mm, f_obj, size = self._tier1_lru.pop(key)
-                    try:
-                        mm.close()
-                        f_obj.close()
-                    except Exception:
-                        pass
+                    _, size = self._tier1_lru.pop(key)
                     self._tier1_current_bytes -= size
 
     def _evict_tier1_if_needed(self, new_bytes: int) -> None:
         """Evict oldest LRU entries until new_bytes fits under max_bytes."""
         while (self._tier1_current_bytes + new_bytes > self._tier1_max_bytes) and self._tier1_lru:
-            old_key, (old_mm, old_f, old_size) = self._tier1_lru.popitem(last=False)
-            try:
-                old_mm.close()
-                old_f.close()
-            except Exception:
-                pass
+            _, (_, old_size) = self._tier1_lru.popitem(last=False)
             self._tier1_current_bytes -= old_size
 
     def _fetch_tier2(self, render_key: RenderKey) -> bool:
@@ -130,11 +122,11 @@ class AudioPool:
         if render_key in self._tier0_pinned:
             return self._tier0_pinned[render_key]
 
-        # 2. Tier 1 check (Local SSD mmap cache hit)
+        # 2. Tier 1 check (cache hit)
         if render_key in self._tier1_lru:
-            mm, _, _ = self._tier1_lru[render_key]
+            data, _ = self._tier1_lru[render_key]
             self._tier1_lru.move_to_end(render_key)
-            return memoryview(mm)
+            return memoryview(data)
 
         # 3. Local SSD file load (Tier 1 miss)
         local_file = self._audio_dir / f"{render_key}.ulaw"
@@ -143,22 +135,16 @@ class AudioPool:
             if not self._fetch_tier2(render_key):
                 raise KeyError(f"Render key {render_key} not found in pool {self._audio_dir}")
 
-        size = local_file.stat().st_size
+        try:
+            data = local_file.read_bytes()  # opens, reads, closes: no handle is kept
+        except OSError as e:
+            raise RuntimeError(f"Failed to read {local_file}: {e}") from e
+        size = len(data)
         self._evict_tier1_if_needed(size)
 
-        f_obj = open(local_file, "rb")
-        try:
-            if size == 0:
-                mm = mmap.mmap(-1, 1)  # stub for empty
-            else:
-                mm = mmap.mmap(f_obj.fileno(), 0, access=mmap.ACCESS_READ)
-        except Exception as e:
-            f_obj.close()
-            raise RuntimeError(f"Failed to mmap {local_file}: {e}") from e
-
-        self._tier1_lru[render_key] = (mm, f_obj, size)
+        self._tier1_lru[render_key] = (data, size)
         self._tier1_current_bytes += size
-        return memoryview(mm)
+        return memoryview(data)
 
     def prefetch(self, keys: Iterable[RenderKey]) -> None:
         """Prefetch scheme chunks into Tier 1.
@@ -201,7 +187,7 @@ class AudioPool:
         if to_pin:
             self.pin(to_pin)
 
-        # If warm on boot, pre-mmap local pool files up to ceiling
+        # If warm on boot, pre-load local pool files up to ceiling
         if tunables.AUDIO_WARM_ON_BOOT and self._audio_dir.exists():
             for f in self._audio_dir.glob("*.ulaw"):
                 rk = f.stem
@@ -214,14 +200,8 @@ class AudioPool:
                         pass
 
     def close(self) -> None:
-        """Close all open mmaps and file handles in Tier 1."""
-        while self._tier1_lru:
-            _, (mm, f, _) = self._tier1_lru.popitem()
-            try:
-                mm.close()
-                f.close()
-            except Exception:
-                pass
+        """Drop every cached clip. Nothing holds a file open, so there is nothing else to close."""
+        self._tier1_lru.clear()
         self._tier1_current_bytes = 0
         self._tier0_pinned.clear()
 

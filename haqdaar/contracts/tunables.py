@@ -14,6 +14,8 @@ TONE_FREQ_HZ: int = int(os.environ.get("TONE_FREQ_HZ", 440))
 TONE_DURATION_S: float = float(os.environ.get("TONE_DURATION_S", 1.0))
 TONE_AMPLITUDE: float = float(os.environ.get("TONE_AMPLITUDE", 0.5))
 NGROK_DOMAIN: str = os.environ.get("NGROK_DOMAIN", "")
+# D12: which module in haqdaar/audio/telephony/ talks to the phone line.
+PHONE_PROVIDER: str = os.environ.get("PHONE_PROVIDER", "twilio")
 
 # Timing and thresholds (04-INTERFACES.md § What is not frozen)
 ENDPOINT_MS: int = int(os.environ.get("ENDPOINT_MS", 700))
@@ -34,25 +36,51 @@ CALL_CEILING_S: int = int(os.environ.get("CALL_CEILING_S", 600))
 MAX_SOURCE_AGE_DAYS: int = int(os.environ.get("MAX_SOURCE_AGE_DAYS", 14))
 
 # Audio cache and storage tiers (03-ARCHITECTURE.md §10.1, 04-INTERFACES.md)
-AUDIO_CACHE_MB: int = int(os.environ.get("AUDIO_CACHE_MB", 512))
+AUDIO_CACHE_MB: int = int(os.environ.get("AUDIO_CACHE_MB", 64))  # 3.8: LRU of scheme clips
 AUDIO_PREFETCH_ON_STOP: bool = (
     os.environ.get("AUDIO_PREFETCH_ON_STOP", "true").lower() in ("true", "1", "yes")
 )
 AUDIO_TIER2: str = os.environ.get("AUDIO_TIER2", "none")  # "none" | "s3" | "r2"
+# 3.8: off. Filling RAM with every clip does not scale past the 12 schemes; pin fixed lines only.
 AUDIO_WARM_ON_BOOT: bool = (
-    os.environ.get("AUDIO_WARM_ON_BOOT", "true").lower() in ("true", "1", "yes")
+    os.environ.get("AUDIO_WARM_ON_BOOT", "false").lower() in ("true", "1", "yes")
 )
 
 # Render and audio format constants
 SAMPLE_RATE: int = int(os.environ.get("SAMPLE_RATE", 8000))
 TAIL_PAD_MS: int = int(os.environ.get("TAIL_PAD_MS", 120))
-DEFAULT_TTS_MODEL: str = os.environ.get("DEFAULT_TTS_MODEL", "sarvam:bulbul:v1")
+# Sarvam TTS (plan 2.1). The bot speaks of itself as a woman in Hindi and Marathi ("पाई",
+# "सांगते"), so every speaker here must be a woman's voice. One speaker per language; change one
+# and only that language re-renders, because the speaker and pace are part of the render key.
+TTS_MODEL: str = os.environ.get("TTS_MODEL", "bulbul:v3")
+DEFAULT_TTS_MODEL: str = os.environ.get("DEFAULT_TTS_MODEL", f"sarvam:{TTS_MODEL}")
+TTS_SPEAKERS: dict[str, str] = {
+    "en": os.environ.get("TTS_SPEAKER_EN", "priya"),
+    "hi": os.environ.get("TTS_SPEAKER_HI", "priya"),
+    "mr": os.environ.get("TTS_SPEAKER_MR", "priya"),
+}
+# 15 Sep: the owner said the voice was too fast at 1.0.
+TTS_PACE: float = float(os.environ.get("TTS_PACE", 0.9))
+TTS_WORKERS: int = int(os.environ.get("TTS_WORKERS", 3))
+TTS_TIMEOUT_S: float = float(os.environ.get("TTS_TIMEOUT_S", 60))
+TTS_MAX_ATTEMPTS: int = int(os.environ.get("TTS_MAX_ATTEMPTS", 5))
+TTS_RETRY_BACKOFF_S: float = float(os.environ.get("TTS_RETRY_BACKOFF_S", 2.0))
+# 30 Sep: Sarvam sent 429 after ~50 requests in the first minute. Start requests at least this
+# far apart across all workers (~46 a minute), and wait longer after a 429.
+TTS_MIN_GAP_S: float = float(os.environ.get("TTS_MIN_GAP_S", 1.3))
+TTS_429_WAIT_S: float = float(os.environ.get("TTS_429_WAIT_S", 15.0))
+# "#" twice replays the last line slower, stretched at play time (plan 2.5).
+SLOW_PACE: float = float(os.environ.get("SLOW_PACE", 0.8))
+# Audio goes down the line in frames of this many mu-law bytes (8000 = 1 s), each clip then a mark.
+FRAME_BYTES: int = int(os.environ.get("FRAME_BYTES", 8000))
+# After the goodbye, wait at most this long for it to finish playing before hanging up.
+HANGUP_WAIT_S: float = float(os.environ.get("HANGUP_WAIT_S", 15.0))
+# Real phone calls write their turn log here (logs/server.log has the line-by-line events).
+CALL_LOGS_DIR: str = os.environ.get("CALL_LOGS_DIR", "logs/calls")
 
-# Default voice IDs per language
+# Voice IDs per language, as they go into the render key.
 VOICE_IDS: dict[str, str] = {
-    "en": os.environ.get("VOICE_ID_EN", "en-IN-female"),
-    "hi": os.environ.get("VOICE_ID_HI", "hi-IN-female"),
-    "mr": os.environ.get("VOICE_ID_MR", "mr-IN-female"),
+    lang: f"{speaker}@{TTS_PACE}" for lang, speaker in TTS_SPEAKERS.items()
 }
 
 # Directories and paths
@@ -64,6 +92,11 @@ DERIVED_DIR: str = os.environ.get("DERIVED_DIR", "data_cache/derived")
 REPORTS_DIR: str = os.environ.get("REPORTS_DIR", "data_cache/reports")
 
 # Groq model and extraction pipeline (06-BUILD-PLAN.md Step 8)
+# Plan 3.1 discovery: myscheme search, 100 a page, one page every 2 s.
+DISCOVER_PAGE_SIZE: int = int(os.environ.get("DISCOVER_PAGE_SIZE", 100))
+DISCOVER_PAGE_GAP_S: float = float(os.environ.get("DISCOVER_PAGE_GAP_S", 2.0))
+DISCOVER_TIMEOUT_S: float = float(os.environ.get("DISCOVER_TIMEOUT_S", 30.0))
+
 GROQ_MODEL: str = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 GROQ_REASONING_EFFORT: str = os.environ.get("GROQ_REASONING_EFFORT", "low")
 GROQ_POLITE_DELAY_S: float = float(os.environ.get("GROQ_POLITE_DELAY_S", 2.0))
@@ -115,3 +148,24 @@ GATES_FILE: str = os.environ.get("GATES_FILE", "data_cache/derived/gates.jsonl")
 # G3 counts words, not characters (Devanagari uses more characters per word), and skips text
 # shorter than this: turning "Aadhaar Card." into a spoken sentence must add words.
 GATE_LENGTH_MIN_WORDS: int = int(os.environ.get("GATE_LENGTH_MIN_WORDS", 12))
+
+# Plan 3.3: Playwright's own Chromium is not installed on the owner's Mac; the system Chrome is.
+# None = Playwright's bundled browser.
+SCRAPE_BROWSER_CHANNEL: str | None = "chrome"
+
+# Plan 3.4 / 3.5 (owner, 30 Sep): Muse Spark 1.3 Contributor does the cards and the translation,
+# at "high" reasoning, with a hard ₹60 cap over every run (haqdaar/data/pipeline/muse.py).
+# "groq" / "sarvam" bring the old clients back.
+LLM_PROVIDER: str = os.environ.get("LLM_PROVIDER", "muse")
+TRANSLATE_PROVIDER: str = os.environ.get("TRANSLATE_PROVIDER", "muse")
+MUSE_MODEL: str = os.environ.get("MUSE_MODEL", "muse-spark-1.3-contributor")
+MUSE_REASONING_EFFORT: str = os.environ.get("MUSE_REASONING_EFFORT", "high")
+MUSE_CAP_INR: float = float(os.environ.get("MUSE_CAP_INR", 60.0))
+MUSE_USD_PER_M_IN: float = 0.10
+MUSE_USD_PER_M_OUT: float = 0.20
+USD_TO_INR: float = 90.0  # rounded up, so the cap trips a little early rather than late
+MUSE_TIMEOUT_S: float = 180.0  # "high" reasoning on a long card prompt can think for a while
+MUSE_POLITE_DELAY_S: float = 1.0
+MUSE_MAX_RETRIES: int = 5
+MUSE_RETRY_SLEEP_S: float = 3.0
+MUSE_429_WAIT_S: float = 20.0

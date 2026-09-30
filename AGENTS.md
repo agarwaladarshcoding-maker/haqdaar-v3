@@ -1,5 +1,8 @@
 # Agent Directives
 
+**Start with `HANDOFF.md`**: where the code is, what is done, what is left, how to check it.
+Work in `~/code/haqdaar-v2` (the Documents copy is in iCloud and hangs).
+
 ## State files (most important — follow these literally)
 - Maintain `.agent/TASK.md`: an ordered checklist of the current task. Exactly one item marked in_progress at a time. Rewrite the file after completing each item — do not just track it in your head.
 - Maintain `.agent/NOTES.md`: append findings as you discover them (file paths, function locations, why an approach failed, decisions made and the reason). Write these the moment you learn them, not at the end.

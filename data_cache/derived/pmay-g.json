@@ -5,9 +5,9 @@
   "level": "CENTRAL",
   "priority": 1,
   "state": "ANY",
-  "department": "Government of India",
-  "fetched_on": "2026-09-11",
-  "source_sha256": "1e6bd7188e5c0001ef02fb18907a96ccc7208d9e049d36e0d40b3a72f24cc81f",
+  "department": "Ministry Of Rural Development",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "2015fc103c409070e71b392560268775f79aaeaa7453fd55025d3a5b778eb20c",
   "facets_source": "derived",
   "facets_verified_by": null,
   "facets_verified_on": null,
@@ -24,28 +24,31 @@
   "mr_verified_by": null,
   "mr_verified_on": null,
   "scheme_name_en": "Pradhan Mantri Awaas Yojana - Gramin",
-  "scheme_name_hi": "प्रधान मंत्री आवास योजना - ग्रामीण",
-  "scheme_name_mr": "प्रधान मंत्री गृहनिर्माण योजना - ग्रामीण",
+  "scheme_name_hi": "प्रधानमंत्री आवास योजना - ग्रामीण",
+  "scheme_name_mr": "प्रधानमंत्री आवास योजना - ग्रामीण",
   "aliases_en": [
-    "pmay-g financial assistance",
-    "pradhan mantri awaas yojana gramin loan help",
-    "pmay gramin housing grant",
-    "pmay-g ₹1.2 lakh subsidy",
-    "pradhan mantri awaas yojana rural benefit"
+    "pradhan mantri awaas yojana gramin",
+    "pmay gramin",
+    "pmay-g rural housing scheme",
+    "pradhan mantri gramin awas yojana",
+    "pm rural house assistance scheme",
+    "pradhan mantri one lakh twenty thousand rural house scheme"
   ],
   "aliases_hi": [
-    "pmay-g ग्रामीण सहायता",
-    "प्रधान मंत्री आवास योजना ग्रामीण फाइनेंस",
-    "ग्रामीण आवास योजना pmay-g सबसिडी",
-    "pmay ग्रा. वित्तीय मदद",
-    "प्रधान मंत्री आवास योजना - ग्रा. ₹1.2 लाख सहायता"
+    "प्रधानमंत्री आवास योजना ग्रामीण",
+    "प्रधानमंत्री ग्रामीण आवास योजना",
+    "पीएम ग्रामीण आवास योजना",
+    "प्रधानमंत्री गाँव घर सहायता योजना",
+    "प्रधानमंत्री एक लाख बीस हजार ग्रामीण घर सहायता योजना",
+    "pmay-g ग्रामीण आवास योजना"
   ],
   "aliases_mr": [
-    "pmay-g ग्रामीण सहाय्य",
-    "प्रधान मंत्री गृहनिर्माण योजना ग्रामीण कर्ज",
-    "ग्रामीण गृहनिर्माण pmay-g सबसिडी",
-    "pmay ग्रा. आर्थिक मदत",
-    "प्रधान मंत्री गृहनिर्माण योजना - ग्रा. ₹1.2 लाख लाभ"
+    "प्रधानमंत्री आवास योजना ग्रामीण",
+    "प्रधानमंत्री ग्रामीण आवास योजना",
+    "पीएम ग्रामीण घर योजना",
+    "प्रधानमंत्री ग्रामीण घरकुल सहाय्य योजना",
+    "प्रधानमंत्री एक लाख वीस हजार ग्रामीण घर मदत योजना",
+    "pmay-g ग्रामीण घर योजना"
   ],
   "category": "housing",
   "gender": "ANY",
@@ -54,7 +57,7 @@
   "income_band": "ANY",
   "occupation": "ANY",
   "evidence_quotes": {
-    "category": "Financial Assistance of ₹ 1,20,000 per unit ... to build a permanent house.",
+    "category": "to build a permanent house.",
     "gender": "",
     "social_category": "",
     "age": "",
@@ -62,19 +65,21 @@
     "occupation": ""
   },
   "gate_notes": [
-    "Scheme targets multiple social categories (SC/ST, Minorities, Others) and various household types, so no single social_category or occupation can be specified."
+    "Universe limited to houseless households living in zero, one, or two-room houses with kutcha walls and kutcha roofs as per SECC data, verified by Gram Sabhas; pucca houses excluded.",
+    "13 automatic exclusions not captured in columns e.g. motorised vehicle, KCC limit, government employee, income-tax/professional-tax payer, refrigerator/landline, and landholding thresholds.",
+    "Monthly income exclusion - Any member of the family earning more than Rs.10,000 per month - cannot be represented as annual income_band."
   ],
   "chunks": {
     "en": {
       "name": "Pradhan Mantri Awaas Yojana - Gramin",
-      "summary": "PMAY‑G provides up to ₹1.3 Lakh housing subsidy, low‑interest loans, toilet grants, LPG connections, and converged services like water and electricity, targeting houseless or severely deprived rural families through SECC data and Gram Sabha verification.",
-      "benefit_text": "Financial Assistance of ₹ 1,20,000 per unit for plain areas; and ₹ 1,30,000 per unit for hilly areas, difficult areas, and IAP districts (Himalayan states, North-Eastern states, and Union Territories of Jammu & Kashmir).\nA willing beneficiary can avail of institutional finance (loan) of up to ₹ 70,000 at 3% lower interest rate, to build a permanent house. The maximum principal amount for which subsidy can be sought is ₹ 2,00,000.\nThe minimum size of the house shall be is 25 sq m including a dedicated area for hygienic cooking.\nIn convergence with Swachh Bharat Mission-Gramin (SBM-G), the beneficiaries get financial assistance of up to ₹ 12,000 for the construction of toilets.\nIn convergence with MGNREGA, the beneficiary is entitled to employment as unskilled labor (Rural Mason Training) at ₹ 90.95 per day for 95 days.\nIn convergence with Pradhan Mantri Ujjwala Yojana, one LPG connection per house is provided.\nConvergence with different government programmes for piped drinking water, electricity connection, clean & efficient cooking fuel, treatment of social and liquid waste, etc.\nPayments are made electronically directly to bank accounts or post office accounts that are linked to Aadhaar.\nNote: Beneficiaries are identified using the \"Housing Deprivation Parameters\" from the Socio-Economic and Caste Census (SECC) 2011, further verified by the Gram Sabhas.\n﻿",
+      "summary": "The Pradhan Mantri Awaas Yojana Gramin provides financial assistance up to Rs 1,20,000 for rural housing, with toilets, LPG, water and power convergence, plus low-interest loans for building permanent homes.",
+      "benefit_text": "Financial Assistance of ₹ 1,20,000 per unit for plain areas; and ₹ 1,30,000 per unit for hilly areas, difficult areas, and IAP districts (Himalayan states, North-Eastern states, and Union Territories of Jammu & Kashmir).\nA willing beneficiary can avail of institutional finance (loan) of up to ₹ 70,000 at 3% lower interest rate, to build a permanent house. The maximum principal amount for which subsidy can be sought is ₹ 2,00,000.\nThe minimum size of the house shall be is 25 sq m including a dedicated area for hygienic cooking.\nIn convergence with Swachh Bharat Mission-Gramin (SBM-G), the beneficiaries get financial assistance of up to ₹ 12,000 for the construction of toilets.\nIn convergence with MGNREGA, the beneficiary is entitled to employment as unskilled labor (Rural Mason Training) at ₹ 90.95 per day for 95 days.\nIn convergence with Pradhan Mantri Ujjwala Yojana, one LPG connection per house is provided.\nConvergence with different government programmes for piped drinking water, electricity connection, clean & efficient cooking fuel, treatment of social and liquid waste, etc.\nPayments are made electronically directly to bank accounts or post office accounts that are linked to Aadhaar.\nNote: Beneficiaries are identified using the \"Housing Deprivation Parameters\" from the Socio-Economic and Caste Census (SECC) 2011 [https://secc.gov.in/], further verified by the Gram Sabhas.",
       "who_can_apply": "The universe of eligible beneficiaries under PMAY-G will include all the houseless households living in zero, one, or two-room houses with kutcha walls and kutcha roofs (as per SECC data, and subject to the exclusion process).\nCriteria for Automatic/Compulsory Inclusion - \n1.\tHouseholds without shelter\n2.\tDestitute/ living on alms\n3.\tManual scavengers\n4.\tPrimitive Tribal Groups\n5.\tLegally released bonded laborer\nPrioritisation within the Universe\ni.  There will be multilayered prioritization within the universe of eligible PMAY-G beneficiaries. Priority will first be assigned on the basis of parameters reflecting housing deprivation in each category viz., SC/ST, Minorities, and Others. \nii.  To begin with, households will be prioritized based on houselessness followed by the number of rooms; zero, one, and two rooms, in that order. \niii.  In a particular social category viz., SC/ST, Minorities, and Others, households that are houseless or living in houses with a lower number of rooms shall not be ranked below households living in houses with a higher number of rooms.\nWithin the above priority groups, households that fulfill the criteria of \"compulsory inclusion\", will be further elevated. Automatically included households shall not rank lower than other households within a priority group. Inter-se priority within the two subgroups viz. households which are automatically included and otherwise will be determined based on their cumulative deprivation scores. \nThe scores will be calculated from the socio-economic parameters given below with each having equal weight:\ni.\tHouseholds with no adult member between ages 16 to 59\nii.\tFemale-headed households with no adult male member between ages 16 to 59\niii.\tHouseholds with no literate adult above 25 years\niv.\tHouseholds with any disabled member and no able-bodied adult member\nv.\tLandless Households deriving the major part of their income from manual casual labor\nvi. Households with higher deprivation scores will be ranked higher within the subgroups.\nNote: To ensure that assistance is targeted at those who are genuinely deprived and that the selection is objective and verifiable, the housing deprivation parameters in the SECC data will be used for identifying households and then verified by the Gram Sabhas.\nEarmarking of Targets - \nFor SC/ST:\n60% of the target allocated to each State/ UT should be earmarked for SC/STs, subject to the availability of eligible beneficiaries. Within earmarked targets, the proportion of SC and ST is to be decided from time to time by the respective States/UTs. Further, the States/ UTs would be allowed to interchange targets between SC and ST if there are no eligible beneficiaries from either of the category and it is certified as such. In case all eligible SC and ST households are covered, the State/ UT targets would be allocated to beneficiaries from the 'Other' categories included in the Permanent Wait List drawn from SECC 2011.\nFor Minorities:\nFurther, as far as possible, 15% of the total fund would be earmarked for Minorities at the National Level for households. The allocation of targets for Minorities among the States/UTs will be on the basis of the proportionate rural population of Minorities in the respective State/UT as per Census 2011 data. Minorities notified under Section 2(c) of the National Commission for Minorities Act, 1992 are to be considered eligible for receiving benefits against Minority earmarks.\nFor PwDs:\nAccordingly, in the scheme of PMAY-G, while deciding the inter-se priority among the beneficiaries who are to be provided assistance, households with any disabled member and no able-bodied adult member have been accorded additional deprivation score so that such households are given priority while allotting the houses. Keeping in view the provisions of the Persons with Disabilities Act, of 1995, the States to the extent possible, may ensure that 3% of beneficiaries at the State Level are from among persons with disabilities.\nTie Breaker\nIn case there is a tie with more than one household within a subgroup having the same deprivation score, the households will be ranked according to priority on the basis of the following parameters:\ni.\tHouseholds with widows and next-of-kin of members of defence/paramilitary/police forces killed in action.\nii.\tHouseholds where a member is suffering from leprosy or cancer and People living with HIV (PLHIV).\niii.\tHouseholds with a single girl child.\niv.\tBeneficiary families of the Scheduled Tribes and Other Traditional Forest Dwellers (Recognition of Forest Rights) Act, 2006, commonly known as the Forest Rights Act.\nv.\tTransgender persons.",
       "documents": "Aadhaar number and a self-attested copy of the Aadhaar Card (If the applicant is illiterate, then in such case a consent letter has to be obtained along with the thumbprint of the applicant)\nJob Card (duly registered with MGNREGA)\nBank account details – both originals and duplicates.\nSwachh Bharat Mission (SBM) number.\nAffidavit stating the beneficiaries, or their family members do not own a pucca house.",
-      "how_to_apply": "Online\nBeneficiary Registration Manual - https://pmayg.nic.in/netiayHome/Document/Document-PMAYG-Registratio-Manual.pdf﻿\nThere are four sections to the beneficiary registration process:\nPersonal details, Bank account details, Convergence details, and Details from the concerned office.\nTo successfully register or add the beneficiary, follow the steps given below:\nVisit the official website for login PMAY-G.\nFill in the details required in the personal details section (such as gender, mobile number, Aadhaar number, etc.)\nUpload the consent form required to use the Aadhaar number.\nClick on the search button to find the beneficiary name, PMAY ID, and priority.\n Click on ‘'Select to Register’'.\nThe beneficiary details will be automatically generated and displayed.\nThe remaining beneficiary details can now be filled in, such as ownership type, relation, Aadhaar number, etc.\nUpload the consent form required to use the Aadhaar number on behalf of the beneficiary\nIn the next section, add the beneficiary account details in the required fields, such as beneficiary name, bank account number, etc.\nIf the beneficiary wants to avail a loan, select ‘'Yes’' and enter the required loan amount.\nIn the next section, enter the MGNREGA job card number and Swachh Bharat Mission (SBM) number of the beneficiary\nThe next section will be filled in by the concerned office.\n﻿"
+      "how_to_apply": "Online\nBeneficiary Registration Manual - https://pmayg.nic.in/netiayHome/Document/Document-PMAYG-Registratio-Manual.pdf﻿\nThere are four sections to the beneficiary registration process:\nPersonal details, Bank account details, Convergence details, and Details from the concerned office.\nTo successfully register or add the beneficiary, follow the steps given below:\nVisit the official website for login PMAY-G.\nFill in the details required in the personal details section (such as gender, mobile number, Aadhaar number, etc.)\nUpload the consent form required to use the Aadhaar number.\nClick on the search button to find the beneficiary name, PMAY ID, and priority.\n Click on ‘'Select to Register’'.\nThe beneficiary details will be automatically generated and displayed.\nThe remaining beneficiary details can now be filled in, such as ownership type, relation, Aadhaar number, etc.\nUpload the consent form required to use the Aadhaar number on behalf of the beneficiary\nIn the next section, add the beneficiary account details in the required fields, such as beneficiary name, bank account number, etc.\nIf the beneficiary wants to avail a loan, select ‘'Yes’' and enter the required loan amount.\nIn the next section, enter the MGNREGA job card number and Swachh Bharat Mission (SBM) number of the beneficiary\nThe next section will be filled in by the concerned office."
     },
     "hi": {
-      "name": "प्रधान मंत्री आवास योजना - ग्रामीण",
+      "name": "प्रधानमंत्री आवास योजना - ग्रामीण",
       "summary": "",
       "benefit_text": "",
       "who_can_apply": "",
@@ -82,7 +87,7 @@
       "how_to_apply": ""
     },
     "mr": {
-      "name": "प्रधान मंत्री गृहनिर्माण योजना - ग्रामीण",
+      "name": "प्रधानमंत्री आवास योजना - ग्रामीण",
       "summary": "",
       "benefit_text": "",
       "who_can_apply": "",

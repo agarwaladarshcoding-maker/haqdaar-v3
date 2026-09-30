@@ -185,11 +185,12 @@ lines:
     mr: "चला कीपॅड वापरूया. तुमच्या कामासाठी बटण दाबा."
 
   # Appended after the last chip, so a caller who does not fit any of them has a way out.
+  # 0 is "don't know" on every box (D13); 9 would clash with the ninth chip.
   keypad_unknown_suffix:
     pinned: true
-    en: "Press 9 if you do not want to say."
-    hi: "अगर आप नहीं बताना चाहते, तो 9 दबाएँ।"
-    mr: "तुम्हाला काही सांगायचे नसेल तर 9 दाबा."
+    en: "If you do not know, or do not want to say, press 0."
+    hi: "अगर आप नहीं जानते, या नहीं बताना चाहते, तो 0 दबाएँ।"
+    mr: "तुम्हाला माहीत नसेल, किंवा सांगायचे नसेल, तर 0 दाबा."
 
   # --- confirming what was heard -----------------------------------------
   bundle_confirm_intro:

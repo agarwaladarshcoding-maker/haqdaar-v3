@@ -1,0 +1,14 @@
+{
+  "summary": "प्रधानमंत्री मातृ वंदना योजना गरोदर महिलांना मदत देते. पहिल्या बाळासाठी 5,000 रुपये दोन हप्त्यांमध्ये मिळतात. दुसरे बाळ मुलगी असेल तर 6,000 रुपये मिळतात. नोंदणी, तपासणी आणि लसीकरण केल्यावर हे पैसे मिळतात.",
+  "benefit_text": "गरोदरपणाची नोंदणी आणि एक तपासणी केल्यानंतर योजनेतून 3000 रुपये मिळतात. बाळाच्या जन्माची नोंदणी आणि 14 आठवड्यांपर्यंतच्या लसी दिल्यानंतर 2000 रुपये मिळतात. दुसरे मूल मुलगी असेल तर 6000 रुपये मिळतात.",
+  "who_can_apply": "गर्भवती महिला किमान 19 वर्षांची असली पाहिजे. ही योजना पहिल्या जिवंत जन्मासाठी आहे आणि मजुरीचे नुकसान होणाऱ्या महिलांसाठी आहे. नियमित सरकारी नोकरीत असलेल्या महिला अर्ज करू शकत नाहीत.",
+  "documents": "आधार कार्ड आणि बँक खात्याची माहिती लागेल. एमसीपी कार्ड आणि मुलाच्या जन्माचा दाखला पण लागेल. जन्मानंतर मुलाच्या लसीकरणाची माहिती लागेल. सीएससी केंद्र तुम्हाला कागदपत्रांची पूर्ण यादी सांगेल.",
+  "how_to_apply": "मंत्रालयाच्या अधिकृत वेबसाईटवर जा आणि सिटिझन लॉगिन वर क्लिक करा. पडताळणीसाठी मोबाईल नंबर टाका आणि खाते तयार करा. मग लॉगिन करा आणि पहिल्या मुलासाठी किंवा दुसऱ्या मुलासाठी लाभार्थी नोंदणी भरा.",
+  "en": {
+    "summary": "The Pradhan Mantri Matru Vandana Yojana provides maternity support to pregnant women of Rs 5,000 for the first child in two instalments and Rs 6,000 for a second girl child, linked to registration, check-ups and immunization.",
+    "benefit_text": "The scheme pays 3,000 rupees after pregnancy registration and one checkup. The scheme pays 2,000 rupees after birth registration and vaccines till 14 weeks. The scheme pays 6,000 rupees for a second child if it is a girl child.",
+    "who_can_apply": "Pregnant women must be at least 19 years old. The scheme is for the first live birth and for women with wage loss. Women in regular government jobs cannot apply.",
+    "documents": "Papers needed are Aadhaar card and bank account details. MCP card and child birth certificate are also needed. Child immunization details are needed after birth. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Go to the official website of the Ministry and click Citizen login. Enter mobile number for verification and create an account. Then login and fill beneficiary registration for first child or second child."
+  }
+}

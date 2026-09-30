@@ -1,0 +1,14 @@
+{
+  "summary": "प्रधानमंत्री किसान सम्मान निधि खेती करने लायक जमीन वाले किसान परिवारों को हर साल 6000 रुपये देती है। यह आमदनी की मदद के लिए है। यह पैसा हर 4 महीने में 2000 रुपये की 3 बराबर किस्तों में दिया जाता है।",
+  "benefit_text": "इस योजना में हर परिवार को साल में 6000 रुपये मिलते हैं। यह पैसा 2000 रुपये की 3 बराबर किस्तों में मिलता है। हर किस्त हर 4 महीने में आती है।",
+  "who_can_apply": "जमीन वाले किसान परिवार आवेदन कर सकते हैं। परिवार के नाम पर खेती लायक जमीन होनी चाहिए।",
+  "documents": "जरूरी कागज हैं आधार कार्ड और जमीन के कागज। बचत बैंक खाता भी चाहिए। सीएससी केंद्र आपको कागजों की पूरी सूची बताएगा।",
+  "how_to_apply": "आवेदन सीएससी से होता है। वीएलई किसान के पंजीकरण की जानकारी भरता है। किसान आधार कार्ड और जमीन के कागज और बचत बैंक खाता साथ लेकर जाएं।",
+  "en": {
+    "summary": "Pradhan Mantri Kisan Samman Nidhi provides Rs 6,000 annually to landholding farmer families with cultivable land, disbursed in three equal installments of Rs 2,000 every four months as income support.",
+    "benefit_text": "The scheme pays Rs. 6000 per annum per family. The money is paid in three equal installments of Rs 2000 each. Each installment comes every four months.",
+    "who_can_apply": "Landholding farmer families can apply. The family must have cultivable land in its name.",
+    "documents": "The papers needed are Aadhaar Card and landholding papers. A savings bank account is also needed. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "The application is done via CSCs. The VLE fills the farmer registration details. Farmers carry Aadhaar Card and landholding papers and savings bank account."
+  }
+}

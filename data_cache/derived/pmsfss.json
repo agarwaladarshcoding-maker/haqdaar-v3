@@ -1,0 +1,103 @@
+{
+  "scheme_id": "pmsfss",
+  "myscheme_slug": "pmsfss",
+  "source_url": "https://www.myscheme.gov.in/schemes/pmsfss",
+  "level": "CENTRAL",
+  "priority": 2,
+  "state": "ANY",
+  "department": "Ministry Of Social Justice and Empowerment",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "e3d4daa206fd40f918779b1dd5a3ac7521970d397413c658a7a855163570c76a",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Post-Matric Scholarship for SC students",
+  "scheme_name_hi": "अनुसूचित जाति के छात्रों के लिए पोस्ट-मैट्रिक छात्रवृत्ति",
+  "scheme_name_mr": "अनुसूचित जातीच्या विद्यार्थ्यांसाठी पोस्ट-मॅट्रिक शिष्यवृत्ती",
+  "aliases_en": [
+    "post-matric scholarship for sc students",
+    "sc post-matric scholarship",
+    "post-matric scholarship for scheduled caste students",
+    "scholarship for sc students after class 10",
+    "post-matric college scholarship for sc hostelers and day scholars",
+    "sc scholarship for degree and post-graduate professional courses"
+  ],
+  "aliases_hi": [
+    "अनुसूचित जाति पोस्ट-मैट्रिक छात्रवृत्ति",
+    "एससी छात्रों के लिए पोस्ट-मैट्रिक स्कॉलरशिप",
+    "दसवीं के बाद एससी छात्रों वाली छात्रवृत्ति",
+    "मैट्रिक के बाद अनुसूचित जाति के कॉलेज छात्रों की छात्रवृत्ति",
+    "एससी डे स्कॉलर और हॉस्टलर पोस्ट-मैट्रिक छात्रवृत्ति",
+    "post-matric scholarship for sc students वाली छात्रवृत्ति"
+  ],
+  "aliases_mr": [
+    "अनुसूचित जाती पोस्ट-मॅट्रिक शिष्यवृत्ती",
+    "एससी विद्यार्थ्यांसाठी पोस्ट-मॅट्रिक स्कॉलरशिप",
+    "दहावीनंतर एससी विद्यार्थ्यांची शिष्यवृत्ती",
+    "मॅट्रिकनंतर अनुसूचित जातीच्या कॉलेज विद्यार्थ्यांची शिष्यवृत्ती",
+    "एससी वसतिगृह आणि डे स्कॉलर पोस्ट-मॅट्रिक शिष्यवृत्ती",
+    "post-matric scholarship for sc students वाली शिष्यवृत्ती"
+  ],
+  "category": "education",
+  "gender": "ANY",
+  "social_category": "SC",
+  "age": "ANY",
+  "income_band": {
+    "min": null,
+    "max": 250000
+  },
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "Only candidates who belong to Scheduled Castes and have passed the Matriculation, Higher Secondary, or a higher examination of a recognized university or Board of Secondary Education are eligible.",
+    "gender": "",
+    "social_category": "Only candidates who belong to Scheduled Castes and have passed the Matriculation, Higher Secondary, or a higher examination of a recognized university or Board of Secondary Education are eligible.",
+    "age": "",
+    "income_band": "Scholarships will be paid to students whose parents' or guardians' income from all sources does not exceed ₹ 2,50,000/- per annum.",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Only Indian nationals are eligible - The scholarships are open to Indian nationals only.",
+    "Must have passed Matriculation, Higher Secondary or higher examination of a recognized university or Board.",
+    "Candidates who are studying in the same stage of education in a different subject after passing one stage of education are not eligible.",
+    "A scholarship holder under this scheme will not hold any other scholarship or stipend.",
+    "Students studying through correspondence/online courses shall not be eligible for academic allowance per Note 2."
+  ],
+  "chunks": {
+    "en": {
+      "name": "Post-Matric Scholarship for SC students",
+      "summary": "The Post-Matric Scholarship for SC students provides financial support from Rs 2,500 to Rs 13,000 annually for hostellers and day scholars pursuing studies after Class 10, with family income up to Rs 2.5 lakh.",
+      "benefit_text": "﻿\n\nCategory Of Courses\tHostellers (Yearly)\tDay Scholars ( Yearly)\nGroup-1 Degree and post Graduate Level professional courses\t₹ 13,000/-\t₹ 7,000/-\nGroup-2: Other Professional Courses leading to Degree, Diploma, Certificate\t₹ 9,500/-\t₹ 6,500/-\nGroup-3 Graduate and Post Graduate courses not covered under group 1 & group II\t₹ 6,000/-\t₹ 3,000/-\nGroup-4: All post matriculation (Post Class X level non-degree courses. \t₹ 4,000/-\t₹ 2,500/-\n﻿\n\nNote 1. Ten percent extra allowances shall be provided for Divyang students.\nNote 2. Students pursuing C.A. /I.C.W.A. /C.S. /I.C.F.A. shall be treated as day scholars for the purpose of academic allowance. Students studying through correspondence/online courses shall not be eligible for academic allowance.",
+      "who_can_apply": "The scholarships are open to Indian nationals only.\nOnly candidates who belong to Scheduled Castes and have passed the Matriculation, Higher Secondary, or a higher examination of a recognized university or Board of Secondary Education are eligible.\nScholarships will be paid to students whose parents' or guardians' income from all sources does not exceed ₹ 2,50,000/- per annum.\nThe ceiling on age limit for admission as a regular student in different classes should be decided by the concerned institutions.\nCandidates who are studying in the same stage of education in a different subject after passing one stage of education are not eligible.\nStudents who pursue their studies through correspondence or online courses are also eligible.\nAll children of any parent or guardian are entitled to receive benefits of the scheme.\nA scholarship holder under this scheme will not hold any other scholarship or stipend.",
+      "documents": "Photograph.\nAcademic Certificate.\nCaste Certificate.\nIncome proof.\nDomicile Certificate. \nBank Account Details.\nAadhaar Card.",
+      "how_to_apply": "Online\nRegistration for New Applicant\nOpen the official NSP website and click on New Registration under Applicant Corner. \nRead the Instruction /Guidelines, provide the under taking by click on Check box and click on Continue.\nStart the registration by Mobile OTP. \nRequired document (Aadhaar Details and Bank Account Details) \nRegistered Applicant \nOpen the official NSP website and click on Fresh Application under Applicant Corner\nLogin with application ID & password.\nSelect the Scholarship. \nFill out the applicant form.\nUpload the required documents.\nSubmit."
+    },
+    "hi": {
+      "name": "अनुसूचित जाति के छात्रों के लिए पोस्ट-मैट्रिक छात्रवृत्ति",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "अनुसूचित जातीच्या विद्यार्थ्यांसाठी पोस्ट-मॅट्रिक शिष्यवृत्ती",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

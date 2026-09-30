@@ -1,0 +1,38 @@
+{
+  "facets": {
+    "category": {
+      "value": "women_children",
+      "quote": "The applicant should be of at least 19 years old and a pregnant women."
+    },
+    "gender": {
+      "value": "female",
+      "quote": "The applicant should be of at least 19 years old and a pregnant women."
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 19,
+        "max": null
+      },
+      "quote": "The applicant should be of at least 19 years old and a pregnant women."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Applicable only for the first live birth; second pregnancy eligible only if girl child per PMMVY 2.0 norms including twins/triplets/quadruplets case",
+    "Requires employment with wage-loss due to pregnancy",
+    "Excludes pregnant women and lactating mothers in regular employment with Central Government or State Government or Public Sector Undertaking or in receipt of similar benefits under any law",
+    "Must apply within 270 days from child birth",
+    "Limited to socially and economically disadvantaged sections as listed (SC/ST, disabled, BPL, PMJAY, e-Shram, Kisan Samman Nidhi farmers, MGNREGA, income less than Rs. 8 Lakh, AWW/AWH/ASHA, NFSA ration card)"
+  ]
+}

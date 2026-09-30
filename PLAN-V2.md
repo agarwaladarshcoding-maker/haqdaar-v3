@@ -345,6 +345,32 @@ and gated. Every later step builds on cards.
 
 ### Phase 3 · Scale to 100+ schemes (~1–2 days of work; the elapsed time depends on the Groq decision)
 
+**Measured on 30 Sep, from the 12 (replaces the guesses below where they differ).**
+- Groq: a card call averages ~2.8k tokens, so ~4 calls × 2.8k × 108 new schemes ≈ **1.2M tokens** (the guess holds).
+- Sarvam translate: ~2,350 characters per scheme (hi + mr) → **~250k characters** for 108 new schemes.
+- Sarvam voice: ~3,530 characters per scheme (3 languages) → **~380k characters**. Together with
+  translation, **~630k characters**. One free key covered only ~35–50k, so this needs a paid top-up.
+- Voice speed: ~15 clips a minute (Sarvam refuses above ~50 requests a minute) → ~1,950 new clips ≈
+  **2–3 hours** of render. It resumes safely, so it can run overnight.
+- Audio: 2.4 MB per scheme → **~300 MB** for 120 (not 400). Fixed lines, chips and keys: 7 MB.
+
+**Learned in Phase 2, now part of Phase 3.**
+- A keypad box with more than 9 values is dropped on a keypad call (`KEYPAD_CARDINALITY_MAX`).
+  `category` already has 9. So the final OCCUPATION list in 3.2 must have **at most 9** values, and
+  no new category can be added without merging two.
+- The server loads every clip into RAM at the first call (`pool.warm()`). At 300 MB that is too much
+  for D8's design. **3.8 [C]:** pin only the fixed lines, chips and keys (7 MB); load scheme clips
+  when a scheme is read (`pool.prefetch` on Stop already exists). **Verify:** boot RSS under 100 MB
+  with the 120-scheme snapshot, and a sim call's first scheme clip comes in under 50 ms.
+- Every new chip label (new occupations) needs hi/mr text in `vocab.LABELS` before render; `make
+  render` counts them.
+- Keypad menus read every choice + "press N": a 9-choice menu is ~20 s long. **3.6** must also
+  report menu lengths, so [O] can see if any is too long.
+
+**What Adarsh can decide now, so Phase 3 runs without stopping:** (1) OK for Claude to pick the
+110–130 schemes by the 3.2 rules, or review the list; (2) Groq paid tier or the 6-day free run;
+(3) OK to spend ~630k Sarvam characters. Then listening (3.7) is the only job at the end.
+
 3.1 **[C] Discovery**, new `p0_discover.py`.
   - Playwright on myscheme search: central, and state = Maharashtra.
   - Output: `candidates.csv` (slug, name, level, state, tags), 2 s between pages.

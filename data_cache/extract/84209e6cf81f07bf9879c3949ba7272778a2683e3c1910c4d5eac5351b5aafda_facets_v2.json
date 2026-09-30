@@ -1,0 +1,34 @@
+{
+  "facets": {
+    "category": {
+      "value": "jobs_skills",
+      "quote": "The applicant receives guaranteed employment within 15 days from the date of application."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 18,
+        "max": null
+      },
+      "quote": "The applicant must be at least 18 years of age."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Applicant must be residing in a Rural Area - rural residence requirement is not captured in facets"
+  ]
+}

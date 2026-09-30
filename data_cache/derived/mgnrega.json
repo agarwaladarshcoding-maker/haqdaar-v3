@@ -1,0 +1,99 @@
+{
+  "scheme_id": "mgnrega",
+  "myscheme_slug": "mgnrega",
+  "source_url": "https://www.myscheme.gov.in/schemes/mgnrega",
+  "level": "CENTRAL",
+  "priority": 1,
+  "state": "ANY",
+  "department": "Ministry Of Rural Development",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "84209e6cf81f07bf9879c3949ba7272778a2683e3c1910c4d5eac5351b5aafda",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Mahatma Gandhi National Rural Employment Guarantee Act",
+  "scheme_name_hi": "महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार गारंटी अधिनियम",
+  "scheme_name_mr": "महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार हमी अधिनियम",
+  "aliases_en": [
+    "mahatma gandhi national rural employment guarantee act",
+    "mgnrega scheme",
+    "mahatma gandhi rural employment guarantee job scheme",
+    "mgnrega fifteen days guaranteed employment scheme",
+    "mahatma gandhi five kilometre rural work guarantee scheme",
+    "mgnrega village job card work scheme"
+  ],
+  "aliases_hi": [
+    "महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार गारंटी अधिनियम",
+    "मनरेगा योजना",
+    "mgnrega रोजगार गारंटी योजना",
+    "महात्मा गांधी पंद्रह दिन में रोजगार गारंटी वाली योजना",
+    "महात्मा गांधी गांव में पांच किलोमीटर के अंदर काम देने वाली योजना",
+    "मनरेगा जॉब कार्ड वाली काम योजना"
+  ],
+  "aliases_mr": [
+    "महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार हमी अधिनियम",
+    "मनरेगा योजना",
+    "mgnrega रोजगार हमी योजना",
+    "महात्मा गांधी पंधरा दिवसांत रोजगार हमी देणारी योजना",
+    "महात्मा गांधी गावाजवळ पाच किलोमीटरमध्ये काम देणारी योजना",
+    "मनरेगा जॉब कार्ड काम योजना"
+  ],
+  "category": "jobs_skills",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": {
+    "min": 18,
+    "max": null
+  },
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "The applicant receives guaranteed employment within 15 days from the date of application.",
+    "gender": "",
+    "social_category": "",
+    "age": "The applicant must be at least 18 years of age.",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Applicant must be residing in a Rural Area - rural residence requirement is not captured in facets"
+  ],
+  "chunks": {
+    "en": {
+      "name": "Mahatma Gandhi National Rural Employment Guarantee Act",
+      "summary": "Mahatma Gandhi National Rural Employment Guarantee Act provides up to 100 days of wage employment each year to rural households with adults seeking manual work near their village, with equal wages, timely payment, and worksite facilities.",
+      "benefit_text": "The applicant receives guaranteed employment within 15 days from the date of application.\nWork is to be provided within a radius of 5 kilometers of the applicant’s residence if possible, and in any case within the Block. If the applicant lives more than 5 km away from the worksite, he/she will be entitled to a travel and subsistence allowance (10% of the minimum wage).\nWages are paid within a week, or fifteen days at most. Men and Women are paid equally.\nShade, drinking water, and first-aid are provided at every worksite.\n﻿\n\nExclusive measures for the promotion of the participation of the disabled persons:\nIdentification of suitable works\nMobilization of disabled persons by focussing on awareness and special provisions\nSpecifically identified works for disabled persons in the case of large GPs\nPreference to appoint as mates and as workers for providing drinking water, to manage crèches, etc., at the worksites\nAdoption of tools and equipment/facilities at workplaces\nTreating persons with disabilities with respect\nSpecial drive to ensure 100 days of employment to such households\nProvide a special job card of a distinct color\n﻿\n\nSpecific attention and provisions for Senior Citizens: \nExclusive senior citizen groups may be formed and special works which require lesser physical effort are identified and allotted to these groups.\n﻿\n\nSpecific attention and provisions for Internally Displaced Persons:\nA special job card to be provided will be valid till these families are displaced and will lose its validity as soon as they return to their original place of residence.",
+      "who_can_apply": "The applicant must be at least 18 years of age.\nThe applicant must be residing in a Rural Area.",
+      "documents": "Photograph of Applicant\nName, Age, and Gender of all NREGA Job Card Applicants from the applicant’s household\nName of Village, Gram Panchayat, Block\nProof of Identity (Ration card, Voter ID Card, Aadhaar, PAN)\nDetails of whether the applicant is a beneficiary of SC / ST / Indira Awaas Yojana (IAY) / Land Reform (LR)\nSpecimen Signature / Thumb impression",
+      "how_to_apply": "Offline\nOnline - Via CSCs\nOnline\nStep 1: The application for registration may be given on plain paper to the local Gram Panchayat. An individual may appear personally before the Panchayat Secretary or Gram Rozgar Sahayak and make an oral request for registration, in which case the particulars required will be noted by the Gram Rojgar Sahayak or the Panchayat Secretary. \nApplication for registration should contain names of those adult members of the household who are willing to do unskilled manual work. Particulars such as age, sex, SC/ST status, Rashtriya Swastha Bima Yojana (RSBY) number, Aadhar number, Below Poverty Line (BPL) status and bank/post office account number (if s/he has opened one) must be provided in the application.\nStep 2: The Gram Panchayat (GP) will verify the following details:\nWhether the household is really an entity as stated in the application.\nWhether the applicant household are local residents in the Gram Panchayat concerned.\nWhether applicants are adult members of the household.\nThe process of verification shall be completed as early as possible, and in any case not later than a fortnight after the receipt of the application in the Gram Panchayat.\nStep 3: All particulars of a household found to be eligible after verification, will be entered in the MIS (NREGASoft) by the Panchayat Secretary or the Gram Rojgar Sahayak (GRS) or a person duly authorized by the State Government.\nStep 4: If a household is found to be eligible for registration, the GP will, within a fortnight of the application, issue a JC to the household. JC should be handed over to one of the members of the applicant household in the presence of a few other residents of the GP. The format of the Job Card is provided in the Annexure-5 of the scheme guidelines.\nThe detailed format for application for registration is provided in Annexure-3 of the scheme guidelines.\n* Registrations shall be opened throughout the year at the Gram Panchayat (GP) office.\n* Application for registration must be made on behalf of the household by any adult member.\nApply Now"
+    },
+    "hi": {
+      "name": "महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार गारंटी अधिनियम",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार हमी अधिनियम",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

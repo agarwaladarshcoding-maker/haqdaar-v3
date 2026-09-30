@@ -1,0 +1,14 @@
+{
+  "summary": "जननी सुरक्षा योजना सरकारी या मान्यता वाले निजी अस्पताल में प्रसव को बढ़ावा देती है। इसमें बच्चे को जन्म देने पर माँ को नकद सहायता मिलती है। आशा कार्यकर्ता को सहायता मिलती है। माँ और नवजात बच्चे की देखभाल की सेवाएं मुफ्त मिलती हैं।",
+  "benefit_text": "यह योजना अस्पताल में डिलीवरी पर नकद पैसे देती है। कम प्रदर्शन वाले राज्यों में गाँव में ₹1,400/- और शहर में ₹1,000/- मिलते हैं। अच्छे प्रदर्शन वाले राज्यों में गाँव में ₹700/- और शहर में ₹600/- मिलते हैं।",
+  "who_can_apply": "गर्भवती महिलाएं जो सरकारी स्वास्थ्य केंद्र या मान्यता प्राप्त निजी संस्थान में प्रसव करती हैं, वे आवेदन कर सकती हैं। अच्छा प्रदर्शन करने वाले राज्यों में आवेदक गरीबी रेखा से नीचे के परिवारों से हैं या अनुसूचित जाति या अनुसूचित जनजाति की महिलाएं हैं। घर पर प्रसव के लिए सहायता गरीबी रेखा से नीचे के परिवारों के लिए है।",
+  "documents": "जरूरी कागज हैं बीपीएल प्रमाण पत्र, अनुसूचित जाति प्रमाण पत्र, अनुसूचित जनजाति प्रमाण पत्र और माँ और बच्चे के स्वास्थ्य का कार्ड। डिलीवरी के समय जननी सुरक्षा योजना कार्ड और रेफरल पर्ची भी चाहिए। सीएससी केंद्र आपको कागजों की पूरी सूची बताएगा।",
+  "how_to_apply": "रजिस्ट्रेशन सरकारी स्वास्थ्य केंद्रों पर आशा कार्यकर्ता, एएनएम या आंगनवाड़ी कार्यकर्ता के जरिए होता है। कार्यकर्ता मां और बच्चे का स्वास्थ्य कार्ड भरते हैं। लोग डिलीवरी के लिए बीपीएल प्रमाण पत्र और रेफरल पर्ची साथ रखते हैं।",
+  "en": {
+    "summary": "Janani Suraksha Yojana promotes institutional delivery by providing cash assistance to mothers delivering in government or accredited private facilities, support for ASHA workers, and free maternal and newborn care services.",
+    "benefit_text": "The scheme pays cash for delivery in a health institution. In Low Performing States the payment is ₹1,400/- for rural areas and ₹1,000/- for urban areas. In High Performing States the payment is ₹700/- for rural areas and ₹600/- for urban areas.",
+    "who_can_apply": "Pregnant women delivering in a government health centre or accredited private institution can apply. In High Performing States applicants are from Below Poverty Line households or are Scheduled Caste or Scheduled Tribe women. Home delivery support is for Below Poverty Line households.",
+    "documents": "Important papers are Below Poverty Line certificate, Scheduled Caste certificate, Scheduled Tribe certificate and Maternal And Child Health Card. The Janani Suraksha Yojana Card and referral slip are also needed at the time of delivery. The CSC centre will tell you the full list of papers.",
+    "how_to_apply": "Registration is done through Accredited Social Health Activist, Auxiliary Nurse Midwife or Anganwadi Worker at government health centres. The worker fills the Maternal and Child Health Card. People carry Below Poverty Line certificate and referral slip for delivery."
+  }
+}

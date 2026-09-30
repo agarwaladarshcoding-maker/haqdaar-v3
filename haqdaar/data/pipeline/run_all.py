@@ -32,6 +32,7 @@ from haqdaar.contracts import tunables
 REPORTS_DIR = Path("data_cache/reports")
 GROQ_LEDGER = REPORTS_DIR / "groq_usage.jsonl"
 SARVAM_LEDGER = REPORTS_DIR / "sarvam_usage.jsonl"
+SARVAM_TTS_LEDGER = REPORTS_DIR / "sarvam_tts_usage.jsonl"
 
 
 class Step:
@@ -126,10 +127,15 @@ def print_cost() -> int:
     for lang in sorted(by_lang):
         print(f"    {lang}: {by_lang[lang]} chars")
 
-    # TTS has no ledger yet: the renderer that would write one is Phase 2 (plan 2.1). Saying
-    # zero here would be a lie, so say there is nothing to read.
-    print("Sarvam TTS")
-    print("  not rendered yet (plan 2.1 writes this ledger)")
+    tts = _read_ledger(SARVAM_TTS_LEDGER)
+    print("Sarvam TTS (make render)")
+    print(f"  requests: {len(tts)}")
+    print(f"  chars: {sum(int(r.get('chars') or 0) for r in tts)}")
+    tts_by_lang: dict[str, int] = defaultdict(int)
+    for row in tts:
+        tts_by_lang[str(row.get("lang") or "?")] += int(row.get("chars") or 0)
+    for lang in sorted(tts_by_lang):
+        print(f"    {lang}: {tts_by_lang[lang]} chars")
     return 0
 
 

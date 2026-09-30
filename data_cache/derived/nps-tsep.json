@@ -1,0 +1,101 @@
+{
+  "scheme_id": "nps-tsep",
+  "myscheme_slug": "nps-tsep",
+  "source_url": "https://www.myscheme.gov.in/schemes/nps-tsep",
+  "level": "CENTRAL",
+  "priority": 3,
+  "state": "ANY",
+  "department": "Ministry Of Labour and Employment",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "5fc01f8a6a7f386bc8593a9bbb20f0b53cfff56f2a181764a9ca75a2cdccd5fd",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "National Pension Scheme for Traders And Self Employed Persons",
+  "scheme_name_hi": "व्यापारियों और स्व-रोजगार व्यक्तियों के लिए राष्ट्रीय पेंशन योजना",
+  "scheme_name_mr": "व्यापारी आणि स्वयंरोजगार व्यक्तींसाठी राष्ट्रीय निवृत्तीवेतन योजना",
+  "aliases_en": [
+    "national pension scheme for traders",
+    "pension scheme for traders and self employed persons",
+    "national trader self employed pension scheme",
+    "nps-tsep traders pension scheme",
+    "three thousand rupee monthly pension scheme for traders and self employed",
+    "monthly pension scheme for self employed traders"
+  ],
+  "aliases_hi": [
+    "व्यापारियों के लिए राष्ट्रीय पेंशन योजना",
+    "स्व-रोजगार व्यक्तियों के लिए पेंशन योजना",
+    "व्यापारी और स्व-रोजगार पेंशन योजना",
+    "व्यापारियों को साठ के बाद तीन हजार पेंशन देने वाली योजना",
+    "nps-tsep व्यापारी पेंशन योजना"
+  ],
+  "aliases_mr": [
+    "व्यापाऱ्यांसाठी राष्ट्रीय निवृत्तीवेतन योजना",
+    "स्वयंरोजगार व्यक्तींसाठी पेन्शन योजना",
+    "व्यापारी आणि स्वयंरोजगार पेन्शन योजना",
+    "व्यापाऱ्यांना साठीनंतर तीन हजार पेन्शन देणारी योजना",
+    "nps-tsep व्यापारी पेन्शन योजना"
+  ],
+  "category": "pension",
+  "gender": "ANY",
+  "social_category": "ANY",
+  "age": {
+    "min": 18,
+    "max": 40
+  },
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "Each eligible subscriber under this scheme shall receive an assured minimum monthly pension of ₹3,000/- after attaining the age of sixty years.",
+    "gender": "",
+    "social_category": "",
+    "age": "The applicant must be between 18 and 40 years of age.",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Applicant must be Laghu Vyapari, self-employed person, shop owner, retail trader, rice mill owner, oil mill owner, workshop owner, commission agent, real estate broker, small hotel owner, or restaurant owner - multiple groups so occupation=ANY",
+    "Annual turnover must not exceed ₹1,50,00,000/-",
+    "Must possess savings bank account and Aadhaar Card or Aadhaar Number",
+    "Must not be covered under any National Pension Scheme contributed by Central Government, EPFO, or ESIC",
+    "Must not be an income-tax payer/assessee and must not be enrolled under Pradhan Mantri Shram Yogi Maandhan Yojana"
+  ],
+  "chunks": {
+    "en": {
+      "name": "National Pension Scheme for Traders And Self Employed Persons",
+      "summary": "The scheme provides Rs 3,000 monthly pension after age sixty to small traders and self-employed persons aged 18 to 40 with turnover up to Rs 1.5 crore, with matching government contribution and family support provisions.",
+      "benefit_text": "Pension Benefit\nEach eligible subscriber under this scheme shall receive an assured minimum monthly pension of ₹3,000/- after attaining the age of sixty years.\nThe Government of India make a matching contribution into the subscriber's pension account every month.\nFamily Pension on Death of Beneficiary\nAfter the receipt of the pension, if an eligible beneficiary dies, the spouse shall be entitled to receive fifty per cent of the pension received by such beneficiary as a family pension, which is applicable only to the spouse.\nProvisions for Permanent Disablement Before Age of Sixty\nIf an eligible beneficiary has given regular contributions and becomes permanently disabled before attaining the age of sixty years, the spouse shall be entitled to continue with the scheme by payment of regular contributions. \nIn case of permanent disablement where the spouse does not continue, they can exit the scheme by receiving the share of contribution deposited by the subscriber, with interest as actually earned thereon by the Pension Fund or the savings bank interest rate, whichever is higher.\nExit Before Completion of Ten Years\nIn case an eligible beneficiary exits this scheme within a period of less than ten years from the date of joining, the share of contribution by them only will be returned with the savings bank rate of interest payable thereon.\nNOTE: Both voluntary and involuntary exits from the scheme are permitted only after completion of three years from the date of enrolment in the scheme.\nExit After Ten Years but Before Age of Sixty\nIf an eligible beneficiary exits after completion of a period of ten years or more from the date of joining but before the age of sixty years, their share of contribution only shall be returned along with accumulated interest thereon as actually earned by the Pension Fund or the savings bank interest rate, whichever is higher.\nDeath of Beneficiary During the Contribution Period\n•\tIf an eligible beneficiary has given regular contributions and dies due to any cause, the spouse shall be entitled to continue with the scheme by payment of regular contributions. \n•\tIf the spouse does not wish to continue after the beneficiary's death, they can exit by receiving the share of contribution paid by the beneficiary along with accumulated interest, as actually earned by the Pension Fund or at the savings bank interest rate, whichever is higher.\nCorpus Reversion After Death of Both Beneficiary and Spouse\nAfter the death of the beneficiary and his or her spouse, the corpus shall be credited back to the fund.\n﻿\n\n﻿",
+      "who_can_apply": "The applicant must be a Laghu Vyapari, self-employed person, shop owner, retail trader, rice mill owner, oil mill owner, workshop owner, commission agent, real estate broker, small hotel owner, or restaurant owner.\nThe applicant must be between 18 and 40 years of age.\nThe applicant must have an annual turnover that does not exceed ₹1,50,00,000/-.\nThe applicant must possess a savings bank account in their name.\nThe applicant must possess an Aadhaar Card or Aadhaar Number.\n﻿\n\n﻿",
+      "documents": "Aadhaar Card.\nSavings Bank Account or Jan Dhan Bank Account Details.\nIndian Financial System Code (IFSC).\nBank Passbook, Cheque Leave/Book, or Copy of Bank Statement (as Evidence of Bank Account).\nGoods and Services Tax Identification Number (GSTIN) (only required for those with an Annual Turnover above ₹40,00,000/-).\nSelf-Declaration Document for Annual Turnover Income.\n﻿\n\n﻿",
+      "how_to_apply": "Online - Via CSCs\nOnline\nRegistration Process\nStep 1: The interested eligible person must visit their nearest Common Service Centre (CSC) to initiate the registration process offline. The applicant must carry prerequisites such as their Aadhaar Card and evidence of their bank account.\nStep 2: The Village Level Entrepreneur (VLE) at the centre will key in the Aadhaar number, name of the beneficiary, and date of birth as printed on the Aadhaar card. This step is necessary to authenticate the identity of the applicant in the system.\nStep 3: The VLE will complete the online registration by filling up essential details in the enrollment system. These details include the applicant's bank account information, mobile number, email address, GSTIN, annual turnover income, spouse details, and nominee details.\nStep 4: A self-certification process for the eligibility conditions will be completed by the applicant. Following this, the system will automatically calculate the monthly contribution amount payable according to the age of the beneficiary.\nApplication and Payment Process\nStep 5: The enrolled beneficiary will pay the first subscription amount in cash directly to the VLE. This initial contribution payment activates the subscription to the pension scheme.\nStep 6: An enrollment cum auto-debit mandate form will be generated and printed by the system. This mandate form must be signed by the beneficiary, after which the VLE will scan the document and upload it securely into the system.\nStep 7: A unique Vyapari Pension Account Number (VPAN) will be generated for the applicant to maintain their account records. Finally, a physical Vyapari Card will be printed and handed over to the beneficiary.\n﻿\n\n﻿"
+    },
+    "hi": {
+      "name": "व्यापारियों और स्व-रोजगार व्यक्तियों के लिए राष्ट्रीय पेंशन योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "व्यापारी आणि स्वयंरोजगार व्यक्तींसाठी राष्ट्रीय निवृत्तीवेतन योजना",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

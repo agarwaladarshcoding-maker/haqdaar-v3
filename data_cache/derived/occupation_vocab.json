@@ -1,7 +1,17 @@
 {
   "vocab_source": "corpus_prose_cut",
-  "cardinality": 2,
+  "cardinality": 4,
   "occupations": {
+    "apprentice": {
+      "en": "Apprentice",
+      "hi": "प्रशिक्षु",
+      "mr": "शिकाऊ उमेदवार"
+    },
+    "artisan": {
+      "en": "Artisan",
+      "hi": "कारीगर",
+      "mr": "कारागीर"
+    },
     "farmer": {
       "en": "Farmer",
       "hi": "किसान",

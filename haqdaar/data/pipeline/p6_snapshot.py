@@ -253,6 +253,24 @@ def build_range_bands(
     return bands
 
 
+def scheme_has_all_clips(scheme: Mapping[str, Any], audio_path: Path) -> bool:
+    """True when every one of a scheme's 18 chunks (6 chunks x 3 langs) has a .ulaw file."""
+    sid = scheme.get("scheme_id", "")
+    for lang in ("en", "hi", "mr"):
+        for chunk_name in SCHEME_CHUNKS:
+            text = ""
+            if "chunks" in scheme and lang in scheme["chunks"] and chunk_name in scheme["chunks"][lang]:
+                text = scheme["chunks"][lang][chunk_name]
+            elif f"{chunk_name}_{lang}" in scheme:
+                text = scheme[f"{chunk_name}_{lang}"]
+            elif chunk_name == "name":
+                text = scheme.get(f"scheme_name_{lang}", f"Scheme {sid}")
+            rk = compute_render_key(text, lang)
+            if not (audio_path / f"{rk}.ulaw").exists():
+                return False
+    return True
+
+
 def build_snapshot(
     schemes_data: list[dict[str, Any]],
     templates_data: dict[str, Any] | None = None,
@@ -261,6 +279,7 @@ def build_snapshot(
     audio_dir: str | Path | None = None,
     render_stubs: bool = False,
     enforce_readback_gate: bool = False,
+    only_with_audio: bool = False,
 ) -> str:
     """Build a complete snapshot adhering to 05-DATA-CONTRACT.md §2.
 
@@ -283,6 +302,9 @@ def build_snapshot(
     snap_dir = snapshots_path / snapshot_id
     snap_dir.mkdir(parents=True, exist_ok=True)
     audio_path.mkdir(parents=True, exist_ok=True)
+
+    if only_with_audio:
+        schemes_data = [s for s in schemes_data if scheme_has_all_clips(s, audio_path)]
 
     if enforce_readback_gate:
         for s in schemes_data:
@@ -476,15 +498,30 @@ def build_snapshot(
     if templates_data:
         templates.update(templates_data)
 
-    # Add default chips if not provided
+    # Chips and bands take their keys from the same text list as the render, like the lines
+    # above. Hashing the raw value ("farmer", "0-13") here gave 87 keys no clip was ever made
+    # for, and would have spoken the code instead of the label. A value with no label keeps
+    # the old key, so texts.missing() and Corpus.load still see the gap.
+    from haqdaar.data.pipeline.texts import band_texts, chip_texts, key_texts
+
+    chip_keys: dict[str, dict[str, str]] = {}
+    bands_by_box = {box: meta["bands"] for box, meta in vocab_boxes.items() if "bands" in meta}
+    for item in (*chip_texts(), *band_texts(bands_by_box)):
+        chip_keys.setdefault(item.ref, {})[item.lang] = item.key
+
+    # "press 1." .. "press 9.", played after each chip of a keypad menu (plan 2.7).
+    for item in key_texts():
+        if item.ref not in templates:
+            templates[item.ref] = {}
+        templates[item.ref].setdefault(item.lang, item.key)
+
     for box, box_meta in vocab_boxes.items():
         for val in box_meta["values"]:
             chip_id = f"chip_{box}_{val}"
             if chip_id not in templates:
                 templates[chip_id] = {}
                 for lang in ("en", "hi", "mr"):
-                    text = f"{val}"
-                    rk = compute_render_key(text, lang)
+                    rk = chip_keys.get(chip_id, {}).get(lang) or compute_render_key(f"{val}", lang)
                     templates[chip_id][lang] = rk
 
     templates_path = snap_dir / "templates.json"
@@ -631,7 +668,47 @@ def build_snapshot(
     return snapshot_id
 
 
+def main(argv: list[str] | None = None) -> int:
+    """Build a snapshot from the real schemes (what p2..p5 wrote) and flip CURRENT to it.
+
+    When only_with_audio is True (default), schemes missing any .ulaw clip are skipped,
+    so CURRENT only flips to a snapshot that Corpus.load can load.
+    """
+    import argparse
+    from haqdaar.data.pipeline.texts import _load_schemes, missing
+
+    parser = argparse.ArgumentParser(description="Build snapshot from derived schemes.")
+    parser.add_argument(
+        "--only-with-audio",
+        dest="only_with_audio",
+        action="store_true",
+        default=True,
+        help="Skip schemes missing audio clips (default).",
+    )
+    parser.add_argument(
+        "--all-schemes",
+        dest="only_with_audio",
+        action="store_false",
+        help="Include all schemes even if missing audio clips.",
+    )
+    args = parser.parse_args(argv if argv is not None else sys.argv[1:])
+
+    schemes = _load_schemes(Path(tunables.CARDS_FILE).parent)
+    snap = build_snapshot(
+        schemes,
+        enforce_readback_gate=True,
+        only_with_audio=args.only_with_audio,
+    )
+    manifest = json.loads(
+        (Path(tunables.SNAPSHOTS_DIR) / snap / "manifest.json").read_text(encoding="utf-8")
+    )
+    keys = manifest["render_keys"]
+    no_audio = sum(1 for meta in keys.values() if not meta.get("digest"))
+    print(f"snapshot: {snap}  schemes: {manifest['num_schemes']}  clips: {len(keys)}")
+    print(f"clips not rendered yet: {no_audio}  texts missing: {len(missing(schemes))}")
+    return 1 if no_audio else 0
+
+
 if __name__ == "__main__":
     import sys
-    snap = build_snapshot([], snapshot_id="snap_initial")
-    print(f"Created snapshot {snap}")
+    sys.exit(main())

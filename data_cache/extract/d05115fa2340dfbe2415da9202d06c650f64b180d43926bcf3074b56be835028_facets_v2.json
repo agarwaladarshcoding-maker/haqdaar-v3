@@ -1,0 +1,35 @@
+{
+  "facets": {
+    "category": {
+      "value": "pension",
+      "quote": "A pension of Rs.300/- per month is provided to Widows between 40 years and 79 years."
+    },
+    "gender": {
+      "value": "female",
+      "quote": "The applicant must be a widow in the age group of 40-79 years."
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": {
+        "min": 40,
+        "max": 79
+      },
+      "quote": "The applicant must be a widow in the age group of 40-79 years."
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Applicant must be a widow; pension discontinued in case of remarriage of widow",
+    "Applicant must belong to household living below poverty line; pension discontinued once widow moves above poverty line"
+  ]
+}

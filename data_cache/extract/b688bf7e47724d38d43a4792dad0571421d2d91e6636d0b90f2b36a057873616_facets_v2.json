@@ -1,0 +1,29 @@
+{
+  "facets": {
+    "category": {
+      "value": "farming",
+      "quote": "The scheme is applicable for all farmers in India."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "farmer",
+      "quote": "The scheme is applicable for all farmers in India."
+    }
+  },
+  "gate_notes": []
+}

@@ -1,0 +1,38 @@
+{
+  "facets": {
+    "category": {
+      "value": "education",
+      "quote": "Only candidates who belong to Scheduled Castes and have passed the Matriculation, Higher Secondary, or a higher examination of a recognized university or Board of Secondary Education are eligible."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "SC",
+      "quote": "Only candidates who belong to Scheduled Castes and have passed the Matriculation, Higher Secondary, or a higher examination of a recognized university or Board of Secondary Education are eligible."
+    },
+    "age": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "income_band": {
+      "value": {
+        "min": null,
+        "max": 250000
+      },
+      "quote": "Scholarships will be paid to students whose parents' or guardians' income from all sources does not exceed ₹ 2,50,000/- per annum."
+    },
+    "occupation": {
+      "value": "ANY",
+      "quote": ""
+    }
+  },
+  "gate_notes": [
+    "Only Indian nationals are eligible - The scholarships are open to Indian nationals only.",
+    "Must have passed Matriculation, Higher Secondary or higher examination of a recognized university or Board.",
+    "Candidates who are studying in the same stage of education in a different subject after passing one stage of education are not eligible.",
+    "A scholarship holder under this scheme will not hold any other scholarship or stipend.",
+    "Students studying through correspondence/online courses shall not be eligible for academic allowance per Note 2."
+  ]
+}

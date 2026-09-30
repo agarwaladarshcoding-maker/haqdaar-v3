@@ -1,0 +1,100 @@
+{
+  "scheme_id": "pmuy2",
+  "myscheme_slug": "pmuy2",
+  "source_url": "https://www.myscheme.gov.in/schemes/pmuy2",
+  "level": "CENTRAL",
+  "priority": 1,
+  "state": "ANY",
+  "department": "Ministry Of Petroleum and Natural Gas",
+  "fetched_on": "2026-09-30",
+  "source_sha256": "58bb1d9b51cb52cca8d214ca357994a876c6b1e85c57f50056361560dd654bfe",
+  "facets_source": "derived",
+  "facets_verified_by": null,
+  "facets_verified_on": null,
+  "en_sections_origin": "source",
+  "hi_sections_origin": "machine",
+  "mr_sections_origin": "machine",
+  "en_summary_origin": "machine",
+  "hi_summary_origin": "machine",
+  "mr_summary_origin": "machine",
+  "en_verified_by": null,
+  "en_verified_on": null,
+  "hi_verified_by": null,
+  "hi_verified_on": null,
+  "mr_verified_by": null,
+  "mr_verified_on": null,
+  "scheme_name_en": "Pradhan Mantri Ujjwala Yojana 2.0",
+  "scheme_name_hi": "प्रधानमंत्री उज्ज्वला योजना 2.0",
+  "scheme_name_mr": "पंतप्रधान उज्ज्वला योजना 2.0",
+  "aliases_en": [
+    "pradhan mantri ujjwala yojana 2.0",
+    "pmuy 2.0",
+    "ujjwala yojana phase two",
+    "ujjwala free gas connection scheme",
+    "ujjwala 2.0 free lpg cylinder scheme",
+    "pradhan mantri ujjwala gas deposit assistance scheme"
+  ],
+  "aliases_hi": [
+    "प्रधानमंत्री उज्ज्वला योजना 2.0",
+    "प्रधानमंत्री उज्ज्वला योजना दूसरा चरण",
+    "उज्ज्वला मुफ्त गैस कनेक्शन योजना",
+    "उज्ज्वला 2.0 फ्री एलपीजी सिलेंडर योजना",
+    "उज्ज्वला सिलेंडर सिक्योरिटी डिपॉजिट सहायता योजना",
+    "pmuy 2.0 मुफ्त गैस कनेक्शन योजना"
+  ],
+  "aliases_mr": [
+    "पंतप्रधान उज्ज्वला योजना 2.0",
+    "पंतप्रधान उज्ज्वला योजना दुसरा टप्पा",
+    "उज्ज्वला मोफत गॅस कनेक्शन योजना",
+    "उज्ज्वला 2.0 मोफत एलपीजी सिलेंडर योजना",
+    "उज्ज्वला गॅस सिलेंडर डिपॉझिट मदत योजना",
+    "pmuy 2.0 मोफत गॅस कनेक्शन योजना"
+  ],
+  "category": "women_children",
+  "gender": "female",
+  "social_category": "ANY",
+  "age": {
+    "min": 18,
+    "max": null
+  },
+  "income_band": "ANY",
+  "occupation": "ANY",
+  "evidence_quotes": {
+    "category": "Adult women belong to any of the following categories.",
+    "gender": "Adult women belong to any of the following categories.",
+    "social_category": "",
+    "age": "Applicant must have attained 18 years of age.",
+    "income_band": "",
+    "occupation": ""
+  },
+  "gate_notes": [
+    "Must belong to specific listed household categories (SC Households, ST Households, Pradhan Mantri Awas Yojana (Gramin), Most Backward Classes, Antyodaya Anna Yojana (AAY), Tea and Ex-Tea Garden tribes, Forest Dwellers, People residing on Islands and River Islands, SECC Households (AHL TIN), Poor Household as per 14-point declaration) - not captured by single social_category facet",
+    "There should not be any other LPG connections in the same household."
+  ],
+  "chunks": {
+    "en": {
+      "name": "Pradhan Mantri Ujjwala Yojana 2.0",
+      "summary": "Pradhan Mantri Ujjwala Yojana 2.0 provides deposit-free LPG connections to adult women from specified low-income households, covering security deposit and accessories, plus a free first refill and stove from Oil Marketing Companies.",
+      "benefit_text": "Cash assistance for PMUY connections is provided by the Government of India - Rs. 1600 (for a connection 14.2kg cylinder/ Rs. 1150 for a 5 kg cylinder). The cash assistance covers:\nSecurity Deposit of Cylinder – Rs. 1250 for 14.2 kg cylinder/ Rs. 800 for 5 kg cylinder.\nPressure Regulator – Rs. 150.\nLPG Hose – Rs. 100.\nDomestic Gas Consumer Card – Rs. 25.\nInspection/ Installation/ Demonstration charges – Rs. 75.\nAdditionally, All PMUY beneficiaries will be provided with first LPG refill and Stove (hotplate) both free of cost along with their deposit-free connection by the Oil Marketing Companies (OMCs).",
+      "who_can_apply": "1. Adult women belong to any of the following categories.\nSC Households\nST Households\nPradhan Mantri Awas Yojana (Gramin)\nMost Backward Classes\nAntyodaya Anna Yojana (AAY)\nTea and Ex-Tea Garden tribes\nForest Dwellers\nPeople residing on Islands and River Islands\nSECC Households (AHL TIN)\nPoor Household as per 14-point declaration\n2. Applicant must have attained 18 years of age.\n3. There should not be any other LPG connections in the same household.",
+      "documents": "Know Your Customer(KYC)\nRation Card issued by the State from which application is being made/ other State Govt. document certifying family composition/ Self-Declaration as per Annexure I (for migrant applicants)\nAadhaar of the beneficiary and adult family members appearing in the document at Sl. 2\nProof of Address - Aadhaar will be taken as Proof of Identity and Proof of Address if the connection is required in the same address. In that case, only Aadhaar is sufficient.\nBank Account Number and IFSC",
+      "how_to_apply": "Offline\nOnline\nStep 1: You can download Forms from the official website (given below) or get them from the nearest LPG distributor.\n﻿﻿KYC Form﻿﻿\n﻿Supplementary KYC Document & Undertaking﻿\nANNEXURE - I Self-declaration for Family Composition and Address for release  of new connection under PMUY (for Migrant only)﻿\nANNEXURE - II Mechanics Pre-Installation check of Customers Premises for LPG connection﻿﻿\n﻿\nStep 2: Fill out the application form with the required information, including personal details, bank account information, and LPG distributor preference.\nStep 3: Attach the necessary documents along with the application form. The documents typically include proof of identity, proof of address, and proof of BPL category.\nStep 4: Submit the completed application form along with the supporting documents to the nearest LPG distributor."
+    },
+    "hi": {
+      "name": "प्रधानमंत्री उज्ज्वला योजना 2.0",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    },
+    "mr": {
+      "name": "पंतप्रधान उज्ज्वला योजना 2.0",
+      "summary": "",
+      "benefit_text": "",
+      "who_can_apply": "",
+      "documents": "",
+      "how_to_apply": ""
+    }
+  }
+}

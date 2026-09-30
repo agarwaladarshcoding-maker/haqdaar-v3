@@ -1,0 +1,33 @@
+{
+  "facets": {
+    "category": {
+      "value": "farming",
+      "quote": "All landholding farmers' families, which have cultivable land holding in their names are eligible to get benefit under the scheme."
+    },
+    "gender": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "social_category": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "age": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "income_band": {
+      "value": "ANY",
+      "quote": ""
+    },
+    "occupation": {
+      "value": "farmer",
+      "quote": "All landholding farmers' families, which have cultivable land holding in their names are eligible to get benefit under the scheme."
+    }
+  },
+  "gate_notes": [
+    "Requires cultivable land holding in family's name; excludes Institutional Land holders.",
+    "Excludes farmer families where member is former/present holder of constitutional posts, Ministers/State Ministers, former/present Members of LokSabha/ RajyaSabha/ State Legislative Assemblies/ State Legislative Councils, former and present Mayors of Municipal Corporations, former and present Chairpersons of District Panchayats.",
+    "Excludes serving or retired officers/employees of Central/State Government, PSEs, autonomous institutions and Local Bodies (excluding Multi Tasking Staff /Class IV/Group D employees), superannuated/retired pensioners whose monthly pension is Rs.10,000/-or more, persons who paid Income Tax in last assessment year, and professionals like Doctors, Engineers, Lawyers, Chartered Accountants, and Architects registered with Professional bodies and carrying out profession by undertaking practices."
+  ]
+}

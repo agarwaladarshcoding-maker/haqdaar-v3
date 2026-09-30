@@ -27,6 +27,7 @@ from haqdaar.data.pipeline.p2_derive import (
     RAW_CACHE_DIR,
     REPORTS_DIR,
     GroqClient,
+    make_llm_client,
     read_from_cache,
     write_to_cache,
 )
@@ -321,7 +322,7 @@ def run_cards(
             # The key is only needed once something actually misses cache, so a fully warm
             # run works with no GROQ_API_KEY at all.
             if client is None and read_from_cache(raw["source_sha256"], "cards", cache_dir) is None:
-                client = GroqClient()
+                client = make_llm_client()
             cards, _from_cache = derive_cards(raw, record, client=client, cache_dir=cache_dir)
 
         except Exception as e:
