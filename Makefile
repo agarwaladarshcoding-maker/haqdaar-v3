@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet pipeline-texts pipeline-cost backup call-me
+.PHONY: run call calls sim test demo-fixture pipeline smoke pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet pipeline-texts pipeline-cost render listen backup call-me
 
 test:
 	$(PYTHON) -m pytest
@@ -83,3 +83,11 @@ pipeline-cost:
 
 smoke:
 	@echo "smoke target (telephony / pre-demo verification checklist)"
+
+# Plan 2.1: real voice for every text. Without YES=1 it only counts what is missing.
+render:
+	$(PYTHON) -m haqdaar.audio.render $(if $(YES),--yes,)
+
+# make listen L=mr N=5   (N=lines plays every fixed line)
+listen:
+	$(PYTHON) -m tools.listen $(L) $(N)

@@ -28,6 +28,8 @@ from haqdaar.contracts.types import (
 )
 
 LANGS: tuple[str, ...] = ("en", "hi", "mr")
+# greeting_trilingual plays Hindi, then Marathi, then English.
+TRILINGUAL_ORDER: tuple[str, ...] = ("hi", "mr", "en")
 
 
 class Text(NamedTuple):
@@ -48,15 +50,18 @@ def fixed_line_texts(lines_path: Path | str | None = None) -> Iterator[Text]:
     """The fixed lines, in every language they have been written or translated into.
 
     greeting_trilingual is one recording covering all three languages, so it is keyed on
-    "all" exactly as p6 keys it, and never yielded per language.
+    "all" exactly as p6 keys it, and never yielded per language. Its text is the parts in play
+    order, one per line, so a change to any part changes the key; the renderer speaks each part
+    in its own language (TRILINGUAL_ORDER) and joins them. Until all three parts exist it is
+    not yielded, so missing() is what reports it.
     """
     lines = load_lines(lines_path)
     for line_id in FIXED_LINE_IDS:
         texts = lines[line_id]
         if line_id == TRILINGUAL_LINE_ID:
-            text = texts.get("en", "")
-            if text:
-                yield _text("all", text, "line", line_id)
+            parts = [texts.get(lang, "").strip() for lang in TRILINGUAL_ORDER]
+            if all(parts):
+                yield _text("all", "\n".join(parts), "line", line_id)
             continue
         for lang in LANGS:
             text = texts.get(lang, "").strip()
@@ -140,6 +145,9 @@ def missing(schemes: list[dict[str, Any]], lines_path: Path | str | None = None)
     lines = load_lines(lines_path)
     for line_id in FIXED_LINE_IDS:
         if line_id == TRILINGUAL_LINE_ID:
+            for lang in TRILINGUAL_ORDER:
+                if not (lines[line_id].get(lang) or "").strip():
+                    gaps.append(f"line {line_id} has no {lang}")
             continue
         for lang in LANGS:
             if not (lines[line_id].get(lang) or "").strip():

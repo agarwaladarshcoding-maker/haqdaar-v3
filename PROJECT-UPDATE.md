@@ -62,6 +62,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 | File | What it does |
 |---|---|
 | `pool.py` | Keeps audio clips ready: a small set always loaded, the rest loaded when needed. |
+| `render.py` | Makes the real voice: asks Sarvam to speak every line, button word and scheme text, and saves each clip. `make render`. |
 | `telephony/twilio.py` | Telephony wire codec (parse 6 inbound events, build 3 outbound events). |
 | `telephony/__init__.py` | Isolates telephony wire codecs so vendor names never leak outside telephony. |
 
@@ -71,6 +72,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 | `haqdaar/server.py` | FastAPI app exposing `/health`, `/answer` (TwiML Stream XML), `/stream` (audio WS). |
 | `tools/tone.py` | 8 kHz μ-law 440 Hz 1-second pure tone generator (no WAV/RIFF headers). |
 | `tools/run_demo.py` | `make call-me`: tunnel + server + rings your phone, in one command. |
+| `tools/listen.py` | Plays saved clips on the Mac, with their words printed first. `make listen L=mr N=5`. |
 
 ### Other
 | File | What it does |
@@ -81,11 +83,47 @@ Each entry says: what was added, what was changed, and what the project can do a
 | `Makefile` | Short commands: `make test`, `make sim`, `make run`, `make pipeline-scrape`, `make pipeline-extract`. |
 
 ### Not written yet
-`p3_translate.py` · `p4_gates.py` (Step 9) · render (Step 10) · `model/` · `ear.py` `mouth.py` `turn.py`.
+`p3_translate.py` · `p4_gates.py` (Step 9) · `model/` · `ear.py` `mouth.py` `turn.py`.
 
 ---
 
 ## 3 · Log — newest first
+
+### 30 Sep (night) — Phase 2 step 2.1: the call has a real voice (most of it)
+
+**What was added.**
+- `haqdaar/audio/render.py` — asks Sarvam to speak every text the call can say and saves each
+  clip in the phone's own sound format. It reads the same list the snapshot uses, so the two can
+  never disagree about which clips must exist.
+  - `make render` only counts what is missing and spends nothing. `make render YES=1` pays.
+  - It picks up where it stopped: a clip already saved is never asked for again.
+  - It stops at once if Sarvam says "no credits", instead of failing 400 times.
+  - It sends at most one request every 1.3 seconds, because Sarvam refused us after ~50 in a minute.
+- `tools/listen.py` — plays clips on the Mac with the words printed first:
+  `make listen L=mr N=lines` plays every Marathi fixed line, `make listen L=hi N=5` plays 5 random Hindi clips.
+- `make pipeline-cost` now also shows what the voice has cost.
+- 12 new tests. Full suite: **272 passed**.
+
+**What was changed.**
+- One voice per language, all set in `tunables`. All three are "priya", a woman's voice, because
+  the call speaks of itself as a woman in Hindi and Marathi. Speed is 0.9 (you said 1.0 was too fast).
+- Changing a voice or the speed re-makes only the clips it affects, because both are part of each clip's name.
+- The three-language greeting now really plays Hindi, then Marathi, then English (18.8 seconds).
+  Before, only its English was going to be spoken.
+
+**Where it stopped.** Sarvam ran out of credits partway. 273 of 450 clips are made: **every fixed
+line in all 3 languages, every button word, every age and income band, and the greeting.** What is
+left is 177 scheme texts (34,535 characters). This run spent 15,878 characters in all (275 requests).
+
+**What you need to do.**
+1. Top up Sarvam, then run `make render YES=1`. When `make render` says `missing: 0`, it is done.
+2. Listen: `make listen L=mr N=lines` (all Marathi lines), and `make listen L=hi N=5`,
+   `make listen L=mr N=5`, `make listen L=en N=5`. If the Marathi voice sounds wrong, tell me: we
+   change `TTS_SPEAKER_MR` and only Marathi is re-made.
+
+**Note.** The clips live in `audio/`, which is not in git. They cost money, so do not delete that folder.
+
+**Project can now:** speak every fixed line, button word and greeting in a real voice, in Hindi, Marathi and English.
 
 ### 30 Sep (later) — all 12 schemes pass in all 3 languages; lines corrected; Phase 1 merged
 

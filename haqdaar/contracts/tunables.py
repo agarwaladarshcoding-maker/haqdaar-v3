@@ -46,13 +46,32 @@ AUDIO_WARM_ON_BOOT: bool = (
 # Render and audio format constants
 SAMPLE_RATE: int = int(os.environ.get("SAMPLE_RATE", 8000))
 TAIL_PAD_MS: int = int(os.environ.get("TAIL_PAD_MS", 120))
-DEFAULT_TTS_MODEL: str = os.environ.get("DEFAULT_TTS_MODEL", "sarvam:bulbul:v1")
+# Sarvam TTS (plan 2.1). The bot speaks of itself as a woman in Hindi and Marathi ("पाई",
+# "सांगते"), so every speaker here must be a woman's voice. One speaker per language; change one
+# and only that language re-renders, because the speaker and pace are part of the render key.
+TTS_MODEL: str = os.environ.get("TTS_MODEL", "bulbul:v3")
+DEFAULT_TTS_MODEL: str = os.environ.get("DEFAULT_TTS_MODEL", f"sarvam:{TTS_MODEL}")
+TTS_SPEAKERS: dict[str, str] = {
+    "en": os.environ.get("TTS_SPEAKER_EN", "priya"),
+    "hi": os.environ.get("TTS_SPEAKER_HI", "priya"),
+    "mr": os.environ.get("TTS_SPEAKER_MR", "priya"),
+}
+# 15 Sep: the owner said the voice was too fast at 1.0.
+TTS_PACE: float = float(os.environ.get("TTS_PACE", 0.9))
+TTS_WORKERS: int = int(os.environ.get("TTS_WORKERS", 3))
+TTS_TIMEOUT_S: float = float(os.environ.get("TTS_TIMEOUT_S", 60))
+TTS_MAX_ATTEMPTS: int = int(os.environ.get("TTS_MAX_ATTEMPTS", 5))
+TTS_RETRY_BACKOFF_S: float = float(os.environ.get("TTS_RETRY_BACKOFF_S", 2.0))
+# 30 Sep: Sarvam sent 429 after ~50 requests in the first minute. Start requests at least this
+# far apart across all workers (~46 a minute), and wait longer after a 429.
+TTS_MIN_GAP_S: float = float(os.environ.get("TTS_MIN_GAP_S", 1.3))
+TTS_429_WAIT_S: float = float(os.environ.get("TTS_429_WAIT_S", 15.0))
+# "#" twice replays the last line slower, stretched at play time (plan 2.5).
+SLOW_PACE: float = float(os.environ.get("SLOW_PACE", 0.8))
 
-# Default voice IDs per language
+# Voice IDs per language, as they go into the render key.
 VOICE_IDS: dict[str, str] = {
-    "en": os.environ.get("VOICE_ID_EN", "en-IN-female"),
-    "hi": os.environ.get("VOICE_ID_HI", "hi-IN-female"),
-    "mr": os.environ.get("VOICE_ID_MR", "mr-IN-female"),
+    lang: f"{speaker}@{TTS_PACE}" for lang, speaker in TTS_SPEAKERS.items()
 }
 
 # Directories and paths
