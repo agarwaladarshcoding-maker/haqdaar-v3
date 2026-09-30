@@ -1702,3 +1702,13 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - reports/translate.json clean: 0 failures, 28 schemes, 56 translated.
 - Zero Devanagari digits: verified ! grep -qP '[०-९]' data_cache/derived/schemes.jsonl passes (0 matches; normalized Devanagari digits to 0-9 in p2_derive.py and p4_translate.py).
 - Muse spend: 220 calls, total ledger now 381 rows, ₹12.9685 (spent ₹6.61 on translate; total ₹12.97 << ₹60 cap).
+
+## 30 Sep — Step P6: make pipeline-gates
+- make pipeline-gates (free/offline) completed.
+- Results: 28 schemes evaluated.
+  - en: 28/28 pass (100%).
+  - hi: 17 pass, 11 fail.
+  - mr: 21 pass, 7 fail.
+  - ok in all 3 languages: 17 schemes.
+  - failures: 11 schemes (ignwps, kcc, mgnrega, nfbs, nps-tsep, pm-kisan, pm-svanidhi, pmay-g, pmjjby, pmmvy, rkvyshfshc) tripped G1 (digits from English spelled-out numbers like 'three'->'3'), G3 length ratio (e.g. 1.61x), or G4 script.
+- Binding rule (3) 'Never loosen a gate to pass' strictly preserved.
