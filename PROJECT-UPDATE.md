@@ -62,6 +62,10 @@ Each entry says: what was added, what was changed, and what the project can do a
 | File | What it does |
 |---|---|
 | `pool.py` | Keeps audio clips ready: a small set always loaded, the rest loaded when needed. |
+| `mouth.py` | What the caller hears: sends the voice down the line, stops it on a key, repeats on `#`. |
+| `turn.py` | Keys and silence from the caller; a key pressed while the call talks is kept. |
+| `phone.py` | Connects the call brain to the phone: finds each clip, adds the keypad menus. |
+| `telephony/base.py` | The common shape every phone company must fit. |
 | `render.py` | Makes the real voice: asks Sarvam to speak every line, button word and scheme text, and saves each clip. `make render`. |
 | `telephony/twilio.py` | Telephony wire codec (parse 6 inbound events, build 3 outbound events). |
 | `telephony/__init__.py` | Isolates telephony wire codecs so vendor names never leak outside telephony. |
@@ -83,11 +87,47 @@ Each entry says: what was added, what was changed, and what the project can do a
 | `Makefile` | Short commands: `make test`, `make sim`, `make run`, `make pipeline-scrape`, `make pipeline-extract`. |
 
 ### Not written yet
-`p3_translate.py` · `p4_gates.py` (Step 9) · `model/` · `ear.py` `mouth.py` `turn.py`.
+`p3_translate.py` · `p4_gates.py` (Step 9) · `model/` · `ear.py` (speech, later).
 
 ---
 
 ## 3 · Log — newest first
+
+### 30 Sep (late night) — Phase 2 built: the phone call is ready to try
+
+**What was added** (steps 2.2 to 2.7, each on its own branch, all pushed, not merged yet).
+- **All 450 voice clips are made**, with your new Sarvam key: every line, button word and scheme text in 3 languages.
+- **Many clips at once (2.2).** The call could only open about 250 clips at a time before crashing. Now it can open all of them.
+- **The real 12 schemes as a snapshot (2.3).** `make snapshot` builds it. A terminal call on it works in all 3 languages:
+  `make sim SNAP=snapshots/CURRENT`. Loading it takes 0.02 seconds.
+  - Found and fixed on the way: 87 button words were filed under the wrong name, so the call would
+    have found no sound for them.
+- **Any phone company (2.4).** The phone code now has one common shape, so an Indian provider can be added later as one file.
+- **The mouth (2.5).** Plays the voice down the line. A key press stops it at once (under 0.2 s in the test).
+  `#` repeats; `#` twice repeats slower. The demo's 10-second freeze on a key press cannot happen here.
+- **The ears (2.6).** Reads keys and silence. A key pressed while the call is talking is never lost.
+- **The real call (2.7).** Ringing the line now runs the whole call with the real voice. The log
+  keeps only a scrambled form (hash) of the caller's number, never the number itself.
+- **Keypad menus.** A keypad question used to say "press the key for your work" and then list nothing.
+  Now it reads every choice with its key ("Farmer, press 1. Street vendor, press 2."), then
+  "if you do not know, press 0". It used to say "press 9", which clashed with the 9th topic.
+- Tests: **300 passed**.
+
+**What you need to do (all your jobs for Phase 2 are here).**
+1. Sarvam's free credit ran out before the last 30 small clips ("press 1".."press 9" and the new
+   "press 0" line; 361 characters). Top up, then run `make render YES=1`, then `make snapshot`.
+2. Listen: `make listen L=mr N=lines`, and `N=5` for `L=hi`, `L=mr`, `L=en`.
+3. Make 3 real calls (Hindi, Marathi, English) with `make run` in one terminal and `make call-me` in another.
+   Tell me when done: I read `logs/server.log` and `logs/calls/`.
+4. If the calls are good: I merge into main and tag `v1-keypad`.
+
+**Please listen for these two on the calls.**
+- Every call starts with "I am having trouble hearing you. We will use the keypad from now on."
+- The topic question says "you can also say the name of a scheme", but this call has no speech yet.
+
+Both lines come from the speech design. Tell me if you want them changed for keypad-only calls.
+
+**Project can now:** take a real phone call on the 12 schemes with a real voice, keypad only.
 
 ### 30 Sep (night) — Phase 2 step 2.1: the call has a real voice (most of it)
 
