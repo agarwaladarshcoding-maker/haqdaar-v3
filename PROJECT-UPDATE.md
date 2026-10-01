@@ -96,6 +96,16 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 1 Oct — Step A: Phase 3 code finish (gates, scheme fates, snapshot)
+- **Settled three scheme fates:**
+  - `ab-pmjay`: myscheme page now 404s, but passes derive and gates from cache. It stays in the active snapshot and is kept serving (flagged stale in notes).
+  - `pm-sym`: source page only states monthly income of ₹15,000 and has no annual figure. Quarantined because it cannot satisfy the annual income rule without making up numbers.
+  - `pmsby`: rescraped once live using Playwright. The page still has no documents section, so it stays quarantined.
+- **Fixed the 7 gate failures:** corrected Hindi and Marathi texts for `ignwps`, `mgnrega`, `nfbs`, `nps-tsep`, `pmjjby`, `pmmvy`, and `rkvyshfshc` (removed duplicate/invented numbers, tightened wording to fit the length ratio, converted Latin script to Devanagari).
+- **Gate results:** all 28 schemes now pass in all 3 languages (28 of 28, 0% quarantine, beating the 15% bar). Total Muse spend delta: ₹0.00.
+- **Rebuilt snapshot:** `make snapshot` created snapshot `snap_20261001_084303` with 12 schemes and 477 clips (0 missing). `audio/render.py` now supports checking snapshots (`make render` says missing: 0). Backed up data with `make backup`.
+- **Tested:** `pytest` (353 passed), `make stress` (1,000 callers: 0 crashes, 0 truth failures), `make render` (0 missing), `make sim` runs cleanly to farewell.
+
 ### 1 Oct — Step 4.2: Model Client, Span Guard & 30-Utterance Bake-Off
 - **Built:** `haqdaar/model/` with `GroqModelClient` (`client.py`) using raw `httpx`, temperature 0, JSON mode (`response_format={"type": "json_object"}`), 2.0s timeout, never raises, captures 429/timeout/errors into `ModelClientResponse`, ledgers usage.
 - **Span guard:** `SpanGuard` (`span_guard.py`) enforces strict provenance via string containment and closed-set validation ("farmer" can never smuggle in "low income").
