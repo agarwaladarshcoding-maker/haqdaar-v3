@@ -69,6 +69,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 | `render.py` | Makes the real voice: asks Sarvam to speak every line, button word and scheme text, and saves each clip. `make render`. |
 | `telephony/twilio.py` | Telephony wire codec (parse 6 inbound events, build 3 outbound events). |
 | `telephony/__init__.py` | Isolates telephony wire codecs so vendor names never leak outside telephony. |
+| `ear.py` | The ear: speech to text (Sarvam + Groq), energy VAD, NOISE vs SILENCE, keypress wins. |
 
 ### Server and Tools
 | File | What it does |
@@ -77,21 +78,33 @@ Each entry says: what was added, what was changed, and what the project can do a
 | `tools/tone.py` | 8 kHz μ-law 440 Hz 1-second pure tone generator (no WAV/RIFF headers). |
 | `tools/run_demo.py` | `make call-me`: tunnel + server + rings your phone, in one command. |
 | `tools/listen.py` | Plays saved clips on the Mac, with their words printed first. `make listen L=mr N=5`. |
+| `tools/cards_sheet.py` | Generates 20-card audit sheet and sample. `make cards-sheet`. |
+| `tools/ear_check.py` | Verifies speech to text across 3 sentences × en/hi/mr. `make ear-check`. |
 
 ### Other
 | File | What it does |
 |---|---|
 | `haqdaar/sim.py` | The terminal call. `make sim`. |
-| `fixtures/` | 5 test schemes, 3 test callers, sample sounds — used by the tests. |
-| `tests/` | 108 tests across filter, planner, terminals, call, scrape, derive, corpus, twilio_codec. |
-| `Makefile` | Short commands: `make test`, `make sim`, `make run`, `make pipeline-scrape`, `make pipeline-extract`. |
+| `fixtures/` | 5 test schemes, 3 test callers, 10 TTS stubs, 9 speech fixtures — used by tests and tools. |
+| `tests/` | Unit and shape tests across contracts, engine, pipeline, audio pool, mouth, phone, and ear. |
+| `Makefile` | Short commands: `make test`, `make sim`, `make run`, `make stress`, `make ear-check`, etc. |
 
 ### Not written yet
-`p3_translate.py` · `p4_gates.py` (Step 9) · `model/` · `ear.py` (speech, later).
+`model/` · `engine/door_a.py` (Phase 4 later steps).
 
 ---
 
 ## 3 · Log — newest first
+
+### 1 Oct — Step 4.1: Ear (speech to text, speech fixtures, ear-check)
+- **Built:** `haqdaar/audio/ear.py` with primary Sarvam STT (`saaras:v4`) and fallback Groq Whisper (`whisper-large-v3-turbo`) using raw `httpx`.
+- **Audio behavior:** 1 s silence padding on both ends, hint words, energy VAD (700/400 RMS thresholds), NOISE vs SILENCE distinction (`started=False` -> SILENCE, empty/failed final -> NOISE).
+- **Keypress precedence:** any DTMF key immediately preempts speech and wins.
+- **Resilience:** STT timeouts and errors are treated as failure signals (never unhandled exceptions, no retry loops).
+- **Fixtures:** added 9 static speech fixtures (3 sentences × en, hi, mr) plus silence and noise in `fixtures/audio/speech/` with `manifest.json`.
+- **Tooling:** added `tools/ear_check.py` and `make ear-check` target to verify STT latency and accuracy across English, Hindi, and Marathi.
+- **Warmup:** fixed 3 review nits (`tools/listen.py` docstring + `all` guard, `tools/cards_sheet.py` trailing newline, `tests/test_cards_sheet.py` unused imports).
+- **Tests & Verification:** 17 new tests in `tests/test_ear.py` (331 total pytest green), `make stress` (0 crashes, 0 truth failures), `make ear-check` (9/9 recognized, avg latency 0.43s).
 
 ### 1 Oct — Step 3.7: 20-card audit tooling (cards sheet, audit template, listen cards mode)
 - **Added:** `tools/cards_sheet.py` generates the 20-card audit review sheet (`data_cache/reports/cards_sheet.md`) and sample record (`data_cache/reports/audit_sample_3_7.json`) with a fixed seed (42). It includes all 7 gate-failing schemes plus 13 seeded-random passing schemes, rendering all 3 languages (en, hi, mr) and gate notes / failure reasons.

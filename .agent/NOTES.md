@@ -1784,3 +1784,35 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - 1 Oct (Muse review of 93295c0): A1 MERGE-READY. Independent re-run: pytest 314, stress 0/0. 9 files only, forbidden paths clean, no paid APIs. Nits only (undocumented `all` count, missing trailing newline, 3 unused test imports). Merge to main left to owner. Note: HANDOFF.md §4 items 1-2 + branch name now stale (says step-3.2-choose, 30 Sep).
 - 1 Oct: merged step-3.7-audit to main (--no-ff, da7358a), pytest 314 on main. Refreshed HANDOFF.md (branch main, 3.7 tooling done). Planned owner-free steps in PHASE-4-PLAN.md (4.1-4.5, 5.1, 5.2 — one prompt per step); PROMPT-ANTIGRAVITY-4.1.md ready (ear.py + fixtures + ear-check + 3 nits).
 
+## 1 Oct — Step 4.1: Ear (STT + Speech Fixtures + Live/Offline Check)
+- Created branch step-4.1-ear from main.
+- Warmup: fixed 3 nits from 3.7 review:
+  1. `tools/listen.py`: documented `cards hi all` in docstring, added `elif how == "all": picked = texts` guard to non-cards branch.
+  2. `tools/cards_sheet.py`: added trailing newline `\n` after `json.dump(...)`.
+  3. `tests/test_cards_sheet.py`: removed unused imports `json`, `AUDIT_PATH`, `SAMPLE_PATH`, `SHEET_PATH`.
+- Speech fixtures created in `fixtures/audio/speech/`:
+  - 9 static 8kHz mono WAV clips (3 sentences × en, hi, mr from `fixtures/utterances.json`) generated via macOS local synthesis (`Rishi` for en, `Lekha` for hi and mr) + `afconvert`: `p1_en.wav`, `p1_hi.wav`, `p1_mr.wav`, `p2_en.wav`, `p2_hi.wav`, `p2_mr.wav`, `p3_en.wav`, `p3_hi.wav`, `p3_mr.wav`.
+  - Added duration-accurate `silence.wav` (0 RMS) and `noise.wav` (burst > 700 RMS).
+  - Added `fixtures/audio/speech/manifest.json`. Total directory size is ~600 KB.
+- Built `haqdaar/audio/ear.py`:
+  - Provider integration: `SarvamSTT` primary (`https://api.sarvam.ai/speech-to-text`, default model `saaras:v4` since `saarika:v2.5` is deprecated), falling back to `GroqWhisperSTT` (`whisper-large-v3-turbo` with prompt hint) via raw `httpx`.
+  - 1 s silence padding (`b"\x00\x00" * 8000`) on both sides of PCM audio in `pcm_to_wav`.
+  - Energy VAD: 20 ms frames (160 samples, 320 bytes PCM), START_RMS=700 (3 frames = 60 ms), END_RMS=400 (40 frames = 800 ms of quiet), MAX_UTTERANCE_FRAMES=350 (7 s), PRE_ROLL_FRAMES=15 (300 ms).
+  - Audio input classification:
+    - `Silence(n)`: deadline expired with `started=False`.
+    - `Noise()`: sound detected (`started=True`), but STT returned empty transcript or failed/timed out.
+    - `Speech(text)`: valid non-empty transcript returned.
+  - Precedence: DTMF keypress always preempts speech (immediately returns `Digit(digit)`, notes any discarded transcript).
+  - Resilience: STT timeout returns failure signal, never raises an unhandled exception, never retries in a loop. Circuit flag `sarvam_ok` flips to False on failure so subsequent calls route to Groq without waiting. Usage logged to `data_cache/reports/stt_usage.jsonl`.
+  - Thread safety: `Ear` socket loop methods (`push_media`, `push_dtmf`, `push_hangup`) use thread-safe non-blocking queues (`put_nowait`).
+- Built `tests/test_ear.py`:
+  - 17 unit tests faking HTTP layer (no network calls), covering padding, ulaw/pcm/rms conversions, VAD silence/speech/endpoint, Sarvam success & timeout, Groq success & prompt, SpeechToText fallback & circuit breaker, Ear silence/noise/speech/keypress precedence/hangup/async, and offline fixture accuracy on all 9 utterances.
+- Built `tools/ear_check.py` and `make ear-check` target:
+  - Runs all 9 sentences × en/hi/mr against fixtures (live via Sarvam/Groq, or offline with `--offline`).
+  - Probed live Sarvam STT on fixtures: 9/9 sentences recognized cleanly with average latency 0.43s!
+- Verification:
+  - `.venv/bin/python -m pytest -q`: 331 passed in 17.66s (314 previous + 17 new).
+  - `make stress`: 1,000 callers, 0 crashes, 0 truth failures.
+  - `make ear-check`: 9/9 sentences recognized via Sarvam STT.
+
+

@@ -1,9 +1,10 @@
 """tools/listen.py — hear rendered clips, with their text printed first (plan 2.1).
 
-    python -m tools.listen hi 5        # 5 random Hindi clips
-    python -m tools.listen mr lines    # every Marathi fixed line
-    python -m tools.listen all 1       # the trilingual greeting
-    python -m tools.listen cards hi 10 # 10 Hindi card-chunk clips from audio-ready schemes
+    python -m tools.listen hi 5         # 5 random Hindi clips
+    python -m tools.listen mr lines     # every Marathi fixed line
+    python -m tools.listen all 1        # the trilingual greeting
+    python -m tools.listen cards hi 10  # 10 Hindi card-chunk clips from audio-ready schemes
+    python -m tools.listen cards hi all # all Hindi card-chunk clips from audio-ready schemes
 
 Plays through macOS `afplay`. Clips not rendered yet are listed as missing.
 """
@@ -67,6 +68,8 @@ def main(argv: list[str] | None = None) -> int:
         texts = [t for t in real_texts() if t.lang == lang]
         if how == "lines":
             picked = [t for t in texts if t.kind == "line"]
+        elif how == "all":
+            picked = texts
         else:
             picked = random.sample(texts, min(int(how), len(texts)))
 

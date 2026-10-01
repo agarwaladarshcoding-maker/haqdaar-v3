@@ -251,6 +251,7 @@ def run_cards_sheet(
     sample_path.parent.mkdir(parents=True, exist_ok=True)
     with sample_path.open("w", encoding="utf-8") as f:
         json.dump(sample_info, f, indent=2)
+        f.write("\n")
     print(f"wrote {sample_path}")
 
     # 2. Write cards sheet
