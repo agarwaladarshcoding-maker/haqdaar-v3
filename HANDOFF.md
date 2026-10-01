@@ -1,4 +1,4 @@
-# HANDOFF — start here (30 Sep 2026)
+# HANDOFF — start here (1 Oct 2026)
 
 From now on the owner works like this:
 - **Muse Spark 1.3 Contributor** plans each step.
@@ -14,11 +14,10 @@ This file is the shared base for all three. Read it first, then `AGENTS.md` (the
 
 - **Folder:** `~/code/haqdaar-v2`. Always work here. The `~/Documents/haqdaar-v2` copy sits in
   iCloud and hangs on big reads. Both copies are on the same branch, but only `~/code` is safe to run.
-- **Branch:** `step-3.2-choose` (pushed to GitHub, `haqdaar-v3`). Start every new step on a new
-  branch from here, for example `git switch -c step-3.5-translate`.
-- **Not merged yet:** `main` is still at Phase 1 (`cf503b8`). Every Phase 2 and Phase 3 branch
-  is stacked on the one before it, and `step-3.2-choose` holds all of them. Merging into `main`
-  and tagging `v1-keypad` waits for the owner's 3 real calls.
+- **Branch:** `main` (pushed to GitHub, `haqdaar-v3`, in sync). Start every new step on a new
+  branch from here, for example `git switch -c step-4.1-ear`.
+- **Merged:** `main` holds Phase 2 + Phase 3, including the 3.7 audit tooling.
+  Tagging `v1-keypad` waits for the owner's audit verdicts and 3 real calls.
 - **Python:** always `.venv/bin/python`, which is 3.11. The system `python3` is 3.14 and has no `audioop`.
 - **Keys:** they live in `~/code/haqdaar-v2/.env` and are never committed. It holds MUSE_API_KEY,
   SARVAM_API_KEY, TWILIO_*, and HF_TOKEN. Never print a key or paste one into chat.
@@ -27,7 +26,7 @@ This file is the shared base for all three. Read it first, then `AGENTS.md` (the
 
 ```
 cd ~/code/haqdaar-v2
-.venv/bin/python -m pytest -q          # 307 pass on 30 Sep
+.venv/bin/python -m pytest -q          # 314 pass on 1 Oct
 make stress                            # 1,000 random callers: must say crashes 0, truth failures 0
 make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"   # one call in the terminal
 ```
@@ -56,6 +55,8 @@ API: `tests/conftest.py` blocks Muse, and each test fakes its client.
     - Everything already answered is cached, so a re-run only pays for what is left.
   - **3.8** The server pins only the fixed lines (6.7 MB), and scheme audio loads when it is read.
   - **3.6** `make stress` runs 1,000 callers: 0 crashes, 0 truth failures.
+- **3.7 tooling** `tools/cards_sheet.py` (seeded 20-sample), `audit_3_7.md`
+  template, `listen.py` cards mode. Reading, listening and verdicts are the owner's.
 
 ## 4 · What is left, in order
 
@@ -73,7 +74,7 @@ API: `tests/conftest.py` blocks Muse, and each test fakes its client.
      - or Bhashini (government, free).
    - Until then, the snapshot must be built from the schemes that have audio. `Corpus.load`
      refuses a snapshot with a missing clip, and that rule stays.
-3. **3.7 check.** Read 20 cards against their source pages, and the owner listens.
+3. **3.7 check (tooling done, owner pending).** Read 20 cards against their source pages, and the owner listens.
 4. **Open owner decision:** the keypad menus are long.
    - Topic: 44 s in Hindi.
    - Age and occupation: about 30 s each.
@@ -94,10 +95,10 @@ API: `tests/conftest.py` blocks Muse, and each test fakes its client.
 
 **Owner jobs still open**
 - 3 real keypad calls. Twilio is a trial account, so it can call only the one verified number.
-- Listen to the clips (`make listen L=mr N=5`).
+- Listen to the clips (`make listen-cards L=mr N=10`).
 - Choose the voice for new clips.
 - Decide the menu length.
-- OK to merge + tag `v1-keypad`.
+- OK to tag `v1-keypad` (merges done 1 Oct).
 
 ## 5 · Rules that caught real bugs (keep them)
 

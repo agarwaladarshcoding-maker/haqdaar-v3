@@ -1782,4 +1782,5 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   - make cards-sheet: successfully created/verified audit_sample_3_7.json, cards_sheet.md, audit_3_7.md.
   - make listen-cards L=hi N=2: smoke check successfully played 2 clips (apy, kcc summary chunks).
 - 1 Oct (Muse review of 93295c0): A1 MERGE-READY. Independent re-run: pytest 314, stress 0/0. 9 files only, forbidden paths clean, no paid APIs. Nits only (undocumented `all` count, missing trailing newline, 3 unused test imports). Merge to main left to owner. Note: HANDOFF.md §4 items 1-2 + branch name now stale (says step-3.2-choose, 30 Sep).
+- 1 Oct: merged step-3.7-audit to main (--no-ff, da7358a), pytest 314 on main. Refreshed HANDOFF.md (branch main, 3.7 tooling done). Planned owner-free steps in PHASE-4-PLAN.md (4.1-4.5, 5.1, 5.2 — one prompt per step); PROMPT-ANTIGRAVITY-4.1.md ready (ear.py + fixtures + ear-check + 3 nits).
 
