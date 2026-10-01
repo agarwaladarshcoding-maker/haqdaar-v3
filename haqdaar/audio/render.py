@@ -296,12 +296,13 @@ def render(
     return result
 
 
-def real_texts() -> list[Text]:
+def real_texts(schemes: Optional[list[dict[str, Any]]] = None) -> list[Text]:
     """All texts from the real inputs, with the bands p6 would build."""
     from haqdaar.data.pipeline.p6_snapshot import build_range_bands
     from haqdaar.data.pipeline.texts import _load_schemes
 
-    schemes = _load_schemes(BASE_DIR / Path(tunables.CARDS_FILE).parent)
+    if schemes is None:
+        schemes = _load_schemes(BASE_DIR / Path(tunables.CARDS_FILE).parent)
     bands = {
         box: build_range_bands(schemes, box, max_bands=tunables.KEYPAD_CARDINALITY_MAX)
         for box in RANGE_BOXES
@@ -309,9 +310,47 @@ def real_texts() -> list[Text]:
     return all_texts(schemes, bands)
 
 
+def _resolve_snapshot_dir(snapshot_arg: str) -> Path:
+    p = Path(snapshot_arg)
+    if not p.is_absolute():
+        p = BASE_DIR / p
+    if p.is_file():
+        snap_id = p.read_text(encoding="utf-8").strip()
+        p = p.parent / snap_id
+    elif not p.exists() and (BASE_DIR / "snapshots" / snapshot_arg).exists():
+        p = BASE_DIR / "snapshots" / snapshot_arg
+        if p.is_file():
+            snap_id = p.read_text(encoding="utf-8").strip()
+            p = p.parent / snap_id
+    return p
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    texts = real_texts()
+    snapshot_arg: Optional[str] = None
+    cleaned_argv = []
+    skip_next = False
+    for i, arg in enumerate(argv):
+        if skip_next:
+            skip_next = False
+            continue
+        if arg == "--snapshot" and i + 1 < len(argv):
+            snapshot_arg = argv[i + 1]
+            skip_next = True
+        elif arg.startswith("--snapshot="):
+            snapshot_arg = arg.split("=", 1)[1]
+        else:
+            cleaned_argv.append(arg)
+    argv = cleaned_argv
+
+    schemes: Optional[list[dict[str, Any]]] = None
+    if snapshot_arg and snapshot_arg.lower() != "all":
+        snap_dir = _resolve_snapshot_dir(snapshot_arg)
+        from haqdaar.data.pipeline.texts import _load_schemes
+        schemes = _load_schemes(snap_dir)
+        print(f"snapshot: {snap_dir.name} ({len(schemes)} schemes)")
+
+    texts = real_texts(schemes)
     counted = render(texts)
     todo = [t for t in texts if not has_clip(BASE_DIR / tunables.AUDIO_DIR, t.key)]
     chars = sum(len(t.text) for t in todo)

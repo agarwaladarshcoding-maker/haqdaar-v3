@@ -94,7 +94,7 @@ smoke:
 
 # Plan 2.1: real voice for every text. Without YES=1 it only counts what is missing.
 render:
-	$(PYTHON) -m haqdaar.audio.render $(if $(YES),--yes,)
+	$(PYTHON) -m haqdaar.audio.render $(if $(YES),--yes,) $(if $(SNAP),--snapshot $(SNAP),$(if $(YES),,--snapshot snapshots/CURRENT))
 
 # make listen L=mr N=5   (N=lines plays every fixed line)
 listen:

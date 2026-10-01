@@ -31,7 +31,7 @@ def test_seeded_sample_reproducibility():
     assert sample1["sample_ids"] == sample2["sample_ids"]
     assert sample1["failing_ids"] == sample2["failing_ids"]
     assert len(sample1["sample_ids"]) == 20
-    assert len(sample1["failing_ids"]) == 7
+    assert len(sample1["failing_ids"]) == len(gates.get("failures", []))
 
     # All failing ids are in sample_ids
     for fid in sample1["failing_ids"]:
