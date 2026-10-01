@@ -148,8 +148,8 @@ def test_door_a_offline_benchmark_accuracy():
     for u in utterances:
         expected = u["slug"]
         res = door_a.match(u["transcript"], lang=u["lang"])
-        pred = res.scheme_ids[0] if res.scheme_ids else (res.shortlist[0] if res.shortlist else "")
-        if pred == expected:
+        pred = res.scheme_ids[0] if (res.action == "read" and res.scheme_ids) else ""
+        if pred == expected and res.action == "read":
             hits += 1
 
     accuracy = hits / len(utterances)

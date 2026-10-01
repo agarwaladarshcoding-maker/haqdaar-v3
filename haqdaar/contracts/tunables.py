@@ -35,6 +35,12 @@ ALIAS_FLOOR: int = int(os.environ.get("ALIAS_FLOOR", 3))
 CALL_CEILING_S: int = int(os.environ.get("CALL_CEILING_S", 600))
 MAX_SOURCE_AGE_DAYS: int = int(os.environ.get("MAX_SOURCE_AGE_DAYS", 14))
 
+# Door A matching thresholds (4.3)
+DOOR_A_EXACT_SCORE: float = float(os.environ.get("DOOR_A_EXACT_SCORE", 1000.0))
+DOOR_A_ALIAS_SCORE_BASE: float = float(os.environ.get("DOOR_A_ALIAS_SCORE_BASE", 500.0))
+DOOR_A_SCORE_FLOOR: float = float(os.environ.get("DOOR_A_SCORE_FLOOR", 30.0))
+DOOR_A_TIE_BAND: float = float(os.environ.get("DOOR_A_TIE_BAND", 0.90))
+
 # Audio cache and storage tiers (03-ARCHITECTURE.md §10.1, 04-INTERFACES.md)
 AUDIO_CACHE_MB: int = int(os.environ.get("AUDIO_CACHE_MB", 64))  # 3.8: LRU of scheme clips
 AUDIO_PREFETCH_ON_STOP: bool = (

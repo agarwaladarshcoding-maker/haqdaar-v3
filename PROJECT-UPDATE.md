@@ -98,6 +98,26 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+### 2 Oct — Step 4.4: Spoken answers with "if right press 1" confirmation
+- **Added spoken answers and confirmation loop (`haqdaar/engine/call.py`):**
+  - When the caller speaks an answer, the model parses it and Mouth reads back what it heard ("Let me say back what I heard... If right press 1, to fix press 2").
+  - Pressing 1 accepts the answer, records it in the call log, and advances to the next question.
+  - Pressing 2 rejects the answer, logs an unclear turn, and re-asks with a polite prompt. Two misses on the same question drop it to the keypad menu.
+  - Silence during confirmation plays the silence ladder: rung 1 repeats what was heard, rung 2 reassures the caller the line is open, rung 3 says goodbye and hangs up.
+  - Also handles spoken confirmation ("yes", "haan", "no", "nahi"), language switching (`*`), and replaying (`#`).
+- **Added offline sim path with fake STT / model seam (`haqdaar/sim.py`):**
+  - Added `SimModelClient` and simulated speech so `make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"` runs end to end through spoken answers and confirmation without network or paid API calls.
+- **Fixed the 7 review nits from Step B:**
+  - `haqdaar/model/router.py`: timeout now passes through to tunables.
+  - `haqdaar/contracts/tunables.py` & `haqdaar/engine/door_a.py`: moved policy thresholds and scores to tunables.
+  - `haqdaar/engine/door_a.py`: logs error if schemes list is missing; normalizes text before fast-path lookup.
+  - `haqdaar/data/manual_aliases.json`: moved quarantined aliases out of engine code into data.
+  - `tools/door_a_check.py` & `tests/test_door_a.py`: asserted `action == "read"` for top-1 hits.
+  - `PHASE-4-PLAN.md`: corrected "40 schemes" to "30 schemes".
+- **Added 8 offline tests (`tests/test_call_spoken.py`):**
+  - Tests confirm-accept, spoken affirmation, mismatch re-ask, 2-strike keypad drop, silence ladder, noise/invalid digits, language switch/repeat, and 2-failure model degradation.
+- **Verified:** `pytest` (370 passed), `make stress` (1,000 callers: 0 crashes, 0 truth failures), `make model-bakeoff` (30/30 passed), `make door-a-check` (90/90 passed), `make sim` runs through the confirm turn and finishes with farewell.
+
 ### 2 Oct — Step 4.3: Door A scheme matching & 90-utterance benchmark
 - **Built Door A (`haqdaar/engine/door_a.py`):** when a caller names a scheme at the opener, the call matches it and jumps straight to it.
   - Matches exact aliases first, then transliterates Hindi/Marathi Devanagari script to English letters and strips common filler words to match scheme names reliably.

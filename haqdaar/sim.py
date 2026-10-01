@@ -28,11 +28,119 @@ from haqdaar.contracts.types import (
     LangSource,
     Noise,
     Silence,
+    Speech,
 )
 from haqdaar.data.corpus import Corpus
 from haqdaar.data.log import Log
 from haqdaar.data.pipeline.p6_snapshot import build_snapshot
 from haqdaar.engine.call import Engine
+from haqdaar.model.client import GroqModelClient, ModelClientResponse
+from haqdaar.model.router import Model
+
+
+class SimModelClient(GroqModelClient):
+    """Offline simulated Groq client at the seam for simulation and tests."""
+
+    def __init__(self, corpus: Any = None) -> None:
+        super().__init__(api_key="sim_offline_key", model="llama-3.3-70b-versatile")
+        self.corpus = corpus
+        self.speech_fixtures: dict[str, Any] = {}
+        manifest_path = Path(__file__).resolve().parent.parent / "fixtures" / "audio" / "speech" / "manifest.json"
+        if manifest_path.exists():
+            try:
+                self.speech_fixtures = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+
+    def call(
+        self,
+        messages: list[dict[str, str]],
+        task: str = "model_opener",
+    ) -> ModelClientResponse:
+        user_content = messages[-1]["content"] if messages else ""
+
+        if task == "model_opener":
+            for k, item in self.speech_fixtures.items():
+                txt = item.get("text", "")
+                if txt and txt in user_content:
+                    stamps = [
+                        {"box": s["box"], "value": s["value"], "span": s["span"]}
+                        for s in item.get("expected_stamps", [])
+                    ]
+                    return ModelClientResponse(success=True, data={"stamps": stamps}, latency_s=0.005)
+
+            lower = user_content.lower()
+            if any(w in lower for w in ("कृषी", "शेती", "farming", "farmer", "agriculture", "किसान", "खेती")):
+                span = "कृषी" if "कृषी" in user_content else ("शेती" if "शेती" in user_content else "farming")
+                return ModelClientResponse(
+                    success=True,
+                    data={"stamps": [{"box": "category", "value": "farming", "span": span}]},
+                    latency_s=0.005,
+                )
+            if any(w in lower for w in ("व्यवसाय", "व्यापार", "business", "loan", "shop", "दुकान")):
+                span = "व्यवसाय" if "व्यवसाय" in user_content else "business"
+                return ModelClientResponse(
+                    success=True,
+                    data={"stamps": [{"box": "category", "value": "business_loans", "span": span}]},
+                    latency_s=0.005,
+                )
+            # Default opener stamp
+            span = "farming"
+            for token in user_content.split():
+                clean_tok = token.strip('",.:;')
+                if len(clean_tok) > 2:
+                    span = clean_tok
+                    break
+            return ModelClientResponse(
+                success=True,
+                data={"stamps": [{"box": "category", "value": "farming", "span": span}]},
+                latency_s=0.005,
+            )
+
+        elif task == "model_turn":
+            lower = user_content.lower()
+            if any(w in lower for w in ("repeat", "पुन्हा", "दोबारा", "फिर से")):
+                return ModelClientResponse(success=True, data={"class": "REPEAT"}, latency_s=0.005)
+            if any(w in lower for w in ("clarify", "help", "काय", "क्या", "madat")):
+                return ModelClientResponse(success=True, data={"class": "CLARIFY"}, latency_s=0.005)
+
+            if "farmer" in lower or "शेतकरी" in user_content or "किसान" in user_content:
+                span = "शेतकरी" if "शेतकरी" in user_content else ("किसान" if "किसान" in user_content else "farmer")
+                return ModelClientResponse(
+                    success=True,
+                    data={"class": "ANSWER", "box": "occupation", "value": "farmer", "span": span},
+                    latency_s=0.005,
+                )
+            if any(w in lower for w in ("yes", "हो", "हाँ", "maharashtra")):
+                span = "हो" if "हो" in user_content else ("हाँ" if "हाँ" in user_content else "yes")
+                return ModelClientResponse(
+                    success=True,
+                    data={"class": "ANSWER", "box": "state", "value": "MAHARASHTRA", "span": span},
+                    latency_s=0.005,
+                )
+            if any(w in lower for w in ("no", "नाही", "नहीं", "other")):
+                span = "नाही" if "नाही" in user_content else ("नहीं" if "नहीं" in user_content else "no")
+                return ModelClientResponse(
+                    success=True,
+                    data={"class": "ANSWER", "box": "state", "value": "OTHER", "span": span},
+                    latency_s=0.005,
+                )
+            if any(w in lower for w in ("female", "महिला", "स्त्री")):
+                span = "महिला" if "महिला" in user_content else ("स्त्री" if "स्त्री" in user_content else "female")
+                return ModelClientResponse(
+                    success=True,
+                    data={"class": "ANSWER", "box": "gender", "value": "female", "span": span},
+                    latency_s=0.005,
+                )
+
+            return ModelClientResponse(
+                success=True,
+                data={"class": "UNCLEAR", "reason": "unrecognized"},
+                latency_s=0.005,
+            )
+
+        return ModelClientResponse(success=True, data={}, latency_s=0.005)
+
 
 
 # Canned keypad runs for the three keypad-only personas. The first digit is the
@@ -135,8 +243,57 @@ class FakeAudio:
         """Simulate call termination."""
         print("[AUDIO HANGUP]")
 
-    def next_input(self, profile: str = "normal") -> Digit | Noise | Silence | Hangup:
+    def next_input(self, profile: str = "normal") -> Digit | Noise | Silence | Hangup | Speech:
         """Get next input from user, canned sequence, or non-interactive fallback."""
+        if profile == "spoken":
+            if self.canned_inputs and self._canned_idx < len(self.canned_inputs):
+                cand = self.canned_inputs[self._canned_idx].strip()
+                if cand.lower().startswith(("say:", "speech:")):
+                    self._canned_idx += 1
+                    txt = cand.split(":", 1)[1].strip()
+                    print(f"[AUDIO STT (spoken)] Canned speech: {txt}")
+                    return Speech(text=txt)
+                elif cand.lower() in ("s", "silence"):
+                    self._canned_idx += 1
+                    self._silence_count += 1
+                    return Silence(n=self._silence_count)
+                elif cand.lower() in ("n", "noise"):
+                    self._canned_idx += 1
+                    self._silence_count = 0
+                    return Noise()
+                elif cand.lower() in ("h", "hangup"):
+                    self._canned_idx += 1
+                    return Hangup()
+                elif cand.lower().startswith(("key:", "dtmf:")):
+                    self._canned_idx += 1
+                    return Digit(digit=cand.split(":", 1)[1].strip())
+
+            if sys.stdin.isatty() and not self.canned_inputs:
+                prompt_text = f"[VOICE ({profile})] Speak / type answer (or s=silence, n=noise, h=hangup, or digit): "
+                val = input(prompt_text).strip()
+                if val.lower() in ("s", "silence"):
+                    self._silence_count += 1
+                    return Silence(n=self._silence_count)
+                elif val.lower() in ("n", "noise"):
+                    self._silence_count = 0
+                    return Noise()
+                elif val.lower() in ("h", "hangup"):
+                    return Hangup()
+                elif val.isdigit() and len(val) == 1:
+                    return Digit(digit=val)
+                elif val:
+                    return Speech(text=val)
+
+            # Simulated speech at the seam for non-interactive / canned keys:
+            # Keypad keys in canned_inputs (like '1' for confirm) belong to the subsequent confirm turn.
+            simulated_speech = {
+                "mr": "मला कृषी योजना हवी आहे",
+                "hi": "मुझे कृषि योजना चाहिए",
+                "en": "I am looking for agriculture schemes",
+            }.get(self.language, "I am looking for agriculture schemes")
+            print(f"[AUDIO STT (spoken)] Simulated speech: {simulated_speech}")
+            return Speech(text=simulated_speech)
+
         prompt_text = f"[KEYPAD ({profile})] Enter digit (0-9, *, #, s=silence, n=noise, h=hangup): "
         val = self._get_next_raw_input(prompt_text).lower()
 
@@ -185,6 +342,8 @@ def run_sim(
     logs_dir: str = "logs",
     persona: str = DEFAULT_PERSONA,
     snapshot: Optional[str] = None,
+    model: Optional[Any] = None,
+    spoken: bool = True,
 ) -> Path:
     """Run full simulation against fixtures/ and return path to log file.
 
@@ -193,7 +352,7 @@ def run_sim(
     """
     if snapshot is not None:
         corpus = Corpus.load(Path(snapshot).name)
-        return _run_call(corpus, corpus.snapshot_id, canned_inputs, call_id, logs_dir, persona)
+        return _run_call(corpus, corpus.snapshot_id, canned_inputs, call_id, logs_dir, persona, model=model, spoken=spoken)
 
     root_dir = Path(__file__).resolve().parent.parent
     fixtures_dir = root_dir / "fixtures"
@@ -228,7 +387,7 @@ def run_sim(
                 render_stubs=True,
             )
             corpus = Corpus.load(snap_id)
-            return _run_call(corpus, snap_id, canned_inputs, call_id, logs_dir, persona)
+            return _run_call(corpus, snap_id, canned_inputs, call_id, logs_dir, persona, model=model, spoken=spoken)
         finally:
             tunables.SNAPSHOTS_DIR = orig_snap_dir
             tunables.AUDIO_DIR = orig_audio_dir
@@ -241,6 +400,8 @@ def _run_call(
     call_id: Optional[str],
     logs_dir: str,
     persona: str,
+    model: Optional[Any] = None,
+    spoken: bool = True,
 ) -> Path:
     """One call on a loaded corpus. Returns the log path."""
     c_id = call_id or f"sim_{int(time.time())}"
@@ -259,9 +420,13 @@ def _run_call(
     print(f"Starting Haqdaar Sim: call_id={c_id} persona={persona}")
     print("==================================================")
 
+    if model is None and spoken:
+        client = SimModelClient(corpus)
+        model = Model(corpus=corpus, client=client)
+
     Engine.run_call(
         audio=audio,
-        model=None,
+        model=model,
         corpus=corpus,
         log=log,
     )
@@ -305,21 +470,38 @@ def main(argv: Optional[list[str]] = None) -> int:
         default=None,
         help='the keys to press, space-separated, e.g. "2 1 1 s h" (s=silence, h=hang up)',
     )
+    ap.add_argument(
+        "--spoken",
+        action="store_true",
+        default=None,
+        help="enable spoken mode with simulated STT/model",
+    )
+    ap.add_argument(
+        "--keypad-only",
+        action="store_true",
+        help="force keypad-only mode without model",
+    )
     args = ap.parse_args(argv)
 
     if args.keys is not None:
         canned = args.keys.split()
+        spoken = not args.keypad_only
     else:
         canned = list(PERSONAS[args.persona]) if args.canned else None
+        # Persona runs without explicit --spoken or --keys run keypad-only
+        spoken = False if args.keypad_only or (args.canned and not args.spoken) else bool(args.spoken)
+
     run_sim(
         canned_inputs=canned,
         call_id=args.call_id,
         logs_dir=args.logs_dir,
         persona=args.persona,
         snapshot=args.snapshot,
+        spoken=spoken,
     )
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

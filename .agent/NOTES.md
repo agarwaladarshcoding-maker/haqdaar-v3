@@ -1943,3 +1943,50 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Accuracy 90/90 (100%), all direct reads, mean 0.55ms — reproduced. Caveat: self-authored fixtures, no STT noise (hold-out set parked for live phase).
 - Observed this session on branch: pytest 362, stress 0/0, bakeoff 30/30, sim ends stop=survivors_le_4 keypad_only.
 - 7 nits carried into Step C prompt warmup (router timeout passthrough, tunables thresholds, silent-empty matcher, MANUAL_ALIASES data, fast-path normalise, action==read assert, PHASE-4-PLAN 40->30). Parked: yaml-injection refactor (revisit at step D runtime caller), hold-out/STT-noised set (live phase).
+
+## Step C — 4.4 Spoken answers + confirmation (2 Oct 2026)
+- Base verified: main @ 789bd0d (STEP B merged). On branch `step-4.4-spoken`.
+- Warmup fixes applied and verified:
+  1. `haqdaar/model/router.py`: `timeout: Optional[float] = None` passthrough to `GroqModelClient(timeout=timeout)` honoring `tunables.MODEL_TIMEOUT_S`.
+  2. `haqdaar/contracts/tunables.py` & `haqdaar/engine/door_a.py`: extracted `DOOR_A_EXACT_SCORE` (1000.0), `DOOR_A_ALIAS_SCORE_BASE` (500.0), `DOOR_A_SCORE_FLOOR` (30.0), `DOOR_A_TIE_BAND` (0.90) to `tunables.py`.
+  3. `haqdaar/engine/door_a.py`: logged error if `schemes.yaml` is missing rather than silent empty return.
+  4. `haqdaar/data/manual_aliases.json`: moved quarantined manual aliases (`pmsby`, `pm-sym`) out of code into JSON data file with fallback loader.
+  5. `haqdaar/engine/door_a.py`: added `normalize_text` before corpus fast-path `alias_lookup`.
+  6. `tools/door_a_check.py` & `tests/test_door_a.py`: asserted `action == "read"` for top-1 hit checks.
+  7. `PHASE-4-PLAN.md`: corrected "40 schemes" to "30 schemes" in step 4.3 description.
+- Warmup verification:
+  - `.venv/bin/python -m pytest -q`: 362 passed, 3 warnings in 20.21s.
+  - `make door-a-check`: 90/90 (100.00%) hits, mean latency 0.56ms.
+
+- 4.4 Spoken Answers & Confirmation Architecture:
+  - Spec references: PLAN-V2.md §3 (4.4), T10, T11, T14, T16, T18, T23, ARCHITECTURE.md §6 & §8.
+  - Spoken cost: Spoken input costs 2 turns; keypad costs 1 turn (T10, T23).
+  - Mode transition: `model=None` starts in `mode="keypad_only"` (unchanged for stress & keypad runs). With `model`, call starts in `mode="voice"`. 2 model failures -> degrade to `mode="keypad_only"`.
+  - Prompts: Voice questions use `opener_prompt`, `state_q_maharashtra`, or `q_{box}` (`rephrase_{box}` on strike 1).
+  - Confirmation sequence: Mouth plays `("bundle_confirm_intro", f"chip_{box}_{val}", "confirm_yn_suffix")`. All tokens exist in templates.json.
+  - Confirmation interaction:
+    1. Confirm-accept: Key "1" (or affirmative speech "haan"/"yes"): confirms value, sets `box_vector[box] = val`, `question_count += 1`, `turn_n += 1`, logs ANSWER.
+    2. Confirm-mismatch: Key "2" (or "nahi"/"no"): rejects value, keeps box UNASKED, `turn_n += 1`, `box_strikes[box] += 1`, logs UNCLEAR. 2 misses -> box drops to keypad menu (`keypad_{box}`).
+    3. No-confirm-answer: Silence -> rung 1 repeat, rung 2 presence, rung 3 hangup. Noise / invalid digit -> UNCLEAR, strike += 1.
+  - Implemented in `haqdaar/engine/call.py`:
+    - `confirm_inp` handling for Digit ("1", "2", "*", "#", out-of-menu), Silence (rung 1 repeat, rung 2 presence, rung 3 hangup), Noise, and Speech (spoken "1"/"yes"/"haan" accept, "2"/"no"/"nahi" reject).
+    - Confirmation echo: `bundle_confirm_intro` -> `chip_{box}_{proposed_val}` -> `confirm_yn_suffix`.
+    - Strike tracking per box: `box_strikes[box] >= 2` drops to keypad menu (`keypad_{box}`).
+  - Wired in `haqdaar/sim.py`:
+    - `SimModelClient`: offline Groq client matching speech fixtures and keywords, returning structured stamps / answers without network.
+    - `FakeAudio.next_input(profile="spoken")`: provides simulated spoken answer at the seam when canned input is keys, leaving keys for the confirmation turn.
+  - Added unit tests in `tests/test_call_spoken.py` (8 tests):
+    - `test_confirm_accept_spoken_answer`
+    - `test_confirm_accept_with_spoken_affirmation`
+    - `test_confirm_mismatch_reask_and_then_accept`
+    - `test_confirm_mismatch_two_strikes_drops_to_keypad`
+    - `test_confirm_silence_handling_ladder`
+    - `test_confirm_noise_and_invalid_digits`
+    - `test_confirm_language_switch_and_repeat`
+    - `test_model_failure_degrades_to_keypad_only`
+- Verification suite passing:
+  - `pytest -q`: 370 passed, 3 warnings in 20.29s (362 existing + 8 new).
+  - `make stress`: 1,000 callers on 12 schemes: 0 crashes, 0 truth failures.
+  - `make model-bakeoff`: 30/30 (100.0%) perfect utterances, 69/69 stamps matched, 30 hallucinated stamps intercepted.
+  - `make door-a-check`: 90/90 (100.00%) hits, mean latency 0.56ms.
+  - `make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"`: completed end to end through spoken opener and confirm turn (key 1), ending in `survivors_le_4` in `mode="voice"`.
