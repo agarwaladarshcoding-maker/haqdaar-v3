@@ -93,8 +93,13 @@ Each entry says: what was added, what was changed, and what the project can do a
 
 ## 3 · Log — newest first
 
+### 1 Oct — Step 3.7: 20-card audit tooling (cards sheet, audit template, listen cards mode)
+- **Added:** `tools/cards_sheet.py` generates the 20-card audit review sheet (`data_cache/reports/cards_sheet.md`) and sample record (`data_cache/reports/audit_sample_3_7.json`) with a fixed seed (42). It includes all 7 gate-failing schemes plus 13 seeded-random passing schemes, rendering all 3 languages (en, hi, mr) and gate notes / failure reasons.
+- **Scaffolded:** `data_cache/reports/audit_3_7.md` verdict template with read/listen checkboxes per language and verdict lines; never overwrites existing verdicts on re-run.
+- **Added:** `tools/listen.py` cards mode (`python -m tools.listen cards <L> <N>`, `make listen-cards L=hi N=2`) to play card chunks from audio-ready snapshot schemes.
+- **Makefile targets:** `make cards-sheet` and `make listen-cards L=<lang> N=<count>`.
+- **Tests:** 3 new unit tests in `tests/test_cards_sheet.py` (314 passed total).
 
-### 30 Sep (setup) — Antigravity took over, checks passed
 - Antigravity took over and verified the system against steps 2–7 of PROMPT-ANTIGRAVITY-SETUP.md. All checks passed: branch `step-3.2-choose` clean, all 6 required `.env` keys present, 307 tests pass (0 fail), `make stress` (1,000 callers: 0 crashes, 0 truth failures), `make sim` finished at `closing_farewell`, and Muse spend is ₹3.93 (under ₹60 cap).
 - Wrote `MUSE-BRIEF.md` for Muse Spark 1.3 Contributor to plan steps 3.4-finish and 3.5.
 
