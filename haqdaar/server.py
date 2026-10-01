@@ -174,11 +174,13 @@ def _run_engine(call_id: str, snapshot_id: str, number_hash: str, audio: Any, co
                 done: Any) -> None:
     from haqdaar.data.log import Log
     from haqdaar.engine.call import Engine
+    from haqdaar.model.router import Model
 
     try:
         log = Log.open(call_id=call_id, snapshot_id=snapshot_id, caller_hash=number_hash,
                        logs_dir=tunables.CALL_LOGS_DIR)
-        Engine.run_call(audio=audio, model=None, corpus=corpus, log=log)
+        model = Model(corpus=corpus)
+        Engine.run_call(audio=audio, model=model, corpus=corpus, log=log)
         say(f"call    {call_id} finished")
     except Exception as e:  # never leave the caller on a silent line
         say(f"!! engine error: {e!r}")
@@ -188,7 +190,8 @@ def _run_engine(call_id: str, snapshot_id: str, number_hash: str, audio: Any, co
 
 @app.websocket("/stream")
 async def stream_endpoint(websocket: WebSocket) -> None:
-    """One real keypad call. One caller at a time (D14)."""
+    """One real call with spoken and keypad support. One caller at a time (D14)."""
+    from haqdaar.audio.ear import Ear
     from haqdaar.audio.mouth import Mouth, Outbox
     from haqdaar.audio.phone import PhoneAudio
     from haqdaar.audio.turn import Turn
@@ -220,7 +223,8 @@ async def stream_endpoint(websocket: WebSocket) -> None:
             if isinstance(event, StartEvent) and mouth is None:
                 corpus, pool = _corpus_and_pool()
                 mouth = Mouth(outbox.emit, event.stream_sid, log=say)
-                turn = Turn(mouth)
+                ear = Ear(log=say)
+                turn = Turn(mouth, ear=ear)
                 audio = PhoneAudio(corpus, pool, mouth, turn, close=hang_up, log=say)
                 call_id = event.call_sid or f"call_{int(time.time())}"
                 number_hash = _CALLER_HASH.pop(call_id, "")
@@ -230,6 +234,8 @@ async def stream_endpoint(websocket: WebSocket) -> None:
                     args=(call_id, corpus.snapshot_id, number_hash, audio, corpus, hang_up),
                     daemon=True,
                 ).start()
+            elif isinstance(event, MediaEvent) and turn is not None:
+                turn.push_media(event.payload_bytes)
             elif isinstance(event, DtmfEvent) and turn is not None:
                 say(f"<- dtmf {event.digit}")
                 turn.push_key(event.digit)

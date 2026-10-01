@@ -538,6 +538,18 @@ class Ear:
         self.silence_count: int = 0
         self.hung_up: bool = False
         self.last_discarded_transcript: Optional[str] = None
+        self.stt_failed: bool = False
+        self.failures: int = 0
+
+    @property
+    def keypad_only(self) -> bool:
+        """Trigger keypad-only fallback if STT failed or voice broke."""
+        return self.stt_failed or (self.failures >= 1)
+
+    def force_stt_failure(self) -> None:
+        """For testing or manual degradation: force ear STT failure."""
+        self.stt_failed = True
+        self.failures += 1
 
     # --- socket loop methods (thread-safe, O(1), non-blocking) --------------------
     def push_media(self, payload: bytes, is_ulaw: bool = True) -> None:
@@ -611,12 +623,13 @@ class Ear:
                 break
 
             if kind == "dtmf":
-                # Drain from keys queue if present
-                if not self._keys.empty():
-                    try:
-                        self._keys.get_nowait()
-                    except queue.Empty:
-                        pass
+                # Key must be present in _keys; if empty, it was already consumed
+                if self._keys.empty():
+                    continue
+                try:
+                    self._keys.get_nowait()
+                except queue.Empty:
+                    continue
                 self.silence_count = 0
                 self._log(f"<- key {val} (won over speech)")
                 return Digit(digit=str(val))
@@ -659,6 +672,9 @@ class Ear:
             return Speech(text=stt_res.transcript)
 
         # Speech started but yielded no valid transcript or failed/timed out: NOISE
+        if not stt_res.success:
+            self.stt_failed = True
+            self.failures += 1
         self._log(f"<- noise (started=True, stt_err={stt_res.error}, peak={self.vad.peak_rms})")
         return Noise()
 

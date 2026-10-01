@@ -48,7 +48,12 @@ from haqdaar.sim import FakeAudio, SimModelClient
 class MockAudioSession:
     """Mock audio session tracking played lines and feeding scripted inputs."""
 
-    def __init__(self, inputs: Optional[list[Any]] = None, initial_lang: Lang = "hi") -> None:
+    def __init__(
+        self,
+        inputs: Optional[list[Any]] = None,
+        initial_lang: Lang = "hi",
+        ear: Optional[Any] = None,
+    ) -> None:
         self.inputs = list(inputs) if inputs else []
         self.language: Lang = initial_lang
         self.played: list[str] = []
@@ -56,6 +61,13 @@ class MockAudioSession:
         self._last_played: tuple[str, ...] = ()
         self.marks: list[str] = []
         self.input_profiles: list[str] = []
+        self.ear = ear
+
+    @property
+    def keypad_only(self) -> bool:
+        if self.ear is not None:
+            return getattr(self.ear, "keypad_only", False)
+        return False
 
     def select_language(self) -> tuple[Lang, LangSource]:
         self.played.append("greeting_trilingual")
@@ -92,6 +104,8 @@ class MockAudioSession:
 
     def next_input(self, profile: str = "normal") -> Digit | Noise | Silence | Hangup | Speech:
         self.input_profiles.append(profile)
+        if self.ear is not None and not self.keypad_only and profile == "spoken":
+            return self.ear.listen()
         if self.inputs:
             item = self.inputs.pop(0)
             if isinstance(item, str):
@@ -239,16 +253,16 @@ def test_confirm_accept_spoken_answer(fixture_corpus, tmp_path):
 
     # Check LOG lines
     lines = [json.loads(l) for l in open(tmp_path / "test_confirm_accept.jsonl")]
-    ans_lines = [l for l in lines if l.get("class") == "ANSWER"]
-    # Turn 1: spoken answer parsed
-    t1 = next(l for l in ans_lines if l.get("turn_n") == 1)
+    # Turn 1: spoken answer parsed and logged as PROPOSAL before confirmation
+    t1 = next(l for l in lines if l.get("turn_n") == 1)
+    assert t1["class"] == "PROPOSAL"
     assert t1["box"] == "category"
     assert t1["value"] == "farming"
     assert t1["transcript"] == "I need farming schemes"
     assert t1["span"] == "farming"
 
-    # Turn 2: confirmation accepted
-    t2 = next(l for l in ans_lines if l.get("turn_n") == 2)
+    # Turn 2: confirmation accepted and logged as confirmed ANSWER
+    t2 = next(l for l in lines if l.get("turn_n") == 2 and l.get("class") == "ANSWER")
     assert t2["box"] == "category"
     assert t2["value"] == "farming"
     assert t2["transcript"] == "1"
@@ -481,3 +495,72 @@ def test_model_failure_degrades_to_keypad_only(fixture_corpus, tmp_path):
     lines = [json.loads(l) for l in open(tmp_path / "test_model_degrade.jsonl")]
     assert any(l.get("mode") == "keypad_only" for l in lines)
     assert lines[-1]["mode"] == "keypad_only"
+
+
+def test_forced_stt_failure_in_turn_loop_degrades_to_keypad_only(fixture_corpus, tmp_path):
+    """Forced STT failure in Ear degrades call from voice to keypad_only in turn loop."""
+    from haqdaar.audio.ear import Ear, SpeechToText, SttResult, pcm_to_ulaw
+    from haqdaar.model.router import Model
+    from tests.test_ear import _make_pcm_frame
+
+    class FailingSTT(SpeechToText):
+        def transcribe(self, audio_bytes, lang="", hint="", is_wav=False):
+            return SttResult(transcript="", lang="", provider="sarvam", success=False, error="timeout")
+
+    ear = Ear(stt=FailingSTT())
+    # Pre-feed speech frames so VAD triggers utterance endpoint instead of silence
+    for _ in range(5):
+        ear.push_media(pcm_to_ulaw(_make_pcm_frame(1200)))
+    for _ in range(41):
+        ear.push_media(pcm_to_ulaw(_make_pcm_frame(100)))
+
+    audio = MockAudioSession(
+        inputs=[
+            Digit("1"),                             # Turn 0: language selection (Hindi)
+            # Turn 1: Opener asked as spoken. Ear listens, STT fails -> returns Noise, sets stt_failed=True
+            # Engine detects ear.keypad_only -> enters keypad_only mode!
+            # Turn 2: Opener re-asked as keypad menu. Caller presses 1 for farming:
+            Digit("1"),                             # Keypad category choice 1 = farming
+            Digit("2"),                             # State: OTHER
+            Digit("1"),                             # Gender: female
+            Digit("3"),                             # Social category: SC
+            Digit("2"),
+            Digit("2"),
+            Digit("2"),
+        ],
+        ear=ear,
+    )
+    log = Log.open("test_stt_fallback", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = Model(corpus=fixture_corpus, client=SimModelClient(fixture_corpus))
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    # 1. Assert ear recorded the failure and signals keypad_only
+    assert ear.stt_failed is True
+    assert ear.keypad_only is True
+
+    # 2. Assert keypad_only_mode was played to the caller
+    assert "keypad_only_mode" in audio.played
+
+    # 3. Assert {"mode": "keypad_only"} was recorded in the LOG
+    lines = [json.loads(l) for l in open(tmp_path / "test_stt_fallback.jsonl")]
+    assert any(l.get("mode") == "keypad_only" for l in lines)
+    assert lines[-1]["mode"] == "keypad_only"
+    assert lines[-1]["stop"] in (STOP_LE_4_SURVIVORS, STOP_ZERO_SURVIVORS, STOP_MAX_TURNS)
+
+    # 4. Assert input profiles transitioned: first question was "spoken", then switched to "normal"
+    assert "spoken" in audio.input_profiles
+    assert audio.input_profiles.count("spoken") == 1
+    assert "normal" in audio.input_profiles
+
+
+def test_ear_force_stt_failure_method():
+    """Direct invocation of ear.force_stt_failure() transitions mode immediately."""
+    from haqdaar.audio.ear import Ear
+
+    ear = Ear()
+    assert ear.keypad_only is False
+    ear.force_stt_failure()
+    assert ear.stt_failed is True
+    assert ear.failures == 1
+    assert ear.keypad_only is True

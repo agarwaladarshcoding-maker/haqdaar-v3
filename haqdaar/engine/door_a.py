@@ -88,11 +88,17 @@ GENERIC_STOP_WORDS: set[str] = {
 }
 
 # Manual aliases loaded from data source for schemes without extracted alias cards (e.g. quarantined)
+_MANUAL_ALIASES_CACHE: dict[str, dict[str, list[str]]] | None = None
+
 def _load_manual_aliases() -> dict[str, dict[str, list[str]]]:
+    global _MANUAL_ALIASES_CACHE
+    if _MANUAL_ALIASES_CACHE is not None:
+        return _MANUAL_ALIASES_CACHE
     path = BASE_DIR / "haqdaar/data/manual_aliases.json"
     if path.exists():
         try:
-            return json.loads(path.read_text(encoding="utf-8"))
+            _MANUAL_ALIASES_CACHE = json.loads(path.read_text(encoding="utf-8"))
+            return _MANUAL_ALIASES_CACHE
         except Exception as exc:
             logger.warning("Failed to load manual aliases from %s: %s", path, exc)
             return {}
@@ -233,6 +239,7 @@ class DoorA:
                 for r in csv.DictReader(f):
                     candidates_map[r["slug"]] = r
 
+        manual_aliases = _load_manual_aliases()
         for sc in schemes_yaml:
             slug = sc["slug"]
             priority = sc.get("priority", 2)
@@ -262,7 +269,6 @@ class DoorA:
                 for a in d.get(f, []):
                     aliases.add(a.lower())
 
-            manual_aliases = _load_manual_aliases()
             if slug in manual_aliases:
                 for lang_aliases in manual_aliases[slug].values():
                     for a in lang_aliases:

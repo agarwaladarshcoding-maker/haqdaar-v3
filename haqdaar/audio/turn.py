@@ -14,17 +14,20 @@ from __future__ import annotations
 
 import queue
 import threading
-from typing import Optional
+import time
+from typing import Any, Optional
 
 from haqdaar.audio.mouth import Mouth
+from haqdaar.contracts.types import Digit, Hangup, Input, Silence
 
 HANGUP = "h"
 
 
 class Turn:
-    def __init__(self, mouth: Mouth) -> None:
+    def __init__(self, mouth: Mouth, ear: Optional[Any] = None) -> None:
         self._mouth = mouth
-        self._keys: "queue.Queue[str]" = queue.Queue()
+        self.ear = ear
+        self._keys: "queue.Queue[str]" = ear._keys if ear is not None else queue.Queue()
         self.hung_up = threading.Event()
 
     # --- socket loop ---------------------------------------------------------------
@@ -32,13 +35,29 @@ class Turn:
         """A key arrived. Stop whatever is playing, and keep the key for the engine."""
         if self._mouth.playing:
             self._mouth.clear()
-        self._keys.put(digit)
+        if self.ear is not None:
+            self.ear.push_dtmf(digit)
+        else:
+            self._keys.put(digit)
 
     def push_hangup(self) -> None:
         self.hung_up.set()
         self._keys.put(HANGUP)
+        if self.ear is not None:
+            self.ear.push_hangup()
+
+    def push_media(self, payload: bytes, is_ulaw: bool = True) -> None:
+        """Push telephony audio packets to Ear."""
+        if self.ear is not None:
+            self.ear.push_media(payload, is_ulaw=is_ulaw)
 
     # --- engine thread -------------------------------------------------------------
+    @property
+    def keypad_only(self) -> bool:
+        if self.ear is not None:
+            return getattr(self.ear, "keypad_only", False)
+        return False
+
     def has_key(self) -> bool:
         """A key is waiting. The engine should not start a new line over it."""
         return not self._keys.empty()
@@ -52,3 +71,50 @@ class Turn:
                 if self._mouth.remaining() > 0:
                     continue  # still talking (more audio was queued): the gap has not begun
                 return None
+
+    def wait_input(
+        self,
+        gap_s: float,
+        profile: str = "normal",
+        lang: str = "",
+        hint: str = "",
+    ) -> Input:
+        """Wait for input: DTMF digit, spoken audio via Ear, silence, or hangup."""
+        # 1. Any pre-queued DTMF key wins immediately
+        if not self._keys.empty():
+            key = self._keys.get_nowait()
+            if key == HANGUP:
+                return Hangup()
+            return Digit(digit=key)
+
+        if self.hung_up.is_set():
+            return Hangup()
+
+        # 2. Spoken profile with active Ear
+        if profile in ("spoken", "turn0", "confirm") and self.ear is not None and not self.keypad_only:
+            # Wait for line to finish playing before listening, checking for barge-in keys
+            while self._mouth.remaining() > 0 and not self.hung_up.is_set():
+                if not self._keys.empty():
+                    key = self._keys.get_nowait()
+                    if key == HANGUP:
+                        return Hangup()
+                    return Digit(digit=key)
+                time.sleep(0.02)
+
+            if self.hung_up.is_set():
+                return Hangup()
+            if not self._keys.empty():
+                key = self._keys.get_nowait()
+                if key == HANGUP:
+                    return Hangup()
+                return Digit(digit=key)
+
+            return self.ear.listen(timeout=gap_s, lang=lang, hint=hint)
+
+        # 3. Keypad mode (or normal profile)
+        key = self.wait(gap_s)
+        if key is None:
+            return Silence(n=1)
+        if key == HANGUP:
+            return Hangup()
+        return Digit(digit=key)
