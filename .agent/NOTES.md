@@ -1934,3 +1934,12 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   - `make model-bakeoff`: 30/30 (100.0%) perfect utterances, 69/69 stamps matched, 30 hallucinated stamps intercepted.
   - `make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"`: completed full call, closed cleanly with farewell.
 
+
+## Step B review (Oct 2026) — verdict: MERGE-READY, 0 blockers
+- Reviewed branch step-4.3-door-a (7efdc19) vs PROMPT-ANTIGRAVITY-B-DOOR-A.md + PHASE-4-PLAN 4.3 via review subagent (full: /tmp/review-B.md).
+- 8/8 warmup nits fixed (tunables timeout, bakeoff == gate, span_guard note, router bypass comment, stale 332 line, cards_sheet == 0, Makefile scope comment, render dead branch).
+- door_a.py: NFKC+danda normalise, Devanagari->Latin, EN/HI/MR stop list, token match with 1/2/>=3 rules, shortlist(k=10). Imports stdlib+yaml+contracts only, no network. No runtime caller yet (only tools/door_a_check.py).
+- Offline YES: 90 fixtures (30/30/30 en/hi/mr, all 30 slugs), conftest guard intact, LLM shortlist faked; runtime LLM is Groq-only (MuseClient only in build-time p2/p4). No Muse API can hear callers.
+- Accuracy 90/90 (100%), all direct reads, mean 0.55ms — reproduced. Caveat: self-authored fixtures, no STT noise (hold-out set parked for live phase).
+- Observed this session on branch: pytest 362, stress 0/0, bakeoff 30/30, sim ends stop=survivors_le_4 keypad_only.
+- 7 nits carried into Step C prompt warmup (router timeout passthrough, tunables thresholds, silent-empty matcher, MANUAL_ALIASES data, fast-path normalise, action==read assert, PHASE-4-PLAN 40->30). Parked: yaml-injection refactor (revisit at step D runtime caller), hold-out/STT-noised set (live phase).
