@@ -1999,3 +1999,45 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Tests offline (MockAudioSession/MockModel, conftest guard intact). No scope creep into D (server/turn/ear untouched).
 - Observed this session on branch: pytest 370, stress 0/0, bakeoff 30/30, door-a 30/30 MR, sim shows confirm echo + canned 1 -> survivors_le_4 mode=voice.
 - 6 items carried into Step D prompt warmup (alias-loader hoist, door_a_check dead fallback, proposal logged pre-confirm as non-ANSWER, bound confirm loop, sim UNCLEAR default, TASK.md reminder). N6 noted: bare make sim stays keypad-only by design; HANDOFF keeps the KEYS command.
+
+## Step D: 4.5 Fallback Wiring & Live Passes (2 Oct 2026)
+- Warmup fixes applied and verified:
+  1. `haqdaar/engine/door_a.py`: hoisted `_load_manual_aliases()` outside `for sc in schemes_yaml:` and cached in module-level `_MANUAL_ALIASES_CACHE`.
+  2. `tools/door_a_check.py:52`: simplified `predicted` calculation to match test form `predicted = res.scheme_ids[0] if (res.action == "read" and res.scheme_ids) else ""`.
+  3. `haqdaar/contracts/log_schema.py` & `haqdaar/engine/call.py`: added `PROPOSAL` to `TurnClass` and `TURN_CLASSES`. Logged proposed spoken answer as `turn_class="PROPOSAL"` before confirmation, eliminating phantom/duplicate `ANSWER` records. Updated `tests/test_call_spoken.py` to assert Turn 1 as `PROPOSAL` and Turn 2 as `ANSWER`.
+  4. `haqdaar/engine/call.py`: bounded the confirmation loop against repeat-mashing (`#`/`*`/silence-rung-1/2) using `confirm_turns` and checking `turn_n + confirm_turns >= tunables.MAX_TURNS`.
+  5. `haqdaar/sim.py`: updated `SimModelClient` to return `{"class": "UNCLEAR", "stamps": []}` for unmatched opener speech instead of defaulting to farming.
+  6. Verified: all 370 tests pass in 18.64s.
+
+- Fallback wiring & telephony stream integration:
+  - `haqdaar/audio/ear.py`: added `stt_failed`, `failures`, `force_stt_failure()`, and `@property keypad_only` (`self.stt_failed or self.failures >= 1`). Validated DTMF consumption in event loop against shared keys queue.
+  - `haqdaar/audio/turn.py`: wired optional `ear`, `push_media`, `keypad_only`, and `wait_input(gap_s, profile, lang, hint)`. Shares `_keys` queue with `ear._keys` to prevent phantom duplicate DTMF keys across turn boundaries. Handles mouth playing wait + DTMF barge-in prior to calling `ear.listen()`.
+  - `haqdaar/audio/phone.py`: added `keypad_only` property delegating to `turn`, delegated `next_input` to `turn.wait_input` with proper silence counting.
+  - `haqdaar/server.py`: `stream_endpoint` now creates `Ear(log=say)` and passes to `Turn(mouth, ear=ear)`; forwards inbound audio packets via `MediaEvent` to `turn.push_media()`. `_run_engine` instantiates `Model(corpus=corpus)` and passes `model=model` to `Engine.run_call`.
+  - `haqdaar/engine/call.py`: checks `audio.keypad_only` / `turn.keypad_only` / `model.keypad_only` during mode init and upon Noise / Speech / Confirm failure. Switches to `mode = "keypad_only"`, writes `{"mode": "keypad_only"}` to log, and plays `("keypad_only_mode",)`. Does not fork call path; existing keypad logic handles rest of call.
+  - `tests/test_call_spoken.py`: added `test_forced_stt_failure_in_turn_loop_degrades_to_keypad_only` and `test_ear_force_stt_failure_method`.
+
+- Live API measurements & results:
+  - `make ear-check`: 9/9 sentences recognized via Sarvam STT. Total time: 5.50s, average latency: 0.61s.
+    - EN: P1_EN (0.70s), P2_EN (0.63s), P3_EN (0.55s)
+    - HI: P1_HI (0.56s), P2_HI (0.62s), P3_HI (0.55s)
+    - MR: P1_MR (0.83s), P2_MR (0.51s), P3_MR (0.54s)
+  - `make model-bakeoff ARGS=--live`: blocked by Groq API key permissions. API returns HTTP 404: `{"error":{"message":"The model llama-3.3-70b-versatile does not exist or you do not have access to it.","type":"invalid_request_error","code":"model_not_found"}}`. Available models on key list does not include `llama-3.3-70b-versatile` or `llama-3.1-8b-instant`. Leaving live model bakeoff for owner.
+
+- Full verification suite passing:
+  - `pytest -q`: 372 passed, 3 warnings in 18.79s (370 existing + 2 new).
+  - `make stress`: 1,000 callers on 12 schemes: 0 crashes, 0 truth failures.
+  - `make model-bakeoff`: 30/30 (100.0%) perfect utterances, 69/69 stamps matched, 30 hallucinated stamps intercepted.
+  - `make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"`: completed end to end with PROPOSAL turn, confirmed ANSWER turn, and exact match terminal in `mode="voice"`.
+  - `make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h" --keypad-only`: completed end to end in `mode="keypad_only"`.
+
+## Step D review (Oct 2026) — verdict: MERGE-READY, 0 blockers
+- Reviewed branch step-4.5-fallback (b64b8d6) vs PROMPT-ANTIGRAVITY-D-FALLBACK.md + PHASE-4-PLAN 4.5 via review subagent (full: /tmp/review-D.md). Strict pass: wires ear/model into live server path.
+- 6/6 warmup done (alias cache hoist, door_a_check clean form, PROPOSAL log class + test asserts T1=PROPOSAL/T2=ANSWER, confirm-loop turn bound with monotonic turn_n, sim UNCLEAR default, TASK.md updated).
+- Wiring matches spec: ear keypad_only on STT failure + force_stt_failure(); model breaker at 2 failures (pre-existing); engine checks audio/turn/model keypad_only at mode init + Noise/UNCLEAR/confirm paths; fallback reuses keypad loop (no fork); forced-STT-failure test asserts keypad_only mode + LOG line + spoken->normal transition.
+- Hard rules PASS: socket surface all put_nowait; only new sleep is 0.02s engine-thread barge-in poll (pre-existing pattern); no new threads/queues (Turn reuses ear._keys — removes phantom-duplicate-DTMF hazard); server engine-thread model unchanged.
+- Tests offline (FailingSTT + SimModelClient + synthetic PCM; conftest untouched).
+- Live: ear-check RAN 9/9 @0.61s avg, ledger-corroborated byte-for-byte (stt_usage.jsonl 9 sarvam/success rows); bakeoff --live BLOCKED by Groq 404 model_not_found (llama-3.3-70b-versatile not on key), 0 tokens, honestly reported -> owner follow-up (key fix + rerun for live p50/p95).
+- Observed this session on branch: pytest 372, stress 0/0, bakeoff 30/30 offline.
+- Nits: fixed PROJECT-UPDATE "5 warmup items"->6 in record commit. Carried to Phase 5 backlog: Turn.wait_input direct test gap (forced-failure test bypasses it via MockAudioSession), sim opener UNCLEAR-vs-empty-stamps asymmetry, ear stt_failed/failures redundancy (harmless), NOTES "370 tests" label in Step D section.
+- PHASE 4 CODE COMPLETE after this merge. Remaining: owner end-file, Phase 5, Phase 6.

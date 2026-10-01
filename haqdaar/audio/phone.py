@@ -24,7 +24,7 @@ from haqdaar.audio.lines import MENU_KEYS
 from haqdaar.audio.mouth import Clip, Mouth
 from haqdaar.audio.turn import HANGUP, Turn
 from haqdaar.contracts import tunables
-from haqdaar.contracts.types import SCHEME_CHUNKS, Digit, Hangup, Lang, LangSource, Silence
+from haqdaar.contracts.types import SCHEME_CHUNKS, Digit, Hangup, Input, Lang, LangSource, Noise, Silence, Speech
 
 # Which box a question token asks about, so its menu can follow it.
 MENU_BOX: dict[str, str] = {
@@ -91,7 +91,24 @@ class PhoneAudio:
     def on_mark(self, mark: str) -> float:
         return time.time()
 
-    def next_input(self, profile: str = "normal") -> Digit | Silence | Hangup:
+    @property
+    def keypad_only(self) -> bool:
+        return getattr(self.turn, "keypad_only", False)
+
+    def next_input(self, profile: str = "normal") -> Input:
+        if hasattr(self.turn, "wait_input"):
+            inp = self.turn.wait_input(tunables.SILENCE_GAP_S, profile=profile, lang=self.language)
+            if isinstance(inp, Silence):
+                self._silence += 1
+                inp = Silence(n=self._silence)
+                self._log(f"<- silence {self._silence} ({profile})")
+            elif isinstance(inp, Digit):
+                self._silence = 0
+                self._log(f"<- key {inp.digit} ({profile})")
+            elif isinstance(inp, (Speech, Noise)):
+                self._silence = 0
+            return inp
+
         key = self.turn.wait(tunables.SILENCE_GAP_S)
         if key is None:
             self._silence += 1

@@ -84,16 +84,10 @@ class SimModelClient(GroqModelClient):
                     data={"stamps": [{"box": "category", "value": "business_loans", "span": span}]},
                     latency_s=0.005,
                 )
-            # Default opener stamp
-            span = "farming"
-            for token in user_content.split():
-                clean_tok = token.strip('",.:;')
-                if len(clean_tok) > 2:
-                    span = clean_tok
-                    break
+            # Unmatched opener speech returns UNCLEAR
             return ModelClientResponse(
                 success=True,
-                data={"stamps": [{"box": "category", "value": "farming", "span": span}]},
+                data={"class": "UNCLEAR", "stamps": []},
                 latency_s=0.005,
             )
 

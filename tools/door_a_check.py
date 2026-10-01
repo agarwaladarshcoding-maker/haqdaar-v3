@@ -49,7 +49,7 @@ def run_door_a_check() -> int:
         latencies.append(lat)
 
         lang_stats[lang]["total"] += 1
-        predicted = res.scheme_ids[0] if (res.action == "read" and res.scheme_ids) else (res.scheme_ids[0] if res.scheme_ids else "")
+        predicted = res.scheme_ids[0] if (res.action == "read" and res.scheme_ids) else ""
         is_hit = (predicted == slug and res.action == "read")
 
         if is_hit:

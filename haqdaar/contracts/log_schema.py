@@ -20,6 +20,7 @@ TurnClass = Literal[
     "UNCLEAR",
     "NOISE",
     "SILENCE",
+    "PROPOSAL",
 ]
 
 TURN_CLASSES: tuple[TurnClass, ...] = (
@@ -30,6 +31,7 @@ TURN_CLASSES: tuple[TurnClass, ...] = (
     "UNCLEAR",
     "NOISE",
     "SILENCE",
+    "PROPOSAL",
 )
 
 # UNKNOWN Sources (T16 §2, T11)

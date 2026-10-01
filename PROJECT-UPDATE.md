@@ -98,6 +98,29 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+### 2 Oct — Step 4.5: Fallback wiring + live API passes
+- **Wired Ear failure signals and Model circuit breaker into call loop (`haqdaar/engine/call.py`):**
+  - When speech recognition fails (STT error/timeout) or the model fails twice, the call immediately drops to keypad-only mode.
+  - Plays `keypad_only_mode` prompt, logs `{"mode": "keypad_only"}`, and conducts all remaining questions and menus via DTMF keypad.
+  - Does not fork the call path: seamlessly switches mode in the existing question loop.
+- **Wired telephony server stream to Ear and Model (`haqdaar/server.py`, `haqdaar/audio/turn.py`, `haqdaar/audio/phone.py`):**
+  - In `server.py`: `stream_endpoint` now creates `Ear(log=say)` and passes it to `Turn(mouth, ear=ear)`; forwards inbound audio packets via `MediaEvent` to `turn.push_media()`.
+  - In `server.py`: `_run_engine` instantiates `Model(corpus=corpus)` and passes it to `Engine.run_call`.
+  - In `turn.py`: `Turn` coordinates speech input through `ear.listen()` while prioritizing pre-queued or barge-in DTMF keypresses.
+  - In `phone.py`: `PhoneAudio.next_input()` delegates spoken turns to `turn.wait_input()` and exposes `keypad_only`.
+- **Fixed the 6 warmup items from Step C review:**
+  - `haqdaar/engine/door_a.py`: hoisted `_load_manual_aliases()` outside the per-scheme loop with a module-level cache.
+  - `tools/door_a_check.py`: simplified dead fallback logic.
+  - `haqdaar/contracts/log_schema.py` & `haqdaar/engine/call.py`: logged proposed spoken answers as `PROPOSAL` before confirmation, avoiding phantom duplicate `ANSWER` log lines.
+  - `haqdaar/engine/call.py`: bounded the confirmation loop against repeat-mashing (`#`, `*`, silence).
+  - `haqdaar/sim.py`: updated `SimModelClient` to return UNCLEAR on unmatched speech.
+- **Added forced STT failure test in the turn loop (`tests/test_call_spoken.py`):**
+  - Forces an STT failure during a spoken turn and asserts the call falls back to keypad, plays `keypad_only_mode`, logs `{"mode": "keypad_only"}`, and finishes via keypad.
+- **Live API passes:**
+  - `make ear-check` ran live against Sarvam STT: 9/9 sentences recognized across EN/HI/MR with 0.61s average latency.
+  - `make model-bakeoff ARGS=--live`: blocked by Groq API key permissions (Groq account returns 404 model_not_found for `llama-3.3-70b-versatile`). Offline bake-off passes 30/30 (100%).
+- **Verified:** `pytest` (372 passed), `make stress` (1,000 callers: 0 crashes, 0 truth failures), `make model-bakeoff` (30/30 passed), `make sim` runs end to end to farewell.
+
 ### 2 Oct — Step 4.4: Spoken answers with "if right press 1" confirmation
 - **Added spoken answers and confirmation loop (`haqdaar/engine/call.py`):**
   - When the caller speaks an answer, the model parses it and Mouth reads back what it heard ("Let me say back what I heard... If right press 1, to fix press 2").
