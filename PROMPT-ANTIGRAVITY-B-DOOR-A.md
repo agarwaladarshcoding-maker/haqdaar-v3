@@ -27,6 +27,18 @@
    but add a one-line comment noting the bypass.
 5. `.agent/NOTES.md`: remove the stale "332 tests passed" line (the suite is at 353+).
 
+Plus 3 nits from the Step A review:
+6. `tests/test_cards_sheet.py:34`: `assert len(failing_ids) == len(gates.get("failures", []))`
+   is near-tautological (the sample is built from gates) and would auto-pass a future
+   regression. Assert `== 0` with a comment instead (gates are 28/28 now). Also fix the
+   stale docstring at `:4` ("7 failing + 13 passing").
+7. `Makefile:97`: `make render` without YES now checks only `snapshots/CURRENT`, but
+   `make render YES=1` without SNAP still renders ALL schemes. Add a one-line comment
+   noting the check/render scope mismatch so "missing: 0" is not misread as full-corpus
+   coverage.
+8. `haqdaar/audio/render.py:320-323`: bare-id branch re-checks `is_file()` on
+   `snapshots/<id>` (always a dir) — harmless dead code. Remove it.
+
 ## 2 · Scope: 4.3 Door A (not started — no `haqdaar/engine/door_a.py` on 1 Oct)
 
 - Build Door A per `PHASE-4-PLAN.md`: caller says the scheme's name at the opener and

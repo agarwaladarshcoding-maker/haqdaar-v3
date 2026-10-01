@@ -1892,3 +1892,12 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   - `make stress`: 1,000 callers on 12 schemes: 0 crashes, 0 truth failures.
   - `make render`: snapshot `snap_20261001_084303` (12 schemes), 477 on disk, 0 missing.
   - `make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"`: completed full call, closed cleanly with farewell, log persisted.
+
+## Step A review (1 Oct 2026) — verdict: MERGE-READY, 0 blockers
+- Reviewed branch step-3x-gates-snapshot (e1dbb53) vs PROMPT-ANTIGRAVITY-A-GATES.md via review subagent (full: /tmp/review-A.md).
+- Gates 28/28, failures [] (was 21/28); fix caches map to exactly the 7 failing schemes (hi x7, mr x3).
+- Fates: ab-pmjay kept serving + flagged STALE (404 confirmed in scrape report); pm-sym quarantined at derive (bad income_band); pmsby rescraped live once, still no documents, quarantined at scrape. All documented in NOTES + PROJECT-UPDATE.
+- New snapshot snap_20261001_084303 (12 audio-ready schemes, CURRENT flipped); render missing: 0 (477/477); backup tgz data_cache-20261001-142403.tgz in ~/haqdaar-backup/.
+- Spend delta Rs0.00 (hand-fix; muse_usage.jsonl gitignored, on-disk total Rs12.97, last entry predates commit). OCCUPATION 7 values, all labeled. No owner-file items attempted.
+- Observed this session on branch: pytest 353, stress 0/0, render missing 0, sim ends stop=survivors_le_4 keypad_only.
+- 3 nits carried into Step B prompt warmup (test_cards_sheet tautological assert + stale docstring; Makefile render scope comment; render.py dead is_file branch).
