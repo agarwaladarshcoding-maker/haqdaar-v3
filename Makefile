@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards snapshot backup call-me
+.PHONY: run call calls sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards snapshot backup call-me ear-check
 
 test:
 	$(PYTHON) -m pytest
@@ -112,3 +112,7 @@ snapshot:
 # Plan 3.6: random keypad callers on the real snapshot; 0 crashes and 0 truth failures.
 stress:
 	$(PYTHON) -m tools.stress -n $(or $(N),1000) --seed $(or $(SEED),1)
+
+# Step 4.1: transcribe 3 sentences x en/hi/mr against fixtures (or custom audio)
+ear-check:
+	$(PYTHON) -m tools.ear_check $(ARGS)

@@ -1,0 +1,79 @@
+{
+  "p1_en": {
+    "file": "p1_en.wav",
+    "utterance_id": "P1_EN",
+    "lang": "en",
+    "text": "I am a female farmer in Bihar looking for agriculture schemes.",
+    "bytes": 65982
+  },
+  "p1_hi": {
+    "file": "p1_hi.wav",
+    "utterance_id": "P1_HI",
+    "lang": "hi",
+    "text": "मैं बिहार की एक महिला किसान हूँ और मुझे कृषि योजना चाहिए।",
+    "bytes": 68620
+  },
+  "p1_mr": {
+    "file": "p1_mr.wav",
+    "utterance_id": "P1_MR",
+    "lang": "mr",
+    "text": "मी बिहारमधील एक महिला शेतकरी आहे आणि मला कृषी योजना हवी आहे.",
+    "bytes": 79578
+  },
+  "p2_en": {
+    "file": "p2_en.wav",
+    "utterance_id": "P2_EN",
+    "lang": "en",
+    "text": "I am a farmer from Bihar with annual income of six lakh rupees.",
+    "bytes": 67654
+  },
+  "p2_hi": {
+    "file": "p2_hi.wav",
+    "utterance_id": "P2_HI",
+    "lang": "hi",
+    "text": "मैं बिहार का एक किसान हूँ और मेरी सालाना आय छह लाख रुपये है।",
+    "bytes": 72150
+  },
+  "p2_mr": {
+    "file": "p2_mr.wav",
+    "utterance_id": "P2_MR",
+    "lang": "mr",
+    "text": "मी बिहारमधील शेतकरी असून माझे वार्षिक उत्पन्न सहा लाख रुपये आहे.",
+    "bytes": 78650
+  },
+  "p3_en": {
+    "file": "p3_en.wav",
+    "utterance_id": "P3_EN",
+    "lang": "en",
+    "text": "I want to apply for Kisan Credit Scheme.",
+    "bytes": 46660
+  },
+  "p3_hi": {
+    "file": "p3_hi.wav",
+    "utterance_id": "P3_HI",
+    "lang": "hi",
+    "text": "मुझे किसान क्रेडिट योजना के बारे में जानकारी चाहिए।",
+    "bytes": 57650
+  },
+  "p3_mr": {
+    "file": "p3_mr.wav",
+    "utterance_id": "P3_MR",
+    "lang": "mr",
+    "text": "मला किसान क्रेडिट योजनेबद्दल माहिती हवी आहे.",
+    "bytes": 53934
+  },
+  "silence": {
+    "file": "silence.wav",
+    "utterance_id": "SILENCE",
+    "lang": "none",
+    "text": "",
+    "bytes": 16044
+  },
+  "noise": {
+    "file": "noise.wav",
+    "utterance_id": "NOISE",
+    "lang": "none",
+    "text": "",
+    "bytes": 16044
+  }
+}

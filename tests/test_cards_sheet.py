@@ -7,16 +7,12 @@ Tests for tools/cards_sheet.py:
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from tools.cards_sheet import (
-    AUDIT_PATH,
     DERIVED_SCHEMES_PATH,
     GATES_REPORT_PATH,
-    SAMPLE_PATH,
     SEED,
-    SHEET_PATH,
     build_sheet,
     load_gates,
     load_schemes,
