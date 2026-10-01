@@ -93,6 +93,7 @@ smoke:
 	@echo "smoke target (telephony / pre-demo verification checklist)"
 
 # Plan 2.1: real voice for every text. Without YES=1 it only counts what is missing.
+# Note: without YES checks snapshots/CURRENT only, but YES=1 without SNAP renders all schemes (scope mismatch: 'missing: 0' applies to CURRENT snapshot, not full corpus).
 render:
 	$(PYTHON) -m haqdaar.audio.render $(if $(YES),--yes,) $(if $(SNAP),--snapshot $(SNAP),$(if $(YES),,--snapshot snapshots/CURRENT))
 
@@ -122,4 +123,8 @@ ear-check:
 # NOTE: defaults to offline faked HTTP (zero API spend); use ARGS=--live for owner live run.
 model-bakeoff:
 	$(PYTHON) -m tools.model_bakeoff $(ARGS)
+
+# Step 4.3: Door A offline top-1 accuracy check across 90 utterances (3 forms × 30 schemes)
+door-a-check:
+	$(PYTHON) -m tools.door_a_check $(ARGS)
 

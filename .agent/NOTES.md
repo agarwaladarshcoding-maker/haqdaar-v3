@@ -1832,7 +1832,6 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   6. `tools/ear_check.py` + `Makefile`: documented that live `ear-check` spends API budget, while `--offline` checks loading without API cost.
   7. `haqdaar/audio/ear.py`: documented `STT_TIMEOUT_S`, `SARVAM_STT_MODEL`, `GROQ_STT_MODEL` and noted Sarvam ignores `hint`.
   8. `tests/conftest.py`: added autouse `_block_unmocked_http_calls` fixture blocking external network calls.
-- Verified: all 332 tests passed in 20.0s.
 - Built `haqdaar/model/`:
   - `haqdaar/model/client.py`: `GroqModelClient` via raw `httpx`, temperature 0, JSON mode (`response_format={"type": "json_object"}`), 2.0s timeout, never raises, captures 429 / timeout / errors into `ModelClientResponse`, ledgers usage to `groq_usage.jsonl`.
   - `haqdaar/model/span_guard.py`: `SpanGuard` enforcing provenance string containment and closed-set checks (drops invented values, e.g. "farmer" can never smuggle in "low income").
@@ -1901,3 +1900,37 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Spend delta Rs0.00 (hand-fix; muse_usage.jsonl gitignored, on-disk total Rs12.97, last entry predates commit). OCCUPATION 7 values, all labeled. No owner-file items attempted.
 - Observed this session on branch: pytest 353, stress 0/0, render missing 0, sim ends stop=survivors_le_4 keypad_only.
 - 3 nits carried into Step B prompt warmup (test_cards_sheet tautological assert + stale docstring; Makefile render scope comment; render.py dead is_file branch).
+
+## Step B — 4.3 Door A + Warmup fixes (2 Oct 2026)
+- Base verified: main @ 9e75907 (STEP A merged). Created branch `step-4.3-door-a`.
+- Warmup fixes applied and verified:
+  1. `haqdaar/model/client.py`: replaced `os.environ.get("MODEL_TIMEOUT_S")` with `tunables.MODEL_TIMEOUT_S` default so monkeypatching tunables takes effect.
+  2. `tools/model_bakeoff.py`: changed `is_perfect` from `expected_boxes.issubset(produced_boxes)` to `produced_boxes == expected_boxes` (enforcing produced ⊆ expected) and measured `hallucinations_dropped` by checking absence of injected hallucination.
+  3. `haqdaar/model/span_guard.py`: added explanatory note why `income_band` accepts any non-empty string or integer (bands are dynamically built per snapshot from cutoffs rather than a static enum in `vocab.py`).
+  4. `haqdaar/model/router.py`: added comment documenting that alias fast-path stamps bypass SpanGuard by design because they match verified corpus aliases directly.
+  5. `.agent/NOTES.md`: removed stale line mentioning 332 tests.
+  6. `tests/test_cards_sheet.py`: changed `len(failing_ids) == len(gates.get("failures", []))` to `assert len(failing_ids) == 0` with comment (gates 28/28), and updated docstring to "(0 failing + 20 passing with 28/28 gates)".
+  7. `Makefile`: added comment above `render:` noting scope difference (checks `snapshots/CURRENT` vs renders all schemes).
+  8. `haqdaar/audio/render.py`: removed dead `is_file()` check on `snapshots/<id>`.
+  - Verification: pytest 353 passed in 20.69s; `make model-bakeoff` passed 30/30 (intercepted 30 hallucinations).
+- Scheme corpus count confirmed: exactly 30 schemes in `haqdaar/data/pipeline/schemes.yaml` (12 initial + 18 Phase 3.2). 28 derived schemes in `data_cache/derived/schemes.jsonl` + 2 quarantined (`pm-sym`, `pmsby`).
+- Door A architecture (§6 ARCHITECTURE.md, T12, PLAN-V2.md §3 4.3):
+  - Exact alias fast-path runs first.
+  - Normalization + Devanagari -> Latin phonetic transliteration + generic word stoplist + token matching against alias table.
+  - Candidate count branching: 1 -> read-back immediately; 2 -> keypad pick (`door_a_option_1` / `door_a_option_2` / `door_a_option_none` on 0); >=3 -> downgrade to Door B courtesy transition (`door_a_downgrade_to_b`) with top-10 shortlist.
+- Implemented `haqdaar/engine/door_a.py`:
+  - `devanagari_to_latin`: phonetic transliterator covering vowels, matras, virama, consonants, conjuncts, numbers, and common scheme acronyms.
+  - `normalize_text`: NFKC normalization, whitespace collapsing, punctuation and danda (`\u0964`, `\u0965`) stripping.
+  - `GENERIC_STOP_WORDS`: comprehensive stoplist for generic scheme terms, transaction words (loan, subsidy, card), and conversational filler in EN, HI, MR.
+  - `DoorA`: handles exact alias lookup, cross-script token matching, candidate disambiguation (1=read, 2=keypad_pick, >=3=downgrade_to_b), and top-10 shortlist.
+- Door A offline top-1 evaluation:
+  - Dataset: `fixtures/door_a_utterances.json` containing 90 utterances across all 30 schemes in `schemes.yaml` (3 forms × 30 schemes: EN, HI, MR).
+  - Runner tool: `tools/door_a_check.py` + `make door-a-check`.
+  - Offline accuracy: 90/90 (100.00%) with mean latency 0.58 ms (EN: 30/30 100%, HI: 30/30 100%, MR: 30/30 100%).
+  - Unit tests: `tests/test_door_a.py` (9 tests covering transliteration, normalization, candidate counts, shortlist, corpus integration, and 90-utterance benchmark).
+- Verification suite passing:
+  - `.venv/bin/python -m pytest -q`: 362 passed, 3 warnings in 20.53s.
+  - `make stress`: 1,000 callers on 12 schemes: 0 crashes, 0 truth failures.
+  - `make model-bakeoff`: 30/30 (100.0%) perfect utterances, 69/69 stamps matched, 30 hallucinated stamps intercepted.
+  - `make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"`: completed full call, closed cleanly with farewell.
+

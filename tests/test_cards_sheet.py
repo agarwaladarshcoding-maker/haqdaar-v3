@@ -1,7 +1,7 @@
 """tests/test_cards_sheet.py
 
 Tests for tools/cards_sheet.py:
-1. Seeded sample gives identical 20 ids (7 failing + 13 passing).
+1. Seeded sample gives identical 20 ids (0 failing + 20 passing with 28/28 gates).
 2. Rendered cards sheet contains all 20 sampled ids and their 3-language sections.
 3. Scaffolded audit_3_7.md is preserved on re-run and never overwritten.
 """
@@ -31,7 +31,8 @@ def test_seeded_sample_reproducibility():
     assert sample1["sample_ids"] == sample2["sample_ids"]
     assert sample1["failing_ids"] == sample2["failing_ids"]
     assert len(sample1["sample_ids"]) == 20
-    assert len(sample1["failing_ids"]) == len(gates.get("failures", []))
+    # Gates are 28/28 now (0 failures), so failing_ids must be 0; avoid tautological assert
+    assert len(sample1["failing_ids"]) == 0
 
     # All failing ids are in sample_ids
     for fid in sample1["failing_ids"]:

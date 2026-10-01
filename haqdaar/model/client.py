@@ -50,7 +50,7 @@ class GroqModelClient:
         self,
         api_key: Optional[str] = None,
         model: Optional[str] = None,
-        timeout: float = 2.0,
+        timeout: Optional[float] = None,
         ledger_path: Optional[Path] = None,
     ) -> None:
         if api_key is None:
@@ -62,8 +62,7 @@ class GroqModelClient:
         default_model = os.environ.get("GROQ_ROUTER_MODEL", os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"))
         self.model = model or default_model
 
-        env_timeout = os.environ.get("MODEL_TIMEOUT_S")
-        self.timeout = float(env_timeout) if env_timeout else timeout
+        self.timeout = float(timeout) if timeout is not None else tunables.MODEL_TIMEOUT_S
 
         self.ledger_path: Path = (
             Path(ledger_path)

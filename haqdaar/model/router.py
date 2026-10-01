@@ -78,6 +78,7 @@ class Model:
         stamps: list[Stamp] = []
 
         # 1. Exact alias match in code before model (Door A happy path)
+        # Note: alias fast-path stamps bypass SpanGuard by design as they match verified corpus aliases directly.
         if self.corpus is not None and hasattr(self.corpus, "alias_lookup"):
             matched_slugs = self.corpus.alias_lookup(transcript, lang)
             for slug in matched_slugs:

@@ -162,7 +162,9 @@ def is_value_in_closed_set(box: str, value: Any, custom_values: Mapping[str, Con
         return False
 
     if box == "income_band":
-        # String representing band or amount
+        # String representing band or amount. Left open because income bands are
+        # constructed dynamically per snapshot from scheme cutoffs (vocab.py:43)
+        # rather than being a static canonical enum in vocab.py.
         return isinstance(value, (str, int)) and bool(str(value).strip())
 
     return False

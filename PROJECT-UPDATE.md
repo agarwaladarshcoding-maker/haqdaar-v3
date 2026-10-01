@@ -47,6 +47,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 | `planner.py` | Picks the next question — the one that splits the list best. |
 | `terminals.py` | Decides how a call ends: exact match, near match, or nothing found. |
 | `call.py` | The call loop. Ties filter, planner and terminals together, turn by turn. |
+| `door_a.py` | Matches a scheme name spoken at the start of the call; jumps straight to it. |
 
 ### Data — `haqdaar/data/`
 | File | What it does |
@@ -80,21 +81,41 @@ Each entry says: what was added, what was changed, and what the project can do a
 | `tools/listen.py` | Plays saved clips on the Mac, with their words printed first. `make listen L=mr N=5`. |
 | `tools/cards_sheet.py` | Generates 20-card audit sheet and sample. `make cards-sheet`. |
 | `tools/ear_check.py` | Verifies speech to text across 3 sentences × en/hi/mr. `make ear-check`. |
+| `tools/door_a_check.py` | Verifies Door A accuracy across all 30 schemes in 3 languages. `make door-a-check`. |
 
 ### Other
 | File | What it does |
 |---|---|
 | `haqdaar/sim.py` | The terminal call. `make sim`. |
-| `fixtures/` | 5 test schemes, 3 test callers, 10 TTS stubs, 30 speech fixtures — used by tests and tools. |
-| `tests/` | Unit and shape tests across contracts, engine, pipeline, audio pool, mouth, phone, ear, and model. |
-| `Makefile` | Short commands: `make test`, `make sim`, `make run`, `make stress`, `make ear-check`, `make model-bakeoff`, etc. |
+| `fixtures/` | 5 test schemes, 3 test callers, 10 TTS stubs, 30 speech fixtures, 90 Door A utterances. |
+| `tests/` | Unit and shape tests across contracts, engine, pipeline, audio pool, mouth, phone, ear, model, and door_a. |
+| `Makefile` | Short commands: `make test`, `make sim`, `make run`, `make stress`, `make ear-check`, `make model-bakeoff`, `make door-a-check`, etc. |
 
 ### Not written yet
-`engine/door_a.py` (Phase 4 later steps).
+None for Phase 4 core engine. Live phone dial checks and field tests remain with the owner.
 
 ---
 
 ## 3 · Log — newest first
+
+### 2 Oct — Step 4.3: Door A scheme matching & 90-utterance benchmark
+- **Built Door A (`haqdaar/engine/door_a.py`):** when a caller names a scheme at the opener, the call matches it and jumps straight to it.
+  - Matches exact aliases first, then transliterates Hindi/Marathi Devanagari script to English letters and strips common filler words to match scheme names reliably.
+  - Branches cleanly: 1 match reads it back immediately; 2 matches asks the caller to pick with keys 1 or 2; 3 or more matches moves politely to normal questions with the top 10 schemes shortlisted.
+- **Added offline benchmark & dataset:**
+  - `fixtures/door_a_utterances.json`: 90 spoken name examples (3 variants in English, Hindi, and Marathi for all 30 schemes).
+  - `tools/door_a_check.py` and `make door-a-check`: runs all 90 examples offline in ~50 ms.
+  - Result: 90 of 90 (100.0%) top-1 matches.
+- **Fixed 8 review nits from Steps 4.2 and A:**
+  - `haqdaar/model/client.py`: timeout now reads from tunables so tests can change it.
+  - `tools/model_bakeoff.py`: bake-off now fails if unwanted answers appear; measures dropped hallucinations.
+  - `haqdaar/model/span_guard.py`: documented why income bands take dynamic strings.
+  - `haqdaar/model/router.py`: added note on fast-path alias bypass.
+  - `tests/test_cards_sheet.py`: fixed check to verify 0 failing schemes.
+  - `Makefile`: added note explaining check vs render scope.
+  - `haqdaar/audio/render.py`: removed dead directory check.
+  - Cleaned stale test counts in notes.
+- **Verified:** `pytest` (362 passed), `make stress` (1,000 callers: 0 crashes, 0 truth failures), `make model-bakeoff` (30 of 30 passed), `make sim` finishes cleanly with farewell.
 
 ### 1 Oct — Step A: Phase 3 code finish (gates, scheme fates, snapshot)
 - **Settled three scheme fates:**
