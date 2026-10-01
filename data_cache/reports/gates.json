@@ -1,10 +1,10 @@
 {
-  "schemes": 28,
-  "ok": 28,
+  "schemes": 27,
+  "ok": 27,
   "per_language": {
-    "en": 28,
-    "hi": 28,
-    "mr": 28
+    "en": 27,
+    "hi": 27,
+    "mr": 27
   },
   "failures": []
 }

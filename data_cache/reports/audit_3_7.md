@@ -4,22 +4,11 @@ Pass criteria (OQ3): 0 factual errors across the 20 sampled cards.
 Any error gets fixed at the pipeline stage that produced it.
 
 - Sample seed: 42
-- Total sampled: 20 (all 7 gate-failing + 13 passing)
+- Total sampled: 20 (all 0 gate-failing + 20 passing)
 
 Status legend: PENDING, PASS, FAIL
 
 ---
-
-### ab-pmjay
-- source_url: https://www.myscheme.gov.in/schemes/ab-pmjay
-- status: gate-passing
-- [ ] read en
-- [ ] read hi
-- [ ] read mr
-- [ ] listen hi
-- [ ] listen mr
-verdict: PENDING
-notes: 
 
 ### apy
 - source_url: https://www.myscheme.gov.in/schemes/apy
@@ -56,23 +45,23 @@ notes:
 
 ### ignwps
 - source_url: https://www.myscheme.gov.in/schemes/ignwps
-- status: gate-failing (unshipped, no audio)
+- status: gate-passing
 - [ ] read en
 - [ ] read hi
 - [ ] read mr
-- [ ] listen hi (no audio — skipped)
-- [ ] listen mr (no audio — skipped)
+- [ ] listen hi
+- [ ] listen mr
 verdict: PENDING
 notes: 
 
-### mgnrega
-- source_url: https://www.myscheme.gov.in/schemes/mgnrega
-- status: gate-failing (unshipped, no audio)
+### jsy1
+- source_url: https://www.myscheme.gov.in/schemes/jsy1
+- status: gate-passing
 - [ ] read en
 - [ ] read hi
 - [ ] read mr
-- [ ] listen hi (no audio — skipped)
-- [ ] listen mr (no audio — skipped)
+- [ ] listen hi
+- [ ] listen mr
 verdict: PENDING
 notes: 
 
@@ -89,23 +78,12 @@ notes:
 
 ### nfbs
 - source_url: https://www.myscheme.gov.in/schemes/nfbs
-- status: gate-failing (unshipped, no audio)
+- status: gate-passing
 - [ ] read en
 - [ ] read hi
 - [ ] read mr
-- [ ] listen hi (no audio — skipped)
-- [ ] listen mr (no audio — skipped)
-verdict: PENDING
-notes: 
-
-### nps-tsep
-- source_url: https://www.myscheme.gov.in/schemes/nps-tsep
-- status: gate-failing (unshipped, no audio)
-- [ ] read en
-- [ ] read hi
-- [ ] read mr
-- [ ] listen hi (no audio — skipped)
-- [ ] listen mr (no audio — skipped)
+- [ ] listen hi
+- [ ] listen mr
 verdict: PENDING
 notes: 
 
@@ -166,23 +144,34 @@ notes:
 
 ### pmjjby
 - source_url: https://www.myscheme.gov.in/schemes/pmjjby
-- status: gate-failing (unshipped, no audio)
+- status: gate-passing
 - [ ] read en
 - [ ] read hi
 - [ ] read mr
-- [ ] listen hi (no audio — skipped)
-- [ ] listen mr (no audio — skipped)
+- [ ] listen hi
+- [ ] listen mr
+verdict: PENDING
+notes: 
+
+### pmkmdy
+- source_url: https://www.myscheme.gov.in/schemes/pmkmdy
+- status: gate-passing
+- [ ] read en
+- [ ] read hi
+- [ ] read mr
+- [ ] listen hi
+- [ ] listen mr
 verdict: PENDING
 notes: 
 
 ### pmmvy
 - source_url: https://www.myscheme.gov.in/schemes/pmmvy
-- status: gate-failing (unshipped, no audio)
+- status: gate-passing
 - [ ] read en
 - [ ] read hi
 - [ ] read mr
-- [ ] listen hi (no audio — skipped)
-- [ ] listen mr (no audio — skipped)
+- [ ] listen hi
+- [ ] listen mr
 verdict: PENDING
 notes: 
 
@@ -208,19 +197,30 @@ notes:
 verdict: PENDING
 notes: 
 
-### rkvyshfshc
-- source_url: https://www.myscheme.gov.in/schemes/rkvyshfshc
-- status: gate-failing (unshipped, no audio)
+### pmuy2
+- source_url: https://www.myscheme.gov.in/schemes/pmuy2
+- status: gate-passing
 - [ ] read en
 - [ ] read hi
 - [ ] read mr
-- [ ] listen hi (no audio — skipped)
-- [ ] listen mr (no audio — skipped)
+- [ ] listen hi
+- [ ] listen mr
 verdict: PENDING
 notes: 
 
-### smam
-- source_url: https://www.myscheme.gov.in/schemes/smam
+### pmv
+- source_url: https://www.myscheme.gov.in/schemes/pmv
+- status: gate-passing
+- [ ] read en
+- [ ] read hi
+- [ ] read mr
+- [ ] listen hi
+- [ ] listen mr
+verdict: PENDING
+notes: 
+
+### rkvyshfshc
+- source_url: https://www.myscheme.gov.in/schemes/rkvyshfshc
 - status: gate-passing
 - [ ] read en
 - [ ] read hi

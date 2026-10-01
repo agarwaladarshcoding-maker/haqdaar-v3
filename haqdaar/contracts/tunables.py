@@ -40,6 +40,7 @@ DOOR_A_EXACT_SCORE: float = float(os.environ.get("DOOR_A_EXACT_SCORE", 1000.0))
 DOOR_A_ALIAS_SCORE_BASE: float = float(os.environ.get("DOOR_A_ALIAS_SCORE_BASE", 500.0))
 DOOR_A_SCORE_FLOOR: float = float(os.environ.get("DOOR_A_SCORE_FLOOR", 30.0))
 DOOR_A_TIE_BAND: float = float(os.environ.get("DOOR_A_TIE_BAND", 0.90))
+DOOR_A_MIN_TOKEN_OVERLAP: int = int(os.environ.get("DOOR_A_MIN_TOKEN_OVERLAP", 2))
 
 # Audio cache and storage tiers (03-ARCHITECTURE.md §10.1, 04-INTERFACES.md)
 AUDIO_CACHE_MB: int = int(os.environ.get("AUDIO_CACHE_MB", 64))  # 3.8: LRU of scheme clips

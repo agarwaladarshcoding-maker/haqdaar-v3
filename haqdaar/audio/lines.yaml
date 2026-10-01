@@ -57,15 +57,18 @@ lines:
   # --- door A · the caller named a scheme --------------------------------
   # One candidate is simply read out. Two get one keypad turn naming both. Three or more fall
   # through to the questions (door B), which is a downgrade, not an error.
+  # No {slots}: clips are pre-rendered, so the scheme name follows as its own
+  # chunk ("scheme:<slug>:name") in the say() sequence. Sequence: option_1,
+  # name 1, option_2, name 2, option_none.
   door_a_option_1:
-    en: "Press 1 for {scheme_1}."
-    hi: "{scheme_1} के लिए 1 दबाएँ।"
-    mr: "{scheme_1} साठी 1 दाबा."
+    en: "Press 1 for:"
+    hi: "1 दबाएँ:"
+    mr: "1 दाबा:"
 
   door_a_option_2:
-    en: "Press 2 for {scheme_2}."
-    mr: "{scheme_2} साठी 2 दाबा."
-    hi: "{scheme_2} के लिए 2 दबाएँ।"
+    en: "Press 2 for:"
+    hi: "2 दबाएँ:"
+    mr: "2 दाबा:"
 
   door_a_option_none:
     en: "Press 3 if you want neither of these."

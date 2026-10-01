@@ -3,7 +3,7 @@
 UNOWNED. Shared types, markers, and interfaces matching 04-INTERFACES.md.
 """
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
 from typing import Literal, Union
 
@@ -168,6 +168,16 @@ class Answer:
     box: BoxId
     value: ValueCode
     span: str
+
+
+@dataclass
+class SchemeEntry:
+    """Scheme entry indexed for Door A matching (shared by engine + data loader)."""
+    slug: str
+    priority: int = 2
+    names: dict[str, str] = field(default_factory=dict)
+    aliases: list[str] = field(default_factory=list)
+    distinctive_tokens: set[str] = field(default_factory=set)
 
 
 @dataclass(frozen=True)

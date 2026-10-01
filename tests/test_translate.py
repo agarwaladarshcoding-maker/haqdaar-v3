@@ -511,7 +511,12 @@ def test_lines_are_translated_and_written_back(lines_copy, tmp_path, monkeypatch
     }
     assert fake.requests == len(distinct) <= before
     texts = lines_mod.load_lines(lines_copy)
-    assert "{scheme_1}" in texts["door_a_option_1"]["hi"]
+    # Door A option lines carry no {slots}: clips are pre-rendered, so the
+    # scheme name follows as its own chunk in the say() sequence.
+    assert "{" not in texts["door_a_option_1"]["hi"]
+    assert "{" not in texts["door_a_option_1"]["mr"]
+    assert "{" not in texts["door_a_option_2"]["hi"]
+    assert "{" not in texts["door_a_option_2"]["mr"]
     # The trilingual greeting is one hand-made recording, never machine-translated.
     assert set(texts[lines_mod.TRILINGUAL_LINE_ID]) == {"en"}
     # The house-style comments survive the write.

@@ -358,7 +358,8 @@ def scrape_all_slugs(
     """Scrape every slug against one already-open page (D2: quarantine, don't crash).
 
     A per-slug failure is set aside with its reason and the loop moves on; scrape_scheme
-    already writes nothing to cache on error, so a quarantined slug leaves no raw file.
+    writes nothing to cache on error, and any stale raw file from an earlier run is
+    deleted, so a quarantined slug leaves no raw file for p2 to re-derive (AUDIT #2).
     """
     results: List[Dict[str, Any]] = []
     quarantined: List[Dict[str, str]] = []
@@ -374,6 +375,11 @@ def scrape_all_slugs(
         except Exception as e:
             logger.error("Error scraping slug '%s': %s", slug, e)
             quarantined.append({"slug": slug, "reason": str(e)})
+            for suffix in (".json", ".html"):
+                stale = cache_dir / f"{slug}{suffix}"
+                if stale.exists():
+                    stale.unlink()
+                    logger.warning("Deleted stale raw file for quarantined slug '%s': %s", slug, stale.name)
 
     return results, quarantined
 

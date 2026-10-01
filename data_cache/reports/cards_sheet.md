@@ -3,40 +3,7 @@
 Fact-check 20 cards against source pages (step 3.7).
 Readable on mobile. Card text in all 3 languages (English, Hindi, Marathi).
 
-Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
-
----
-
-### ab-pmjay
-
-- **Source URL:** https://www.myscheme.gov.in/schemes/ab-pmjay
-
-#### English (en)
-- **Official name:** Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana
-- **Card name:** Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana
-- **Summary:** Ayushman Bharat‑PMJAY offers cashless hospital coverage up to ₹5 lakhs per family yearly, covering all treatments, pre‑existing diseases, and pre/post‑hospitalisation expenses, with nationwide portability and no size or age limits.
-- **Benefit:** The scheme provides cashless hospitalization coverage up to ₹5,00,000 per family per year. It includes consultation, medicines, diagnostics, surgery, ICU, implants, accommodation and food, plus 3 days pre‑hospitalisation and 15 days post‑hospitalisation expenses, and covers pre‑existing diseases.
-- **Who can apply:** Rural families that meet any deprivation criterion such as a single kucha house, no adult aged 16‑59, disabled with no able‑bodied adult, SC/ST, landless manual labourers or destitute households are covered. Urban workers such as ragpickers, domestic workers, street vendors, construction labourers and sweepers are also covered.
-- **Documents:** Required documents include age and identity proof such as Aadhaar or PAN card, proof of address, and an income certificate. The CSC centre will tell you the full list of papers.
-- **How to apply:** Visit a hospital or Community Service Centre. An Arogya Mitra searches the beneficiary list using name, location, ration card or mobile number. Provide Aadhaar and ration card for identification and upload scanned documents to receive the e‑card.
-
-#### Hindi (hi)
-- **Official name:** आयुष्मान भारत - प्रधानमंत्री जन आरोग्य योजना
-- **Card name:** आयुष्मान भारत - प्रधानमंत्री जन आरोग्य योजना
-- **Summary:** आयुष्मान भारत-पी.एम.जे.ए.वाई. प्रति परिवार प्रति वर्ष 5 लाख रुपये तक का कैशलेस अस्पताल कवरेज प्रदान करता है, जिसमें सभी उपचार, पूर्व-मौजूदा बीमारियां और अस्पताल में भर्ती होने से पहले/बाद के खर्च शामिल हैं, जिसमें देशव्यापी पोर्टेबिलिटी और कोई आकार या आयु सीमा नहीं है।
-- **Benefit:** यह योजना प्रति परिवार प्रति वर्ष ₹5,00,000 तक का कैशलेस हॉस्पिटलाइजेशन कवरेज प्रदान करती है। इसमें परामर्श, दवाएं, निदान, सर्जरी, आईसीयू, इम्प्लांट, आवास और भोजन, साथ ही 3 दिन का प्री-हॉस्पिटलाइजेशन और 15 दिन का पोस्ट-हॉस्पिटलाइजेशन खर्च शामिल है, और यह पहले से मौजूद बीमारियों को भी कवर करती है।
-- **Who can apply:** ग्रामीण परिवार जो किसी भी अभाव मानदंड को पूरा करते हैं, जैसे कि एक कुचा घर, 16-59 वर्ष की आयु का कोई वयस्क नहीं, विकलांग जिसके पास कोई सक्षम वयस्क नहीं है, अनुसूचित जाति/अनुसूचित जनजाति, भूमिहीन शारीरिक श्रमिक या निराश्रित परिवार, शामिल हैं। शहरी श्रमिक जैसे कि कचरा बीनने वाले, घरेलू कामगार, सड़क विक्रेता, निर्माण श्रमिक और सफाईकर्मी भी शामिल हैं।
-- **Documents:** आवश्यक दस्तावेज़ों में आयु और पहचान प्रमाण जैसे आधार या पैन कार्ड, पते का प्रमाण और आय प्रमाण पत्र शामिल हैं। सीएससी सेंटर आपको कागज़ों की पूरी सूची बताएगा।
-- **How to apply:** किसी अस्पताल या सामुदायिक सेवा केंद्र पर जाएँ। एक आरोग्य मित्र नाम, स्थान, राशन कार्ड या मोबाइल नंबर का उपयोग करके लाभार्थी सूची खोजती है। पहचान के लिए आधार और राशन कार्ड प्रदान करें और ई-कार्ड प्राप्त करने के लिए स्कैन किए गए दस्तावेज़ अपलोड करें।
-
-#### Marathi (mr)
-- **Official name:** आयुष्मान भारत - प्रधानमंत्री जन आरोग्य योजना
-- **Card name:** आयुष्मान भारत - प्रधानमंत्री जन आरोग्य योजना
-- **Summary:** आयुष्मान भारत-पीएमजेएवाय, सर्व उपचार, पूर्व-विद्यमान आजार आणि रुग्णालयात दाखल होण्यापूर्वी/नंतरचा खर्च, देशभरात पोर्टेबिलिटी आणि कोणत्याही आकार किंवा वयाची मर्यादा नसताना, प्रति कुटुंब वार्षिक 5 लाख रुपयांपर्यंत रोखरहित रुग्णालयाचे संरक्षण देते.
-- **Benefit:** या योजनेत प्रति कुटुंब प्रति वर्ष ₹5,00,000 पर्यंतचे कॅशलेस हॉस्पिटलायझेशन कव्हरेज मिळते. यात सल्लामसलत, औषधे, निदान, शस्त्रक्रिया, अतिदक्षता विभाग, प्रत्यारोपण, निवास आणि भोजन, तसेच 3 दिवसांचा पूर्व-हॉस्पिटलायझेशन आणि 15 दिवसांचा पोस्ट-हॉस्पिटलायझेशन खर्च समाविष्ट आहे आणि त्यात पूर्वीपासून असलेल्या आजारांचाही समावेश आहे.
-- **Who can apply:** ग्रामीण भागातील ज्या कुटुंबांना काही निकष पूर्ण करावे लागतात, जसे की एकच मातीचे घर, 16-59 वयोगटातील प्रौढ व्यक्ती नसणे, शारीरिकदृष्ट्या सक्षम प्रौढ व्यक्ती नसलेले अपंग, अनुसूचित जाती/जमाती, जमीनहीन शारीरिक मजूर किंवा निराधार कुटुंबे, अशा कुटुंबांचा यात समावेश होतो. तसेच, शहरातील कामगार जसे की कचरा वेचणारे, घरकामगार, फेरीवाले, बांधकाम मजूर आणि सफाई कामगार यांचाही यात समावेश होतो.
-- **Documents:** आवश्यक कागदपत्रांमध्ये वय आणि ओळखपत्र जसे की आधार किंवा पॅन कार्ड, पत्त्याचा पुरावा आणि उत्पन्नाचे प्रमाणपत्र यांचा समावेश आहे. सीएससी सेंटर तुम्हाला कागदपत्रांची संपूर्ण यादी सांगेल.
-- **How to apply:** रुग्णालयात किंवा समुदाय सेवा केंद्राला भेट द्या. एक आरोग्य मित्र लाभार्थी यादीमध्ये नाव, ठिकाण, रेशन कार्ड किंवा मोबाईल नंबर वापरून शोध घेते. ओळख पटवण्यासाठी आधार आणि रेशन कार्ड द्या आणि ई-कार्ड मिळवण्यासाठी स्कॅन केलेले कागदपत्रे अपलोड करा.
+Sample size: 20 schemes (7 gate-failing + 20 passing, seed=42).
 
 ---
 
@@ -142,8 +109,6 @@ Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
 ### ignwps
 
 - **Source URL:** https://www.myscheme.gov.in/schemes/ignwps
-- **Gate notes:** Applicant must be a widow; pension discontinued in case of remarriage of widow; Applicant must belong to household living below poverty line; pension discontinued once widow moves above poverty line
-- **Gate failure reasons:** [hi] summary: number not in the English: 40; [hi] summary: number not in the English: 79
 
 #### English (en)
 - **Official name:** Indira Gandhi National Widow Pension Scheme
@@ -157,7 +122,7 @@ Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
 #### Hindi (hi)
 - **Official name:** इंदिरा गांधी राष्ट्रीय विधवा पेंशन योजना
 - **Card name:** इंदिरा गांधी राष्ट्रीय विधवा पेंशन योजना
-- **Summary:** इंदिरा गांधी राष्ट्रीय विधवा पेंशन योजना में गरीबी रेखा से नीचे के परिवारों की 40 से 79 साल की विधवाओं को हर महीने पेंशन मिलती है। 40 से 79 साल तक हर महीने 300 रुपये मिलते हैं। 80 साल की उम्र के बाद हर महीने 500 रुपये मिलते हैं।
+- **Summary:** इंदिरा गांधी राष्ट्रीय विधवा पेंशन योजना में गरीबी रेखा से नीचे के परिवारों की 40 से 79 साल की विधवाओं को हर महीने पेंशन मिलती है। इसमें हर महीने 300 रुपये मिलते हैं। 80 साल की उम्र के बाद हर महीने 500 रुपये मिलते हैं।
 - **Benefit:** यह योजना 40 साल से 79 साल तक की विधवाओं को हर महीने 300 रुपये देती है। यह योजना 80 साल और उससे ऊपर के लोगों को हर महीने 500 रुपये देती है।
 - **Who can apply:** 40 से 79 साल की उम्र की विधवाएं आवेदन कर सकती हैं। विधवाएं गरीबी रेखा से नीचे रहने वाले परिवार से होनी चाहिए।
 - **Documents:** कागज हैं पति का मृत्यु प्रमाण पत्र, जिसमें विधवा का नाम हो। बीपीएल कार्ड चाहिए। उम्र के सबूत के लिए जन्म प्रमाण पत्र या स्कूल प्रमाण पत्र चाहिए। सीएससी केंद्र आपको कागजों की पूरी सूची बताएगा।
@@ -174,38 +139,36 @@ Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
 
 ---
 
-### mgnrega
+### jsy1
 
-- **Source URL:** https://www.myscheme.gov.in/schemes/mgnrega
-- **Gate notes:** Applicant must be residing in a Rural Area - rural residence requirement is not captured in facets
-- **Gate failure reasons:** [hi] benefit_text: number not in the English: 1; [hi] benefit_text: number not in the English: 15; [mr] benefit_text: number not in the English: 1; [mr] benefit_text: number not in the English: 15
+- **Source URL:** https://www.myscheme.gov.in/schemes/jsy1
 
 #### English (en)
-- **Official name:** Mahatma Gandhi National Rural Employment Guarantee Act
-- **Card name:** Mahatma Gandhi National Rural Employment Guarantee Act
-- **Summary:** Mahatma Gandhi National Rural Employment Guarantee Act provides up to 100 days of wage employment each year to rural households with adults seeking manual work near their village, with equal wages, timely payment, and worksite facilities.
-- **Benefit:** The scheme gives guaranteed employment within 15 days from date of application. Work is within 5 kilometers of residence if possible and inside the Block. Wages are paid within a week or fifteen days at most.
-- **Who can apply:** Applicants must be at least 18 years of age. Applicants must live in a rural area.
-- **Documents:** Applicants need a photograph. Proof of identity like ration card, voter ID card, Aadhaar or PAN is needed. Name, age and gender details of household members are needed. The CSC centre will tell you the full list of papers.
-- **How to apply:** Applicants go to the local Gram Panchayat office. Applicants give an application on plain paper or make an oral request before the Panchayat Secretary. Applicants give names of adult household members willing to do unskilled manual work.
+- **Official name:** Janani Suraksha Yojana (JSY)
+- **Card name:** Janani Suraksha Yojana (JSY)
+- **Summary:** Janani Suraksha Yojana promotes institutional delivery by providing cash assistance to mothers delivering in government or accredited private facilities, support for ASHA workers, and free maternal and newborn care services.
+- **Benefit:** The scheme pays cash for delivery in a health institution. In Low Performing States the payment is ₹1,400/- for rural areas and ₹1,000/- for urban areas. In High Performing States the payment is ₹700/- for rural areas and ₹600/- for urban areas.
+- **Who can apply:** Pregnant women delivering in a government health centre or accredited private institution can apply. In High Performing States applicants are from Below Poverty Line households or are Scheduled Caste or Scheduled Tribe women. Home delivery support is for Below Poverty Line households.
+- **Documents:** Important papers are Below Poverty Line certificate, Scheduled Caste certificate, Scheduled Tribe certificate and Maternal And Child Health Card. The Janani Suraksha Yojana Card and referral slip are also needed at the time of delivery. The CSC centre will tell you the full list of papers.
+- **How to apply:** Registration is done through Accredited Social Health Activist, Auxiliary Nurse Midwife or Anganwadi Worker at government health centres. The worker fills the Maternal and Child Health Card. People carry Below Poverty Line certificate and referral slip for delivery.
 
 #### Hindi (hi)
-- **Official name:** महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार गारंटी अधिनियम
-- **Card name:** महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार गारंटी अधिनियम
-- **Summary:** महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार गारंटी अधिनियम हर साल गांव के परिवारों को 100 दिन तक मजदूरी का काम देता है। यह उन परिवारों के लिए है जिनके बड़े लोग गांव के पास हाथ से काम करना चाहते हैं। इसमें बराबर मजदूरी मिलती है। पैसा समय पर मिलता है। काम की जगह पर सुविधाएं मिलती हैं।
-- **Benefit:** यह योजना आवेदन की तारीख से 15 दिन के अंदर पक्का काम देती है। काम अगर हो सके तो घर से 5 किलोमीटर के अंदर और ब्लॉक के अंदर मिलता है। मजदूरी 1 हफ्ते में या ज्यादा से ज्यादा 15 दिन में मिलती है।
-- **Who can apply:** आवेदक की उम्र कम से कम 18 साल होनी चाहिए। आवेदक को गाँव में रहना चाहिए।
-- **Documents:** आवेदक को एक फोटो चाहिए। पहचान के सबूत के लिए राशन कार्ड, वोटर आईडी कार्ड, आधार या पैन चाहिए। घर के लोगों के नाम, उम्र और लिंग की जानकारी चाहिए। सीएससी सेंटर आपको कागजों की पूरी सूची बताएगा।
-- **How to apply:** आवेदक स्थानीय ग्राम पंचायत दफ्तर जाएं। आवेदक पंचायत सचिव के सामने सादे कागज पर अर्जी दें या मुंह से मांग रखें। आवेदक घर के उन बालिग सदस्यों के नाम दें जो बिना हुनर वाला हाथ का काम करने के लिए तैयार हैं।
+- **Official name:** जननी सुरक्षा योजना
+- **Card name:** जननी सुरक्षा योजना
+- **Summary:** जननी सुरक्षा योजना सरकारी या मान्यता वाले निजी अस्पताल में प्रसव को बढ़ावा देती है। इसमें बच्चे को जन्म देने पर माँ को नकद सहायता मिलती है। आशा कार्यकर्ता को सहायता मिलती है। माँ और नवजात बच्चे की देखभाल की सेवाएं मुफ्त मिलती हैं।
+- **Benefit:** यह योजना अस्पताल में डिलीवरी पर नकद पैसे देती है। कम प्रदर्शन वाले राज्यों में गाँव में ₹1,400/- और शहर में ₹1,000/- मिलते हैं। अच्छे प्रदर्शन वाले राज्यों में गाँव में ₹700/- और शहर में ₹600/- मिलते हैं।
+- **Who can apply:** गर्भवती महिलाएं जो सरकारी स्वास्थ्य केंद्र या मान्यता प्राप्त निजी संस्थान में प्रसव करती हैं, वे आवेदन कर सकती हैं। अच्छा प्रदर्शन करने वाले राज्यों में आवेदक गरीबी रेखा से नीचे के परिवारों से हैं या अनुसूचित जाति या अनुसूचित जनजाति की महिलाएं हैं। घर पर प्रसव के लिए सहायता गरीबी रेखा से नीचे के परिवारों के लिए है।
+- **Documents:** जरूरी कागज हैं बीपीएल प्रमाण पत्र, अनुसूचित जाति प्रमाण पत्र, अनुसूचित जनजाति प्रमाण पत्र और माँ और बच्चे के स्वास्थ्य का कार्ड। डिलीवरी के समय जननी सुरक्षा योजना कार्ड और रेफरल पर्ची भी चाहिए। सीएससी केंद्र आपको कागजों की पूरी सूची बताएगा।
+- **How to apply:** रजिस्ट्रेशन सरकारी स्वास्थ्य केंद्रों पर आशा कार्यकर्ता, एएनएम या आंगनवाड़ी कार्यकर्ता के जरिए होता है। कार्यकर्ता मां और बच्चे का स्वास्थ्य कार्ड भरते हैं। लोग डिलीवरी के लिए बीपीएल प्रमाण पत्र और रेफरल पर्ची साथ रखते हैं।
 
 #### Marathi (mr)
-- **Official name:** महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार हमी अधिनियम
-- **Card name:** महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार हमी अधिनियम
-- **Summary:** महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार हमी कायद्याखाली गावाजवळ हाताने काम मागणाऱ्या प्रौढ असलेल्या ग्रामीण कुटुंबांना दरवर्षी 100 दिवसांपर्यंत मजुरीचे काम मिळते. सर्वांना समान मजुरी मिळते. पैसे वेळेवर मिळतात. कामाच्या ठिकाणी सुविधा मिळतात.
-- **Benefit:** या योजनेत अर्जाच्या तारखेपासून 15 दिवसांत कामाची हमी मिळते. काम शक्य असेल तर घरापासून 5 किलोमीटर अंतरात आणि ब्लॉकमध्येच असते. मजुरी 1 आठवड्यात किंवा जास्तीत जास्त 15 दिवसांत दिली जाते.
-- **Who can apply:** अर्जदाराचे वय किमान 18 वर्षे असले पाहिजे. अर्जदार ग्रामीण भागात राहत असला पाहिजे.
-- **Documents:** अर्ज करणाऱ्याला फोटो लागेल. ओळखीचा पुरावा म्हणून रेशन कार्ड, वोटर आयडी कार्ड, आधार किंवा पॅन लागेल. घरातल्या लोकांची नावं, वय आणि लिंग यांची माहिती लागेल. कागदांची पूर्ण यादी सीएससी सेंटर तुम्हाला सांगेल.
-- **How to apply:** अर्जदार स्थानिक ग्रामपंचायत कार्यालयात जातात. अर्जदार पंचायत सचिवाकडे साध्या कागदावर अर्ज देतात किंवा तोंडी विनंती करतात. अर्जदार अकुशल हातमजुरीचे काम करायला तयार असलेल्या घरातील प्रौढ सदस्यांची नावे देतात.
+- **Official name:** जननी सुरक्षा योजना
+- **Card name:** जननी सुरक्षा योजना
+- **Summary:** जननी सुरक्षा योजना दवाखान्यात बाळंतपणाला प्रोत्साहन देते. सरकारी किंवा मान्यताप्राप्त खाजगी दवाखान्यात बाळंतपण करणाऱ्या आईला रोख मदत मिळते. आशा कार्यकर्त्यांना मदत मिळते. आई आणि नवजात बाळासाठी मोफत काळजी सेवा मिळतात.
+- **Benefit:** ही योजना आरोग्य संस्थेत प्रसूतीसाठी रोख पैसे देते. कमी कामगिरी असलेल्या राज्यांमध्ये ग्रामीण भागासाठी ₹1,400/- आणि शहरी भागासाठी ₹1,000/- मिळतात. जास्त कामगिरी असलेल्या राज्यांमध्ये ग्रामीण भागासाठी ₹700/- आणि शहरी भागासाठी ₹600/- मिळतात.
+- **Who can apply:** सरकारी आरोग्य केंद्रात किंवा मान्यताप्राप्त खासगी दवाखान्यात बाळंतपण करणाऱ्या गरोदर महिला अर्ज करू शकतात. चांगली कामगिरी करणाऱ्या राज्यांमध्ये अर्ज करणाऱ्या महिला दारिद्र्यरेषेखालील कुटुंबातील असाव्यात किंवा अनुसूचित जातीच्या किंवा अनुसूचित जमातीच्या असाव्यात. घरी बाळंतपणासाठीची मदत दारिद्र्यरेषेखालील कुटुंबांसाठी आहे.
+- **Documents:** महत्त्वाची कागदपत्रे म्हणजे दारिद्र्य रेषेखालील प्रमाणपत्र, अनुसूचित जातीचे प्रमाणपत्र, अनुसूचित जमातीचे प्रमाणपत्र आणि माता व बाल आरोग्य कार्ड. बाळंतपणाच्या वेळी जननी सुरक्षा योजना कार्ड आणि रेफरल स्लिप पण लागतात. सीएससी केंद्र तुम्हाला कागदपत्रांची पूर्ण यादी सांगेल.
+- **How to apply:** नोंदणी सरकारी आरोग्य केंद्रात आशा कार्यकर्ती, एएनएम किंवा अंगणवाडी सेविका यांच्यामार्फत होते. कार्यकर्ती माता आणि बाल आरोग्य कार्ड भरते. लोक प्रसूतीसाठी बीपीएल प्रमाणपत्र आणि रेफरल चिठ्ठी सोबत ठेवतात.
 
 ---
 
@@ -245,8 +208,6 @@ Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
 ### nfbs
 
 - **Source URL:** https://www.myscheme.gov.in/schemes/nfbs
-- **Gate notes:** Family must be living Below Poverty Line (BPL); Primary breadwinner must be deceased; deceased's age was more than 18 years and less than 60 years; Applicant must be the succeeding primary breadwinner / head of household found after local inquiry
-- **Gate failure reasons:** [hi] summary: length 1.61x the English, over 1.6
 
 #### English (en)
 - **Official name:** National Family Benefit Scheme
@@ -260,7 +221,7 @@ Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
 #### Hindi (hi)
 - **Official name:** राष्ट्रीय पारिवारिक लाभ योजना
 - **Card name:** राष्ट्रीय पारिवारिक लाभ योजना
-- **Summary:** राष्ट्रीय पारिवारिक लाभ योजना में भारत के बीपीएल परिवारों को 20,000 रुपये एक बार में मिलते हैं। घर के मुख्य कमाने वाले की उम्र 18 से 60 साल हो और उसकी मौत हो जाए, तब यह मदद मिलती है। स्थानीय जांच के बाद यह पैसा घर के बचे हुए मुखिया को मिलता है।
+- **Summary:** राष्ट्रीय पारिवारिक लाभ योजना भारत के बीपीएल परिवारों को 20,000 रुपये एकमुश्त देती है। 18 से 60 साल के मुख्य कमाने वाले की मौत पर स्थानीय जांच के बाद यह सहायता परिवार के मुखिया को मिलती है।
 - **Benefit:** यह योजना कमाने वाले की मौत पर एक बार में 20000 रुपये की मदद देती है। यह पैसा स्थानीय जांच के बाद पाए गए घर के जीवित मुखिया के लिए है।
 - **Who can apply:** आवेदक भारत का नागरिक होना चाहिए। परिवार गरीबी रेखा से नीचे का होना चाहिए। मरने वाला मुख्य कमाने वाला 18 साल से ज्यादा और 60 साल से कम उम्र का था। आवेदक उसके बाद घर का मुख्य कमाने वाला हो।
 - **Documents:** जरूरी कागज मृत्यु प्रमाण पत्र और बीपीएल कार्ड हैं। पहचान का प्रमाण और बैंक खाते की जानकारी भी चाहिए। सीएससी केंद्र आपको कागजों की पूरी सूची बता देगा।
@@ -274,41 +235,6 @@ Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
 - **Who can apply:** अर्जदार भारताचा नागरिक असला पाहिजे. कुटुंब दारिद्र्य रेषेखालचे असले पाहिजे. वारलेल्या कमावणाऱ्या व्यक्तीचे वय 18 वर्षांपेक्षा जास्त आणि 60 वर्षांपेक्षा कमी होते. अर्जदार हाच त्यानंतरचा मुख्य कमावता आहे.
 - **Documents:** महत्त्वाची कागदपत्रे म्हणजे मृत्यू दाखला आणि बीपीएल कार्ड. ओळखीचा पुरावा आणि बँक खात्याची माहिती पण लागेल. सीएससी केंद्र तुम्हाला कागदपत्रांची पूर्ण यादी सांगेल.
 - **How to apply:** फॉर्म जिल्हा समाज कल्याण अधिकारी किंवा तहसील समाज कल्याण अधिकारी यांच्याकडे मोफत मिळतो. भरलेला फॉर्म कागदपत्रांसह नेमलेल्या अधिकाऱ्याकडे जमा करावा.
-
----
-
-### nps-tsep
-
-- **Source URL:** https://www.myscheme.gov.in/schemes/nps-tsep
-- **Gate notes:** Applicant must be Laghu Vyapari, self-employed person, shop owner, retail trader, rice mill owner, oil mill owner, workshop owner, commission agent, real estate broker, small hotel owner, or restaurant owner - multiple groups so occupation=ANY; Annual turnover must not exceed ₹1,50,00,000/-; Must possess savings bank account and Aadhaar Card or Aadhaar Number; Must not be covered under any National Pension Scheme contributed by Central Government, EPFO, or ESIC; Must not be an income-tax payer/assessee and must not be enrolled under Pradhan Mantri Shram Yogi Maandhan Yojana
-- **Gate failure reasons:** [hi] summary: number not in the English: 60; [hi] summary: length 1.69x the English, over 1.6; [hi] benefit_text: number not in the English: 60; [hi] benefit_text: number not in the English: 50; [mr] summary: number not in the English: 60; [mr] benefit_text: number not in the English: 60; [mr] benefit_text: number not in the English: 50
-
-#### English (en)
-- **Official name:** National Pension Scheme for Traders And Self Employed Persons
-- **Card name:** National Pension Scheme for Traders And Self Employed Persons
-- **Summary:** The scheme provides Rs 3,000 monthly pension after age sixty to small traders and self-employed persons aged 18 to 40 with turnover up to Rs 1.5 crore, with matching government contribution and family support provisions.
-- **Benefit:** The scheme pays ₹3,000/- every month after sixty years of age. The Government of India puts matching money every month. After death, the spouse is entitled to fifty per cent as family pension.
-- **Who can apply:** Shop owners, retail traders, and self-employed people can apply. Applicants must be between 18 and 40 years of age. Annual turnover must not be more than ₹1,50,00,000/-.
-- **Documents:** Applicants need Aadhaar Card. Bank account details and Indian Financial System Code are needed. Bank passbook or bank statement is needed as proof. The CSC centre will tell you the full list of papers.
-- **How to apply:** Applicants must visit the nearest Common Service Centre for registration. Aadhaar Card and bank account proof must be taken. The Village Level Entrepreneur fills details and collects first payment in cash.
-
-#### Hindi (hi)
-- **Official name:** व्यापारियों और स्व-रोजगार व्यक्तियों के लिए राष्ट्रीय पेंशन योजना
-- **Card name:** व्यापारियों और स्व-रोजगार व्यक्तियों के लिए राष्ट्रीय पेंशन योजना
-- **Summary:** यह योजना 18 से 40 साल तक की उम्र के छोटे व्यापारियों और खुद काम करने वालों को 60 साल की उम्र के बाद हर महीने 3,000 रुपये पेंशन देती है। यह उन लोगों के लिए है जिनका कारोबार 1.5 करोड़ रुपये तक है। इसमें सरकार भी बराबर पैसा देती है। इसमें परिवार की मदद का नियम भी है।
-- **Benefit:** यह योजना 60 साल की उम्र के बाद हर महीने 3000 रुपये देती है। भारत सरकार हर महीने बराबर का पैसा डालती है। मौत के बाद पति या पत्नी को पारिवारिक पेंशन के रूप में 50 प्रतिशत मिलेगा।
-- **Who can apply:** दुकान के मालिक, खुदरा व्यापारी और खुद का काम करने वाले लोग आवेदन कर सकते हैं। आवेदक की उम्र 18 से 40 साल के बीच होनी चाहिए। सालाना कारोबार ₹1,50,00,000/- से ज्यादा नहीं होना चाहिए।
-- **Documents:** आवेदन करने वालों को आधार कार्ड चाहिए। बैंक खाते की जानकारी और इंडियन फाइनेंशियल सिस्टम कोड चाहिए। सबूत के लिए बैंक पासबुक या बैंक स्टेटमेंट चाहिए। सीएससी सेंटर आपको कागजों की पूरी लिस्ट बताएगा।
-- **How to apply:** रजिस्ट्रेशन के लिए आवेदकों को सबसे नजदीकी कॉमन सर्विस सेंटर जाना होगा। आधार कार्ड और बैंक खाते का सबूत साथ लेकर जाना होगा। विलेज लेवल एंटरप्रेन्योर विवरण भरेगा और पहला भुगतान नकद में लेगा।
-
-#### Marathi (mr)
-- **Official name:** व्यापारी आणि स्वयंरोजगार व्यक्तींसाठी राष्ट्रीय निवृत्तीवेतन योजना
-- **Card name:** व्यापारी आणि स्वयंरोजगार व्यक्तींसाठी राष्ट्रीय निवृत्तीवेतन योजना
-- **Summary:** ही योजना 18 ते 40 वयाच्या छोट्या व्यापाऱ्यांना आणि स्वतःचा धंदा करणाऱ्यांना वय 60 झाल्यावर दर महिन्याला 3,000 रुपये पेन्शन देते. उलाढाल 1.5 कोटी रुपयांपर्यंत असली पाहिजे. सरकार तेवढेच पैसे भरते. कुटुंबासाठी मदतीची सोय आहे.
-- **Benefit:** 60 वर्षे वय झाल्यावर दर महिन्याला 3000 रुपये मिळतात. भारत सरकार दर महिन्याला तेवढेच पैसे भरते. मृत्यूनंतर पती किंवा पत्नीला कुटुंब पेन्शन म्हणून 50 टक्के मिळण्याचा हक्क आहे.
-- **Who can apply:** दुकानदार, किरकोळ व्यापारी आणि स्वतःचा व्यवसाय करणारे लोक अर्ज करू शकतात. अर्जदारांचे वय 18 ते 40 वर्षांच्या मध्ये असले पाहिजे. वार्षिक उलाढाल ₹1,50,00,000/- पेक्षा जास्त नसली पाहिजे.
-- **Documents:** अर्जदारांना आधार कार्ड लागेल. बँक खात्याची माहिती आणि इंडियन फायनान्शियल सिस्टम कोड लागेल. पुरावा म्हणून बँक पासबुक किंवा बँक स्टेटमेंट लागेल. सीएससी केंद्र तुम्हाला कागदपत्रांची पूर्ण यादी सांगेल.
-- **How to apply:** नोंदणीसाठी अर्जदारांनी जवळच्या कॉमन सर्व्हिस सेंटरला जावे. आधार कार्ड आणि बँक खात्याचा पुरावा घेऊन जावा. व्हिलेज लेव्हल एंटरप्रेन्योर माहिती भरतो आणि पहिले पेमेंट रोख घेतो.
 
 ---
 
@@ -480,8 +406,6 @@ Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
 ### pmjjby
 
 - **Source URL:** https://www.myscheme.gov.in/schemes/pmjjby
-- **Gate notes:** Requires an individual bank / post office account for premium auto-debit
-- **Gate failure reasons:** [hi] benefit_text: number not in the English: 1; [hi] who_can_apply: length 1.61x the English, over 1.6; [mr] benefit_text: number not in the English: 1
 
 #### English (en)
 - **Official name:** Pradhan Mantri Jeevan Jyoti Bima Yojana
@@ -496,8 +420,8 @@ Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
 - **Official name:** प्रधानमंत्री जीवन ज्योति बीमा योजना
 - **Card name:** प्रधानमंत्री जीवन ज्योति बीमा योजना
 - **Summary:** प्रधानमंत्री जीवन ज्योति बीमा योजना एक साल का जीवन बीमा देती है। किसी भी कारण से मौत होने पर 2 लाख रुपये मिलते हैं। 18 से 50 साल की उम्र का कोई भी व्यक्ति, जिसका बैंक या डाकघर में खाता है, हर साल 436 रुपये देता है। पैसा खाते से अपने आप कट जाता है।
-- **Benefit:** यह योजना 2.00 लाख रुपये का 1 साल का जीवन बीमा देती है। किसी भी कारण से मौत होने पर बीमा का पैसा मिलता है। हर साल हर व्यक्ति के लिए प्रीमियम 436 रुपये है। प्रीमियम बैंक या डाकघर के खाते से अपने आप कट जाता है।
-- **Who can apply:** 18 से 50 साल की उम्र के लोग आवेदन कर सकते हैं। आवेदन करने वाले के पास खुद के नाम पर बैंक या पोस्ट ऑफिस में खाता होना चाहिए।
+- **Benefit:** यह योजना 2.00 लाख रुपये का एक साल का जीवन बीमा देती है। किसी भी कारण से मौत होने पर बीमा का पैसा मिलता है। हर साल हर व्यक्ति के लिए प्रीमियम 436 रुपये है। प्रीमियम बैंक या डाकघर के खाते से अपने आप कट जाता है।
+- **Who can apply:** 18 से 50 साल के लोग आवेदन कर सकते हैं। आवेदक का बैंक या डाकघर में व्यक्तिगत खाता होना चाहिए।
 - **Documents:** फॉर्म के लिए जरूरी कागजों की खुद दस्तखत की हुई कॉपी चाहिए। सीएससी केंद्र आपको कागजों की पूरी सूची बता देगा।
 - **How to apply:** आवेदक सहमति और घोषणा वाला फॉर्म भरें और उस पर दस्तखत करें। आवेदक जरूरी कागजों की खुद दस्तखत की हुई नकल साथ लगाएं। आवेदक अपना केस बैंक या डाकघर के अधिकारी को जमा करें।
 
@@ -505,18 +429,49 @@ Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
 - **Official name:** प्रधानमंत्री जीवन ज्योती विमा योजना
 - **Card name:** प्रधानमंत्री जीवन ज्योती विमा योजना
 - **Summary:** प्रधानमंत्री जीवन ज्योती विमा योजनेत कोणत्याही कारणाने मृत्यू झाल्यास 2 लाख रुपयांचे एक वर्षाचे जीवन विमा संरक्षण मिळते. बँक किंवा पोस्ट ऑफिस खाते असलेले 18 ते 50 वयोगटातील लोक दरवर्षी ऑटो-डेबिटने 436 रुपये भरतात.
-- **Benefit:** ही योजना 1 वर्षासाठी ₹ 2.00 लाखांचे जीवन विमा संरक्षण देते. कोणत्याही कारणाने मृत्यू झाला तरी पैसे मिळतात. प्रत्येकासाठी वर्षाला ₹ 436/- हप्ता आहे. हा हप्ता बँक किंवा पोस्ट ऑफिसच्या खात्यातून आपोआप कापला जातो.
+- **Benefit:** ही योजना एका वर्षासाठी ₹ 2.00 लाखांचे जीवन विमा संरक्षण देते. कोणत्याही कारणाने मृत्यू झाला तरी पैसे मिळतात. प्रत्येकासाठी वर्षाला ₹ 436/- हप्ता आहे. हा हप्ता बँक किंवा पोस्ट ऑफिसच्या खात्यातून आपोआप कापला जातो.
 - **Who can apply:** 18 ते 50 वर्षे वयाचे लोक अर्ज करू शकतात. अर्जदाराकडे स्वतःचे बँक किंवा पोस्ट ऑफिस खाते असले पाहिजे.
 - **Documents:** फॉर्मसाठी लागणाऱ्या कागदांच्या तुम्ही सही केलेल्या प्रती द्याव्या लागतील. सीएससी केंद्र तुम्हाला कागदांची पूर्ण यादी सांगेल.
 - **How to apply:** अर्जदार संमती-सह-घोषणा फॉर्म भरतात आणि सही करतात. अर्जदार लागणाऱ्या कागदपत्रांच्या स्वतः सही केलेल्या प्रती जोडतात. अर्जदार बँक किंवा पोस्ट ऑफिसच्या अधिकाऱ्याकडे प्रकरण सादर करतात.
 
 ---
 
+### pmkmdy
+
+- **Source URL:** https://www.myscheme.gov.in/schemes/pmkmdy
+
+#### English (en)
+- **Official name:** Pradhan Mantri Kisan Maandhan Yojana
+- **Card name:** Pradhan Mantri Kisan Maandhan Yojana
+- **Summary:** The Pradhan Mantri Kisan Maandhan Yojana provides Rs 3,000 monthly pension after age 60 to small and marginal farmers aged 18 to 40 with up to 2 hectares land, with matching government contribution.
+- **Benefit:** The scheme pays a minimum assured pension of 3,000 rupees per month after age 60 years. After death of the subscriber, the scheme pays 50% of the pension to the spouse as family pension. Government adds the same amount as the monthly contribution.
+- **Who can apply:** Small or marginal farmers with cultivable land up to 2 hectares can apply. Applicants are from 18 to 40 years at entry and names appear in land records as on 01.08.2019. Applicants hold Aadhaar card and savings bank account or PM-KISAN account.
+- **Documents:** Papers needed are Aadhaar card and savings bank account number with IFSC code. Bank passbook or cheque leaf or copy of bank statement works as proof of bank account. The CSC centre will tell you the full list of papers.
+- **How to apply:** Farmers visit the nearest Common Service Centre for enrolment. Aadhaar card and savings bank account number with IFSC code are taken along with initial contribution in cash. The Village Level Entrepreneur fills details and issues Kisan Card with pension account number.
+
+#### Hindi (hi)
+- **Official name:** प्रधानमंत्री किसान मानधन योजना
+- **Card name:** प्रधानमंत्री किसान मानधन योजना
+- **Summary:** प्रधानमंत्री किसान मानधन योजना छोटे और सीमांत किसानों को 60 साल की उम्र के बाद हर महीने 3,000 रुपये पेंशन देती है। इसमें 18 से 40 साल की उम्र के किसान आते हैं, जिनके पास 2 हेक्टेयर तक जमीन है। सरकार भी बराबर का पैसा देती है।
+- **Benefit:** 60 साल की उम्र के बाद इस योजना में हर महीने कम से कम 3000 रुपये की पक्की पेंशन मिलती है। योजना से जुड़े व्यक्ति की मौत के बाद योजना पेंशन का 50% पति या पत्नी को पारिवारिक पेंशन के रूप में देती है। सरकार हर महीने के योगदान के बराबर राशि जोड़ती है।
+- **Who can apply:** 2 हेक्टेयर तक खेती लायक जमीन वाले छोटे या सीमांत किसान आवेदन कर सकते हैं। जुड़ते समय आवेदक की उम्र 18 से 40 साल होनी चाहिए। 01.08.2019 तक जमीन के रिकॉर्ड में नाम होना चाहिए। आवेदक के पास आधार कार्ड और बचत बैंक खाता या पीएम-किसान खाता होना चाहिए।
+- **Documents:** जरूरी कागज हैं आधार कार्ड और आईएफएससी कोड के साथ बचत बैंक खाते का नंबर। बैंक खाते के सबूत के लिए बैंक पासबुक या चेक की पत्ती या बैंक स्टेटमेंट की कॉपी चलेगी। सीएससी सेंटर आपको कागजों की पूरी सूची बताएगा।
+- **How to apply:** किसान नाम लिखवाने के लिए सबसे नजदीकी कॉमन सर्विस सेंटर जाते हैं। आधार कार्ड साथ ले जाते हैं। IFSC कोड के साथ बचत बैंक खाते का नंबर साथ ले जाते हैं। पहला पैसा नकद में साथ ले जाते हैं। विलेज लेवल उद्यमी जानकारी भरता है और पेंशन खाता नंबर वाला किसान कार्ड देता है।
+
+#### Marathi (mr)
+- **Official name:** प्रधानमंत्री किसान मानधन योजना
+- **Card name:** प्रधानमंत्री किसान मानधन योजना
+- **Summary:** प्रधानमंत्री किसान मानधन योजनेत 18 ते 40 वयाच्या छोट्या आणि सीमांत शेतकऱ्यांना 60 वर्षांनंतर दरमहा 3,000 रुपये पेन्शन मिळते. यासाठी 2 हेक्टरपर्यंत जमीन असली पाहिजे. सरकारही तेवढीच रक्कम भरते.
+- **Benefit:** 60 वर्षे पूर्ण झाल्यावर या योजनेतून दर महिन्याला किमान 3000 रुपये पेन्शन नक्की मिळते. सभासदाच्या मृत्यूनंतर पती किंवा पत्नीला पेन्शनच्या 50% रक्कम कुटुंब पेन्शन म्हणून मिळते. सरकार दर महिन्याला भरलेल्या हप्त्याएवढीच रक्कम भरते.
+- **Who can apply:** 2 हेक्टर पर्यंत शेती करता येणारी जमीन असलेले लहान किंवा अत्यल्प शेतकरी अर्ज करू शकतात. अर्ज करताना वय 18 ते 40 वर्षे असावे. 01.08.2019 रोजी जमिनीच्या नोंदीत नाव असावे. अर्जदाराकडे आधार कार्ड असावे आणि बँकेत बचत खाते किंवा पीएम-किसान खाते असावे.
+- **Documents:** कागदपत्रे म्हणून आधार कार्ड आणि IFSC कोडसह बचत बँक खात्याचा नंबर लागेल. बँक खात्याचा पुरावा म्हणून बँक पासबुक किंवा चेकचे पान किंवा बँक स्टेटमेंटची प्रत चालेल. सीएससी केंद्र तुम्हाला कागदपत्रांची पूर्ण यादी सांगेल.
+- **How to apply:** नोंदणीसाठी शेतकरी जवळच्या कॉमन सर्व्हिस सेंटरला जातात. ते आधार कार्ड, IFSC कोड असलेला बचत बँक खात्याचा नंबर आणि सुरुवातीची रक्कम रोख सोबत घेतात. गावस्तर उद्योजक माहिती भरतो आणि पेन्शन खाते नंबर असलेले किसान कार्ड देतो.
+
+---
+
 ### pmmvy
 
 - **Source URL:** https://www.myscheme.gov.in/schemes/pmmvy
-- **Gate notes:** Applicable only for the first live birth; second pregnancy eligible only if girl child per PMMVY 2.0 norms including twins/triplets/quadruplets case; Requires employment with wage-loss due to pregnancy; Excludes pregnant women and lactating mothers in regular employment with Central Government or State Government or Public Sector Undertaking or in receipt of similar benefits under any law; Must apply within 270 days from child birth; Limited to socially and economically disadvantaged sections as listed (SC/ST, disabled, BPL, PMJAY, e-Shram, Kisan Samman Nidhi farmers, MGNREGA, income less than Rs. 8 Lakh, AWW/AWH/ASHA, NFSA ration card)
-- **Gate failure reasons:** [hi] summary: number not in the English: 2
 
 #### English (en)
 - **Official name:** Pradhan Mantri Matru Vandana Yojana
@@ -530,7 +485,7 @@ Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
 #### Hindi (hi)
 - **Official name:** प्रधानमंत्री मातृ वंदना योजना
 - **Card name:** प्रधानमंत्री मातृ वंदना योजना
-- **Summary:** प्रधानमंत्री मातृ वंदना योजना गर्भवती महिलाओं को मदद देती है। पहले बच्चे के लिए 2 किस्तों में 5,000 रुपये मिलते हैं। अगर दूसरा बच्चा लड़की हो तो 6,000 रुपये मिलते हैं। यह मदद रजिस्ट्रेशन, जांच और टीकाकरण से जुड़ी है।
+- **Summary:** प्रधानमंत्री मातृ वंदना योजना गर्भवती महिलाओं को मदद देती है। पहले बच्चे के लिए दो किस्तों में 5,000 रुपये मिलते हैं। अगर दूसरा बच्चा लड़की हो तो 6,000 रुपये मिलते हैं। यह मदद रजिस्ट्रेशन, जांच और टीकाकरण से जुड़ी है।
 - **Benefit:** इस योजना में गर्भवती का रजिस्ट्रेशन और एक जांच के बाद 3000 रुपये मिलते हैं. बच्चे के जन्म का रजिस्ट्रेशन और 14 हफ्ते तक टीके लगने के बाद 2000 रुपये मिलते हैं. दूसरा बच्चा लड़की हो तो 6000 रुपये मिलते हैं.
 - **Who can apply:** गर्भवती महिलाओं की उम्र कम से कम 19 साल होनी चाहिए। यह योजना पहले जीवित बच्चे के जन्म के लिए है और उन महिलाओं के लिए है जिनकी मजदूरी का नुकसान हुआ है। नियमित सरकारी नौकरी वाली महिलाएं आवेदन नहीं कर सकती हैं।
 - **Documents:** आधार कार्ड और बैंक खाते की जानकारी चाहिए। एमसीपी कार्ड और बच्चे का जन्म प्रमाण पत्र भी चाहिए। जन्म के बाद बच्चे के टीकाकरण की जानकारी चाहिए। सीएससी सेंटर आपको कागजों की पूरी सूची बताएगा।
@@ -613,10 +568,75 @@ Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
 
 ---
 
+### pmuy2
+
+- **Source URL:** https://www.myscheme.gov.in/schemes/pmuy2
+
+#### English (en)
+- **Official name:** Pradhan Mantri Ujjwala Yojana 2.0
+- **Card name:** Pradhan Mantri Ujjwala Yojana 2.0
+- **Summary:** Pradhan Mantri Ujjwala Yojana 2.0 provides deposit-free LPG connections to adult women from specified low-income households, covering security deposit and accessories, plus a free first refill and stove from Oil Marketing Companies.
+- **Benefit:** The scheme gives cash assistance of Rs. 1600 for 14.2 kg cylinder and Rs. 1150 for 5 kg cylinder. First LPG refill and stove are free with the deposit free connection.
+- **Who can apply:** Adult women who are 18 years of age can apply. Women belong to SC households, ST households and other poor groups. The household must have no other LPG connection.
+- **Documents:** The papers are KYC form, Ration Card and Aadhaar. Aadhaar of adult family members is also needed. Bank account number and IFSC is needed. The CSC centre will tell you the full list of papers.
+- **How to apply:** Forms are available at the nearest LPG distributor. The form is filled with personal details and bank details. The form with papers is submitted at the nearest LPG distributor.
+
+#### Hindi (hi)
+- **Official name:** प्रधानमंत्री उज्ज्वला योजना 2.0
+- **Card name:** प्रधानमंत्री उज्ज्वला योजना 2.0
+- **Summary:** प्रधानमंत्री उज्ज्वला योजना 2.0 तय किए गए कम आय वाले घरों की बालिग महिलाओं को बिना जमा राशि के एलपीजी कनेक्शन देती है। इसमें सुरक्षा जमा राशि और साथ लगने वाले सामान का खर्च शामिल है। तेल कंपनियों की तरफ से पहला रिफिल और चूल्हा मुफ्त मिलता है।
+- **Benefit:** इस योजना में 14.2 kg सिलेंडर पर Rs. 1600 और 5 kg सिलेंडर पर Rs. 1150 की नकद मदद मिलती है। बिना जमा वाले कनेक्शन के साथ पहला LPG रिफिल और चूल्हा मुफ्त मिलता है।
+- **Who can apply:** 18 साल की उम्र की वयस्क महिलाएं आवेदन कर सकती हैं। महिलाएं एससी परिवार, एसटी परिवार और दूसरे गरीब समूहों से होनी चाहिए। परिवार के पास कोई दूसरा एलपीजी कनेक्शन नहीं होना चाहिए।
+- **Documents:** कागज केवाईसी फॉर्म, राशन कार्ड और आधार हैं। परिवार के बालिग लोगों का आधार भी चाहिए। बैंक खाते का नंबर और आईएफएससी चाहिए। सीएससी सेंटर आपको कागजों की पूरी सूची बताएगा।
+- **How to apply:** फॉर्म नजदीकी एलपीजी वितरक के पास मिलते हैं। फॉर्म में अपनी जानकारी और बैंक की जानकारी भरी जाती है। कागजों के साथ फॉर्म नजदीकी एलपीजी वितरक के पास जमा किया जाता है।
+
+#### Marathi (mr)
+- **Official name:** पंतप्रधान उज्ज्वला योजना 2.0
+- **Card name:** पंतप्रधान उज्ज्वला योजना 2.0
+- **Summary:** प्रधानमंत्री उज्ज्वला योजना 2.0 मध्ये ठरलेल्या कमी उत्पन्न असलेल्या कुटुंबातील प्रौढ महिलांना डिपॉझिट न भरता एलपीजी जोडणी मिळते. यात सुरक्षा डिपॉझिट आणि साहित्याचा खर्च समाविष्ट आहे. तेल कंपन्यांकडून पहिला रिफिल आणि शेगडी मोफत मिळते.
+- **Benefit:** या योजनेत 14.2 किलोच्या सिलिंडरसाठी 1600 रुपयांची आणि 5 किलोच्या सिलिंडरसाठी 1150 रुपयांची रोख मदत मिळते. डिपॉझिट फ्री कनेक्शनसोबत पहिला एलपीजी रिफिल आणि शेगडी मोफत मिळतात.
+- **Who can apply:** 18 वर्षे वयाच्या प्रौढ महिला अर्ज करू शकतात. महिला एससी कुटुंबातील, एसटी कुटुंबातील आणि इतर गरीब गटातील असाव्यात. कुटुंबाकडे दुसरे एलपीजी कनेक्शन नसावे.
+- **Documents:** कागदपत्रे केवायसी फॉर्म, रेशन कार्ड आणि आधार आहेत. कुटुंबातल्या मोठ्या माणसांचे आधार पण लागतील. बँक खात्याचा नंबर आणि आयएफएससी लागेल. सीएससी केंद्र तुम्हाला कागदपत्रांची पूर्ण यादी सांगेल.
+- **How to apply:** फॉर्म जवळच्या एलपीजी वितरकाकडे मिळतात. फॉर्ममध्ये वैयक्तिक माहिती आणि बँकेची माहिती भरा. कागदपत्रांसह फॉर्म जवळच्या एलपीजी वितरकाकडे जमा करा.
+
+---
+
+### pmv
+
+- **Source URL:** https://www.myscheme.gov.in/schemes/pmv
+
+#### English (en)
+- **Official name:** PM Vishwakarma
+- **Card name:** PM Vishwakarma
+- **Summary:** PM Vishwakarma supports traditional artisans in 18 trades with recognition, skill training, daily stipend, toolkit grant of Rs 15,000, collateral-free loans up to Rs 3 lakh at 5 percent interest, and marketing assistance.
+- **Benefit:** The scheme gives certificate and ID card. Training stipend is ₹ 500 per day. Toolkit grant is ₹ 15,000. Loans are ₹ 1,00,000 and ₹ 2,00,000 at 5% interest. Digital payment incentive is ₹ 1 per transaction up to 100 transactions monthly.
+- **Who can apply:** Artisans and craftspeople working with hands and tools in 18 traditional trades can apply. Applicants must be 18 years or older and work on self-employment basis in unorganized sector. Only one member from a family can apply and government service families cannot apply.
+- **Documents:** People need Aadhaar card. People need mobile number. People need bank details. People need ration card. The CSC centre will tell you the full list of papers.
+- **How to apply:** Artisans go to the nearest CSC centre for registration. Workers carry Aadhaar card linked mobile number and bank details. Staff do biometric check and fill the online form.
+
+#### Hindi (hi)
+- **Official name:** प्रधानमंत्री विश्वकर्मा योजना
+- **Card name:** प्रधानमंत्री विश्वकर्मा योजना
+- **Summary:** पीएम विश्वकर्मा 18 कामों से जुड़े पारंपरिक कारीगरों की मदद करता है। इसमें पहचान, हुनर की ट्रेनिंग और रोज का भत्ता मिलता है। औजारों के लिए 15,000 रुपये मिलते हैं। बिना गारंटी के 5 प्रतिशत ब्याज पर 3 लाख रुपये तक कर्ज मिलता है। सामान बेचने में भी मदद मिलती है।
+- **Benefit:** इस योजना में प्रमाण पत्र और पहचान पत्र मिलता है। ट्रेनिंग के समय रोज 500 रुपये भत्ता मिलता है। टूलकिट के लिए 15,000 रुपये की सहायता मिलती है। 1,00,000 रुपये और 2,00,000 रुपये का कर्ज 5% ब्याज पर मिलता है। डिजिटल भुगतान पर हर लेन-देन पर 1 रुपया प्रोत्साहन मिलता है, महीने में 100 लेन-देन तक।
+- **Who can apply:** हाथ और औजारों से काम करने वाले 18 पारंपरिक धंधों के कारीगर और शिल्पकार आवेदन कर सकते हैं। आवेदक की उम्र 18 साल या उससे अधिक होनी चाहिए और असंगठित क्षेत्र में अपना काम खुद करना चाहिए। एक परिवार से सिर्फ एक सदस्य आवेदन कर सकता है और सरकारी नौकरी वाले परिवार आवेदन नहीं कर सकते।
+- **Documents:** लोगों को आधार कार्ड चाहिए। लोगों को मोबाइल नंबर चाहिए। लोगों को बैंक की जानकारी चाहिए। लोगों को राशन कार्ड चाहिए। सीएससी केंद्र आपको कागजों की पूरी सूची बताएगा।
+- **How to apply:** कारीगर रजिस्ट्रेशन के लिए नजदीकी सीएससी सेंटर जाएं। कारीगर आधार कार्ड से जुड़ा मोबाइल नंबर और बैंक की जानकारी साथ ले जाएं। स्टाफ बायोमेट्रिक जांच करता है और ऑनलाइन फॉर्म भरता है।
+
+#### Marathi (mr)
+- **Official name:** पंतप्रधान विश्वकर्मा योजना
+- **Card name:** पंतप्रधान विश्वकर्मा योजना
+- **Summary:** पीएम-विश्वकर्मा 18 व्यवसायांतील पारंपरिक कारागिरांना मदत करते. ओळख, कामाचे प्रशिक्षण आणि रोजचा भत्ता मिळतो. अवजारांसाठी 15,000 रुपयांची मदत मिळते. तारण न ठेवता 5 टक्के व्याजाने 3 लाख रुपयांपर्यंत कर्ज मिळते. माल विकायला मदत मिळते.
+- **Benefit:** योजनेत प्रमाणपत्र आणि ओळखपत्र मिळते. प्रशिक्षणासाठी दररोज ₹ 500 भत्ता मिळतो. अवजारांसाठी ₹ 15,000 अनुदान मिळते. 5% व्याजाने ₹ 1,00,000 आणि ₹ 2,00,000 कर्ज मिळते. डिजिटल पेमेंटवर महिन्याला 100 व्यवहारांपर्यंत प्रत्येक व्यवहारामागे ₹ 1 प्रोत्साहन मिळते.
+- **Who can apply:** 18 पारंपरिक धंद्यांमध्ये हाताने आणि औजारांनी काम करणारे कारागीर आणि हस्तकारागीर अर्ज करू शकतात. अर्ज करणाऱ्याचे वय 18 वर्षे किंवा जास्त असले पाहिजे. त्यांनी असंघटित क्षेत्रात स्वतःचे काम करत असले पाहिजे. एका कुटुंबातून फक्त एकच व्यक्ती अर्ज करू शकते. सरकारी नोकरी असलेल्या कुटुंबातील लोक अर्ज करू शकत नाहीत.
+- **Documents:** लोकांना आधार कार्ड लागेल. लोकांना मोबाईल नंबर लागेल. लोकांना बँकेची माहिती लागेल. लोकांना रेशन कार्ड लागेल. सीएससी केंद्र तुम्हाला कागदांची पूर्ण यादी सांगेल.
+- **How to apply:** कारागीर नोंदणीसाठी जवळच्या सीएससी केंद्रात जातात. कामगार आधार कार्डला जोडलेला मोबाईल नंबर आणि बँकेची माहिती सोबत ठेवतात. कर्मचारी बायोमेट्रिक तपासणी करतात आणि ऑनलाइन फॉर्म भरतात.
+
+---
+
 ### rkvyshfshc
 
 - **Source URL:** https://www.myscheme.gov.in/schemes/rkvyshfshc
-- **Gate failure reasons:** [hi] documents: only 0.00 Devanagari, under 0.8
 
 #### English (en)
 - **Official name:** RKVY Soil Health and Fertility - Soil Health Card
@@ -633,7 +653,7 @@ Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
 - **Summary:** आरकेवीवाई मिट्टी स्वास्थ्य और उर्वरता पहल पूरे भारत के किसानों को मिट्टी स्वास्थ्य कार्ड देती है। इससे कम पैसे में मिट्टी की जांच, सही रिपोर्ट और खाद को लेकर खास सलाह मिलती है। इससे खाद का सही इस्तेमाल होता है और खेती का खर्च कम होता है।
 - **Benefit:** योजना मुफ्त या सस्ते में मिट्टी की जांच कराती है। योजना समय पर और सही मिट्टी जांच के नतीजे देती है। रिपोर्ट में आपकी मिट्टी के हिसाब से पोषक तत्वों की सलाह होती है। इससे खाद का सही इस्तेमाल होता है और खर्च कम होता है।
 - **Who can apply:** यह योजना भारत के सभी किसानों के लिए है। इसमें भारत के सभी किसान शामिल हैं।
-- **Documents:** Har rajya ke liye kagaz alag-alag hain. Poori jaankari ke liye kisan sambandhit adhikariyon se sampark karein. CSC centre aapko kagazon ki poori list batayega.
+- **Documents:** हर राज्य के लिए ज़रूरी दस्तावेज़ अलग-अलग हैं। पूरी जानकारी के लिए किसान संबंधित अधिकारियों से संपर्क करें। सीएससी सेंटर आपको कागज़ों की पूरी सूची बताएगा।
 - **How to apply:** किसान मिट्टी की जांच के लिए जिला कृषि अधिकारी या ब्लॉक कृषि अधिकारी के पास जाते हैं। अधिकारी देखते हैं कि जिला या गांव राज्य वार्षिक कार्य योजना में आता है या नहीं। एजेंट जमीन की जानकारी और मिट्टी का नमूना लेता है।
 
 #### Marathi (mr)
@@ -644,38 +664,5 @@ Sample size: 20 schemes (7 gate-failing + 13 passing, seed=42).
 - **Who can apply:** ही योजना भारतातल्या सगळ्या शेतकऱ्यांसाठी आहे. यात भारतातले सगळे शेतकरी येतात.
 - **Documents:** प्रत्येक राज्यात कागदपत्रे वेगवेगळी असतात. सविस्तर माहितीसाठी शेतकऱ्यांनी संबंधित अधिकाऱ्यांशी संपर्क साधावा. सीएससी केंद्र तुम्हाला कागदपत्रांची पूर्ण यादी सांगेल.
 - **How to apply:** शेतकरी माती तपासणीसाठी जिल्हा कृषी अधिकारी किंवा गट कृषी अधिकारी यांच्याकडे जातात. अधिकारी जिल्हा किंवा गाव राज्य वार्षिक कृती आराखड्यात येते का ते तपासतात. एजंट जमिनीची माहिती आणि मातीचा नमुना घेतो.
-
----
-
-### smam
-
-- **Source URL:** https://www.myscheme.gov.in/schemes/smam
-
-#### English (en)
-- **Official name:** Sub-mission On Agriculture Mechanization
-- **Card name:** Sub-mission On Agriculture Mechanization
-- **Summary:** The SMAM initiative subsidises 50‑80% of agricultural machinery costs, prioritising financially weak, small‑land and women farmers, fostering custom hiring centres, awareness drives, hi‑tech hubs and certification to boost productivity and income.
-- **Benefit:** The scheme provides subsidies of 50 to 80 percent for purchasing agricultural machinery, helping farmers buy equipment at lower cost and increase yield.
-- **Who can apply:** All landholding farmer families, SHGs, user groups, cooperative societies, FPOs and entrepreneurs who are Indian natives and financially weak can apply. Women farmers receive priority. Applicants must not have taken any other central subsidy.
-- **Documents:** Aadhar card, passport size photo, Record of Rights of land, first page of bank passbook, and any ID proof such as Aadhar, driving licence, voter ID, PAN or passport. The CSC centre will tell you the full list of papers.
-- **How to apply:** Visit the portal agrimachinery.nic.in, choose Registration from the dropdown, fill the required information and submit the form online.
-
-#### Hindi (hi)
-- **Official name:** कृषि मशीनरी उप-योजना
-- **Card name:** कृषि मशीनरी उप-योजना
-- **Summary:** एसएमएएम पहल कृषि मशीनरी लागत का 50-80% सब्सिडी देती है, जो आर्थिक रूप से कमजोर, छोटे किसानों और महिला किसानों को प्राथमिकता देती है, उत्पादकता और आय को बढ़ावा देने के लिए कस्टम हायरिंग सेंटर, जागरूकता अभियान, हाई-टेक हब और प्रमाणन को बढ़ावा देती है।
-- **Benefit:** यह योजना कृषि मशीनरी खरीदने के लिए 50 से 80 प्रतिशत तक की सब्सिडी प्रदान करती है, जिससे किसानों को कम लागत पर उपकरण खरीदने और उपज बढ़ाने में मदद मिलती है।
-- **Who can apply:** सभी भूमिधारक किसान परिवार, एसएचजी, उपयोगकर्ता समूह, सहकारी समितियां, एफपीओ और उद्यमी जो भारतीय मूल की हैं और आर्थिक रूप से कमजोर हैं, आवेदन कर सकती हैं। महिला किसानों को प्राथमिकता मिलती है। आवेदकों ने कोई अन्य केंद्रीय सब्सिडी नहीं ली होनी चाहिए।
-- **Documents:** आधार कार्ड, पासपोर्ट साइज फोटो, भूमि के अधिकारों का रिकॉर्ड, बैंक पासबुक का पहला पृष्ठ, और कोई भी आईडी प्रूफ जैसे आधार, ड्राइविंग लाइसेंस, वोटर आईडी, पैन या पासपोर्ट। सीएससी सेंटर आपको कागजात की पूरी सूची बताएगा।
-- **How to apply:** पोर्टल agrimachinery.nic.in पर जाएं, ड्रॉपडाउन से पंजीकरण चुनें, आवश्यक जानकारी भरें और फॉर्म ऑनलाइन जमा करें।
-
-#### Marathi (mr)
-- **Official name:** कृषी यंत्रसामग्री उप-योजना
-- **Card name:** कृषी यंत्रसामग्री उप-योजना
-- **Summary:** एसएमएएम उपक्रम आर्थिकदृष्ट्या दुर्बळ, लहान जमीनधारक आणि महिला शेतकर्‍यांना प्राधान्य देऊन, उत्पादकता आणि उत्पन्न वाढवण्यासाठी कस्टम हायरिंग सेंटर्स, जनजागृती मोहीम, हाय-टेक हब आणि प्रमाणन वाढवून कृषी यंत्रसामग्रीच्या खर्चाच्या 50-80% पर्यंत अनुदान देते.
-- **Benefit:** ही योजना शेतीची यंत्रे खरेदी करण्यासाठी 50 ते 80 टक्के अनुदान देते, ज्यामुळे शेतकरी कमी खर्चात उपकरणे खरेदी करू शकतात आणि उत्पादन वाढवू शकतात.
-- **Who can apply:** भारतीय मूळ रहिवासी असलेल्या सर्व जमीनधारक शेतकरी कुटुंबांना, स्वयंसहाय्य गट, वापरकर्ता गट, सहकारी संस्था, एफपीओ आणि आर्थिकदृष्ट्या दुर्बल असलेल्या उद्योजकांना अर्ज करता येईल. महिला शेतकऱ्यांना प्राधान्य दिले जाते. अर्जदाराने इतर कोणतेही केंद्रीय अनुदान घेतलेले नसावे.
-- **Documents:** आधार कार्ड, पासपोर्ट साईज फोटो, जमिनीच्या हक्काचा रेकॉर्ड, बँक पासबुकचे पहिले पान आणि आधार, वाहन परवाना, मतदार ओळखपत्र, पॅन किंवा पासपोर्ट यासारखे कोणतेही ओळखपत्र. सीएससी सेंटर तुम्हाला कागदपत्रांची संपूर्ण यादी सांगेल.
-- **How to apply:** agrimachinery.nic.in या पोर्टलला भेट द्या, ड्रॉपडाउनमधून नोंदणी निवडा, आवश्यक माहिती भरा आणि फॉर्म ऑनलाइन सबमिट करा.
 
 ---

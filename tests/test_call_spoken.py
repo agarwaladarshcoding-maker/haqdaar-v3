@@ -564,3 +564,219 @@ def test_ear_force_stt_failure_method():
     assert ear.stt_failed is True
     assert ear.failures == 1
     assert ear.keypad_only is True
+
+
+class CountingMockModel(MockModel):
+    """MockModel that counts opener calls (Door A must skip the model on clean namings)."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.opener_calls = 0
+
+    def opener(self, transcript: str, lang: str = "en") -> list[Stamp] | Unclear:
+        self.opener_calls += 1
+        return super().opener(transcript, lang)
+
+
+def test_door_a_read_clean_naming(fixture_corpus, tmp_path):
+    """AUDIT #3: caller names a scheme -> Door A reads it back with t_name stamped,
+    no echo-confirm (exempt), zero model calls, then the planner asks on."""
+    audio = MockAudioSession(inputs=[
+        Digit("1"),                        # Turn 0: Hindi
+        Speech(text="kisan credit"),       # Opener: exact scheme naming
+        Digit("2"), Digit("1"), Digit("3"),  # state / gender / social category
+        Digit("2"), Digit("2"), Digit("2"),  # terminal x2, anything-else no
+    ])
+    log = Log.open("test_door_a_read", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = CountingMockModel()
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert "name:S1" in audio.played
+    assert "scheme:S1:name" in audio.played
+    assert "scheme:S1:summary" in audio.played
+    assert "bundle_confirm_intro" not in audio.played
+    assert model.opener_calls == 0
+
+    lines = [json.loads(l) for l in open(tmp_path / "test_door_a_read.jsonl")]
+    named = next(l for l in lines if l.get("box") == "scheme")
+    assert named["class"] == "ANSWER"
+    assert named["value"] == "S1"
+    assert named["turn_n"] == 1
+    assert named["t_name"] is not None
+    assert named["t_end"] is not None
+    assert named["candidate_count"] == 1
+    assert lines[-1]["stop"] == STOP_LE_4_SURVIVORS
+
+
+def test_door_a_read_mixed_utterance_keeps_seeds(fixture_corpus, tmp_path):
+    """AUDIT #3: naming + box facts -> Door A reads the name AND the model seeds
+    the boxes (one model call), with the seed going through normal confirm."""
+    audio = MockAudioSession(inputs=[
+        Digit("1"),
+        Speech(text="I am a farmer, kisan credit"),
+        Digit("1"),                        # Confirm the category seed
+        Digit("2"), Digit("1"), Digit("3"),
+        Digit("2"), Digit("2"), Digit("2"),
+    ])
+    log = Log.open("test_door_a_mixed", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = CountingMockModel(opener_res=[Stamp(box="category", value="farming", span="farmer")])
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert "name:S1" in audio.played
+    assert "bundle_confirm_intro" in audio.played
+    assert "chip_category_farming" in audio.played
+    assert model.opener_calls == 1
+
+    lines = [json.loads(l) for l in open(tmp_path / "test_door_a_mixed.jsonl")]
+    named = next(l for l in lines if l.get("box") == "scheme")
+    assert named["value"] == "S1"
+    confirmed = next(l for l in lines if l.get("box") == "category" and l.get("class") == "ANSWER")
+    assert confirmed["value"] == "farming"
+
+
+def test_door_a_keypad_pick_accept(fixture_corpus, tmp_path):
+    """AUDIT #3: 2 candidates ("kcc" hits S1+S5) -> one keypad turn naming both;
+    pressing 1 reads the first with candidate_count 2 and no model call."""
+    audio = MockAudioSession(inputs=[
+        Digit("1"),
+        Speech(text="kcc"),
+        Digit("1"),                        # Pick the first candidate
+        Digit("2"), Digit("1"), Digit("3"),
+        Digit("2"), Digit("2"), Digit("2"),
+    ])
+    log = Log.open("test_door_a_pick", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = CountingMockModel()
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert "door_a_option_1" in audio.played
+    assert "door_a_option_2" in audio.played
+    assert "door_a_option_none" in audio.played
+    assert model.opener_calls == 0
+
+    lines = [json.loads(l) for l in open(tmp_path / "test_door_a_pick.jsonl")]
+    named = next(l for l in lines if l.get("box") == "scheme")
+    assert named["candidate_count"] == 2
+    assert f"scheme:{named['value']}:name" in audio.played
+
+
+def test_door_a_keypad_pick_decline_goes_to_door_b(fixture_corpus, tmp_path):
+    """AUDIT #3: declining the pick (3) plays the downgrade line and Door B
+    proceeds with model seeds through the normal confirm flow."""
+    audio = MockAudioSession(inputs=[
+        Digit("1"),
+        Speech(text="kcc"),
+        Digit("3"),                        # Neither
+        Digit("1"),                        # Confirm the category seed
+        Digit("2"), Digit("1"), Digit("3"),
+        Digit("2"), Digit("2"), Digit("2"),
+    ])
+    log = Log.open("test_door_a_decline", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = CountingMockModel(opener_res=[Stamp(box="category", value="farming", span="farming")])
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert "door_a_option_1" in audio.played
+    assert "door_a_downgrade_to_b" in audio.played
+    assert "bundle_confirm_intro" in audio.played
+    assert model.opener_calls == 1
+    lines = [json.loads(l) for l in open(tmp_path / "test_door_a_decline.jsonl")]
+    assert not [l for l in lines if l.get("box") == "scheme"]
+
+
+def test_door_a_downgrade_silent_on_zero_matches(fixture_corpus, tmp_path):
+    """AUDIT #3: a plain need ("farming schemes") matches nothing -> Door B
+    silently (no downgrade line, no options), model called exactly once."""
+    audio = MockAudioSession(inputs=[
+        Digit("1"),
+        Speech(text="I need farming schemes"),
+        Digit("1"),
+        Digit("2"), Digit("1"), Digit("3"),
+        Digit("2"), Digit("2"), Digit("2"),
+    ])
+    log = Log.open("test_door_a_silent", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = CountingMockModel(opener_res=[Stamp(box="category", value="farming", span="farming")])
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert "door_a_downgrade_to_b" not in audio.played
+    assert "door_a_option_1" not in audio.played
+    assert "bundle_confirm_intro" in audio.played
+    assert model.opener_calls == 1
+
+
+def test_opener_scheme_stamp_never_becomes_box_value(fixture_corpus, tmp_path):
+    """Regression: the old res[0] fallback stamped a scheme id as the category
+    value. A scheme stamp for an UNSERVED slug must not pollute any box."""
+    audio = MockAudioSession(inputs=[
+        Digit("1"),
+        Speech(text="zzzqqq nowhere"),
+        Digit("2"), Digit("1"), Digit("3"),
+        Digit("2"), Digit("2"), Digit("2"), Digit("2"),
+    ])
+    log = Log.open("test_scheme_stamp_pollution", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = CountingMockModel(opener_res=[Stamp(box="scheme", value="S99", span="zzzqqq")])
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert "chip_category_S99" not in audio.played
+    assert "name:S99" not in audio.played
+    lines = [json.loads(l) for l in open(tmp_path / "test_scheme_stamp_pollution.jsonl")]
+    assert not [l for l in lines
+                if l.get("box") == "category" and l.get("value") == "S99"]
+    assert [l for l in lines if l.get("class") == "UNCLEAR"]
+
+
+def test_door_a_model_selection_reads(fixture_corpus, tmp_path):
+    """T12 search #2: the code pass finds nothing ("mudra" is one token), but
+    the model hears the scheme -> Door A reads it with the model's span."""
+    audio = MockAudioSession(inputs=[
+        Digit("1"),
+        Speech(text="mudra"),
+        Digit("2"), Digit("1"), Digit("3"),
+        Digit("2"), Digit("2"), Digit("2"),
+    ])
+    log = Log.open("test_door_a_model_read", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = CountingMockModel(opener_res=[Stamp(box="scheme", value="S5", span="mudra")])
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert model.opener_calls == 1
+    assert "name:S5" in audio.played
+    assert "scheme:S5:summary" in audio.played
+    assert "bundle_confirm_intro" not in audio.played
+
+    lines = [json.loads(l) for l in open(tmp_path / "test_door_a_model_read.jsonl")]
+    named = next(l for l in lines if l.get("box") == "scheme")
+    assert named["value"] == "S5"
+    assert named["span"] == "mudra"
+    assert named["candidate_count"] == 1
+
+
+def test_door_a_model_selection_pick(fixture_corpus, tmp_path):
+    """T12 search #2 with 2 model candidates -> keypad pick, then read."""
+    audio = MockAudioSession(inputs=[
+        Digit("1"),
+        Speech(text="zzzqqq nowhere"),
+        Digit("2"),                        # Pick the second candidate
+        Digit("2"), Digit("1"), Digit("3"),
+        Digit("2"), Digit("2"), Digit("2"),
+    ])
+    log = Log.open("test_door_a_model_pick", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = CountingMockModel(opener_res=[
+        Stamp(box="scheme", value="S1", span="zzzqqq"),
+        Stamp(box="scheme", value="S2", span="zzzqqq"),
+    ])
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert "door_a_option_1" in audio.played
+    assert model.opener_calls == 1
+
+    lines = [json.loads(l) for l in open(tmp_path / "test_door_a_model_pick.jsonl")]
+    named = next(l for l in lines if l.get("box") == "scheme")
+    assert named["value"] == "S2"
+    assert named["candidate_count"] == 2
+    assert "scheme:S2:name" in audio.played

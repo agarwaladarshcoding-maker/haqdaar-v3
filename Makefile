@@ -106,7 +106,7 @@ listen:
 listen-cards:
 	$(PYTHON) -m tools.listen cards $(L) $(N)
 
-# Plan 2.3: build the real snapshot from the 12 schemes and flip snapshots/CURRENT to it.
+# Plan 2.3: build the real snapshot from the audio-ready schemes and flip snapshots/CURRENT to it.
 snapshot:
 	$(PYTHON) -m haqdaar.data.pipeline.p6_snapshot
 

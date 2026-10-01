@@ -13,6 +13,7 @@ Hard rules:
 """
 from __future__ import annotations
 
+import time
 from typing import Any, Mapping, Optional
 
 from haqdaar.contracts import tunables
@@ -42,6 +43,7 @@ from haqdaar.contracts.types import (
     WIDENING_ORDER,
 )
 from haqdaar.data.log import Log
+from haqdaar.engine.door_a import DoorA, unmatched_content
 from haqdaar.engine.filter import Filter
 from haqdaar.engine.planner import Planner
 from haqdaar.engine.terminals import (
@@ -70,6 +72,53 @@ def _next_lang(curr_lang: str) -> str:
     """Rotate hi -> mr -> en -> hi (D13's `*` cycle). Shared by the question phase
     and the read-back menu so both keypads use the same rotation."""
     return "mr" if curr_lang == "hi" else ("en" if curr_lang == "mr" else "hi")
+
+
+def _door_a_read(audio: Any, log: Log, slug: str, transcript: str, span: str,
+                 turn_n: int, candidate_count: int, t0: float) -> None:
+    """Door A read-back (T12/ARCH §6): name + summary, exempt from echo-confirm.
+
+    Token pattern mirrors Terminals.direct_match (name mark, name chunk, summary
+    chunk, end mark). t_name/t_end are monotonic-clock proxies for the provider
+    marks (utterance end → first word of name / last word of summary); the bar
+    is judged on t_name. The scheme lives in this LOG record only — never in
+    box_vector, whose keys all enter the filter table (T12: the pseudo-box
+    never enters the filter table, never gets a mask).
+    """
+    if hasattr(audio, "on_mark"):
+        audio.on_mark(f"door_a_name:{slug}")
+    t_name = time.monotonic() - t0
+    audio.say((mark_name(slug), scheme_name_chunk(slug), scheme_summary_chunk(slug),
+               mark_end(slug)))
+    t_end = time.monotonic() - t0
+    log.write(TurnLogRecord(
+        turn_n=turn_n,
+        turn_class="ANSWER",
+        box="scheme",
+        value=slug,
+        transcript=transcript,
+        span=span,
+        t_name=t_name,
+        t_end=t_end,
+        candidate_count=candidate_count,
+    ))
+
+
+def _door_a_pick(audio: Any, s1: str, s2: str) -> str | None:
+    """Door A 2-candidate keypad turn (T12): name both, press 1/2/3.
+
+    Returns "1"/"2" (picked), "hangup", or None (0/3/anything else declines).
+    One turn, no repeats.
+    """
+    audio.say(("door_a_option_1", scheme_name_chunk(s1),
+               "door_a_option_2", scheme_name_chunk(s2),
+               "door_a_option_none"))
+    pick = audio.next_input(profile="normal")
+    if isinstance(pick, Hangup):
+        return "hangup"
+    if isinstance(pick, Digit) and pick.digit in ("1", "2"):
+        return pick.digit
+    return None
 
 
 class Engine:
@@ -165,6 +214,10 @@ class Engine:
         # the questioning loop. Turn and question budgets are call-wide, so a
         # second subject spends what is left, never a fresh allowance.
         door_b_used = False
+        # Door A: a read-back satisfies the opener (the caller stated their
+        # need by naming a scheme), so the opener is not re-asked. Reset on
+        # Door B re-entry, when a new subject re-opens Door A.
+        door_a_done = False
         while True:
             stop_reason = None
             # Door A (Architecture §6, box 0): `category` is the opener, not a
@@ -187,6 +240,7 @@ class Engine:
                     box_vector.get("category") in (None, UNASKED)
                     and bool(opener_vals)
                     and (mode == "voice" or len(opener_vals) <= tunables.KEYPAD_CARDINALITY_MAX)
+                    and not door_a_done
                 )
                 if opener_open:
                     action = Ask("category")
@@ -450,16 +504,106 @@ class Engine:
                     proposed_span = ""
 
                     if box == "category":
-                        res = model.opener(transcript, lang=curr_lang)
-                        if isinstance(res, list) and res:
-                            for s in res:
-                                if s.box == "category":
-                                    proposed_val = s.value
-                                    proposed_span = s.span
-                                    break
-                            if proposed_val is None and res:
-                                proposed_val = res[0].value
-                                proposed_span = res[0].span
+                        # Door A (T12/ARCH §6): exact code match before the model.
+                        # Unavailable in keypad-only mode (this is the voice branch).
+                        door = DoorA.from_corpus(corpus)
+                        door_t0 = time.monotonic()
+                        dres = door.match(transcript, lang=curr_lang)
+                        door_a_read = False
+                        model_failed = False
+                        if dres.action == "read":
+                            _door_a_read(audio, log, dres.scheme_ids[0], transcript,
+                                         dres.matched_alias or transcript, turn_n, 1, door_t0)
+                            turn_n += 1  # T10: opener costs 2 turns when it fills anything
+                            door_a_done = True
+                            door_a_read = True
+                            if unmatched_content(transcript, dres.matched_alias):
+                                res = model.opener(transcript, lang=curr_lang)
+                                if isinstance(res, list):
+                                    seeds = [s for s in res if s.box != "scheme"]
+                                else:
+                                    model_failed = True
+                                    seeds = []
+                            else:
+                                seeds = []  # clean naming: zero model calls (T12)
+                        elif dres.action == "keypad_pick":
+                            s1, s2 = dres.scheme_ids[0], dres.scheme_ids[1]
+                            outcome = _door_a_pick(audio, s1, s2)
+                            turn_n += 1
+                            question_count += 1  # T12: the pick costs 1 turn against the six
+                            if outcome == "hangup":
+                                audio.hangup()
+                                return
+                            if outcome in ("1", "2"):
+                                slug = s1 if outcome == "1" else s2
+                                _door_a_read(audio, log, slug, transcript,
+                                             dres.matched_alias or transcript, turn_n, 2,
+                                             time.monotonic())
+                                turn_n += 1
+                                door_a_done = True
+                                door_a_read = True
+                                seeds = []
+                            else:
+                                # Declined: Door B, one keypad turn, no repeats
+                                audio.say(("door_a_downgrade_to_b",))
+                                res = model.opener(transcript, lang=curr_lang)
+                                seeds = [s for s in res if s.box != "scheme"] if isinstance(res, list) else []
+                        else:  # downgrade_to_b
+                            downgrade_line_said = False
+                            if dres.scheme_ids:
+                                audio.say(("door_a_downgrade_to_b",))
+                                downgrade_line_said = True
+                            # else: 0 matches go to Door B silently (ARCH §6 diagram)
+                            # T12 search #2: model selection from the alias closed
+                            # set. The code pass found nothing; the model may
+                            # still hear a scheme name (mis-hearings live here).
+                            res = model.opener(transcript, lang=curr_lang)
+                            model_ids: list[str] = []
+                            if isinstance(res, list):
+                                for s in res:
+                                    if (s.box == "scheme" and s.value not in model_ids
+                                            and door.has_scheme(s.value)):
+                                        model_ids.append(s.value)
+                                seeds = [s for s in res if s.box != "scheme"]
+                            else:
+                                seeds = []
+                            if len(model_ids) == 1:
+                                span = next(s.span for s in res if s.box == "scheme")
+                                _door_a_read(audio, log, model_ids[0], transcript,
+                                             span, turn_n, 1, door_t0)
+                                turn_n += 1
+                                door_a_done = True
+                                door_a_read = True
+                            elif len(model_ids) == 2:
+                                outcome = _door_a_pick(audio, model_ids[0], model_ids[1])
+                                turn_n += 1
+                                question_count += 1
+                                if outcome == "hangup":
+                                    audio.hangup()
+                                    return
+                                if outcome in ("1", "2"):
+                                    slug = model_ids[0] if outcome == "1" else model_ids[1]
+                                    _door_a_read(audio, log, slug, transcript,
+                                                 transcript, turn_n, 2, time.monotonic())
+                                    turn_n += 1
+                                    door_a_done = True
+                                    door_a_read = True
+                                elif not downgrade_line_said:
+                                    audio.say(("door_a_downgrade_to_b",))
+                            elif len(model_ids) >= 3 and not downgrade_line_said:
+                                audio.say(("door_a_downgrade_to_b",))
+                        # Scheme stamps never become box values (the old res[0]
+                        # fallback could stamp a scheme id as the category value).
+                        for s in seeds:
+                            if s.box == "category":
+                                proposed_val = s.value
+                                proposed_span = s.span
+                                break
+                        if not proposed_val and door_a_read and not model_failed:
+                            # Named scheme already read and nothing to confirm:
+                            # planner asks on. (A failed model pass still falls
+                            # through so failure accounting runs.)
+                            continue
                     else:
                         res = model.turn(transcript, box=box, ask_count=box_strikes[box])
                         if hasattr(res, "box") and hasattr(res, "value") and res.value:
@@ -822,6 +966,7 @@ class Engine:
                 box_vector["category"] = UNASKED
                 box_strikes["category"] = 0
                 # The next round re-opens Door A: the caller states a new subject.
+                door_a_done = False
                 continue
             break
 

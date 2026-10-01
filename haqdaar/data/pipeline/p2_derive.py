@@ -566,6 +566,19 @@ def read_scheme_title_from_html(slug: str, raw_dir: Path = RAW_CACHE_DIR) -> str
     return slug.replace("-", " ").title()
 
 
+def load_scrape_quarantine(reports_dir: Path) -> set:
+    """Slugs quarantined at scrape, from data_cache/reports/scrape.json (AUDIT #2).
+
+    Missing or unreadable report means no upstream quarantine (fresh or unit-test run).
+    """
+    try:
+        report = json.loads((reports_dir / "scrape.json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return set()
+    quarantined = report.get("quarantined", [])
+    return {q["slug"] for q in quarantined if isinstance(q, dict) and q.get("slug")}
+
+
 def run_pipeline_extract(
     raw_dir: Path = RAW_CACHE_DIR,
     extract_cache_dir: Path = EXTRACT_CACHE_DIR,
@@ -576,7 +589,8 @@ def run_pipeline_extract(
 ) -> list[dict[str, Any]]:
     """Execute Step 8 derivation pass.
 
-    Reads 12 files from data_cache/raw/*.json.
+    Reads data_cache/raw/*.json, skipping slugs quarantined at scrape (AUDIT #2:
+    a raw file may be stale cache from before the quarantine).
     Derives facets, aliases, and summary via Groq (cached).
     Applies evidence-quote checks in code.
     Applies table-wide alias uniqueness gate.
@@ -592,6 +606,18 @@ def run_pipeline_extract(
     raw_files = sorted(raw_dir.glob("*.json"), key=lambda p: p.stem)
     if not raw_files:
         raise FileNotFoundError(f"No raw scheme files found in {raw_dir}")
+
+    # AUDIT #2: a raw file may be stale cache from before a scrape quarantine —
+    # never derive a slug the scrape stage set aside.
+    scrape_quarantined = load_scrape_quarantine(reports_dir)
+    if scrape_quarantined:
+        skipped = sorted(p.stem for p in raw_files if p.stem in scrape_quarantined)
+        if skipped:
+            logger.warning(
+                "Skipping %d raw file(s) quarantined at scrape: %s",
+                len(skipped), ", ".join(skipped),
+            )
+        raw_files = [p for p in raw_files if p.stem not in scrape_quarantined]
 
     extract_cache_dir.mkdir(parents=True, exist_ok=True)
     derived_dir.mkdir(parents=True, exist_ok=True)
