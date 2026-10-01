@@ -4,6 +4,7 @@ Phase 4 (Voice), Step 4.1 — speech to text and hearing.
 
 Components:
 - SarvamSTT: primary speech-to-text provider (saaras:v4 / speech-to-text endpoint).
+  Note: Sarvam REST STT ignores 'hint'; hint is used by Groq Whisper fallback.
 - GroqWhisperSTT: fallback speech-to-text provider (whisper-large-v3-turbo).
 - SpeechToText: combined engine (Sarvam primary, Groq fallback, raw httpx, 1s padding, hint words).
 - EnergyVAD: 20 ms frame energy detection (START_RMS=700, END_RMS=400, START_FRAMES=3, END_FRAMES=40).
@@ -12,6 +13,11 @@ Components:
   - Keypress always wins over speech (barge-in).
   - An STT timeout is a failure signal, never an exception, never a retry loop.
   - One caller at a time; never blocks the socket loop.
+
+Environment overrides:
+- STT_TIMEOUT_S: timeout per STT call in seconds (default: 5.0)
+- SARVAM_STT_MODEL: Sarvam model override (default: saaras:v4)
+- GROQ_STT_MODEL: Groq Whisper model override (default: whisper-large-v3-turbo)
 """
 from __future__ import annotations
 
@@ -60,7 +66,22 @@ GROQ_LANG_MAP: dict[str, str] = {
     "hindi": "hi-IN",
     "english": "en-IN",
     "marathi": "mr-IN",
+    "hi": "hi-IN",
+    "en": "en-IN",
+    "mr": "mr-IN",
+    "hi-in": "hi-IN",
+    "en-in": "en-IN",
+    "mr-in": "mr-IN",
 }
+
+
+def normalize_lang(code: str) -> str:
+    """Normalize language code across providers to standard format (hi-IN, mr-IN, en-IN)."""
+    if not code:
+        return ""
+    c = code.strip().lower()
+    return GROQ_LANG_MAP.get(c, code)
+
 
 
 def ulaw_to_pcm(ulaw: bytes) -> bytes:
@@ -188,7 +209,7 @@ class SarvamSTT:
             if resp.status_code == 200:
                 body = resp.json()
                 transcript = body.get("transcript", "").strip()
-                detected_lang = body.get("language_code", lang_code)
+                detected_lang = normalize_lang(body.get("language_code", lang_code))
                 return SttResult(
                     transcript=transcript,
                     lang=detected_lang,
@@ -284,7 +305,7 @@ class GroqWhisperSTT:
                 body = resp.json()
                 transcript = body.get("text", "").strip()
                 raw_lang = str(body.get("language", "")).lower()
-                detected_lang = GROQ_LANG_MAP.get(raw_lang, raw_lang)
+                detected_lang = normalize_lang(raw_lang)
                 return SttResult(
                     transcript=transcript,
                     lang=detected_lang,
@@ -339,12 +360,18 @@ class SpeechToText:
         self.sarvam = sarvam if sarvam is not None else SarvamSTT()
         self.groq = groq if groq is not None else GroqWhisperSTT()
         self.sarvam_ok: bool = True
+        self.sarvam_failures: int = 0
         self.ledger_path: Path = (
             Path(ledger_path)
             if ledger_path is not None
             else BASE_DIR / tunables.REPORTS_DIR / "stt_usage.jsonl"
         )
         self._log: Callable[[str], None] = log or (lambda s: None)
+
+    def reset_circuit(self) -> None:
+        """Reset Sarvam circuit breaker for a new listen / utterance."""
+        self.sarvam_ok = True
+        self.sarvam_failures = 0
 
     def _write_ledger(self, result: SttResult, audio_duration_s: float, lang: str) -> None:
         entry = {
@@ -383,10 +410,12 @@ class SpeechToText:
         # 1. Primary: Sarvam STT
         if self.sarvam_ok and self.sarvam.api_key:
             res = self.sarvam.transcribe(wav_bytes, lang=lang, hint=hint)
+            self._write_ledger(res, duration_s, lang)
             if res.success:
-                self._write_ledger(res, duration_s, lang)
+                self.sarvam_failures = 0
                 return res
-            # Circuit flips off after failure so Groq responds promptly
+            # Circuit flips off after failure so Groq responds promptly for this utterance
+            self.sarvam_failures += 1
             self.sarvam_ok = False
             self._log(f"!! Sarvam STT failed ({res.error}); falling back to Groq Whisper")
 
@@ -543,6 +572,7 @@ class Ear:
         # 1. Immediate key check (barge-in or pre-queued key)
         if not self._keys.empty():
             key = self._keys.get_nowait()
+            self.silence_count = 0
             self._log(f"<- key {key} (pre-queued)")
             return Digit(digit=key)
 
@@ -550,12 +580,14 @@ class Ear:
             return Hangup()
 
         self.vad.reset()
+        self.stt.reset_circuit()
         deadline = time.monotonic() + timeout
 
         while True:
             # If key arrived, it wins immediately
             if not self._keys.empty():
                 key = self._keys.get_nowait()
+                self.silence_count = 0
                 self._log(f"<- key {key} (interrupted silence/listening)")
                 return Digit(digit=key)
 
@@ -585,6 +617,7 @@ class Ear:
                         self._keys.get_nowait()
                     except queue.Empty:
                         pass
+                self.silence_count = 0
                 self._log(f"<- key {val} (won over speech)")
                 return Digit(digit=str(val))
 
@@ -605,6 +638,7 @@ class Ear:
         # Keycheck again before calling STT
         if not self._keys.empty():
             key = self._keys.get_nowait()
+            self.silence_count = 0
             self._log(f"<- key {key} (won over post-utterance)")
             return Digit(digit=key)
 
@@ -615,6 +649,7 @@ class Ear:
         # Check if key arrived during STT
         if not self._keys.empty():
             key = self._keys.get_nowait()
+            self.silence_count = 0
             self.last_discarded_transcript = stt_res.transcript
             self._log(f"<- key {key} (won over completed STT)")
             return Digit(digit=key)

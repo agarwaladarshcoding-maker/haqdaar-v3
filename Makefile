@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards snapshot backup call-me ear-check
+.PHONY: run call calls sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards snapshot backup call-me ear-check model-bakeoff
 
 test:
 	$(PYTHON) -m pytest
@@ -114,5 +114,12 @@ stress:
 	$(PYTHON) -m tools.stress -n $(or $(N),1000) --seed $(or $(SEED),1)
 
 # Step 4.1: transcribe 3 sentences x en/hi/mr against fixtures (or custom audio)
+# NOTE: defaults to live API calls (spends Sarvam/Groq budget); use ARGS=--offline for zero-cost offline check.
 ear-check:
 	$(PYTHON) -m tools.ear_check $(ARGS)
+
+# Step 4.2: 30-utterance model client + span guard bake-off
+# NOTE: defaults to offline faked HTTP (zero API spend); use ARGS=--live for owner live run.
+model-bakeoff:
+	$(PYTHON) -m tools.model_bakeoff $(ARGS)
+

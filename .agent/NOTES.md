@@ -1821,4 +1821,31 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - My two live `make ear-check` runs: 3/9 then 6/9, all via Groq (en timeouts at 5.02s). Cause: one transient Sarvam blip trips the sticky `sarvam_ok` circuit breaker (never resets), rest of run falls back to slow Groq free tier. Ledger `data_cache/reports/stt_usage.jsonl` (gitignored): 21 Sarvam successes (Antigravity), 9+9 Groq ok/fail (mine). No Muse spend this step.
 - Fix-forward nits for 4.2 warmup: (1) test_ear.py:19 unused imports; (2) ear.py:390 sarvam_ok never resets; (3) ear.py:59 lang format differs by provider (hi vs hi-IN); (4) ear.py:387 Sarvam failures never ledgered; (5) ear.py:602 silence_count not reset on Digit; (6) plain `make ear-check` defaults live — document the spend; (7) Sarvam ignores hint, STT_* env overrides undocumented; (8) conftest.py blocks only Muse — a future test forgetting to fake STT would hit paid APIs (consider autouse httpx guard).
 
-
+## 1 Oct — Step 4.2: Model Client + Span Guard + Bake-off
+- Branch created: `step-4.2-model` from `main`.
+- Warmup: all 8 nits resolved and verified:
+  1. `tests/test_ear.py`: removed 8 unused imports (`END_FRAMES`, `END_RMS`, `MAX_UTTERANCE_FRAMES`, `PRE_ROLL_FRAMES`, `SAMPLE_RATE`, `START_FRAMES`, `START_RMS`, `speech_to_text`).
+  2. `haqdaar/audio/ear.py`: added `reset_circuit()` and `sarvam_failures` counter to `SpeechToText`; `Ear.listen()` and `ear_check.py` reset circuit on each listen/fixture.
+  3. `haqdaar/audio/ear.py`: added `normalize_lang()` mapping both Sarvam and Groq to consistent ISO-tagged codes (`hi-IN`, `mr-IN`, `en-IN`).
+  4. `haqdaar/audio/ear.py`: Sarvam STT failure is now ledgered to `stt_usage.jsonl` before falling back to Groq.
+  5. `haqdaar/audio/ear.py`: `self.silence_count = 0` now resets explicitly on all `Digit` returns.
+  6. `tools/ear_check.py` + `Makefile`: documented that live `ear-check` spends API budget, while `--offline` checks loading without API cost.
+  7. `haqdaar/audio/ear.py`: documented `STT_TIMEOUT_S`, `SARVAM_STT_MODEL`, `GROQ_STT_MODEL` and noted Sarvam ignores `hint`.
+  8. `tests/conftest.py`: added autouse `_block_unmocked_http_calls` fixture blocking external network calls.
+- Verified: all 332 tests passed in 20.0s.
+- Built `haqdaar/model/`:
+  - `haqdaar/model/client.py`: `GroqModelClient` via raw `httpx`, temperature 0, JSON mode (`response_format={"type": "json_object"}`), 2.0s timeout, never raises, captures 429 / timeout / errors into `ModelClientResponse`, ledgers usage to `groq_usage.jsonl`.
+  - `haqdaar/model/span_guard.py`: `SpanGuard` enforcing provenance string containment and closed-set checks (drops invented values, e.g. "farmer" can never smuggle in "low income").
+  - `haqdaar/model/prompts/`: `SYSTEM_PROMPT` byte-identical for caching, `build_opener_prompt`, and `build_turn_prompt` classifying 5 classes (`META > ANSWER > CLARIFY > REPEAT > UNCLEAR`).
+  - `haqdaar/model/router.py`: `Model` class with exact alias match in code before opener model call, 2-failures keypad-only circuit (`keypad_only` property), `opener() -> list[Stamp] | Unclear`, and `turn() -> TurnResult`.
+  - `haqdaar/model/__init__.py`: exported public interface.
+- 30-utterance bake-off dataset:
+  - Authored 21 new speech WAV fixtures in `fixtures/audio/speech/` (`p4_en.wav` .. `p10_mr.wav`) across 7 personas (P4-P10) in en/hi/mr (~2 MB total folder).
+  - Extended `fixtures/audio/speech/manifest.json` with ground-truth `expected_stamps` for each utterance. Note: left `fixtures/utterances.json` at 9 entries as asserted by `test_step2.py`.
+- Tests & bake-off tooling:
+  - Built `tests/test_model.py` with 21 unit tests faking HTTP layer (span guard containment, hallucinated stamp dropping, 429/timeout failure accounting, 2-failure keypad-only lockout, 5-class precedence, exact alias match).
+  - Built `tools/model_bakeoff.py` and `Makefile` target `model-bakeoff` evaluating 30 utterances against ground truth, testing accuracy, span guard drops, and latency (p50/p95).
+- Verification:
+  - `.venv/bin/python -m pytest -q`: 353 passed, 3 warnings in 20.17s.
+  - `make stress`: 1,000 callers on 12 schemes, 0 crashes, 0 truth failures.
+  - `make model-bakeoff`: 30/30 (100.0%) perfect utterances, 69/69 stamps matched, 30 hallucinated stamps intercepted, p50: 0.0ms, p95: 0.0ms.
