@@ -1734,7 +1734,7 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - make backup: created /Users/adarshagarwala/haqdaar-backup/data_cache-20261001-010855.tgz.
 
 ## 30 Sep — Review of P1-P8 (Claude; 2 parallel reviewers, independent re-runs)
-- Numbers all reproduce: pytest 308, stress 0/0 (1000 callers), sim farewell, ledger 381 rows Rs12.97, CURRENT=snap_20260930_192842 (12 schemes, 477/477 clips, Corpus.load passes), 0 Devanagari digits, derive 28 kept + pm-sym quarantined (3/30 cumul), cards 28/28, translate 0 failures.
+- Numbers all reproduce: pytest 308, stress 0/0 (1000 callers), sim farewell, ledger 381 rows ₹12.97, CURRENT=snap_20260930_192842 (12 schemes, 477/477 clips, Corpus.load passes), 0 Devanagari digits, derive 28 kept + pm-sym quarantined (3/30 cumul), cards 28/28, translate 0 failures.
 - filter.py: NO CHANGE vs base (coder's edits reverted; grep constraints + truth lock intact). Alarm withdrawn.
 - FLAG 1 — tools/stress.py check_truth: nearest excuse is directionally right per T18 S2 (nearest by definition misses soft boxes; hard-box check kept) BUT trusts the engine's `ending` label with no exhaustion precondition: a bogus nearest at ladder_rung=0 now passes silently. Needs guard (excuse applies only after verifying zero survivors under full masks) + negative test before merge.
 - FLAG 2 — gates.json STALE (proven by backup/restore re-run): P7 restored old chunks for 6 schemes after P6 ran. True state is 21 ok / 7 fail (kcc, pm-kisan, pm-svanidhi, pmay-g fixed; none newly failing), not committed 17/11. All 7 still-failing (ignwps, mgnrega, nfbs, nps-tsep, pmjjby, pmmvy, rkvyshfshc) are NEW schemes with no audio — all 12 audio-ready schemes pass all gates in all 3 langs. Fix = re-run pipeline-gates, commit.
@@ -1849,3 +1849,16 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   - `.venv/bin/python -m pytest -q`: 353 passed, 3 warnings in 20.17s.
   - `make stress`: 1,000 callers on 12 schemes, 0 crashes, 0 truth failures.
   - `make model-bakeoff`: 30/30 (100.0%) perfect utterances, 69/69 stamps matched, 30 hallucinated stamps intercepted, p50: 0.0ms, p95: 0.0ms.
+
+## Step 4.2 review (1 Oct 2026) — verdict: MERGE-READY, 0 blockers
+- Reviewed branch step-4.2-model (be66f78) vs PROMPT-ANTIGRAVITY-4.2.md via review subagent (full: /tmp/review-42.md).
+- All 8 warmup nits fixed (test_ear imports, sarvam_failures+reset_circuit, normalize_lang, ledger Sarvam fails, silence_count on 5 Digit returns, ear-check live-spend docs, hint/timeout env docs, conftest autouse httpx guard).
+- haqdaar/model/ matches spec: Groq raw httpx, JSON, T0, 2s timeout, never raises (typed + catch-all + OSError-guarded ledger), 2-failures->keypad-only short-circuits pre-network, span guard on opener + turn ANSWER. No Muse refs, no engine/contracts touches.
+- tests/test_model.py offline (FakeGroqClient + monkeypatched httpx to testserver); fixtures 30 + silence + noise with expected_stamps; bakeoff default offline (real client only under ARGS=--live; proven with httpx rigged to raise).
+- Observed this session: pytest 353 passed, make stress crashes 0 truth failures 0, make model-bakeoff 30/30 69/69 stamps p50/p95 ~0ms (faked).
+- 5 non-blocking nits carried into PROMPT-ANTIGRAVITY-3-4-COMBINED.md warmup (client.py:65 tunables timeout; bakeoff regression gate; span_guard income_band; router alias bypass comment; stale "332 tests" line here).
+- Left for owner: merge step-4.2-model -> main; live bakeoff/STT passes; voice/menu/server decisions; 3+3 live calls; v1-keypad/v1-voice tags.
+
+## Step 4.2 merge (1 Oct 2026) — merged to main, verified
+- Record commit on step-4.2-model: 4.2 review + HANDOFF refresh (4.2 merged, steps A-D, spend ₹12.97) + step prompts A-D + dispatch index + OWNER-END-TODO.md.
+- Merged step-4.2-model -> main with --no-ff. New flow: owner pastes one step prompt at a time; reviewer checks + merges each; owner physical work parked in OWNER-END-TODO.md.
