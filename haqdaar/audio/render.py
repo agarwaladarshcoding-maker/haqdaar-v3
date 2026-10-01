@@ -319,9 +319,6 @@ def _resolve_snapshot_dir(snapshot_arg: str) -> Path:
         p = p.parent / snap_id
     elif not p.exists() and (BASE_DIR / "snapshots" / snapshot_arg).exists():
         p = BASE_DIR / "snapshots" / snapshot_arg
-        if p.is_file():
-            snap_id = p.read_text(encoding="utf-8").strip()
-            p = p.parent / snap_id
     return p
 
 

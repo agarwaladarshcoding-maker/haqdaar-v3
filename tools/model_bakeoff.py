@@ -147,16 +147,18 @@ def run_bakeoff(live: bool = False, model_name: str | None = None) -> int:
             expected_boxes = {(s["box"], str(s["value"])) for s in expected}
 
             # Check for hallucinated drops
-            # If client returned extra stamps dropped by SpanGuard
+            # Verify that the injected hallucination was actually dropped by SpanGuard
             if not live:
-                # Faked client always injects 1 hallucinated stamp
-                hallucinations_dropped += 1
+                if ("income_band", "<100000") not in produced_boxes:
+                    hallucinations_dropped += 1
 
             # Matches
             matches = produced_boxes & expected_boxes
             matched_stamps += len(matches)
 
-            is_perfect = (expected_boxes.issubset(produced_boxes))
+            # Regression gate: produced must equal expected exactly.
+            # If produced ⊄ expected (e.g. leaked hallucinations), status is MISS.
+            is_perfect = (produced_boxes == expected_boxes)
             if is_perfect:
                 correct_utterances += 1
                 status = "PASS"
