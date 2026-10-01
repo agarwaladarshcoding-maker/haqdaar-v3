@@ -12,6 +12,7 @@ from __future__ import annotations
 import csv
 from dataclasses import dataclass, field
 import json
+import logging
 from pathlib import Path
 import re
 from typing import Any, Mapping, Optional, Sequence
@@ -21,6 +22,8 @@ import yaml
 
 from haqdaar.contracts import tunables
 from haqdaar.contracts.types import Lang
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -84,19 +87,16 @@ GENERIC_STOP_WORDS: set[str] = {
     "che", "kara", "arj", "karaycha", "aamhala", "have", "hote"
 }
 
-# Standard manual aliases for schemes without extracted alias cards (e.g. quarantined)
-MANUAL_ALIASES: dict[str, dict[str, list[str]]] = {
-    "pmsby": {
-        "en": ["pradhan mantri suraksha bima yojana", "pmsby", "suraksha bima yojana", "pm suraksha bima", "suraksha bima"],
-        "hi": ["प्रधानमंत्री सुरक्षा बीमा योजना", "सुरक्षा बीमा योजना", "पीएमएसबीवाई", "सुरक्षा बीमा"],
-        "mr": ["प्रधानमंत्री सुरक्षा विमा योजना", "सुरक्षा विमा योजना", "पीएमएसबीवाय", "सुरक्षा विमा"]
-    },
-    "pm-sym": {
-        "en": ["pradhan mantri shram yogi maan-dhan", "pm-sym", "shram yogi maandhan", "shram yogi pension", "pm shram yogi"],
-        "hi": ["प्रधानमंत्री श्रम योगी मानधन योजना", "श्रम योगी मानधन योजना", "पीएम श्रम योगी मानधन", "श्रम योगी पेंशन"],
-        "mr": ["प्रधानमंत्री श्रम योगी मानधन योजना", "श्रम योगी मानधन योजना", "पीएम श्रम योगी मानधन", "श्रम योगी पेन्शन"]
-    }
-}
+# Manual aliases loaded from data source for schemes without extracted alias cards (e.g. quarantined)
+def _load_manual_aliases() -> dict[str, dict[str, list[str]]]:
+    path = BASE_DIR / "haqdaar/data/manual_aliases.json"
+    if path.exists():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.warning("Failed to load manual aliases from %s: %s", path, exc)
+            return {}
+    return {}
 
 
 def devanagari_to_latin(text: str) -> str:
@@ -213,6 +213,7 @@ class DoorA:
         """Load 30-scheme roster from schemes.yaml + derived jsonl + candidates.csv."""
         schemes_yaml_path = BASE_DIR / "haqdaar/data/pipeline/schemes.yaml"
         if not schemes_yaml_path.exists():
+            logger.error("Door A: schemes.yaml not found at %s; Door A matcher has no schemes", schemes_yaml_path)
             return
 
         schemes_yaml = yaml.safe_load(schemes_yaml_path.read_text(encoding="utf-8")).get("schemes", [])
@@ -261,8 +262,9 @@ class DoorA:
                 for a in d.get(f, []):
                     aliases.add(a.lower())
 
-            if slug in MANUAL_ALIASES:
-                for lang_aliases in MANUAL_ALIASES[slug].values():
+            manual_aliases = _load_manual_aliases()
+            if slug in manual_aliases:
+                for lang_aliases in manual_aliases[slug].values():
                     for a in lang_aliases:
                         aliases.add(a.lower())
 
@@ -351,9 +353,9 @@ class DoorA:
                         matched_alias = alias
 
         if exact_full:
-            return 1000.0, matched_alias
+            return tunables.DOOR_A_EXACT_SCORE, matched_alias
         if best_alias_len > 0:
-            score = 500.0 + best_alias_len * 5.0 + (4 - scheme.priority)
+            score = tunables.DOOR_A_ALIAS_SCORE_BASE + best_alias_len * 5.0 + (4 - scheme.priority)
             return score, matched_alias
 
         overlap = all_q_tokens & scheme.distinctive_tokens
@@ -388,7 +390,8 @@ class DoorA:
 
         # 1. Corpus exact fast-path if corpus available
         if self.corpus is not None and hasattr(self.corpus, "alias_lookup"):
-            alias_hits = self.corpus.alias_lookup(transcript, lang)
+            norm_q = normalize_text(transcript)
+            alias_hits = self.corpus.alias_lookup(norm_q, lang)
             if alias_hits:
                 shortlist = tuple(alias_hits[:10])
                 if len(alias_hits) == 1:
@@ -396,7 +399,7 @@ class DoorA:
                         action="read",
                         scheme_ids=tuple(alias_hits),
                         confidence=1.0,
-                        matched_alias=transcript.strip(),
+                        matched_alias=norm_q,
                         shortlist=shortlist,
                     )
                 elif len(alias_hits) == 2:
@@ -404,7 +407,7 @@ class DoorA:
                         action="keypad_pick",
                         scheme_ids=tuple(alias_hits[:2]),
                         confidence=1.0,
-                        matched_alias=transcript.strip(),
+                        matched_alias=norm_q,
                         shortlist=shortlist,
                     )
                 else:
@@ -412,7 +415,7 @@ class DoorA:
                         action="downgrade_to_b",
                         scheme_ids=tuple(alias_hits),
                         confidence=1.0,
-                        matched_alias=transcript.strip(),
+                        matched_alias=norm_q,
                         shortlist=shortlist,
                     )
 
@@ -435,7 +438,7 @@ class DoorA:
             )
 
         top_slug, top_score, top_alias = scored[0]
-        if top_score < 30.0:
+        if top_score < tunables.DOOR_A_SCORE_FLOOR:
             return DoorAResult(
                 action="downgrade_to_b",
                 scheme_ids=(),
@@ -443,9 +446,9 @@ class DoorA:
                 shortlist=shortlist,
             )
 
-        # Candidates within 10% of top score are considered ambiguous/tied
-        close_candidates = [x[0] for x in scored if x[1] >= 0.90 * top_score]
-        confidence = min(1.0, top_score / 500.0)
+        # Candidates within tie band of top score are considered ambiguous/tied
+        close_candidates = [x[0] for x in scored if x[1] >= tunables.DOOR_A_TIE_BAND * top_score]
+        confidence = min(1.0, top_score / tunables.DOOR_A_ALIAS_SCORE_BASE)
 
         if len(close_candidates) == 1:
             return DoorAResult(

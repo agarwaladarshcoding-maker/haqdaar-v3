@@ -123,27 +123,31 @@ class Engine:
 
         # --- 3. Mode Initialization ---
         # Keypad-only mode is entered when model is None or keypad-only requested
-        mode = "keypad_only"
-        log.write({"mode": "keypad_only"})
-        audio.say(("keypad_only_mode",))
+        if model is None or getattr(model, "keypad_only", False):
+            mode = "keypad_only"
+            log.write({"mode": "keypad_only"})
+            audio.say(("keypad_only_mode",))
+        else:
+            mode = "voice"
 
         # Mutable call state
         box_vector: dict[str, Any] = {b: UNASKED for b in SEVEN_BOXES}
-        # T18 §3: a closed set that will not fit a keypad menu drops to UNKNOWN
+        # T18 §3: in keypad-only mode, a closed set that will not fit a keypad menu drops to UNKNOWN
         # up front. This is a cardinality test, never a hard-coded box: on the
         # production corpus `state` has 36 values and drops; on fixtures it has
         # 2 and stays askable.
-        for _b in SEVEN_BOXES:
-            _vals = corpus.values(_b)
-            if _vals and len(_vals) > tunables.KEYPAD_CARDINALITY_MAX:
-                box_vector[_b] = UNKNOWN
-                log.write(TurnLogRecord(
-                    turn_n=0,
-                    turn_class="ANSWER",
-                    box=_b,
-                    value=UNKNOWN,
-                    unknown_source="keypad_dropped",
-                ))
+        if mode == "keypad_only":
+            for _b in SEVEN_BOXES:
+                _vals = corpus.values(_b)
+                if _vals and len(_vals) > tunables.KEYPAD_CARDINALITY_MAX:
+                    box_vector[_b] = UNKNOWN
+                    log.write(TurnLogRecord(
+                        turn_n=0,
+                        turn_class="ANSWER",
+                        box=_b,
+                        value=UNKNOWN,
+                        unknown_source="keypad_dropped",
+                    ))
 
         turn_n = 0
         question_count = 0
@@ -177,7 +181,7 @@ class Engine:
                 opener_open = (
                     box_vector.get("category") in (None, UNASKED)
                     and bool(opener_vals)
-                    and len(opener_vals) <= tunables.KEYPAD_CARDINALITY_MAX
+                    and (mode == "voice" or len(opener_vals) <= tunables.KEYPAD_CARDINALITY_MAX)
                 )
                 if opener_open:
                     action = Ask("category")
@@ -199,9 +203,11 @@ class Engine:
                 assert isinstance(action, Ask)
                 box = action.box
 
+                is_box_keypad = (mode == "keypad_only") or (box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD)
+
                 # Verify box cardinality for keypad mode
                 vals = corpus.values(box)
-                if vals and len(vals) > tunables.KEYPAD_CARDINALITY_MAX:
+                if is_box_keypad and vals and len(vals) > tunables.KEYPAD_CARDINALITY_MAX:
                     box_vector[box] = UNKNOWN
                     log.write(TurnLogRecord(
                         turn_n=turn_n,
@@ -212,15 +218,26 @@ class Engine:
                     ))
                     continue
 
-                if box == "category":
-                    prompt_id = "opener_prompt"
-                elif box == "state":
-                    prompt_id = "state_q_maharashtra"
+                if is_box_keypad:
+                    if box == "category":
+                        prompt_id = "opener_prompt"
+                    elif box == "state":
+                        prompt_id = "state_q_maharashtra"
+                    else:
+                        prompt_id = f"keypad_{box}"
+                    audio.say((prompt_id,))
+                    inp = audio.next_input(profile="normal")
                 else:
-                    prompt_id = f"keypad_{box}"
-                audio.say((prompt_id,))
-
-                inp = audio.next_input(profile="normal")
+                    if box == "category":
+                        prompt_id = "opener_prompt"
+                    elif box == "state":
+                        prompt_id = "state_q_maharashtra"
+                    elif box_strikes[box] == 1:
+                        prompt_id = f"rephrase_{box}"
+                    else:
+                        prompt_id = f"q_{box}"
+                    audio.say((prompt_id,))
+                    inp = audio.next_input(profile="spoken")
 
                 if isinstance(inp, Silence):
                     rung = inp.n if (hasattr(inp, "n") and inp.n) else (silence_ladder + 1)
@@ -261,14 +278,18 @@ class Engine:
                         turn_class="NOISE",
                     ))
                     if box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
-                        box_vector[box] = UNKNOWN
-                        log.write(TurnLogRecord(
-                            turn_n=turn_n,
-                            turn_class="ANSWER",
-                            box=box,
-                            value=UNKNOWN,
-                            unknown_source="keypad_dropped",
-                        ))
+                        if mode == "keypad_only" or is_box_keypad:
+                            box_vector[box] = UNKNOWN
+                            question_count += 1
+                            log.write(TurnLogRecord(
+                                turn_n=turn_n,
+                                turn_class="ANSWER",
+                                box=box,
+                                value=UNKNOWN,
+                                unknown_source="keypad_dropped",
+                            ))
+                    else:
+                        audio.repeat()
                     if turn_n >= tunables.MAX_TURNS:
                         stop_reason = STOP_MAX_TURNS
                         break
@@ -354,15 +375,16 @@ class Engine:
                             transcript=str(digit),
                         ))
                         if box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
-                            box_vector[box] = UNKNOWN
-                            question_count += 1
-                            log.write(TurnLogRecord(
-                                turn_n=turn_n,
-                                turn_class="ANSWER",
-                                box=box,
-                                value=UNKNOWN,
-                                unknown_source="keypad_dropped",
-                            ))
+                            if mode == "keypad_only" or is_box_keypad:
+                                box_vector[box] = UNKNOWN
+                                question_count += 1
+                                log.write(TurnLogRecord(
+                                    turn_n=turn_n,
+                                    turn_class="ANSWER",
+                                    box=box,
+                                    value=UNKNOWN,
+                                    unknown_source="keypad_dropped",
+                                ))
                         else:
                             audio.repeat()
 
@@ -374,32 +396,252 @@ class Engine:
                         break
 
                 elif isinstance(inp, Speech):
-                    # A Speech input in keypad-only mode is a caller talking to a
-                    # menu. It is not free text to the Engine: it spends a cap turn
-                    # and is discarded, exactly like an out-of-menu digit. Without
-                    # this, turn_n never advances and the loop spins forever.
-                    turn_n += 1
                     silence_ladder = 0
-                    box_strikes[box] += 1
-                    log.write(TurnLogRecord(
-                        turn_n=turn_n,
-                        turn_class="UNCLEAR",
-                        discarded_transcript=str(getattr(inp, "text", "") or ""),
-                    ))
-                    if box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
-                        box_vector[box] = UNKNOWN
-                        question_count += 1
+                    transcript = getattr(inp, "text", "") or ""
+                    if is_box_keypad or model is None:
+                        # A Speech input in keypad-only mode is a caller talking to a
+                        # menu. It is not free text to the Engine: it spends a cap turn
+                        # and is discarded, exactly like an out-of-menu digit.
+                        turn_n += 1
+                        box_strikes[box] += 1
                         log.write(TurnLogRecord(
                             turn_n=turn_n,
-                            turn_class="ANSWER",
-                            box=box,
-                            value=UNKNOWN,
-                            unknown_source="keypad_dropped",
+                            turn_class="UNCLEAR",
+                            discarded_transcript=str(transcript),
                         ))
+                        if box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
+                            box_vector[box] = UNKNOWN
+                            question_count += 1
+                            log.write(TurnLogRecord(
+                                turn_n=turn_n,
+                                turn_class="ANSWER",
+                                box=box,
+                                value=UNKNOWN,
+                                unknown_source="keypad_dropped",
+                            ))
+                        else:
+                            audio.repeat()
+                        if turn_n >= tunables.MAX_TURNS:
+                            stop_reason = STOP_MAX_TURNS
+                            break
+                        continue
+
+                    # --- Voice mode: process spoken answer via model ---
+                    turn_n += 1
+                    curr_lang = getattr(audio, "language", "hi")
+                    proposed_val = None
+                    proposed_span = ""
+
+                    if box == "category":
+                        res = model.opener(transcript, lang=curr_lang)
+                        if isinstance(res, list) and res:
+                            for s in res:
+                                if s.box == "category":
+                                    proposed_val = s.value
+                                    proposed_span = s.span
+                                    break
+                            if proposed_val is None and res:
+                                proposed_val = res[0].value
+                                proposed_span = res[0].span
                     else:
-                        audio.repeat()
+                        res = model.turn(transcript, box=box, ask_count=box_strikes[box])
+                        if hasattr(res, "box") and hasattr(res, "value") and res.value:
+                            proposed_val = res.value
+                            proposed_span = getattr(res, "span", transcript)
+
+                    if not proposed_val:
+                        # Model did not understand speech -> UNCLEAR
+                        box_strikes[box] += 1
+                        log.write(TurnLogRecord(
+                            turn_n=turn_n,
+                            turn_class="UNCLEAR",
+                            transcript=transcript,
+                        ))
+                        if getattr(model, "keypad_only", False):
+                            mode = "keypad_only"
+                            log.write({"mode": "keypad_only"})
+                            audio.say(("keypad_only_mode",))
+                        elif box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                            audio.say(("unclear_prompt",))
+                        if turn_n >= tunables.MAX_TURNS:
+                            stop_reason = STOP_MAX_TURNS
+                            break
+                        continue
+
+                    # Model understood proposed_val!
+                    # Log spoken ANSWER turn
+                    log.write(TurnLogRecord(
+                        turn_n=turn_n,
+                        turn_class="ANSWER",
+                        box=box,
+                        value=proposed_val,
+                        transcript=transcript,
+                        span=proposed_span,
+                    ))
+
                     if turn_n >= tunables.MAX_TURNS:
                         stop_reason = STOP_MAX_TURNS
+                        break
+
+                    # --- Confirmation Turn: Mouth reads back what it heard ---
+                    confirm_seq = (
+                        "bundle_confirm_intro",
+                        f"chip_{box}_{proposed_val}",
+                        "confirm_yn_suffix",
+                    )
+                    audio.say(confirm_seq)
+
+                    # Confirmation loop
+                    while True:
+                        confirm_inp = audio.next_input(profile="confirm")
+                        if isinstance(confirm_inp, Digit):
+                            silence_ladder = 0
+                            if confirm_inp.digit == "#":
+                                audio.repeat()
+                                continue
+                            elif confirm_inp.digit == "*":
+                                curr_lang = getattr(audio, "language", "hi")
+                                new_lang = _next_lang(curr_lang)
+                                if hasattr(audio, "language"):
+                                    audio.language = new_lang
+                                log.write(LangSwitchRecord(
+                                    lang=new_lang,
+                                    lang_source="keypad",
+                                    turn_n=turn_n,
+                                ))
+                                audio.say((
+                                    "bundle_confirm_intro",
+                                    f"chip_{box}_{proposed_val}",
+                                    "confirm_yn_suffix",
+                                ))
+                                continue
+                            elif confirm_inp.digit == "1":
+                                # CONFIRM ACCEPT: caller confirmed!
+                                turn_n += 1
+                                box_vector[box] = proposed_val
+                                box_strikes[box] = 0
+                                question_count += 1
+                                log.write(TurnLogRecord(
+                                    turn_n=turn_n,
+                                    turn_class="ANSWER",
+                                    box=box,
+                                    value=proposed_val,
+                                    transcript="1",
+                                    span="1",
+                                ))
+                                break
+                            elif confirm_inp.digit == "2":
+                                # CONFIRM MISMATCH / RE-ASK: caller rejected!
+                                turn_n += 1
+                                box_strikes[box] += 1
+                                log.write(TurnLogRecord(
+                                    turn_n=turn_n,
+                                    turn_class="UNCLEAR",
+                                    transcript="2",
+                                ))
+                                if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                    audio.say(("unclear_prompt",))
+                                break
+                            else:
+                                # Out-of-menu digit on confirm
+                                turn_n += 1
+                                box_strikes[box] += 1
+                                log.write(TurnLogRecord(
+                                    turn_n=turn_n,
+                                    turn_class="UNCLEAR",
+                                    transcript=str(confirm_inp.digit),
+                                ))
+                                if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                    audio.say(("unclear_prompt",))
+                                break
+
+                        elif isinstance(confirm_inp, Silence):
+                            rung = confirm_inp.n if (hasattr(confirm_inp, "n") and confirm_inp.n) else (silence_ladder + 1)
+                            silence_ladder = rung
+                            log.write(TurnLogRecord(
+                                turn_n=turn_n,
+                                turn_class="SILENCE",
+                                silence_n=rung,
+                            ))
+                            if rung == 1:
+                                audio.repeat()
+                                continue
+                            elif rung == 2:
+                                audio.say(("silence_presence",))
+                                continue
+                            else:
+                                audio.say(("closing_farewell",))
+                                if hasattr(audio, "on_mark"):
+                                    audio.on_mark("closing_farewell")
+                                audio.hangup()
+                                survs_s = Filter.survivors(box_vector, corpus)
+                                silence_stop = (
+                                    STOP_ZERO_SURVIVORS if len(survs_s) == 0
+                                    else (STOP_LE_4_SURVIVORS if len(survs_s) <= tunables.STOP_SURVIVORS else STOP_NO_SPLIT)
+                                )
+                                log.close(reason=silence_stop, ladder_rung=ladder_rung, mode=mode)
+                                return
+
+                        elif isinstance(confirm_inp, Noise):
+                            turn_n += 1
+                            box_strikes[box] += 1
+                            log.write(TurnLogRecord(
+                                turn_n=turn_n,
+                                turn_class="NOISE",
+                            ))
+                            if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                audio.say(("unclear_prompt",))
+                            break
+
+                        elif isinstance(confirm_inp, Speech):
+                            silence_ladder = 0
+                            spk = str(getattr(confirm_inp, "text", "") or "").strip().lower()
+                            if spk in ("1", "yes", "haan", "ha", "ho", "sahi", "right", "correct"):
+                                turn_n += 1
+                                box_vector[box] = proposed_val
+                                box_strikes[box] = 0
+                                question_count += 1
+                                log.write(TurnLogRecord(
+                                    turn_n=turn_n,
+                                    turn_class="ANSWER",
+                                    box=box,
+                                    value=proposed_val,
+                                    transcript=spk,
+                                    span=spk,
+                                ))
+                                break
+                            elif spk in ("2", "no", "nahi", "na", "wrong", "fix", "chuki"):
+                                turn_n += 1
+                                box_strikes[box] += 1
+                                log.write(TurnLogRecord(
+                                    turn_n=turn_n,
+                                    turn_class="UNCLEAR",
+                                    transcript=spk,
+                                ))
+                                if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                    audio.say(("unclear_prompt",))
+                                break
+                            else:
+                                turn_n += 1
+                                box_strikes[box] += 1
+                                log.write(TurnLogRecord(
+                                    turn_n=turn_n,
+                                    turn_class="UNCLEAR",
+                                    transcript=spk,
+                                ))
+                                if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                    audio.say(("unclear_prompt",))
+                                break
+
+                        elif isinstance(confirm_inp, Hangup):
+                            audio.hangup()
+                            return
+
+                    if turn_n >= tunables.MAX_TURNS:
+                        stop_reason = STOP_MAX_TURNS
+                        break
+                    if question_count >= tunables.MAX_QUESTIONS:
+                        stop_reason = STOP_MAX_QUESTIONS
                         break
 
 

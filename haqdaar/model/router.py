@@ -40,7 +40,7 @@ class Model:
         self,
         corpus: Any = None,
         client: Optional[GroqModelClient] = None,
-        timeout: float = 2.0,
+        timeout: Optional[float] = None,
     ) -> None:
         self.corpus = corpus
         self.client = client if client is not None else GroqModelClient(timeout=timeout)
