@@ -1815,4 +1815,10 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   - `make stress`: 1,000 callers, 0 crashes, 0 truth failures.
   - `make ear-check`: 9/9 sentences recognized via Sarvam STT.
 
+## Step 4.1 review (1 Oct 2026, reviewer: Muse) — verdict: MERGE-READY
+- Branch `step-4.1-ear`, single commit `e109da0` (21 files: ear.py new 637 lines, test_ear.py new 438 lines, ear_check.py new, 11 fixture wavs + manifest, Makefile target, 3 nit fixes, PROJECT-UPDATE.md entry).
+- Verified independently: pytest 331 passed (314 + 17), `make stress` 0 crashes / 0 truth failures, forbidden paths clean (no engine/, contracts/, snapshots/, no gate/threshold changes), tests offline (httpx.Client.post monkeypatched / FakeSTT), raw httpx no SDKs, Sarvam `saaras:v4` confirmed against official docs (default/recommended), keypress-wins at 4 checkpoints, timeout → failure signal no retry, push_* all put_nowait.
+- My two live `make ear-check` runs: 3/9 then 6/9, all via Groq (en timeouts at 5.02s). Cause: one transient Sarvam blip trips the sticky `sarvam_ok` circuit breaker (never resets), rest of run falls back to slow Groq free tier. Ledger `data_cache/reports/stt_usage.jsonl` (gitignored): 21 Sarvam successes (Antigravity), 9+9 Groq ok/fail (mine). No Muse spend this step.
+- Fix-forward nits for 4.2 warmup: (1) test_ear.py:19 unused imports; (2) ear.py:390 sarvam_ok never resets; (3) ear.py:59 lang format differs by provider (hi vs hi-IN); (4) ear.py:387 Sarvam failures never ledgered; (5) ear.py:602 silence_count not reset on Digit; (6) plain `make ear-check` defaults live — document the spend; (7) Sarvam ignores hint, STT_* env overrides undocumented; (8) conftest.py blocks only Muse — a future test forgetting to fake STT would hit paid APIs (consider autouse httpx guard).
+
 
