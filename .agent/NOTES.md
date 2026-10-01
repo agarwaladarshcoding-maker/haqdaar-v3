@@ -2030,3 +2030,14 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   - `make model-bakeoff`: 30/30 (100.0%) perfect utterances, 69/69 stamps matched, 30 hallucinated stamps intercepted.
   - `make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"`: completed end to end with PROPOSAL turn, confirmed ANSWER turn, and exact match terminal in `mode="voice"`.
   - `make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h" --keypad-only`: completed end to end in `mode="keypad_only"`.
+
+## Step D review (Oct 2026) — verdict: MERGE-READY, 0 blockers
+- Reviewed branch step-4.5-fallback (b64b8d6) vs PROMPT-ANTIGRAVITY-D-FALLBACK.md + PHASE-4-PLAN 4.5 via review subagent (full: /tmp/review-D.md). Strict pass: wires ear/model into live server path.
+- 6/6 warmup done (alias cache hoist, door_a_check clean form, PROPOSAL log class + test asserts T1=PROPOSAL/T2=ANSWER, confirm-loop turn bound with monotonic turn_n, sim UNCLEAR default, TASK.md updated).
+- Wiring matches spec: ear keypad_only on STT failure + force_stt_failure(); model breaker at 2 failures (pre-existing); engine checks audio/turn/model keypad_only at mode init + Noise/UNCLEAR/confirm paths; fallback reuses keypad loop (no fork); forced-STT-failure test asserts keypad_only mode + LOG line + spoken->normal transition.
+- Hard rules PASS: socket surface all put_nowait; only new sleep is 0.02s engine-thread barge-in poll (pre-existing pattern); no new threads/queues (Turn reuses ear._keys — removes phantom-duplicate-DTMF hazard); server engine-thread model unchanged.
+- Tests offline (FailingSTT + SimModelClient + synthetic PCM; conftest untouched).
+- Live: ear-check RAN 9/9 @0.61s avg, ledger-corroborated byte-for-byte (stt_usage.jsonl 9 sarvam/success rows); bakeoff --live BLOCKED by Groq 404 model_not_found (llama-3.3-70b-versatile not on key), 0 tokens, honestly reported -> owner follow-up (key fix + rerun for live p50/p95).
+- Observed this session on branch: pytest 372, stress 0/0, bakeoff 30/30 offline.
+- Nits: fixed PROJECT-UPDATE "5 warmup items"->6 in record commit. Carried to Phase 5 backlog: Turn.wait_input direct test gap (forced-failure test bypasses it via MockAudioSession), sim opener UNCLEAR-vs-empty-stamps asymmetry, ear stt_failed/failures redundancy (harmless), NOTES "370 tests" label in Step D section.
+- PHASE 4 CODE COMPLETE after this merge. Remaining: owner end-file, Phase 5, Phase 6.

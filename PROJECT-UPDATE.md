@@ -108,7 +108,7 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
   - In `server.py`: `_run_engine` instantiates `Model(corpus=corpus)` and passes it to `Engine.run_call`.
   - In `turn.py`: `Turn` coordinates speech input through `ear.listen()` while prioritizing pre-queued or barge-in DTMF keypresses.
   - In `phone.py`: `PhoneAudio.next_input()` delegates spoken turns to `turn.wait_input()` and exposes `keypad_only`.
-- **Fixed the 5 warmup items from Step C review:**
+- **Fixed the 6 warmup items from Step C review:**
   - `haqdaar/engine/door_a.py`: hoisted `_load_manual_aliases()` outside the per-scheme loop with a module-level cache.
   - `tools/door_a_check.py`: simplified dead fallback logic.
   - `haqdaar/contracts/log_schema.py` & `haqdaar/engine/call.py`: logged proposed spoken answers as `PROPOSAL` before confirmation, avoiding phantom duplicate `ANSWER` log lines.
