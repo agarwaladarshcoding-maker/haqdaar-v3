@@ -1990,3 +1990,12 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   - `make model-bakeoff`: 30/30 (100.0%) perfect utterances, 69/69 stamps matched, 30 hallucinated stamps intercepted.
   - `make door-a-check`: 90/90 (100.00%) hits, mean latency 0.56ms.
   - `make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"`: completed end to end through spoken opener and confirm turn (key 1), ending in `survivors_le_4` in `mode="voice"`.
+
+## Step C review (Oct 2026) — verdict: MERGE-READY, 0 blockers
+- Reviewed branch step-4.4-spoken (4fb9e1c) vs PROMPT-ANTIGRAVITY-C-SPOKEN.md + PHASE-4-PLAN 4.4 via review subagent (full: /tmp/review-C.md). Strict pass: touches live call path.
+- 7/7 warmup nits fixed (router timeout, tunables constants, silent-empty log, MANUAL_ALIASES->manual_aliases.json, fast-path normalise, action==read asserts, plan 40->30).
+- Confirm design matches 4.4 spec (superset: all boxes): readback bundle_confirm_intro+chip+confirm_yn_suffix (tokens verified in snapshot templates), 1/yes accept, 2/no UNCLEAR+strike, 2 strikes->keypad menu, silence ladder mirrors main loop, */# parity, 2 model failures->keypad_only. Spoken+confirm = 2 turns (T10/T23 accounting).
+- Hard rules PASS: no new blocking calls/concurrency in diff (grep clean); live path byte-identical (server.py:181 model=None intact, is_box_keypad gates all new branches); voice only when model injected.
+- Tests offline (MockAudioSession/MockModel, conftest guard intact). No scope creep into D (server/turn/ear untouched).
+- Observed this session on branch: pytest 370, stress 0/0, bakeoff 30/30, door-a 30/30 MR, sim shows confirm echo + canned 1 -> survivors_le_4 mode=voice.
+- 6 items carried into Step D prompt warmup (alias-loader hoist, door_a_check dead fallback, proposal logged pre-confirm as non-ANSWER, bound confirm loop, sim UNCLEAR default, TASK.md reminder). N6 noted: bare make sim stays keypad-only by design; HANDOFF keeps the KEYS command.

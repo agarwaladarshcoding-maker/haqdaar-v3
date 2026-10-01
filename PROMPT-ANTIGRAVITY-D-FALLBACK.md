@@ -14,6 +14,29 @@
 
 ## 1 · Scope: wire ear + model into the turn loop (unwired on 1 Oct)
 
+Warmup (from the Step C review) — do first:
+1. `haqdaar/engine/door_a.py:265`: `_load_manual_aliases()` is called inside the
+   per-scheme loop (re-reads + re-parses the JSON per scheme per init). Hoist to one
+   load or a module-level cache.
+2. `tools/door_a_check.py:52`: dead fallback `(res.scheme_ids[0] if res.scheme_ids
+   else "")` retained. Simplify to match the test's clean form (line 53 already
+   requires `action == "read"`).
+3. `haqdaar/engine/call.py:473-480`: the proposed value is logged as ANSWER *before*
+   the caller confirms, so a rejected value (press 2) leaves a phantom ANSWER record
+   and accepted values log ANSWER twice. Log the proposal as a non-ANSWER class
+   instead (no consumer reads this yet — `tools/judge.py` is step 5.2 — but define the
+   shape now; update `tests/test_call_spoken.py` to match).
+4. `haqdaar/engine/call.py:501,517,568,571`: `#`/`*`/silence-rung-1/2 `continue` the
+   confirm loop without advancing turn_n or a MAX_TURNS check — unbounded on
+   repeat-mashing. Bound it.
+5. `haqdaar/sim.py:87-98`: SimModelClient's default opener stamp returns farming for
+   ANY unrecognized speech, so sim can never exercise the model-UNCLEAR branch. Return
+   UNCLEAR (or nothing) for unmatched text.
+6. Reminder: prompt §reply asks for `.agent/TASK.md` AND `.agent/NOTES.md` — step C
+   forgot TASK.md. Update both.
+
+Main scope:
+
 Today `server.py:181` passes `model=None` (keypad-only) and nothing imports ear/model in
 server/sim/call/turn. The pieces exist in isolation — connect them:
 
