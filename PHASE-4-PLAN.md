@@ -10,8 +10,8 @@ Owner keeps, in parallel: A2 read/listen verdicts, A3 voice/menu decisions,
 
 | Step | Scope | Prompt | Status |
 |------|-------|--------|--------|
-| 4.1 | `haqdaar/audio/ear.py` (Sarvam STT + Groq fallback), speech fixtures, `tests/test_ear.py`, `make ear-check`, 3 nits | `PROMPT-ANTIGRAVITY-4.1.md` | READY |
-| 4.2 | `haqdaar/model/` client + span guard; author ~21 utterances (9 exist); 30-utterance bake-off, p50/p95 in NOTES | written after 4.1 merges | queued |
+| 4.1 | `haqdaar/audio/ear.py` (Sarvam STT + Groq fallback), speech fixtures, `tests/test_ear.py`, `make ear-check`, 3 nits | `PROMPT-ANTIGRAVITY-4.1.md` | MERGED 1 Oct (da2557a, pytest 331) |
+| 4.2 | `haqdaar/model/` client + span guard; author ~21 utterances (9 exist); 30-utterance bake-off, p50/p95 in NOTES | `PROMPT-ANTIGRAVITY-4.2.md` | READY |
 | 4.3 | `haqdaar/engine/door_a.py`; offline top-1 accuracy (3 forms × 40 schemes); live "<20 s" check stays owner | written after 4.2 merges | queued |
 | 4.4 | Spoken answers + "if right press 1" confirmation (`call.py`, `turn.py`, `server.py`, `sim.py`); sim-path acceptance | written after 4.3 merges | queued |
 | 4.5 | Voice-break → keypad fallback; forced-STT-failure test; `v1-voice` tag stays owner | written after 4.4 merges | queued |

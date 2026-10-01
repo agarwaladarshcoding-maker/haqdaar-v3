@@ -16,7 +16,8 @@ This file is the shared base for all three. Read it first, then `AGENTS.md` (the
   iCloud and hangs on big reads. Both copies are on the same branch, but only `~/code` is safe to run.
 - **Branch:** `main` (pushed to GitHub, `haqdaar-v3`, in sync). Start every new step on a new
   branch from here, for example `git switch -c step-4.1-ear`.
-- **Merged:** `main` holds Phase 2 + Phase 3, including the 3.7 audit tooling.
+- **Merged:** `main` holds Phase 2 + Phase 3, including the 3.7 audit tooling, plus
+  step 4.1 (ear: Sarvam STT + Groq fallback, speech fixtures, `make ear-check`).
   Tagging `v1-keypad` waits for the owner's audit verdicts and 3 real calls.
 - **Python:** always `.venv/bin/python`, which is 3.11. The system `python3` is 3.14 and has no `audioop`.
 - **Keys:** they live in `~/code/haqdaar-v2/.env` and are never committed. It holds MUSE_API_KEY,
@@ -26,7 +27,7 @@ This file is the shared base for all three. Read it first, then `AGENTS.md` (the
 
 ```
 cd ~/code/haqdaar-v2
-.venv/bin/python -m pytest -q          # 314 pass on 1 Oct
+.venv/bin/python -m pytest -q          # 331 pass on 1 Oct
 make stress                            # 1,000 random callers: must say crashes 0, truth failures 0
 make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"   # one call in the terminal
 ```
@@ -57,6 +58,10 @@ API: `tests/conftest.py` blocks Muse, and each test fakes its client.
   - **3.6** `make stress` runs 1,000 callers: 0 crashes, 0 truth failures.
 - **3.7 tooling** `tools/cards_sheet.py` (seeded 20-sample), `audit_3_7.md`
   template, `listen.py` cards mode. Reading, listening and verdicts are the owner's.
+- **4.1 ear** `haqdaar/audio/ear.py` (Sarvam STT primary, Groq Whisper fallback,
+  energy VAD, NOISE vs SILENCE, keypress wins, timeout = failure signal), 9 speech
+  fixtures, `tests/test_ear.py` (17 tests, offline), `make ear-check` (defaults live;
+  `--offline` only checks loading). Merged 1 Oct, pytest 331.
 
 ## 4 · What is left, in order
 
@@ -81,8 +86,10 @@ API: `tests/conftest.py` blocks Muse, and each test fakes its client.
    - Choices: say fewer options, speak faster, or leave them as they are.
 
 **Phase 4, voice (`PLAN-V2.md` §3, steps 4.1–4.5)**
-- Build speech-to-text, the model that understands answers, "Door A" (say the scheme's name),
-  spoken answers with a confirmation, and a fall back to keypad if voice breaks.
+- 4.1 speech-to-text done and merged. Next: 4.2 (the model that understands answers
+  + span guard + 30-utterance bake-off; prompt ready in `PROMPT-ANTIGRAVITY-4.2.md`),
+  then "Door A" (say the scheme's name), spoken answers with a confirmation,
+  and a fall back to keypad if voice breaks.
 - **Muse must never hear live callers.** On the Contributor tier Meta may train on what it is
   sent. Live speech needs another provider: Groq Whisper, Sarvam STT, or similar.
 
