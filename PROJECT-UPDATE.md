@@ -85,16 +85,26 @@ Each entry says: what was added, what was changed, and what the project can do a
 | File | What it does |
 |---|---|
 | `haqdaar/sim.py` | The terminal call. `make sim`. |
-| `fixtures/` | 5 test schemes, 3 test callers, 10 TTS stubs, 9 speech fixtures — used by tests and tools. |
-| `tests/` | Unit and shape tests across contracts, engine, pipeline, audio pool, mouth, phone, and ear. |
-| `Makefile` | Short commands: `make test`, `make sim`, `make run`, `make stress`, `make ear-check`, etc. |
+| `fixtures/` | 5 test schemes, 3 test callers, 10 TTS stubs, 30 speech fixtures — used by tests and tools. |
+| `tests/` | Unit and shape tests across contracts, engine, pipeline, audio pool, mouth, phone, ear, and model. |
+| `Makefile` | Short commands: `make test`, `make sim`, `make run`, `make stress`, `make ear-check`, `make model-bakeoff`, etc. |
 
 ### Not written yet
-`model/` · `engine/door_a.py` (Phase 4 later steps).
+`engine/door_a.py` (Phase 4 later steps).
 
 ---
 
 ## 3 · Log — newest first
+
+### 1 Oct — Step 4.2: Model Client, Span Guard & 30-Utterance Bake-Off
+- **Built:** `haqdaar/model/` with `GroqModelClient` (`client.py`) using raw `httpx`, temperature 0, JSON mode (`response_format={"type": "json_object"}`), 2.0s timeout, never raises, captures 429/timeout/errors into `ModelClientResponse`, ledgers usage.
+- **Span guard:** `SpanGuard` (`span_guard.py`) enforces strict provenance via string containment and closed-set validation ("farmer" can never smuggle in "low income").
+- **Router:** `Model` (`router.py`) provides `opener()` with exact alias match fast-path and `turn()` with 5-class precedence (`META > ANSWER > CLARIFY > REPEAT > UNCLEAR`).
+- **Resilience:** 2-failure keypad-only circuit breaker (`failures` counter and `keypad_only` property) ensures degraded calls route directly to keypad without further network delays.
+- **Fixtures:** authored 21 static speech fixtures (7 personas P4–P10 × en/hi/mr) in `fixtures/audio/speech/` to complete the 30-utterance set with expected stamps.
+- **Tooling:** added `tools/model_bakeoff.py` and `make model-bakeoff` target (runs against 30 fixtures with faked HTTP, reporting accuracy, span drops, and p50/p95 latency; ready for owner's live Groq pass via `--live`).
+- **Warmup:** fixed all 8 review nits from step 4.1 (removed unused imports in `tests/test_ear.py`, added `reset_circuit()` and failure counter in `ear.py`, added `normalize_lang()`, ledgered Sarvam STT failures, reset `silence_count` on all `Digit` returns, documented live spend in `ear_check.py` and `Makefile`, noted Sarvam hint ignore and STT env overrides, added autouse `_block_unmocked_http_calls` in `tests/conftest.py`).
+- **Tests & Verification:** 21 new tests in `tests/test_model.py` (353 total pytest green), `make stress` (1,000 callers: 0 crashes, 0 truth failures), `make model-bakeoff` (30/30 100% accuracy, 69/69 stamps matched, 30 hallucinated stamps intercepted).
 
 ### 1 Oct — Step 4.1: Ear (speech to text, speech fixtures, ear-check)
 - **Built:** `haqdaar/audio/ear.py` with primary Sarvam STT (`saaras:v4`) and fallback Groq Whisper (`whisper-large-v3-turbo`) using raw `httpx`.

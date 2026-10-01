@@ -1,10 +1,13 @@
 """tools/ear_check.py — Speech-to-text verification across languages (plan 4.1).
 
 Usage:
-    python -m tools.ear_check               # runs against all 9 static speech fixtures (3 x en/hi/mr)
-    python -m tools.ear_check --lang hi      # runs only Hindi sentences
-    python -m tools.ear_check --offline      # offline verification mode (no network calls)
-    python -m tools.ear_check <path.wav>     # transcribes a specific audio file
+    python -m tools.ear_check               # runs live against all 9 static speech fixtures (spends API budget!)
+    python -m tools.ear_check --lang hi      # runs only Hindi sentences (live)
+    python -m tools.ear_check --offline      # offline verification mode (zero network calls, zero API spend)
+    python -m tools.ear_check <path.wav>     # transcribes a specific audio file (live)
+
+NOTE: Plain `make ear-check` defaults to live calls against Sarvam and Groq Whisper,
+which spends API credits and usage quota. Use `--offline` for local zero-cost verification.
 
 Verifies STT latency, provider routing (Sarvam -> Groq fallback), and transcript quality.
 """
@@ -85,6 +88,7 @@ def run_ear_check(
                 lat = 0.0
             else:
                 pcm = load_audio(wav_path)
+                stt.reset_circuit()
                 t0 = time.monotonic()
                 res = stt.transcribe(pcm, lang=lang)
                 lat = res.latency_s

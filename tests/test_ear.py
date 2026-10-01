@@ -16,14 +16,7 @@ import pytest
 
 from haqdaar.audio.ear import (
     BASE_DIR,
-    END_FRAMES,
-    END_RMS,
     FRAME_PCM_BYTES,
-    MAX_UTTERANCE_FRAMES,
-    PRE_ROLL_FRAMES,
-    SAMPLE_RATE,
-    START_FRAMES,
-    START_RMS,
     Ear,
     EnergyVAD,
     GroqWhisperSTT,
@@ -34,7 +27,6 @@ from haqdaar.audio.ear import (
     load_audio,
     pcm_to_ulaw,
     pcm_to_wav,
-    speech_to_text,
     ulaw_to_pcm,
 )
 from haqdaar.contracts.types import Digit, Hangup, Noise, Silence, Speech
@@ -242,11 +234,21 @@ def test_speech_to_text_fallback_to_groq(monkeypatch, tmp_path):
     assert len(sarvam_calls) == 1  # Not called again
     assert len(groq_calls) == 2
 
-    # Check ledger written
+    # Check ledger written (both Sarvam failure and Groq attempts recorded)
     assert ledger.exists()
     lines = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line]
-    assert len(lines) == 2
-    assert lines[0]["provider"] == "groq"
+    assert len(lines) == 3
+    assert lines[0]["provider"] == "sarvam"
+    assert not lines[0]["success"]
+    assert lines[1]["provider"] == "groq"
+    assert lines[1]["success"]
+    assert lines[2]["provider"] == "groq"
+    assert lines[2]["success"]
+
+    # 3. Test reset_circuit
+    engine.reset_circuit()
+    assert engine.sarvam_ok
+    assert engine.sarvam_failures == 0
 
 
 def test_speech_to_text_both_fail_no_exception(monkeypatch, tmp_path):
@@ -343,6 +345,22 @@ def test_ear_keypress_precedence_over_speech():
     assert inp2.digit == "9"
 
 
+def test_ear_digit_resets_silence_count():
+    """Any Digit return resets silence_count to 0."""
+    ear = Ear()
+    # First turn expires as silence
+    inp = ear.listen(timeout=0.05)
+    assert isinstance(inp, Silence)
+    assert ear.silence_count == 1
+
+    # Caller presses digit on next turn
+    ear.push_dtmf("2")
+    inp2 = ear.listen(timeout=1.0)
+    assert isinstance(inp2, Digit)
+    assert inp2.digit == "2"
+    assert ear.silence_count == 0
+
+
 def test_ear_hangup_event():
     """Ear returns Hangup when push_hangup() is called."""
     ear = Ear()
@@ -376,7 +394,7 @@ def test_fixtures_exist_and_loadable():
     assert manifest_path.exists(), "fixtures/audio/speech/manifest.json must exist"
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    assert len(manifest) == 11  # 9 utterances + silence + noise
+    assert len(manifest) == 32  # 30 utterances + silence + noise
 
     for key, info in manifest.items():
         wav_file = fixtures_dir / info["file"]

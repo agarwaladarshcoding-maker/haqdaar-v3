@@ -37,3 +37,34 @@ def _never_reach_a_paid_model(tmp_path, monkeypatch):
         raise AssertionError("a test tried to call the real Muse API")
 
     monkeypatch.setattr(muse.MuseClient, "_http_post", _no_network)
+
+
+@pytest.fixture(autouse=True)
+def _block_unmocked_http_calls(monkeypatch):
+    """Guard all tests against making real external HTTP requests.
+
+    Any unmocked HTTP call attempting to reach external endpoints (Groq, Sarvam,
+    Together, Twilio, etc.) raises an immediate AssertionError.
+    """
+    import httpx
+
+    real_send = httpx.Client.send
+
+    def _guarded_send(self, request, *args, **kwargs):
+        host = getattr(request.url, "host", "")
+        if host in ("localhost", "127.0.0.1", "testserver", "test"):
+            return real_send(self, request, *args, **kwargs)
+        raise AssertionError(f"Unmocked external HTTP call to {request.url} blocked by conftest.py")
+
+    monkeypatch.setattr(httpx.Client, "send", _guarded_send)
+
+    real_async_send = httpx.AsyncClient.send
+
+    async def _guarded_async_send(self, request, *args, **kwargs):
+        host = getattr(request.url, "host", "")
+        if host in ("localhost", "127.0.0.1", "testserver", "test"):
+            return await real_async_send(self, request, *args, **kwargs)
+        raise AssertionError(f"Unmocked external async HTTP call to {request.url} blocked by conftest.py")
+
+    monkeypatch.setattr(httpx.AsyncClient, "send", _guarded_async_send)
+
