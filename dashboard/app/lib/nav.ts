@@ -9,10 +9,7 @@ export const GROUPS: { title: string; pages: Page[] }[] = [
     title: "Run",
     pages: [
       { slug: "", name: "Home", icon: "home", built: true },
-      {
-        slug: "live", name: "Live call", icon: "phone", step: "D3",
-        will: "The Call my phone button for real, the call as a back and forth while it happens, what the engine has learned so far, and a free typed test call.",
-      },
+      { slug: "live", name: "Live call", icon: "phone", built: true },
       {
         slug: "calls", name: "Calls", icon: "list", step: "D2",
         will: "A table of every call with filters, and each call opened as a back and forth with times, the judge's reason, and your own verdict.",

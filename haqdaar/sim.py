@@ -366,6 +366,7 @@ def run_sim(
     snapshot: Optional[str] = None,
     model: Optional[Any] = None,
     spoken: bool = True,
+    audio: Optional["FakeAudio"] = None,
 ) -> Path:
     """Run full simulation against fixtures/ and return path to log file.
 
@@ -374,7 +375,7 @@ def run_sim(
     """
     if snapshot is not None:
         corpus = Corpus.load(Path(snapshot).name)
-        return _run_call(corpus, corpus.snapshot_id, canned_inputs, call_id, logs_dir, persona, model=model, spoken=spoken)
+        return _run_call(corpus, corpus.snapshot_id, canned_inputs, call_id, logs_dir, persona, model=model, spoken=spoken, audio=audio)
 
     root_dir = Path(__file__).resolve().parent.parent
     fixtures_dir = root_dir / "fixtures"
@@ -409,7 +410,7 @@ def run_sim(
                 render_stubs=True,
             )
             corpus = Corpus.load(snap_id)
-            return _run_call(corpus, snap_id, canned_inputs, call_id, logs_dir, persona, model=model, spoken=spoken)
+            return _run_call(corpus, snap_id, canned_inputs, call_id, logs_dir, persona, model=model, spoken=spoken, audio=audio)
         finally:
             tunables.SNAPSHOTS_DIR = orig_snap_dir
             tunables.AUDIO_DIR = orig_audio_dir
@@ -424,6 +425,7 @@ def _run_call(
     persona: str,
     model: Optional[Any] = None,
     spoken: bool = True,
+    audio: Optional["FakeAudio"] = None,
 ) -> Path:
     """One call on a loaded corpus. Returns the log path."""
     c_id = call_id or f"sim_{int(time.time())}"
@@ -433,7 +435,7 @@ def _run_call(
         logs_dir=logs_dir,
     )
 
-    audio = FakeAudio(
+    audio = audio or FakeAudio(
         canned_inputs=canned_inputs,
         fallback=PERSONAS.get(persona, PERSONAS[DEFAULT_PERSONA]),
     )

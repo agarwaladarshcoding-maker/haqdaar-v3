@@ -2346,3 +2346,23 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   pushes the page sideways on narrow screens.
 - The owner had `make dashboard` running himself (ports 3210/8001 busy). Do not start a second
   one or kill his; the dev server hot-reloads edits. Check with lsof first.
+
+## Live call page, step D3 (3 Oct 2026 late night)
+- Owner: hosting dropped for good (removed from PLAN-DASHBOARD; history at e45d2f7). Asked
+  "was there a Home page in the first plan, if not remove it": it WAS there (round 1), so kept.
+- Data door now acts, not only reads: POST /api/call-me (Ringer: rings CALL_ME_NUMBER only,
+  host from logs/tunnel_host or NGROK_DOMAIN, 20 s gap, plain-word refusals), POST
+  /api/test-call + /api/test-call/input (TypedCalls: one at a time, CURRENT snapshot, free,
+  idle 300 s -> hangs up). All POSTs need header `X-Haqdaar: dashboard`; the site relay
+  (dashboard/app/api/door/[...path]/route.ts) adds it, whitelists paths, and refuses a
+  cross-site Origin. GET /api/live once a second.
+- TypedCaller (tools/dashboard_api.py) subclasses sim.FakeAudio and overrides
+  _get_next_raw_input + _next_input to wait on a queue. sim.run_sim/_run_call gained
+  `audio=` (default unchanged). call_viewer.build_call gained info["known"] (box -> value from
+  ANSWER turns).
+- pytest names: a class called TestCalls gets collected by pytest (warning) -> named TypedCalls.
+- To try the site without touching the owner's running copy: `npm run build`, then
+  `ENGINE_API=http://127.0.0.1:8011 npx next start --port 3211` with a door on 8011.
+  Next 16 dev uses .next/dev, so a build does not disturb his dev server.
+- Gotcha: `<ol>` needed list-style reset too (notes showed "1. 2. 3.").
+- The Call my phone button has NOT rung a real phone: engine off + Twilio 401.

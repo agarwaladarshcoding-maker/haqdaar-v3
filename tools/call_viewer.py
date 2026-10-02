@@ -123,6 +123,7 @@ def build_call(rows: list[dict[str, Any]], lookup: Lookup = lambda token, lang: 
         "snapshot": start.get("snapshot", ""), "lang": lang, "duration_s": 0.0, "turns": 0,
         "unclear": 0, "silences": 0, "problems": 0, "stop": "", "mode": "", "ended": "",
         "finished": False, "schemes": [], "ai_talk_s": 0.0, "slowest_reply_s": None,
+        "known": {},  # box -> value, from the answers the engine took
     }
 
     def note(t: float, text: str, level: str = "note") -> None:
@@ -140,6 +141,8 @@ def build_call(rows: list[dict[str, Any]], lookup: Lookup = lambda token, lang: 
                     info["unclear"] += 1
                 if rec["class"] == "SILENCE":
                     info["silences"] += 1
+                if rec["class"] == "ANSWER" and rec.get("box"):
+                    info["known"][rec["box"]] = rec.get("value")
                 last = items[-1] if items else None
                 if last and last["who"] == "caller" and "understood" not in last:
                     last["understood"], last["cls"], last["turn_n"] = _turn_words(rec), rec["class"], rec.get("turn_n")

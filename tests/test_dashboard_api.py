@@ -101,3 +101,126 @@ def test_the_route_serves_home_and_keeps_the_call_routes(tmp_path):
     data = client.get("/api/home").json()
     assert data["engine"]["on"] is True and data["recent"][0]["key"] == "CA1"
     assert client.get("/api/calls/CA1").json()["info"]["call_id"] == "CA1"
+
+
+# --- step D3: the Live call page ---------------------------------------------------------
+
+import time  # noqa: E402
+import urllib.error  # noqa: E402
+
+from tools.dashboard_api import Ringer, TypedCalls  # noqa: E402
+
+DASH = {"X-Haqdaar": "dashboard"}
+
+
+def _wait(check, tries=200):
+    for _ in range(tries):
+        if check():
+            return True
+        time.sleep(0.02)
+    return False
+
+
+def _live_app(tmp_path, **kw):
+    logs = tmp_path / "logs"
+    tests = TypedCalls(logs_dir=logs, snapshot=None, idle_s=kw.pop("idle_s", 5))
+    app = make_app([logs], Texts(tmp_path / "no_snapshots"), tests=tests, probe=kw.pop("probe", lambda: True),
+                   reports_dir=tmp_path, snapshots_dir=tmp_path, server_log=tmp_path / "x.log",
+                   muse_ledger=tmp_path / "none.jsonl", **kw)
+    return TestClient(app), tests
+
+
+def test_a_typed_test_call_runs_step_by_step_and_shows_as_a_call(tmp_path, capsys):
+    client, tests = _live_app(tmp_path)
+    assert client.get("/api/live").json()["test"] is None
+
+    key = client.post("/api/test-call", headers=DASH).json()["key"]
+    assert _wait(lambda: client.get("/api/live").json()["test"]["waiting"] == "language")
+    assert client.post("/api/test-call", headers=DASH).status_code == 409  # one at a time
+
+    client.post("/api/test-call/input", headers=DASH, json={"text": "2"})
+    assert _wait(lambda: client.get("/api/live").json()["test"]["waiting"] == "words")
+    call = client.get(f"/api/calls/{key}").json()
+    assert call["info"]["lang"] == "mr" and call["info"]["source"] == "sim" and not call["info"]["finished"]
+    assert call["items"][1]["text"] == "pressed 2"
+
+    client.post("/api/test-call/input", headers=DASH, json={"text": "hangup"})
+    assert _wait(lambda: not tests.active)
+    capsys.readouterr()
+    state = client.get("/api/live").json()["test"]
+    assert state == {"key": key, "active": False, "error": "", "waiting": None}
+    info = client.get(f"/api/calls/{key}").json()["info"]
+    assert info["finished"] and info["ended"] == "caller hung up"
+    assert client.post("/api/test-call/input", headers=DASH, json={"text": "1"}).status_code == 409
+
+
+def test_a_test_call_nobody_answers_hangs_up_by_itself(tmp_path, capsys):
+    client, tests = _live_app(tmp_path, idle_s=0.05)
+    client.post("/api/test-call", headers=DASH)
+    assert _wait(lambda: not tests.active)
+    capsys.readouterr()
+    assert tests.error == ""
+
+
+def test_actions_are_refused_without_the_dashboard_header(tmp_path):
+    client, tests = _live_app(tmp_path)
+    for path in ("/api/call-me", "/api/test-call", "/api/test-call/input"):
+        assert client.post(path, json={"text": "1"}).status_code == 403
+    assert tests.key is None
+
+
+def test_ringer_rings_only_the_saved_number_and_says_why_when_it_cannot(tmp_path, monkeypatch):
+    host = tmp_path / "tunnel_host"
+    placed: list[tuple[str, str]] = []
+    now = [100.0]
+
+    def place(number, url):
+        placed.append((number, url))
+        return "CA123"
+
+    def ring(probe=lambda: True, place=place, live=None):
+        return Ringer(probe=probe, place=place, host_file=host, clock=lambda: now[0]).ring(live)
+
+    def refused(**kw):
+        try:
+            ring(**kw)
+        except RuntimeError as e:
+            return str(e)
+        return ""
+
+    monkeypatch.delenv("CALL_ME_NUMBER", raising=False)
+    monkeypatch.delenv("NGROK_DOMAIN", raising=False)
+    assert "engine is off" in refused(probe=lambda: False)
+    assert "already live" in refused(live="CA9")
+    assert "CALL_ME_NUMBER" in refused()
+    monkeypatch.setenv("CALL_ME_NUMBER", "+919800000090")
+    assert "no public address" in refused()
+    host.write_text("x.trycloudflare.com\n")
+    assert placed == []
+
+    assert ring() == "CA123"
+    assert placed == [("+919800000090", "https://x.trycloudflare.com/answer")]
+
+    def bad_login(number, url):
+        raise urllib.error.HTTPError(url, 401, "Unauthorized", None, None)
+
+    assert "Twilio refused the call (HTTP 401). Check the Twilio keys" in refused(place=bad_login)
+
+    again = Ringer(place=place, probe=lambda: True, host_file=host, clock=lambda: now[0])
+    again.ring(None)
+    try:
+        again.ring(None)
+        raise AssertionError("rang twice in a row")
+    except RuntimeError as e:
+        assert "just rung" in str(e)
+    now[0] += 30
+    assert again.ring(None) == "CA123"
+
+
+def test_call_me_route_passes_the_reason_to_the_page(tmp_path, monkeypatch):
+    monkeypatch.delenv("CALL_ME_NUMBER", raising=False)
+    client, _ = _live_app(tmp_path, probe=lambda: False)
+    r = client.post("/api/call-me", headers=DASH)
+    assert r.status_code == 409 and "engine is off" in r.json()["detail"]
+    live = client.get("/api/live").json()
+    assert live["engine"] == {"on": False, "live_call": None, "phone_tail": ""}

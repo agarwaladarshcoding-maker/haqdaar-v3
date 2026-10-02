@@ -123,10 +123,10 @@ Phase 3 + Phase 4 code is DONE and merged (steps A–D). What remains:
 - Tags: `v1-keypad`, then `v1-voice`.
 
 **In progress (3 Oct): the dashboard.** The front door in the browser: `make dashboard`, then
-http://127.0.0.1:3210. It runs on this computer only; hosting is dropped for now (owner).
+http://127.0.0.1:3210. It runs on this computer only; hosting is dropped for good (owner).
 Read `PLAN-DASHBOARD.md`: build order §8, the look §13, data shapes §14.
-- Built: the left bar and the Home page (step D1), on branch `step-6.1-dashboard-home`.
-- Next: D2, the Calls page.
+- Built: the left bar, Home (D1) and Live call (D3), on branch `step-6.1-dashboard-home`.
+- Next: D2, the Calls page. Design one page at a time, in the look of §13.
 - The site is `dashboard/` (Next.js). Its data comes from `tools/dashboard_api.py`.
 
 ## 5 · Rules that caught real bugs (keep them)

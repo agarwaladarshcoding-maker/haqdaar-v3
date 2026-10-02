@@ -99,6 +99,34 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+### 3 Oct (late night) — Live call page built. Hosting dropped for good. Home stays.
+- **Dropped — hosting.** Owner's word: nothing is hosted, not the site and not the engine.
+  `PLAN-DASHBOARD.md` no longer carries the hosting plan (it is in git history, e45d2f7).
+- **Kept — Home.** The owner asked whether the first plan had a Home page. It did, from the
+  first round of the dashboard plan, so it stays.
+- **Added — the Live call page** (`/live`). Simple: two cards on top, the call below.
+  - **Call my phone** rings the number saved in `.env` (`CALL_ME_NUMBER`), and only that one.
+    It says in plain words why it cannot ring: the engine is off, a call is already live, no
+    number is saved, no public address yet, Twilio refused the login, or the phone was rung a
+    few seconds ago. **Not tried on a real phone yet**: the engine is off and Twilio still
+    refuses the login (401).
+  - **Typed test call**: free, no phone. The real engine runs, and you type what the caller
+    presses or says, or press Say nothing or Hang up. A hint says what the AI is waiting for.
+    Left alone for 5 minutes, it hangs up by itself.
+  - **The call** shows line by line: the AI's words on the left, the caller on the right, and
+    under each caller line what the engine made of it in plain words ("Understood: Topic =
+    farming", "Not understood"). It follows the call down as it grows.
+  - **This call** beside it: language, turns, not understood, problems, what the engine knows
+    so far, the schemes read out, and the judge's word once it ends.
+  - The page address carries the call (`/live?call=...`), so a call can be opened again.
+- **Safety.** The two actions (ring, test call) are refused unless they come from the
+  dashboard's own page, so another website open in the browser cannot fire them.
+- **You need to restart `make dashboard`** once (Ctrl+C, then again) for the Live call page to
+  work: the data door you have running is the old one.
+- **Checks:** pytest 501 (was 496) · `make stress` 0 crashes, 0 truth failures · the site
+  type-checks and builds clean · a real typed test call was run through the page and looked
+  at in a browser: live, ended, light, dark, narrow · no paid API was called, no call placed.
+
 ### 3 Oct (late night) — Dashboard look redone from the owner's reference. One page: Home.
 - **Why.** The owner said the first look (yellow signboard, wide heavy letters) was very bad,
   gave a reference picture of a dark left bar, and asked for a simpler font and one page at a time.

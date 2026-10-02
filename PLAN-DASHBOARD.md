@@ -1,12 +1,14 @@
 # PLAN-DASHBOARD — the dashboard as the front door (3 Oct 2026, round 3)
 
-Status: **being built.** The left bar and the Home page are done (step D1, 3 Oct).
+Status: **being built.** Done so far: the left bar, Home (D1) and Live call (D3).
 Written in plain words on purpose. Read `HANDOFF.md` first if you are new.
 
-**Round 3 (owner, 3 Oct): hosting is dropped for now.** The dashboard runs on this computer:
-`make dashboard`, then http://127.0.0.1:3210. No Fly.io, no Vercel yet. §2 and §3 are parked
-and kept for the day hosting comes back. The build order is §8, the look is §13, the data
-shapes are §14.
+**Hosting is dropped (owner, 3 Oct).** The dashboard and the engine run on this computer:
+`make dashboard`, then http://127.0.0.1:3210. The build order is §8, the look is §13, the
+data shapes are §14.
+
+**Home stays.** The owner asked whether the first plan had a Home page. It did, from the first
+round, so it is kept.
 
 Round 2 changes: the engine gets hosted too (§2), an honest list of what it lacks before that
 (§3), the Schemes page gets a real table and an "add a scheme" flow (§5), and the build order
@@ -26,74 +28,14 @@ The phone line cannot take calls from the public yet (trial account, one verifie
 Indian number). So the dashboard is built around **calls we start ourselves**: "call my phone"
 and a free typed test call. When the line opens later, incoming calls show up in the same list.
 
-## 2 · PARKED · Two parts, both hosted
+## 2 · Hosting: dropped
 
-```
- your browser
-      |  (login)
-      v
- DASHBOARD on Vercel  ---- asks, with a secret token ---->  ENGINE on a small rented server
- pages + a small relay                                       calls, logs, schemes, clips, keys
-                                                                    ^
- phone company (Twilio)  <------------- the call audio ------------+
-```
+Owner, 3 Oct: no hosting, for the site or for the engine. Everything runs on this computer.
+`make run` starts the engine, `make dashboard` starts the dashboard. The earlier hosting
+plan (Fly.io for the engine, Vercel for the site) and its list of gaps were removed from this
+file; they are in git history (commit e45d2f7) if hosting ever comes back.
 
-- **The dashboard goes on Vercel.** Your account is reachable from here.
-- **The engine goes on a small always-on server, not on Vercel.** It is one long-running
-  program that holds a live audio line for the whole call and reads its voice clips from disk.
-  Vercel is built for web pages and short requests.
-- **Where:** Fly.io, in its Mumbai region. Reasons: you already ran your TSS agent's backend
-  there, the `fly` tool is already on this laptop, it keeps a machine on all the time, it does
-  the secure audio socket Twilio needs, and Mumbai is close to the callers and to Sarvam.
-  About 4 to 7 US dollars a month. It has no free plan and needs a card.
-- **Not Render's free plan:** it sleeps after 15 quiet minutes, and a call that hits a sleeping
-  server gets silence.
-- **What hosting buys:** the site is live all day, the laptop can be shut, and the engine has a
-  fixed address, so the "tunnel address changes every start" problem goes away.
-- **Caller words** then sit on the server's own disk in Mumbai, behind the token. They are not
-  copied anywhere else.
-
-## 3 · PARKED · Is the engine ready to be hosted today? Not yet. Close.
-
-The call code itself moves cleanly: it is plain Python and needs no special system software.
-But an audit on 3 Oct found these gaps. The first four are code, and I can close them. The
-last three only you can close.
-
-**Code gaps (about a day of work, step E1 and E2):**
-
-1. **No lock on the open doors.** Anyone who finds the address can open the audio socket. That
-   lets a stranger hold the one call slot for ever, so every real caller hears "busy". A
-   stranger can also run fake calls that spend your Sarvam and Groq credit. A crafted call id
-   can also write files outside the logs folder. On a laptop behind a random tunnel address
-   this was a small risk. On a fixed public address it is not.
-   Fix: check that each request really comes from Twilio, hand the socket a one-time pass,
-   time out a socket that says nothing, clean the call id, and remove the test routes.
-2. **No packaging.** There is no recipe for building the server. Fix: one Dockerfile, Python
-   3.11 pinned (the audio code needs 3.11 or 3.12).
-3. **The voice clips are not in git** (37 MB). A fresh copy of the code cannot start a call.
-   Fix: ship the clips inside the server build.
-4. **Three loose ends.** The "longest call" limit is written down but never enforced. The
-   health check says "ok" even when the clips are missing. Logs sit on a disk that a host
-   wipes on every update. Fix: enforce the limit, make the health check real, keep logs on a
-   disk that survives.
-
-**Gaps only you can close:**
-
-5. **The Twilio login looks wrong.** The last `make run` logged "401 Unauthorized" when it
-   tried to point the number. Until that is fixed, no call can be placed at all.
-6. **The Groq key cannot use the model the engine asks for** (known since 1 Oct). Until it is
-   fixed, every call works by keypad only: after two spoken answers the caller is told to
-   use the keypad.
-7. **A Fly.io account**, logged in on this laptop (`fly auth login`). The laptop is not logged
-   in now.
-
-**And one honest warning.** The current engine has never taken a real phone call. Tests, the
-typed test call, 1,000 simulated callers and a live speech-to-text check all pass. Real calls
-on 13 and 15 Sep were on the older code. So the first hosted call is also the first real call.
-Hosting makes that test easier (no tunnel, no laptop), but expect to fix things after it.
-
-**Also true today:** only 11 of the 27 checked schemes can be spoken. The other 16 have no
-voice clips yet. That waits on your voice choice and Sarvam credit, as before.
+## 3 · (removed with hosting)
 
 ## 4 · The pages (the sidebar)
 
@@ -262,7 +204,7 @@ One step at a time, on your word. Each ends with something you can check.
 |---|---|---|
 | **D1** | **Done.** The left bar with every page, and the Home page, on real data | No |
 | **D2** | Calls: the table with filters, and each call as a back and forth with times | No |
-| **D3** | Live call: Call my phone for real, the live view, the typed test call | Twilio login fixed; **the first real call** |
+| **D3** | **Done.** Live call: Call my phone, the call line by line, the typed test call | The button is untried on a real phone: needs the Twilio login fixed and `make run` |
 | **S1** | Schemes table and detail, Voice lines, play buttons | No |
 | **S2** | "Just this scheme" mode for each pipeline step, safe snapshot switch, backup | No |
 | **S3** | Add a scheme from the site, stage by stage, with Undo | Your two approvals per scheme; Muse and Sarvam money |
@@ -270,24 +212,21 @@ One step at a time, on your word. Each ends with something you can check.
 | **D5** | Plan and architecture, System | No |
 | **D6** | Settings: key status and Test, Muse guard; Replace a key if you say yes | A yes on replacing keys |
 | **D7** | The Phase 6 score sheet, listen and review | Your ears |
-| *parked* | E1 lock the doors, E2 host the engine, E3 token, then the site on Vercel | Fly login, keys on the server |
 
-D2 is next and needs nothing from you.
+D2 (Calls) is next and needs nothing from you.
 
 ## 9 · What it costs
 
-- **Fly.io:** about 4 to 7 US dollars a month for one small always-on machine and a small disk.
-- **Vercel:** the free plan is enough. It is for personal, non-commercial use; a paid service
-  would need the paid plan.
-- **Twilio:** each "call my phone" uses call minutes.
+- **The dashboard itself** costs nothing and spends nothing on Muse, Sarvam or Groq.
+- **A typed test call** is free.
+- **Call my phone** uses Twilio call minutes, and speech-to-text if you speak.
 - **Adding a scheme:** about half a rupee of Muse and about 3,200 characters of Sarvam voice.
-- **The dashboard itself** spends nothing on Muse, Sarvam or Groq.
 
 ## 10 · Choices only you can make
 
 Each has the default I would pick. "Go with the defaults" is a full answer.
 
-1. **Host the engine on Fly.io, Mumbai?** Parked with hosting. Not needed now.
+1. (Hosting: dropped.)
 2. **Who uses the site?** Default: you run it; one other person can look but not change.
 3. **May keys be replaced from the website?** Default: not at first. Status and Test only.
 4. **Voice for new schemes:** the same voices as the 11 live ones? Default: yes. This is the
@@ -297,7 +236,7 @@ Each has the default I would pick. "Go with the defaults" is a full answer.
 
 ## 11 · What this plan does not include
 
-- Running the call engine on Vercel.
+- Hosting of any kind. Dropped by the owner.
 - Calls from the public. The line is not open.
 - The Indian provider (step 5.4, dropped for now).
 - New topics, or new answer choices, from the site.
@@ -386,3 +325,11 @@ failed or troubled calls, schemes with no voice, audit verdicts still waiting, a
 real phone call has ever been logged.
 
 Still served from step 5.5: `GET /api/calls` and `GET /api/calls/{key}`.
+
+**Live call** asks `GET /api/live` once a second: `engine` (`on`, `live_call`, `phone_tail`)
+and `test` (the typed test call: `key`, `active`, `waiting` for language, words or a key).
+The call on screen comes from `GET /api/calls/{key}`; its `info.known` is what the engine has
+learned (box and value). Three actions, each refused unless it comes from the dashboard:
+`POST /api/call-me` (rings the saved number only), `POST /api/test-call` (start),
+`POST /api/test-call/input` (a key, words, `silence` or `hangup`).
+

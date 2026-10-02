@@ -2,8 +2,12 @@
 
 The data door for the dashboard (`make dashboard`). It answers the dashboard's questions from
 files the project already writes: call traces, the usage ledgers, the gates report, the
-snapshot. It only reads, and it is its own small server on 127.0.0.1, apart from the call
-server, so a slow page can never touch a live call.
+snapshot. It is its own small server on 127.0.0.1, apart from the call server, so a slow page
+can never touch a live call.
+
+It does two things besides reading, both for the Live call page, and both only when the
+request carries the dashboard's header (so another web page open in the browser cannot fire them):
+ring the owner's saved number (`/api/call-me`), and run a typed test call (`/api/test-call`).
 
 It grows from tools/call_viewer.py: the call routes (`/api/calls`, `/api/calls/{key}`) and the
 old call page at `/` are still served. `/api/home` is everything the Home page shows, in one go.
@@ -13,12 +17,20 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import queue
+import threading
+import time
+import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Optional
 
+from fastapi import Body, Depends, Header, HTTPException
+
 from haqdaar.contracts import tunables
+from haqdaar.contracts.types import Digit, Hangup, Noise, Silence, Speech
+from haqdaar.sim import FakeAudio, run_sim
 from tools.call_viewer import Calls, Texts, make_app as make_calls_app
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,6 +38,10 @@ ROSTER = ROOT / "haqdaar" / "data" / "pipeline" / "schemes.yaml"
 ENGINE_HEALTH = "http://127.0.0.1:8000/health"
 WINDOW = timedelta(hours=24)  # "today" for a night worker: the last 24 hours, not since midnight
 STRIP_MAX = 80
+TUNNEL_HOST = Path("logs") / "tunnel_host"  # the engine's public address, written by `make run`
+TEST_IDLE_S = 300.0   # a typed test call nobody answers hangs up by itself
+RING_GAP_S = 20.0     # do not ring the phone twice in a row
+KEYS = set("0123456789*#")
 
 
 def engine_is_on(url: str = ENGINE_HEALTH) -> bool:
@@ -232,19 +248,192 @@ def home(calls: Calls, reports_dir: Path | str | None = None, snapshots_dir: Pat
     }
 
 
-def make_app(dirs: list[Path | str], texts: Optional[Texts] = None, **home_args: Any):
+# --- the typed test call ---------------------------------------------------------------
+
+class TypedCaller(FakeAudio):
+    """The sim's caller, fed from the dashboard instead of the terminal.
+
+    The engine runs on its own thread and waits here for the next thing the owner types:
+    a key, some words, "silence", or "hangup". Nothing typed for TEST_IDLE_S hangs up.
+    """
+
+    def __init__(self, idle_s: float = TEST_IDLE_S) -> None:
+        super().__init__()
+        self.inbox: "queue.Queue[str]" = queue.Queue()
+        self.waiting: Optional[str] = None  # what the engine is waiting for, for the page's hint
+        self._idle_s = idle_s
+
+    def _take(self, kind: str) -> str:
+        self.waiting = kind
+        try:
+            return self.inbox.get(timeout=self._idle_s).strip()
+        except queue.Empty:
+            return "hangup"
+        finally:
+            self.waiting = None
+
+    def _get_next_raw_input(self, prompt: str) -> str:  # the language pick at the start
+        typed = self._take("language")
+        return "h" if typed.lower() in ("h", "hangup") else typed
+
+    def _next_input(self, profile: str = "normal") -> Digit | Noise | Silence | Hangup | Speech:
+        typed = self._take("words" if profile == "spoken" else "key")
+        low = typed.lower()
+        if low in ("h", "hangup"):
+            return Hangup()
+        if low in ("", "s", "silence"):
+            self._silence_count += 1
+            return Silence(n=self._silence_count)
+        self._silence_count = 0
+        if typed in KEYS:
+            return Digit(digit=typed)
+        if profile == "spoken":
+            return Speech(text=typed)
+        return Noise()  # words when only a key will do: the engine hears a sound it cannot use
+
+
+class TypedCalls:
+    """One typed test call at a time, on the CURRENT snapshot. Free: no phone, no paid API."""
+
+    def __init__(self, logs_dir: Path | str = "logs", snapshot: Optional[str] = "CURRENT",
+                 idle_s: float = TEST_IDLE_S) -> None:
+        self._logs_dir, self._snapshot, self._idle_s = str(logs_dir), snapshot, idle_s
+        self._lock = threading.Lock()
+        self.key: Optional[str] = None
+        self.error = ""
+        self._caller: Optional[TypedCaller] = None
+        self._thread: Optional[threading.Thread] = None
+
+    @property
+    def active(self) -> bool:
+        return self._thread is not None and self._thread.is_alive()
+
+    def start(self) -> str:
+        with self._lock:
+            if self.active:
+                raise RuntimeError("A test call is already going on.")
+            self.key, self.error = f"test_{int(time.time() * 1000)}", ""
+            self._caller = TypedCaller(self._idle_s)
+            self._thread = threading.Thread(target=self._run, args=(self.key, self._caller), daemon=True)
+            self._thread.start()
+            return self.key
+
+    def _run(self, key: str, caller: TypedCaller) -> None:
+        try:
+            run_sim(call_id=key, logs_dir=self._logs_dir, snapshot=self._snapshot, audio=caller)
+        except Exception as e:  # shown on the page; a test call must never take the door down
+            self.error = f"The test call stopped: {e!r}"
+
+    def say(self, text: str) -> None:
+        if not self.active or self._caller is None:
+            raise RuntimeError("No test call is going on.")
+        self._caller.inbox.put(text)
+
+    def state(self) -> Optional[dict[str, Any]]:
+        if self.key is None:
+            return None
+        return {"key": self.key, "active": self.active, "error": self.error,
+                "waiting": self._caller.waiting if self.active and self._caller else None}
+
+
+# --- ring my phone ---------------------------------------------------------------------
+
+class Ringer:
+    """Rings the owner's saved number, and only that number. The page never sends one."""
+
+    def __init__(self, probe: Callable[[], bool] = engine_is_on, place: Optional[Callable[[str, str], str]] = None,
+                 host_file: Path = TUNNEL_HOST, clock: Callable[[], float] = time.monotonic) -> None:
+        self._probe, self._place, self._host_file, self._clock = probe, place, host_file, clock
+        self._last = -RING_GAP_S
+
+    def ring(self, live_call: Optional[str]) -> str:
+        """Place the call and return its id. Raises RuntimeError with words the page can show."""
+        if not self._probe():
+            raise RuntimeError("The engine is off. Start it with: make run")
+        if live_call:
+            raise RuntimeError("A call is already live. One call at a time.")
+        if self._clock() - self._last < RING_GAP_S:
+            raise RuntimeError("Your phone was just rung. Wait a few seconds.")
+        number = os.environ.get("CALL_ME_NUMBER", "")
+        if not number:
+            raise RuntimeError("No phone number is saved. Put CALL_ME_NUMBER in .env.")
+        try:
+            host = self._host_file.read_text(encoding="utf-8").strip()
+        except Exception:
+            host = ""
+        host = host or os.environ.get("NGROK_DOMAIN", "")
+        if not host:
+            raise RuntimeError("The engine has no public address yet. Start it with: make run")
+        place = self._place
+        if place is None:
+            from haqdaar.audio.telephony import place_call as place
+        try:
+            sid = place(number, f"https://{host}/answer")
+        except urllib.error.HTTPError as e:
+            why = "Check the Twilio keys in .env." if e.code == 401 else "See make calls for what Twilio says."
+            raise RuntimeError(f"Twilio refused the call (HTTP {e.code}). {why}") from None
+        except Exception as e:
+            raise RuntimeError(f"The call could not be placed: {type(e).__name__}.") from None
+        self._last = self._clock()
+        return sid
+
+
+def from_dashboard(x_haqdaar: str = Header(default="")) -> None:
+    """Actions need the dashboard's header. A plain web page cannot send it across sites."""
+    if x_haqdaar != "dashboard":
+        raise HTTPException(status_code=403, detail="Only the dashboard may do this.")
+
+
+def make_app(dirs: list[Path | str], texts: Optional[Texts] = None, tests: Optional[TypedCalls] = None,
+             ringer: Optional[Ringer] = None, **home_args: Any):
     app = make_calls_app(dirs, texts)
     calls = Calls(dirs, texts)
+    probe = home_args.get("probe", engine_is_on)
+    tests = tests or TypedCalls()
+    ringer = ringer or Ringer(probe=probe)
+
+    def live_call() -> Optional[str]:
+        return next((key for key, call in calls.all().items()
+                     if call["info"].get("live") and call["info"].get("source") == "phone"), None)
 
     @app.get("/api/home")
     def get_home() -> dict[str, Any]:
         return home(calls, **home_args)
 
+    @app.get("/api/live")
+    def get_live() -> dict[str, Any]:
+        """What the Live call page needs every second: the engine, the phone call, the test call."""
+        return {"engine": {"on": probe(), "live_call": live_call(),
+                           "phone_tail": (os.environ.get("CALL_ME_NUMBER") or "")[-2:]},
+                "test": tests.state()}
+
+    @app.post("/api/call-me", dependencies=[Depends(from_dashboard)])
+    def post_call_me() -> dict[str, str]:
+        try:
+            return {"sid": ringer.ring(live_call())}
+        except RuntimeError as e:
+            raise HTTPException(status_code=409, detail=str(e))
+
+    @app.post("/api/test-call", dependencies=[Depends(from_dashboard)])
+    def post_test_call() -> dict[str, str]:
+        try:
+            return {"key": tests.start()}
+        except RuntimeError as e:
+            raise HTTPException(status_code=409, detail=str(e))
+
+    @app.post("/api/test-call/input", dependencies=[Depends(from_dashboard)])
+    def post_test_input(text: str = Body(default="", embed=True, max_length=300)) -> dict[str, bool]:
+        try:
+            tests.say(text)
+        except RuntimeError as e:
+            raise HTTPException(status_code=409, detail=str(e))
+        return {"ok": True}
+
     return app
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="The dashboard's data door (reads files, 127.0.0.1 only).")
+    parser = argparse.ArgumentParser(description="The dashboard's data door (127.0.0.1 only).")
     parser.add_argument("--port", type=int, default=8001)
     parser.add_argument("--dirs", nargs="*", default=[tunables.CALL_LOGS_DIR, "logs"],
                         help="log folders to look in; each holds a trace/ folder")
