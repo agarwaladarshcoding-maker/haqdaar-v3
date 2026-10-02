@@ -22,9 +22,9 @@ This file is the shared base for all four. Read it first, then `AGENTS.md` (the 
   bake-off), steps A–D (gates 27/27 + 11-scheme snapshot, Door A 79/81 wired with stamps,
   spoken+confirm turn, fallback wiring + live ear-check 9/9), one-caller guard, ghost
   drain, shared STT deadline, roster accounting. Step 5.1 is merged too (pytest 456, stress 0/0).
-- **Not merged yet (waiting for the owner's word):** `step-5.2-judge` (the judge, pytest 468) and
-  `step-5.3-hardening` on top of it (restart after a crash, smoke checklist, Muse day guard,
-  two opener fixes; pytest 483). Start the next step from `step-5.3-hardening`, or merge both first.
+- **Merged 2 Oct (night), on the owner's word, and pushed:** `step-5.2-judge` (the judge),
+  `step-5.3-hardening` (restart after a crash, smoke checklist, Muse day guard, two opener
+  fixes) and `step-5.5-call-viewer` (the call page, see §2). Nothing is waiting to be merged.
   Tagging `v1-keypad` waits for the owner's audit verdicts and 3 real calls.
 - **Python:** always `.venv/bin/python`, which is 3.11. The system `python3` is 3.14 and has no `audioop`.
 - **Keys:** they live in `~/code/haqdaar-v2/.env` and are never committed. It holds MUSE_API_KEY,
@@ -34,10 +34,16 @@ This file is the shared base for all four. Read it first, then `AGENTS.md` (the 
 
 ```
 cd ~/code/haqdaar-v2
-.venv/bin/python -m pytest -q          # 456 on main, 483 on step-5.3-hardening (2 Oct)
+.venv/bin/python -m pytest -q          # 491 on main (2 Oct)
 make stress                            # 1,000 random callers: must say crashes 0, truth failures 0
 make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"   # one call in the terminal
 ```
+
+**To look at a call:** `make calls-ui` opens the call page (http://127.0.0.1:8001, this computer
+only). Each call shows as a back and forth: what the AI said, what the caller pressed or said,
+what the engine made of it, and how long each part took. A call in progress updates by itself.
+It reads `<logs>/trace/<call_id>.jsonl`, which every phone call and every sim now writes
+(`haqdaar/data/trace.py`). Sims play no sound, so only real calls show times.
 
 Every step must end with pytest green and `make stress` at 0 / 0. Tests must never call a paid
 API: `tests/conftest.py` blocks Muse, and each test fakes its client.
@@ -101,8 +107,8 @@ Phase 3 + Phase 4 code is DONE and merged (steps A–D). What remains:
    on their branches, see §1). The carried nits are closed. Still open:
    - **5.3 drills (owner, real phone):** Wi-Fi dies, the process is killed, a call after
      30 min idle. `make smoke` prints the list.
-   - **5.4 Indian phone provider:** blocked until the owner picks a provider and has the number.
-     Then it is one new file in `haqdaar/audio/telephony/` that passes the conformance test.
+   - **5.4 Indian phone provider: dropped for now** (owner, 2 Oct). Do not start it. If it comes
+     back, it is one new file in `haqdaar/audio/telephony/` that passes the conformance test.
 3. **Phase 6: the 10-call test** — 10 outside callers, 8 or more PASS, then tag `v1`.
 
 - **Muse must never hear live callers.** On the Contributor tier Meta may train on what it is

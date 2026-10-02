@@ -32,6 +32,7 @@ from haqdaar.contracts.types import (
 )
 from haqdaar.data.corpus import Corpus
 from haqdaar.data.log import Log
+from haqdaar.data.trace import Trace
 from haqdaar.data.pipeline.p6_snapshot import build_snapshot
 from haqdaar.engine.call import Engine
 from haqdaar.model.client import GroqModelClient, ModelClientResponse
@@ -175,6 +176,9 @@ PERSONAS: dict[str, list[str]] = {
 DEFAULT_PERSONA: str = "p1"
 
 
+TURN0_LANGS = {"1": "hi", "2": "mr", "3": "en"}
+
+
 class FakeAudio:
     """Console-based mock audio session for testing and simulation."""
 
@@ -191,14 +195,17 @@ class FakeAudio:
         self.canned_inputs: list[str] = list(canned_inputs) if canned_inputs else []
         self._canned_idx: int = 0
         self._silence_count: int = 0
+        self.note: Any = lambda line: None  # the call trace, when _run_call sets one
 
     def select_language(self) -> tuple[Lang, LangSource]:
         """Simulate Turn 0 trilingual language selection."""
         print("\n--- TURN 0: LANGUAGE SELECTION ---")
         print("[AUDIO PLAY] greeting_trilingual")
         self.played_lines.append("greeting_trilingual")
+        self.note("-> say greeting_trilingual")
 
         val = self._get_next_raw_input("Select language: 1=Hindi, 2=Marathi, 3=English (default 1): ")
+        self.note(f"<- key {val}: language {TURN0_LANGS.get(val, 'hi')}")
         if val == "2":
             self.language = "mr"
             return "mr", "keypad"
@@ -215,6 +222,7 @@ class FakeAudio:
         for token in sequence:
             self.played_lines.append(token)
             print(f"[AUDIO SAY] {token}")
+            self.note(f"-> say {token}")
 
     def repeat(self) -> None:
         """Simulate replaying the last sequence."""
@@ -223,6 +231,7 @@ class FakeAudio:
             for token in self._last_played:
                 self.played_lines.append(token)
                 print(f"[AUDIO SAY] {token}")
+                self.note(f"-> say {token}")
 
     def clear(self) -> None:
         """Simulate clearing audio playback buffer."""
@@ -242,6 +251,21 @@ class FakeAudio:
         pass
 
     def next_input(self, profile: str = "normal") -> Digit | Noise | Silence | Hangup | Speech:
+        """The next input, noted in the call trace in the same words the phone server uses."""
+        inp = self._next_input(profile)
+        if isinstance(inp, Digit):
+            self.note(f"<- key {inp.digit} ({profile})")
+        elif isinstance(inp, Speech):
+            self.note(f'<- speech "{inp.text}"')
+        elif isinstance(inp, Silence):
+            self.note(f"<- silence {inp.n} ({profile})")
+        elif isinstance(inp, Noise):
+            self.note("<- noise")
+        elif isinstance(inp, Hangup):
+            self.note("stop    caller hung up")
+        return inp
+
+    def _next_input(self, profile: str = "normal") -> Digit | Noise | Silence | Hangup | Speech:
         """Get next input from user, canned sequence, or non-interactive fallback."""
         if profile == "spoken":
             if self.canned_inputs and self._canned_idx < len(self.canned_inputs):
@@ -413,6 +437,10 @@ def _run_call(
         canned_inputs=canned_inputs,
         fallback=PERSONAS.get(persona, PERSONAS[DEFAULT_PERSONA]),
     )
+    # The timed copy of this call for the call page (`make calls-ui`).
+    trace = Trace(c_id, logs_dir, snap_id)
+    log.tap = trace.record
+    audio.note = trace
 
     print("==================================================")
     print(f"Starting Haqdaar Sim: call_id={c_id} persona={persona}")
@@ -428,6 +456,9 @@ def _run_call(
         corpus=corpus,
         log=log,
     )
+
+    trace(f"call    {c_id} finished")
+    trace.close()
 
     log_path = Path(logs_dir) / f"{c_id}.jsonl"
     print("==================================================")

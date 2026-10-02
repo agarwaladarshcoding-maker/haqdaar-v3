@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock
+.PHONY: run call calls calls-ui sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock
 
 test:
 	$(PYTHON) -m pytest
@@ -22,6 +22,10 @@ run:
 # Last calls on the phone line, with any warnings the provider logged.
 calls:
 	$(PYTHON) -m tools.calls
+
+# The call page: each call as a back and forth with timings. This computer only (port 8001).
+calls-ui:
+	$(PYTHON) -m tools.call_viewer $(ARGS)
 
 # Backup: ring your phone (CALL_ME_NUMBER in .env, or TO=+91...). Needs make run.
 # Uses the live tunnel; HOST=<address> to aim at another server.

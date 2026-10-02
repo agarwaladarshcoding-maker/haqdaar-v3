@@ -2208,3 +2208,38 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   py_compile clean, sync_vault 0 dirty, Muse delta Rs 0.00. `make ear-check` NOT run (it is live and paid).
 - Not doable without the owner: 5.3 drills on a real phone, 5.4 (provider unknown), Phase 6,
   OWNER-END-TODO, Groq key, merges to main + push.
+
+## Step 5.5 call page: findings (2 Oct 2026 night)
+- Merged step-5.2-judge + step-5.3-hardening into main (d0059d1), pytest 483, stress 0/0, pushed.
+  5.4 (Indian provider) is dropped for now on the owner's word.
+- The call LOG (`<logs_dir>/<call_id>.jsonl`) has no clock and never says what the AI spoke.
+  `logs/calls/` did not exist: no real phone call has been logged yet. Old logs are all sims.
+- Every event line already goes through one `log=` callable (server.py `say`): Mouth
+  "-> say <token> (4.2 s)", PhoneAudio "<- key", Ear '<- speech "..." (hi, stt 0.42s)'.
+  So the trace hooks there; mouth.py, ear.py and phone.py are not touched.
+- New `haqdaar/data/trace.py`: `<logs_dir>/trace/<call_id>.jsonl`, each row has `t` (seconds
+  since call start) and either `line` (an event line) or `log` (a copy of a LOG record).
+  `Log.tap` (new attribute, None by default) hands each written record to the trace.
+  The open record is written inside Log.open before the tap is set, so the trace's first row
+  carries the snapshot id itself.
+- Token -> words: `texts.all_texts(schemes)` gives Text(ref, lang, text). `ref` is the token for
+  lines, chips and keys; a scheme chunk is `slug/section` (token is `scheme:slug:section`).
+  The greeting's lang is "all".
+- The page is a separate local app (`tools/call_viewer.py`, 127.0.0.1 only), NOT a route on the
+  call server: the call server is open to the world through the tunnel, and transcripts are
+  private. It also keeps file reads off the socket loop.
+- Step 5.5 result: `tools/call_viewer.py` (`make calls-ui`, port 8001), `tests/test_call_viewer.py`
+  (8 tests), pytest 491, stress 0/0. Looked at the page in headless Chrome (wide and narrow).
+- Bug caught by looking, not by tests: `head.append(x).id = ...` throws (append returns
+  nothing), which left the chat empty while the header drew fine. Python tests cannot see page
+  script errors; open the page after any change to PAGE.
+- In tests the keys are pressed at once, so every `say` is skipped ("skip ... a key is waiting")
+  until the read-out. Do not assert on the greeting being said in a phone test.
+- Sim `FakeAudio` says `name:`/`end:` marks as tokens; the phone drops them. The viewer skips them.
+- The ear and the phone both log one key press ("pre-queued" then the profile). The viewer
+  folds them only when the first carries the ear's wording.
+- Headless Chrome on a Mac will not go narrower than about 500 px, so a 430 px screenshot
+  looks cut off on the right. That is the tool, not the page.
+- Not done, needs the owner: timings on a real call (no real call log exists yet).
+- No code-only phase is left in PLAN-V2 §3: 2.7/3.5/3.7/4.2/4.3/4.5/5.3 drills/Phase 6 all need
+  a phone, ears, a decision or a key. 5.4 dropped for now (owner, 2 Oct).
