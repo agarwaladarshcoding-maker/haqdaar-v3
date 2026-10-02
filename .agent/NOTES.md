@@ -2118,3 +2118,9 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 
 
 
+
+## Merge: step-audit-rest -> audit-fixes (c2c961d, pushed)
+- Review: spawned step-e-reviewer child; verdict HOLD on 1 item (types.py comment "50" vs 49-tuple after drop_category removal). Verified the rest inline: blessed schemes.jsonl untouched (only reports/gates.json +9/-1 additive keys), lines.yaml only drops drop_category (explains render 459->456 texts, 0 missing), Widen shape + planner/terminal signatures frozen, no paid API in tests (fake keys only).
+- Reviewer fixup 09840c3 (comment 50->49), pytest 441 green, merge --no-ff, pushed a84eebe..c2c961d (needed require_escalated: sandbox blocks SSH).
+- E confirmed complete: STT #8 IMPLEMENTED (shared deadline, 2 tests), not merely documented. Muse spend delta Rs0.00.
+- Audit leftovers: (a) audit-fixes->main merge (needs owner word); (b) owner-blocked: Groq key + live bake-off, OWNER-END-TODO physical tests; (c) accepted parks: mouth _cleared, HANGUP_WAIT linger, p6 chunk keys, --all-schemes hatch, demo-15sep, plan staleness, dead-branch deletion (~30, needs explicit ask); (d) schemes.jsonl re-bless + re-render needs owner (user-facing text + Sarvam spend).
