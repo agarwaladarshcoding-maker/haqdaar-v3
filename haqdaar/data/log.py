@@ -46,6 +46,7 @@ class Log:
         self.file_path = self.path
         self._file = open(self.path, "a", encoding="utf-8")
         self._closed = False
+        self.tap = None  # the call trace sets this to get a copy of every line (must not raise)
 
     @classmethod
     def open(
@@ -96,6 +97,8 @@ class Log:
             json_str = json.dumps(serialized, ensure_ascii=False)
             self._file.write(json_str + "\n")
             self._file.flush()
+            if self.tap is not None:
+                self.tap(serialized)
         except Exception as exc:
             # Absolute fail-safe: never kill the call
             try:

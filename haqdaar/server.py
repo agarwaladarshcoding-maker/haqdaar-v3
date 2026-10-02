@@ -207,21 +207,26 @@ def _corpus_and_pool() -> tuple[Any, Any]:
 
 
 def _run_engine(call_id: str, snapshot_id: str, number_hash: str, audio: Any, corpus: Any,
-                done: Any) -> None:
+                done: Any, trace: Any = None) -> None:
     from haqdaar.data.log import Log
     from haqdaar.engine.call import Engine
     from haqdaar.model.router import Model
 
+    note = say if trace is None else (lambda line: (say(line), trace(line)))
     try:
         log = Log.open(call_id=call_id, snapshot_id=snapshot_id, caller_hash=number_hash,
                        logs_dir=tunables.CALL_LOGS_DIR)
+        if trace is not None:
+            log.tap = trace.record
         model = Model(corpus=corpus)
         Engine.run_call(audio=audio, model=model, corpus=corpus, log=log)
-        say(f"call    {call_id} finished")
+        note(f"call    {call_id} finished")
     except Exception as e:  # never leave the caller on a silent line
-        say(f"!! engine error: {e!r}")
+        note(f"!! engine error: {e!r}")
     finally:
         done()
+        if trace is not None:
+            trace.close()
 
 
 @app.websocket("/stream")
@@ -231,6 +236,7 @@ async def stream_endpoint(websocket: WebSocket) -> None:
     from haqdaar.audio.mouth import Mouth, Outbox
     from haqdaar.audio.phone import PhoneAudio
     from haqdaar.audio.turn import Turn
+    from haqdaar.data.trace import Trace
 
     if not try_acquire_call():
         say("stream  refused busy: another call is active")
@@ -251,6 +257,7 @@ async def stream_endpoint(websocket: WebSocket) -> None:
     writer = asyncio.create_task(outbox.run())
     mouth: Optional[Mouth] = None
     turn: Optional[Turn] = None
+    note = say
     ended = threading.Event()
 
     def hang_up() -> None:
@@ -264,17 +271,24 @@ async def stream_endpoint(websocket: WebSocket) -> None:
             event = parse_event(await websocket.receive_text())
             if isinstance(event, StartEvent) and mouth is None:
                 corpus, pool = _corpus_and_pool()
-                mouth = Mouth(outbox.emit, event.stream_sid, log=say)
-                ear = Ear(log=say)
-                turn = Turn(mouth, ear=ear)
-                audio = PhoneAudio(corpus, pool, mouth, turn, close=hang_up, log=say)
                 call_id = event.call_sid or f"call_{int(time.time())}"
+                # The timed copy of this call for the call page (`make calls-ui`).
+                trace = Trace(call_id, tunables.CALL_LOGS_DIR, corpus.snapshot_id)
+
+                def note(line: str, trace: Trace = trace) -> None:
+                    say(line)
+                    trace(line)
+
+                mouth = Mouth(outbox.emit, event.stream_sid, log=note)
+                ear = Ear(log=note)
+                turn = Turn(mouth, ear=ear)
+                audio = PhoneAudio(corpus, pool, mouth, turn, close=hang_up, log=note)
                 number_hash = _CALLER_HASH.pop(call_id, "")
                 _CALLER_HASH_TS.pop(call_id, None)
                 say(f"start   call ..{call_id[-6:]}")
                 threading.Thread(
                     target=_run_engine,
-                    args=(call_id, corpus.snapshot_id, number_hash, audio, corpus, hang_up),
+                    args=(call_id, corpus.snapshot_id, number_hash, audio, corpus, hang_up, trace),
                     daemon=True,
                 ).start()
             elif isinstance(event, MediaEvent) and turn is not None:
@@ -285,7 +299,7 @@ async def stream_endpoint(websocket: WebSocket) -> None:
             elif isinstance(event, MarkEvent) and mouth is not None:
                 mouth.on_mark(event.name)
             elif isinstance(event, StopEvent):
-                say("stop    caller hung up")
+                note("stop    caller hung up")
                 break
     except WebSocketDisconnect:
         pass

@@ -99,6 +99,42 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+### 2 Oct (late night) — Merged 5.2 + 5.3, built the call page (step 5.5), dropped 5.4
+- **Merged and pushed.** `step-5.2-judge` and `step-5.3-hardening` are in `main`, and so is the
+  new `step-5.5-call-viewer`. Nothing is waiting to be merged.
+- **Dropped for now — the Indian phone provider (5.4).** Owner's word. Nothing was built for it.
+- **Added — the call page.** `make calls-ui` opens http://127.0.0.1:8001 in the browser.
+  - On the left, every call, newest first: when, how long, language, turns, the judge's
+    PASS or FAIL, and a red mark if something went wrong. A call going on right now says LIVE
+    and fills in by itself every 2 seconds.
+  - On the right, the call as a back and forth. The AI is on the left with the real words it
+    spoke (Hindi, Marathi or English) and the clip names under them. The caller is on the
+    right: the key pressed, or the words the speech-to-text heard.
+  - Under each caller bubble: what the engine made of it (for example
+    `turn 1: PROPOSAL · category = farming`), how long the caller waited, or by how much they
+    cut in, and how long speech-to-text took.
+  - Under each AI bubble: how long it spoke and how fast it replied. Over 1.2 s shows amber,
+    over 3 s shows red.
+  - At the top: call length, AI talking time, slowest reply, not-understood count, silences,
+    problems, why it stopped asking, how it ended, and the judge's reason.
+  - Problems show as red bars in the place they happened: a missing clip, speech-to-text
+    failing over, the call falling back to keypad only. A call with no end line (the server
+    was killed) says so.
+- **Added — the call trace.** The call log has no clock and never said what the AI spoke, so
+  the page had nothing to show. Each call now also writes `<logs>/trace/<call_id>.jsonl`: every
+  event line the server already prints, and a copy of each log line, each with the seconds
+  since the call began. The call log itself is unchanged. A trace can never break a call.
+- **Why the page is its own small server.** The call server is open to the world through the
+  tunnel. What callers say is private. So the page runs apart, on this computer only, and it
+  only reads files, so it cannot slow a call.
+- **Know this:** only calls made from now on have a trace. Sims show the words but not the
+  times, because a sim plays no sound. No real phone call has been logged yet, so the times
+  have been checked only by tests and by a hand-made sample, not on a live call.
+- **Other phases without the owner: none left.** Every open step needs a phone, ears, a
+  decision or a key. See HANDOFF §4.
+- **Checks:** pytest 491 (was 483) · `make stress` 1,000 callers, 0 crashes, 0 truth failures ·
+  py_compile clean · vault in sync · Muse spend ₹0 (nothing here calls Muse).
+
 ### 2 Oct (night) — Step 5.3 code: restart after a crash, smoke checklist, Muse day guard
 Branch `step-5.3-hardening` (cut from `step-5.2-judge`). Not merged, not pushed.
 - **Added — the server comes back by itself.** `make run` now runs the server under

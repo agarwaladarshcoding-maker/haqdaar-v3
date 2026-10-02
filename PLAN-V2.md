@@ -448,6 +448,9 @@ picks where the server runs.
   - **[A]** runs the drills: Wi-Fi dies, the process is killed, a call after 30 min idle.
 5.4 **[C] Indian provider adapter** when the number exists: one file that passes the 2.4
     conformance test, then 1 real call.
+    **Dropped for now (owner, 2 Oct).** Do not start it until the owner asks.
+5.5 **[C] Call page** (added 2 Oct, done): `make calls-ui` shows each call as a back and forth
+    with times, from a per-call trace.
 
 ### Phase 6 · The 10-call test → tag `v1` (1 day)
 
