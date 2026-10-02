@@ -237,6 +237,10 @@ class FakeAudio:
         """Simulate call termination."""
         print("[AUDIO HANGUP]")
 
+    def prefetch(self, scheme_ids: Any) -> None:
+        """No-op prefetch in simulation."""
+        pass
+
     def next_input(self, profile: str = "normal") -> Digit | Noise | Silence | Hangup | Speech:
         """Get next input from user, canned sequence, or non-interactive fallback."""
         if profile == "spoken":

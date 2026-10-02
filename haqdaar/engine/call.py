@@ -905,6 +905,17 @@ class Engine:
             else:
                 ladder_rung = 0
 
+            # Ranked ids for prefetch and D8 paging
+            ranked_ids = [
+                corpus.scheme_id(s) if hasattr(corpus, "scheme_id") else str(s)
+                for s in Terminals.ranked(candidate_survs, corpus)
+            ]
+            if hasattr(audio, "prefetch"):
+                try:
+                    audio.prefetch(ranked_ids)
+                except Exception:
+                    pass
+
             # Feed back the schemes classify_shape resolved, not the raw survivor
             # list. On a widened or nearest ending `survs` is empty, and passing
             # it here threw the ladder's result away and played a preamble with
@@ -942,12 +953,7 @@ class Engine:
                 # terminal resolved, not just the ones named so far (direct match
                 # names all of them, so this is empty there; overflow and a >4
                 # widened match name only the top OVERFLOW_READ_CAP).
-                rest = [
-                    sid for sid in (
-                        corpus.scheme_id(s) for s in Terminals.ranked(candidate_survs, corpus)
-                    )
-                    if sid not in named
-                ]
+                rest = [sid for sid in ranked_ids if sid not in named]
                 kept_going = Engine._read_back(audio, named, sections_heard, rest, corpus, log, turn_n)
                 cur_lang = getattr(audio, "language", lang)
                 for n in named:
@@ -976,15 +982,29 @@ class Engine:
 
             # --- 7. Anything Else ---
             audio.say(("anything_else",))
-            ae_inp = audio.next_input(profile="normal")
+            if mode == "keypad_only":
+                ae_inp = audio.next_input(profile="normal")
+            else:
+                ae_inp = audio.next_input(profile="confirm")
             if isinstance(ae_inp, Hangup):
                 audio.hangup()
                 log.close(reason=STOP_ZERO_SURVIVORS if not survs else STOP_LE_4_SURVIVORS,
                           ladder_rung=ladder_rung, mode=mode)
                 return
+            is_yes = False
+            if isinstance(ae_inp, Digit):
+                if ae_inp.digit == "1":
+                    is_yes = True
+            elif isinstance(ae_inp, Speech):
+                spk = str(getattr(ae_inp, "text", "") or "").strip().lower()
+                if model is not None and hasattr(model, "confirm"):
+                    confirmed = model.confirm(spk, lang=getattr(audio, "language", None))
+                else:
+                    confirmed = None
+                if confirmed is True:
+                    is_yes = True
             if (
-                isinstance(ae_inp, Digit)
-                and ae_inp.digit == "1"
+                is_yes
                 and not door_b_used
                 and turn_n < tunables.MAX_TURNS
                 and question_count < tunables.MAX_QUESTIONS

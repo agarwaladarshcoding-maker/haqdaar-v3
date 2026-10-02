@@ -18,7 +18,7 @@ call is worse. Corpus.load has already refused any snapshot with a missing clip.
 from __future__ import annotations
 
 import time
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Iterable, Optional
 
 from haqdaar.audio.lines import MENU_KEYS
 from haqdaar.audio.mouth import Clip, Mouth
@@ -128,6 +128,28 @@ class PhoneAudio:
                 break
             time.sleep(0.1)
         self._close()
+
+    def prefetch(self, scheme_ids: Iterable[str]) -> None:
+        """Prefetch scheme audio chunks into Tier 1 LRU cache.
+
+        Resolved via Corpus.chunks() and AudioPool.prefetch().
+        Must never block or crash the call: failures log and continue.
+        """
+        if not tunables.AUDIO_PREFETCH_ON_STOP:
+            return
+        if not hasattr(self, "pool") or self.pool is None:
+            return
+        try:
+            keys: list[str] = []
+            for sid in scheme_ids:
+                if hasattr(self.corpus, "chunks"):
+                    chunks = self.corpus.chunks(sid, self.language)
+                    if chunks:
+                        keys.extend(chunks)
+            if keys and hasattr(self.pool, "prefetch"):
+                self.pool.prefetch(keys)
+        except Exception as e:
+            self._log(f"!! prefetch failed: {e!r}")
 
     # --- tokens -> clips -----------------------------------------------------------
     def _clips(self, token: str) -> list[Clip]:
