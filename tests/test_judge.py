@@ -160,6 +160,30 @@ def test_sim_opener_router_unclear_vs_empty_stamps_symmetry():
 
     assert res_unclear.reason == res_empty_stamps.reason == res_unclear_only.reason == "unclear"
 
+    # The model's own words for "reason" must not leak out: the engine reads any other
+    # reason as a model failure, and UNCLEAR is not a failure (T11).
+    model_worded = Model(client=MockClient({"class": "UNCLEAR", "reason": "caller mumbled"}))
+    assert model_worded.opener("xyz unknown opener words", lang="hi").reason == "unclear"
+
+
+def test_opener_keeps_alias_stamps_when_model_adds_nothing():
+    """A named scheme found by the alias fast path survives an empty or UNCLEAR model reply."""
+    class MockClient:
+        def __init__(self, data):
+            self.data = data
+
+        def call(self, messages, task=None):
+            return ModelClientResponse(success=True, data=self.data, latency_s=0.005)
+
+    class AliasCorpus:
+        def alias_lookup(self, text, lang):
+            return ("pm-kisan",)
+
+    for data in ({"stamps": []}, {"class": "UNCLEAR", "reason": "no facets"}):
+        res = Model(client=MockClient(data), corpus=AliasCorpus()).opener("pm kisan", lang="hi")
+        assert isinstance(res, list)
+        assert [(s.box, s.value) for s in res] == [("scheme", "pm-kisan")]
+
 
 def test_sim_opener_call_execution_symmetry(tmp_path, monkeypatch):
     """Unmatched opener speech produces identical log and next-turn behavior whether

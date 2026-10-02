@@ -21,7 +21,10 @@ This file is the shared base for all four. Read it first, then `AGENTS.md` (the 
   (F1+F2+E, all 36 findings): the 3.7 audit tooling, step 4.1 (ear), step 4.2 (model +
   bake-off), steps A–D (gates 27/27 + 11-scheme snapshot, Door A 79/81 wired with stamps,
   spoken+confirm turn, fallback wiring + live ear-check 9/9), one-caller guard, ghost
-  drain, shared STT deadline, roster accounting. pytest 441, stress 0/0.
+  drain, shared STT deadline, roster accounting. Step 5.1 is merged too (pytest 456, stress 0/0).
+- **Not merged yet (waiting for the owner's word):** `step-5.2-judge` (the judge, pytest 468) and
+  `step-5.3-hardening` on top of it (restart after a crash, smoke checklist, Muse day guard,
+  two opener fixes; pytest 483). Start the next step from `step-5.3-hardening`, or merge both first.
   Tagging `v1-keypad` waits for the owner's audit verdicts and 3 real calls.
 - **Python:** always `.venv/bin/python`, which is 3.11. The system `python3` is 3.14 and has no `audioop`.
 - **Keys:** they live in `~/code/haqdaar-v2/.env` and are never committed. It holds MUSE_API_KEY,
@@ -31,7 +34,7 @@ This file is the shared base for all four. Read it first, then `AGENTS.md` (the 
 
 ```
 cd ~/code/haqdaar-v2
-.venv/bin/python -m pytest -q          # 441 pass on 2 Oct
+.venv/bin/python -m pytest -q          # 456 on main, 483 on step-5.3-hardening (2 Oct)
 make stress                            # 1,000 random callers: must say crashes 0, truth failures 0
 make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"   # one call in the terminal
 ```
@@ -56,6 +59,8 @@ API: `tests/conftest.py` blocks Muse, and each test fakes its client.
     - `pmsby`: the page has no documents section.
   - **3.4** `haqdaar/data/pipeline/muse.py` is the Muse client for cards and translation.
     - It has a **hard ₹60 cap**; spent so far is ₹12.97, logged in `data_cache/reports/muse_usage.jsonl`.
+    - It also has a **₹30 a day cap** and a day block (2 Oct, on `step-5.3-hardening`):
+      `make muse-status`, `make muse-block`, `make muse-unblock`. The day rolls at 05:00 India time.
     - The facet step (`make pipeline-extract`) was stopped on purpose near the end.
     - Everything already answered is cached, so a re-run only pays for what is left.
   - **3.8** The server pins only the fixed lines (6.7 MB), and scheme audio loads when it is read.
@@ -92,10 +97,12 @@ Phase 3 + Phase 4 code is DONE and merged (steps A–D). What remains:
    clips, 3.7 read of 20 cards), phone (3 real keypad calls, 3 live voice calls, Door A
    live <20 s check), tags (`v1-keypad`, `v1-voice`). Plus the Groq key fix +
    live bake-off rerun (blocked in step D, 0 tokens spent).
-2. **Phase 5: make it solid** (5.1–5.4): "anything else" + prefetch, `tools/judge.py`
-   (note: step D logs proposals as PROPOSAL class — 5.2 defines which ANSWER counts),
-   restart after a crash, Indian phone provider. Carried nits: Turn.wait_input direct
-   test, sim opener UNCLEAR asymmetry (see NOTES step D review).
+2. **Phase 5: make it solid.** The code for 5.1, 5.2 and 5.3 is written (5.1 merged; 5.2 and 5.3
+   on their branches, see §1). The carried nits are closed. Still open:
+   - **5.3 drills (owner, real phone):** Wi-Fi dies, the process is killed, a call after
+     30 min idle. `make smoke` prints the list.
+   - **5.4 Indian phone provider:** blocked until the owner picks a provider and has the number.
+     Then it is one new file in `haqdaar/audio/telephony/` that passes the conformance test.
 3. **Phase 6: the 10-call test** — 10 outside callers, 8 or more PASS, then tag `v1`.
 
 - **Muse must never hear live callers.** On the Contributor tier Meta may train on what it is

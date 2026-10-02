@@ -9,6 +9,10 @@ call the ledger is summed in rupees; at or over `MUSE_CAP_INR` the call is refus
 MuseBudgetError, which no retry loop swallows. The cap counts every run ever made with this
 ledger, not only this one, so re-running cannot creep past it.
 
+A day guard on top (owner, 2 Oct): no more than `MUSE_DAILY_CAP_INR` in one spend day, and
+`block_today()` shuts Muse for the rest of the day. Both are checked in `_check_budget`, the one
+gate every Muse call passes. `tools/muse_guard.py` shows and sets them.
+
     MuseClient().call(system, user, task, slug) -> dict      same shape as GroqClient.call
     MuseTranslator().translate(text, lang, slug, field) -> str  same shape as SarvamTranslator
 """
@@ -20,7 +24,7 @@ import os
 import re
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -58,6 +62,60 @@ def spent_inr(ledger_path: Path = LEDGER) -> float:
         except (ValueError, AttributeError):
             continue
     return total
+
+
+def muse_day(now: Optional[datetime] = None) -> str:
+    """The spend day in India time. It rolls at MUSE_DAY_START_HOUR_IST, not at midnight."""
+    now = now or datetime.now(timezone.utc)
+    shift = timedelta(hours=5, minutes=30) - timedelta(hours=tunables.MUSE_DAY_START_HOUR_IST)
+    return (now.astimezone(timezone.utc) + shift).date().isoformat()
+
+
+def spent_today_inr(ledger_path: Path = LEDGER, now: Optional[datetime] = None) -> float:
+    """Rupees spent in the current spend day. A row with no readable time counts as today."""
+    if not ledger_path.exists():
+        return 0.0
+    today = muse_day(now)
+    total = 0.0
+    for line in ledger_path.read_text(encoding="utf-8").splitlines():
+        try:
+            row = json.loads(line)
+            inr = float(row.get("inr", 0.0))
+        except (ValueError, AttributeError, TypeError):
+            continue
+        try:
+            day = muse_day(datetime.fromisoformat(row["ts"]))
+        except (KeyError, ValueError, TypeError):
+            day = today
+        if day == today:
+            total += inr
+    return total
+
+
+def block_path(ledger_path: Path = LEDGER) -> Path:
+    """The day block sits beside the ledger, so every user of one ledger shares one block."""
+    return Path(ledger_path).with_name("muse_block.json")
+
+
+def blocked_day(ledger_path: Path = LEDGER) -> str:
+    """The spend day Muse is blocked for, or "" when there is no block."""
+    try:
+        return str(json.loads(block_path(ledger_path).read_text(encoding="utf-8")).get("day", ""))
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+def block_today(ledger_path: Path = LEDGER, reason: str = "", now: Optional[datetime] = None) -> str:
+    """Refuse every Muse call for the rest of this spend day. Returns the day blocked."""
+    day = muse_day(now)
+    path = block_path(ledger_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"day": day, "reason": reason}, ensure_ascii=False) + "\n", encoding="utf-8")
+    return day
+
+
+def unblock(ledger_path: Path = LEDGER) -> None:
+    block_path(ledger_path).unlink(missing_ok=True)
 
 
 class MuseClient:
@@ -101,6 +159,18 @@ class MuseClient:
             raise MuseBudgetError(
                 f"Muse spend cap reached: ₹{spent:.2f} of ₹{tunables.MUSE_CAP_INR:.0f} "
                 f"(ledger {self.ledger_path.name}). Raise MUSE_CAP_INR only with the owner's OK."
+            )
+        today = muse_day()
+        if blocked_day(self.ledger_path) == today:
+            raise MuseBudgetError(
+                f"Muse is blocked for {today} ({block_path(self.ledger_path).name}). "
+                "It opens again on the next day; `make muse-unblock` only with the owner's OK."
+            )
+        spent_today = spent_today_inr(self.ledger_path)
+        if spent_today >= tunables.MUSE_DAILY_CAP_INR:
+            raise MuseBudgetError(
+                f"Muse daily cap reached: ₹{spent_today:.2f} of ₹{tunables.MUSE_DAILY_CAP_INR:.0f} "
+                f"for {today}. It opens again on the next day."
             )
 
     def _write_ledger(self, task: str, slug: str, prompt_tokens: int, output_tokens: int) -> None:

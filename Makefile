@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards snapshot backup call-me ear-check model-bakeoff
+.PHONY: run call calls sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock
 
 test:
 	$(PYTHON) -m pytest
@@ -13,10 +13,11 @@ backup:
 
 # Everything the server prints also goes to logs/server.log (Claude reads it).
 # Starts the cloudflared tunnel and points the number at it. Backup: TUNNEL=ngrok make run
+# Plan 5.3: tools.keep_running starts the server again if it dies. Ctrl-C stops it for good.
 run:
 	@mkdir -p logs
 	@$(PYTHON) -m tools.tunnel | tee -a logs/server.log
-	NGROK_DOMAIN=$$($(PYTHON) -m tools.tunnel --host) PYTHONUNBUFFERED=1 $(PYTHON) -m uvicorn haqdaar.server:app --host 0.0.0.0 --port 8000 2>&1 | tee -a logs/server.log
+	NGROK_DOMAIN=$$($(PYTHON) -m tools.tunnel --host) PYTHONUNBUFFERED=1 $(PYTHON) -m tools.keep_running $(PYTHON) -m uvicorn haqdaar.server:app --host 0.0.0.0 --port 8000 2>&1 | tee -a logs/server.log
 
 # Last calls on the phone line, with any warnings the provider logged.
 calls:
@@ -89,8 +90,17 @@ pipeline:
 pipeline-cost:
 	$(PYTHON) -m haqdaar.data.pipeline.run_all --cost
 
+# Plan 5.3: the checklist before a real call. Checks what it can offline, prints the rest.
 smoke:
-	@echo "smoke target (telephony / pre-demo verification checklist)"
+	@$(PYTHON) -m tools.smoke
+
+# Muse money guard: ₹30 a day. Free; calls nothing. `make muse-block` shuts Muse for today.
+muse-status:
+	@$(PYTHON) -m tools.muse_guard
+muse-block:
+	@$(PYTHON) -m tools.muse_guard block
+muse-unblock:
+	@$(PYTHON) -m tools.muse_guard unblock
 
 # Plan 2.1: real voice for every text. Without YES=1 it only counts what is missing.
 # Note: without YES checks snapshots/CURRENT only, but YES=1 without SNAP renders all schemes (scope mismatch: 'missing: 0' applies to CURRENT snapshot, not full corpus).

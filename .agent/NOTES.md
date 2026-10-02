@@ -2167,3 +2167,44 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   - `make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"`: completed cleanly, newly generated log evaluated as PASS by `tools/judge.py`.
   - Muse spend delta: ₹0.00 (data_cache/reports/muse_usage.jsonl untouched).
 
+
+## Step 5.2 check + Step 5.3 code + Muse day guard (2 Oct night, branch step-5.3-hardening)
+- State found: step-5.2-judge (f76356c) was 1 commit ahead of main, unreviewed, unmerged. pytest 468 on it.
+  HANDOFF.md was stale (said pytest 441, still listed the two closed nits). WORK.md §8 has nothing since 18 Sep.
+- 5.2 review, 2 faults in `haqdaar/model/router.py` opener(), both fixed on this branch:
+  1. It returned `Unclear(reason=<model's free text>)`. `call.py:523` only treats reason in
+     ("unclear","unrecognized") as not-a-failure, and `prompts/turn.py:47` tells the model to send a
+     free-text reason. So a real UNCLEAR could be counted as a model failure (T11 says it is not one).
+     Now always reason="unclear".
+  2. `if not raw_stamps: return Unclear` threw away the alias fast-path scheme stamps gathered in
+     step 1 when the model added nothing. Now Unclear only when there are no stamps at all.
+  Tests: 1 extended + 1 new in tests/test_judge.py.
+- 5.2 judge, noted NOT changed (few changes): if the log's snapshot is not on disk the judge falls
+  back to CURRENT, and with no corpus at all it skips the survivor check and can still say PASS
+  without saying so. Fine for Phase 6 (logs come from CURRENT); worth one line in the reason later.
+  Unused imports/vars in judge.py (STOP_SURVIVORS, STOP_MAX_*, `ending`) — cosmetic.
+- Muse day guard: all in `haqdaar/data/pipeline/muse.py` (`muse_day`, `spent_today_inr`, `block_path`,
+  `blocked_day`, `block_today`, `unblock`, checked in `MuseClient._check_budget`). Tunables
+  `MUSE_DAILY_CAP_INR=30`, `MUSE_DAY_START_HOUR_IST=5`. CLI `tools/muse_guard.py`, make
+  `muse-status|muse-block|muse-unblock`.
+  - The block file is `muse_block.json` BESIDE THE LEDGER (derived from ledger_path), not a module
+    constant. Reason: conftest repoints `muse.LEDGER` to tmp; a module-level block path would make a
+    real block fail the test suite. data_cache/* is git-ignored, so the block file is never committed.
+  - Ledger rows with no readable `ts` count as today (fail shut).
+  - The check is before the call, so one call can overshoot by its own cost (~Rs 0.04). Accepted.
+  - Blocked for spend day 2026-10-02. Repo ledger shows Rs 0.00 today (all 381 rows are 30 Sep);
+    the owner's "quota done" is Muse used outside the repo, which this guard cannot see.
+- 5.3: `tools/keep_running.py` (restart loop; tunables RESTART_WAIT_S=2, RESTART_MAX_STOPS=5,
+  RESTART_WINDOW_S=60), `tools/smoke.py`, Makefile `run` + `smoke`. tests/test_hardening.py (8).
+  - Why Python, not a shell `while` in the Makefile: on Ctrl-C uvicorn exits cleanly, and sh then
+    carries on with the loop and starts the server again. The Python loop stops on Ctrl-C.
+  - Gotcha met in the drill: a process started with `&` from a non-interactive shell has SIGINT
+    ignored, so Python never raises KeyboardInterrupt. main() now sets SIGINT and SIGTERM handlers
+    itself, and `_run` terminates the child so a killed restarter never leaves an orphan server.
+  - smoke names no vendor: key names come from `.env.example` (NGROK_DOMAIN skipped, `make run` sets it).
+  - `make call-me` (tools/run_demo.py) does NOT go through keep_running. Left alone.
+  - Local drill on port 8765: kill -9 server -> back in ~2 s; SIGTERM restarter -> nothing left running.
+- Verified: pytest 483, stress 0/0 (11 schemes), bake-off 30/30, door-a 79/81, sim log judged PASS,
+  py_compile clean, sync_vault 0 dirty, Muse delta Rs 0.00. `make ear-check` NOT run (it is live and paid).
+- Not doable without the owner: 5.3 drills on a real phone, 5.4 (provider unknown), Phase 6,
+  OWNER-END-TODO, Groq key, merges to main + push.

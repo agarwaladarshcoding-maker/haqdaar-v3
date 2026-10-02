@@ -99,6 +99,36 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+### 2 Oct (night) — Step 5.3 code: restart after a crash, smoke checklist, Muse day guard
+Branch `step-5.3-hardening` (cut from `step-5.2-judge`). Not merged, not pushed.
+- **Added — the server comes back by itself.** `make run` now runs the server under
+  `tools/keep_running.py`. If the server dies, it starts again after 2 s. Ctrl-C (or `kill` on
+  the restarter) stops it for good and takes the server down too. If the server dies 5 times
+  in 60 s it gives up and says so, so a broken start does not spin for ever.
+  - Tried for real on a test port: `kill -9` on the server, and it answered again in about 2 s.
+- **Added — `make smoke` prints the checklist.** It checks 5 things by itself (Python 3.11, the
+  snapshot and all its clips, the keys by name only, the logs folder, Muse spend) and then
+  prints the 10 things to do by hand with a phone, the three 5.3 drills among them.
+- **Added — Muse money guard.** No more than ₹30 of Muse in one day, on top of the ₹60 total.
+  The day is India time and rolls at 05:00, not midnight (night work). It sits in `muse.py`,
+  the one door every Muse call goes through, so every pipeline step obeys it.
+  - `make muse-status` shows it. `make muse-block` shuts Muse for the rest of the day.
+    `make muse-unblock` lifts it.
+  - **Muse is blocked for 2 Oct** (owner: the quota is done). A test call was refused with
+    nothing sent. It opens again by itself at 05:00 on 3 Oct.
+  - It only guards Muse used from this repo. It cannot see Muse used in a chat window.
+- **Changed — two faults found while checking step 5.2, both in the opener, both fixed:**
+  - The model's own words for "why unclear" leaked out, and the engine read any such words as
+    "the model failed". Unclear is not a failure. Now the reason is always the same word.
+  - When the caller named a scheme and the model added nothing, the named scheme was thrown
+    away. Now it is kept.
+- **Checks:** pytest 483 (was 468) · `make stress` 1,000 callers, 0 crashes, 0 truth failures ·
+  bake-off 30/30 offline · Door A 79/81 · a sim call judged PASS by `tools/judge.py` ·
+  Muse spend ₹0.00 new (₹12.97 total).
+- **Left, all needing the owner:** the three drills on a real phone; 5.4 (no Indian provider or
+  number yet); Phase 6 (10 callers); the items in `OWNER-END-TODO.md`; the Groq key; merging
+  `step-5.2-judge` and `step-5.3-hardening` into `main`.
+
 ### 2 Oct — Step 5.2: Delivery log judge + sim opener UNCLEAR fix
 - **Offline delivery log judge (`tools/judge.py`):**
   - Scores call logs purely from D9 delivery records and turn lines without needing audio or rerunning the engine.
