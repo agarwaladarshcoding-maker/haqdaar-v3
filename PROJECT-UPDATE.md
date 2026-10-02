@@ -99,6 +99,18 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+### 3 Oct (night) — Plan for the dashboard (`PLAN-DASHBOARD.md`). Nothing built yet.
+- **Added — a plan, not code.** The owner wants the UI to be the front door: a CRM-style site
+  on Vercel with a "call my phone" button, call logs, the scheme list, API use, the plan and
+  architecture, and settings for keys. `PLAN-DASHBOARD.md` says what pages it has, how it
+  works, how it is hosted, how it stays safe, and the build steps D0 to D8.
+- **The main finding.** The website can live on Vercel. The call engine cannot for now: it
+  holds a live audio socket for the whole call and reads its clips from disk. So the site
+  talks to the engine through the tunnel, with a secret token. When the laptop is off, the
+  site still opens and says the engine is offline.
+- **Checked.** The Vercel account is reachable from here (4 projects, none for Haqdaar yet).
+- **Waiting on the owner:** the five choices in `PLAN-DASHBOARD.md` §8, then "go" for D0.
+
 ### 2 Oct (late night) — Merged 5.2 + 5.3, built the call page (step 5.5), dropped 5.4
 - **Merged and pushed.** `step-5.2-judge` and `step-5.3-hardening` are in `main`, and so is the
   new `step-5.5-call-viewer`. Nothing is waiting to be merged.

@@ -122,6 +122,10 @@ Phase 3 + Phase 4 code is DONE and merged (steps A–D). What remains:
 - Keys: Groq key needs `llama-3.3-70b-versatile` (or new model name), then live bake-off rerun.
 - Tags: `v1-keypad`, then `v1-voice`.
 
+**Next big thing (proposed 3 Oct, waiting for the owner's go):** the dashboard. A site on Vercel
+that is the front door: call button, call logs, schemes, API use, plan, settings. Read
+`PLAN-DASHBOARD.md`. Nothing is built; step D0 starts with the owner's answers to its §8.
+
 ## 5 · Rules that caught real bugs (keep them)
 
 - **One caller at a time.** Never build for concurrency.

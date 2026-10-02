@@ -2243,3 +2243,30 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Not done, needs the owner: timings on a real call (no real call log exists yet).
 - No code-only phase is left in PLAN-V2 §3: 2.7/3.5/3.7/4.2/4.3/4.5/5.3 drills/Phase 6 all need
   a phone, ears, a decision or a key. 5.4 dropped for now (owner, 2 Oct).
+
+## Dashboard plan: findings (3 Oct 2026 night)
+- Owner wants the UI as the entry point, hosted on Vercel, CRM-style. Plan is in PLAN-DASHBOARD.md
+  (steps D0-D8). PLAN ONLY so far; build waits for the owner's answers to its §8.
+- Vercel is reachable through the connector: team `agarwaladarshcoding-8739s-projects`
+  (team_xiACkB2SIDvTrpDTwcCLTeBC), projects portfolio-v2, know-about-adarsh, idea-vault, ideas.
+  No Haqdaar project yet.
+- Vercel docs now list WebSockets for Functions (FastAPI example at /docs/functions/websockets),
+  but limits for a minutes-long phone audio stream are not shown. Decision: engine stays off
+  Vercel; only the dashboard goes there.
+- tools/tunnel.py is a cloudflared QUICK tunnel: the address changes every start (saved in
+  logs/tunnel_host). So the dashboard cannot hardcode the engine address: the engine must check
+  in on start, or the owner needs a domain for a named tunnel.
+- The engine server has NO auth on any route and /health says only ok. The data door needs a token.
+- Outbound call: `place_call(to, answer_url)` in haqdaar/audio/telephony/twilio.py:205;
+  `make call` = tools/call_me.py. Env: CALL_ME_NUMBER, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN,
+  TWILIO_US_PHONE_NUMBER. Trial: the one verified number only.
+- Ledgers in data_cache/reports/: muse_usage.jsonl (has inr), groq_usage.jsonl, sarvam_usage.jsonl,
+  sarvam_tts_usage.jsonl, stt_usage.jsonl (units only). Twilio spend is tracked nowhere.
+- Schemes: roster 30 (schemes.yaml), 27 derived, 27/27 pass gates in en/hi/mr, 3 quarantined
+  (ab-pmjay, pm-sym, pmsby), but the CURRENT snapshot has only 11 (the rest lack audio clips).
+  Status per language: data_cache/derived/gates.jsonl.
+- The sim is not steppable: Engine.run_call blocks on audio.next_input. A typed test call from
+  a page needs a new audio class whose next_input waits on a queue, engine in a thread.
+- The owner's older dashboard (tss-voice-agent/dashboard): Next.js 15 app router, plain CSS,
+  password + jose JWT cookie, server-only proxy to a FastAPI backend, 750 ms polling. Same
+  shape as this plan. Most of its files are iCloud-evicted and hang on read.
