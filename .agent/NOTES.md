@@ -2130,3 +2130,7 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Verified on main: pytest 441, stress 0/0, bake-off 30/30, door-a 79/81 (EN 26/27, HI 27/27, MR 26/27), render 456/456 missing 0, sim survivors_le_4. Muse spend unchanged Rs12.97.
 - Records: HANDOFF merged-line + pytest count updated; PROJECT-UPDATE entry prepended; pushed main to origin (require_escalated for SSH).
 - Owner parts ON HOLD per owner: Groq key + live bake-off, OWNER-END-TODO physical tests. Phase 5 (5.1 anything-else+prefetch, 5.2 judge, 5.3 crash restart) is code-only and can proceed; 5.4 Indian phone provider needs the owner server/provider decision eventually.
+
+## Dispatch: Phase 5.1 (anything-else voice + prefetch)
+- Explorer brief: anything-else turn (call.py:977-1001) is keypad-deaf in voice mode; AudioPool.prefetch (pool.py:149-161, AUDIO_PREFETCH_ON_STOP) has zero production callers; wire via new PhoneAudio method (engine must not import pool). PROPOSAL logging at call.py:635-642 (for 5.2 judge).
+- Prompt PROMPT-ANTIGRAVITY-5.1-ANYTHING-ELSE.md on main; base main @63e270a; branch step-5.1-anything-else. No new clips allowed (owner voice hold); sim UNCLEAR asymmetry deferred to 5.2.
