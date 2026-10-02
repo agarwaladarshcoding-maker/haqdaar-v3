@@ -9,11 +9,14 @@ import io
 import json
 from pathlib import Path
 import struct
+import threading
+import time
 import wave
 
 import httpx
 import pytest
 
+from haqdaar.contracts import tunables
 from haqdaar.audio.ear import (
     BASE_DIR,
     FRAME_PCM_BYTES,
@@ -429,9 +432,9 @@ def test_offline_accuracy_on_all_fixtures(monkeypatch):
             )
 
     mock_stt = FixtureMockSTT()
-    ear = Ear(stt=mock_stt)
 
     for uid in ["p1_en", "p1_hi", "p1_mr", "p2_en", "p2_hi", "p2_mr", "p3_en", "p3_hi", "p3_mr"]:
+        ear = Ear(stt=mock_stt)
         entry = manifest[uid]
         mock_stt.current_text = entry["text"]
         mock_stt.current_lang = entry["lang"]
@@ -454,3 +457,83 @@ def test_offline_accuracy_on_all_fixtures(monkeypatch):
         inp = ear.listen(timeout=2.0, lang=entry["lang"])
         assert isinstance(inp, Speech)
         assert inp.text == entry["text"]
+
+
+def test_stale_media_drain_at_listen_start():
+    """Queued media packets from before listen() start are drained, preventing ghost utterances."""
+    class RecordingSTT(SpeechToText):
+        def __init__(self):
+            super().__init__()
+            self.calls = []
+
+        def transcribe(self, audio_bytes, lang="", hint="", is_wav=False):
+            self.calls.append(audio_bytes)
+            return SttResult(transcript="fresh speech", lang="en", provider="mock", success=True)
+
+    mock_stt = RecordingSTT()
+    ear = Ear(stt=mock_stt)
+
+    # 1. Simulate stale media packets arriving while engine was busy (e.g. prior STT/playback)
+    loud_frame = pcm_to_ulaw(_make_pcm_frame(1200))
+    for _ in range(10):
+        ear.push_media(loud_frame)
+
+    assert not ear._events.empty()
+
+    # 2. When listen is called with drain_stale=True (or after prior STT), stale media is drained:
+    res_silence = ear.listen(timeout=0.1, drain_stale=True)
+    assert isinstance(res_silence, Silence)
+    assert len(mock_stt.calls) == 0  # Stale media was NOT transcribed!
+
+    # 3. Queued stale packets + fresh speech arriving in background -> only fresh speech transcribed
+    for _ in range(10):
+        ear.push_media(loud_frame)
+
+    def feed_fresh_speech():
+        time.sleep(0.03)  # Arrives after listen() has started and drained the queue
+        for _ in range(5):
+            ear.push_media(pcm_to_ulaw(_make_pcm_frame(1500)))
+        for _ in range(41):
+            ear.push_media(pcm_to_ulaw(_make_pcm_frame(50)))
+
+    t = threading.Thread(target=feed_fresh_speech, daemon=True)
+    t.start()
+
+    res_speech = ear.listen(timeout=2.0, drain_stale=True)
+    assert isinstance(res_speech, Speech)
+    assert res_speech.text == "fresh speech"
+    assert len(mock_stt.calls) == 1
+    t.join(timeout=1.0)
+
+
+def test_shared_stt_deadline_across_providers(monkeypatch):
+    """Sarvam timeout leaves Groq with only the remaining fraction of STT_TIMEOUT_S."""
+    monkeypatch.setattr(tunables, "STT_TIMEOUT_S", 2.0)
+    stt = SpeechToText()
+
+    groq_timeouts = []
+
+    class FakeSlowSarvam:
+        api_key = "fake_sarvam"
+        def transcribe(self, wav_bytes, lang="", hint="", timeout=None):
+            time.sleep(1.2)  # Takes 1.2s of the 2.0s budget
+            return SttResult(transcript="", lang="", provider="sarvam", success=False, error="timed_out")
+
+    class FakeGroq:
+        api_key = "fake_groq"
+        def transcribe(self, wav_bytes, lang="", hint="", timeout=None):
+            groq_timeouts.append(timeout)
+            return SttResult(transcript="recovered", lang="en", provider="groq", success=True)
+
+    stt.sarvam = FakeSlowSarvam()
+    stt.groq = FakeGroq()
+
+    dummy_pcm = _make_pcm_frame(1000) * 10
+    res = stt.transcribe(dummy_pcm)
+
+    assert res.success is True
+    assert res.transcript == "recovered"
+    assert len(groq_timeouts) == 1
+    # Groq timeout must be ~0.8s (<= 1.0s), NOT the full 2.0s
+    assert groq_timeouts[0] is not None
+    assert groq_timeouts[0] < 1.0

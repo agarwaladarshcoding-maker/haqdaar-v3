@@ -91,3 +91,68 @@ def test_a_keypad_question_is_followed_by_its_menu(phone):
     menu = said[menu_start + 1:said.index("keypad_unknown_suffix", menu_start)]
     assert menu[:4] == ["chip_category_farming", "key_1", "chip_category_business_loans", "key_2"]
     assert said[-1] == "closing_farewell"  # silence ladder ends the call politely
+
+
+def test_one_caller_guard_refuses_second_call(phone):
+    """While a call is active on /stream, a second connection is refused busy with code 1008."""
+    client = TestClient(server.app)
+    assert not server.is_call_active()
+
+    with client.websocket_connect("/stream") as ws1:
+        assert server.is_call_active()
+
+        # Second connection should be refused
+        try:
+            with client.websocket_connect("/stream") as ws2:
+                # If accepted, Starlette immediately raises WebSocketDisconnect on close(1008)
+                with pytest.raises(WebSocketDisconnect) as exc_info:
+                    ws2.receive_text()
+                assert exc_info.value.code == 1008
+        except WebSocketDisconnect as exc_info:
+            assert exc_info.code == 1008
+
+        # First connection is still active and unimpacted
+        assert server.is_call_active()
+
+    # Once ws1 closes, active call lock is released
+    assert not server.is_call_active()
+
+
+def test_caller_hash_pruning_on_abandoned_answer():
+    """Stale caller hash entries from abandoned /answer calls are pruned and do not leak."""
+    client = TestClient(server.app)
+    client.post("/answer", content="CallSid=CA_abandoned_1&From=%2B919999999999",
+                headers={"Content-Type": "application/x-www-form-urlencoded"})
+    assert "CA_abandoned_1" in server._CALLER_HASH
+    assert "CA_abandoned_1" in server._CALLER_HASH_TS
+
+    # Force prune with max_age_s=0.0
+    server._prune_caller_hashes(max_age_s=0.0)
+    assert "CA_abandoned_1" not in server._CALLER_HASH
+    assert "CA_abandoned_1" not in server._CALLER_HASH_TS
+
+
+def test_clips_malformed_scheme_token_does_not_crash():
+    """Malformed scheme tokens with fewer than 3 parts return empty list without crashing."""
+    from haqdaar.audio.phone import PhoneAudio
+
+    class DummyCorpus:
+        language = "en"
+        def chunks(self, sid, lang):
+            return ()
+        def audio(self, *args):
+            return ""
+        def values(self, box):
+            return ()
+
+    class DummyMouth:
+        pass
+
+    class DummyTurn:
+        pass
+
+    phone_audio = PhoneAudio(DummyCorpus(), None, DummyMouth(), DummyTurn(), lambda: None)
+    # Malformed tokens without 3 parts
+    assert phone_audio._clips("scheme:") == []
+    assert phone_audio._clips("scheme:foo") == []
+    assert phone_audio._clips("scheme:a:b:c") == []
