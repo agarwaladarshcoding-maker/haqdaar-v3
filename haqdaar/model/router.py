@@ -104,10 +104,10 @@ class Model:
 
         raw_data = resp.data or {}
         cls_name = str(raw_data.get("class", "")).upper().strip()
-        if cls_name == "UNCLEAR":
-            return Unclear(reason=str(raw_data.get("reason", "unclear")))
-        raw_stamps = raw_data.get("stamps", [])
-        if not raw_stamps:
+        raw_stamps = [] if cls_name == "UNCLEAR" else raw_data.get("stamps", [])
+        if not raw_stamps and not stamps:
+            # UNCLEAR is not a failure (T11): one fixed reason, whatever words the model sent.
+            # Alias stamps found in step 1 are kept even when the model adds nothing.
             return Unclear(reason="unclear")
 
         # Parse raw stamps into typed Stamp objects

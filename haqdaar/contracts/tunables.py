@@ -171,6 +171,10 @@ TRANSLATE_PROVIDER: str = os.environ.get("TRANSLATE_PROVIDER", "muse")
 MUSE_MODEL: str = os.environ.get("MUSE_MODEL", "muse-spark-1.3-contributor")
 MUSE_REASONING_EFFORT: str = os.environ.get("MUSE_REASONING_EFFORT", "high")
 MUSE_CAP_INR: float = float(os.environ.get("MUSE_CAP_INR", 60.0))
+# Owner, 2 Oct: no more than ₹30 of Muse in one day. The day is counted in India time and
+# rolls at 05:00, not at midnight, because the owner works at night.
+MUSE_DAILY_CAP_INR: float = float(os.environ.get("MUSE_DAILY_CAP_INR", 30.0))
+MUSE_DAY_START_HOUR_IST: int = 5
 MUSE_USD_PER_M_IN: float = 0.10
 MUSE_USD_PER_M_OUT: float = 0.20
 USD_TO_INR: float = 90.0  # rounded up, so the cap trips a little early rather than late
@@ -179,3 +183,8 @@ MUSE_POLITE_DELAY_S: float = 1.0
 MUSE_MAX_RETRIES: int = 5
 MUSE_RETRY_SLEEP_S: float = 3.0
 MUSE_429_WAIT_S: float = 20.0
+
+# Plan 5.3: `make run` starts the server again after a crash (tools/keep_running.py).
+RESTART_WAIT_S: float = 2.0
+RESTART_MAX_STOPS: int = 5      # this many stops inside the window = a crash loop: give up
+RESTART_WINDOW_S: float = 60.0
