@@ -98,6 +98,17 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+### 2 Oct — Audit fixes merged to main (reviewed, verified, pushed)
+- **Merged:** `audit-fixes` into `main` — fast-forward, no conflicts. All 36 audit findings
+  are now on `main`: quarantine bypass closed + 11-scheme snapshot (F1), Door A wired with
+  stamps (F2), engine correctness + one-caller guard + ghost drain + STT deadline + report
+  accounting (Step E). Review caught 1 fault (a wrong count in a comment); fixed before merge.
+- **Verified on main:** pytest 441, stress 0/0, bake-off 30/30, door-a 79/81, render 456/456,
+  sim clean. Muse spend unchanged at ₹12.97 of the ₹60 cap.
+- **Project can now:** refuse stale quarantined schemes end to end; hear a scheme name in the
+  opener and read its card (Door A, 3 langs); bound confirm repeats and STT time; refuse a
+  second caller while one is on; report roster-vs-kept counts and full spend honestly.
+
 ### 2 Oct — Step E: Audit remainder (engine correctness, hardening, pipeline reports)
 - **Engine correctness (Part F3):**
   - Widening ladder in the planner now shares the speakable check from terminals so predicted rungs agree.

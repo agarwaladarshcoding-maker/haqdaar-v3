@@ -17,10 +17,11 @@ This file is the shared base for all four. Read it first, then `AGENTS.md` (the 
   iCloud and hangs on big reads. Both copies are on the same branch, but only `~/code` is safe to run.
 - **Branch:** `main` (pushed to GitHub, `haqdaar-v3`, in sync). Start every new step on a new
   branch from here, for example `git switch -c step-5.1-attr`.
-- **Merged:** `main` holds Phase 2 + Phase 3 + Phase 4 code: the 3.7 audit tooling,
-  step 4.1 (ear), step 4.2 (model + bake-off), and steps A–D (gates 28/28 + audio-ready
-  snapshot, Door A 90/90, spoken+confirm turn, fallback wiring + live ear-check 9/9).
-  pytest 372, stress 0/0.
+- **Merged:** `main` holds Phase 2 + Phase 3 + Phase 4 code plus the audit fixes
+  (F1+F2+E, all 36 findings): the 3.7 audit tooling, step 4.1 (ear), step 4.2 (model +
+  bake-off), steps A–D (gates 27/27 + 11-scheme snapshot, Door A 79/81 wired with stamps,
+  spoken+confirm turn, fallback wiring + live ear-check 9/9), one-caller guard, ghost
+  drain, shared STT deadline, roster accounting. pytest 441, stress 0/0.
   Tagging `v1-keypad` waits for the owner's audit verdicts and 3 real calls.
 - **Python:** always `.venv/bin/python`, which is 3.11. The system `python3` is 3.14 and has no `audioop`.
 - **Keys:** they live in `~/code/haqdaar-v2/.env` and are never committed. It holds MUSE_API_KEY,
@@ -30,7 +31,7 @@ This file is the shared base for all four. Read it first, then `AGENTS.md` (the 
 
 ```
 cd ~/code/haqdaar-v2
-.venv/bin/python -m pytest -q          # 372 pass on 1 Oct
+.venv/bin/python -m pytest -q          # 441 pass on 2 Oct
 make stress                            # 1,000 random callers: must say crashes 0, truth failures 0
 make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"   # one call in the terminal
 ```

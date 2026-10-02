@@ -2124,3 +2124,9 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Reviewer fixup 09840c3 (comment 50->49), pytest 441 green, merge --no-ff, pushed a84eebe..c2c961d (needed require_escalated: sandbox blocks SSH).
 - E confirmed complete: STT #8 IMPLEMENTED (shared deadline, 2 tests), not merely documented. Muse spend delta Rs0.00.
 - Audit leftovers: (a) audit-fixes->main merge (needs owner word); (b) owner-blocked: Groq key + live bake-off, OWNER-END-TODO physical tests; (c) accepted parks: mouth _cleared, HANGUP_WAIT linger, p6 chunk keys, --all-schemes hatch, demo-15sep, plan staleness, dead-branch deletion (~30, needs explicit ask); (d) schemes.jsonl re-bless + re-render needs owner (user-facing text + Sarvam spend).
+
+## Merge: audit-fixes -> main (86aca71, pushed)
+- main had not moved since audit-fixes branched (merge-base == main == 24c5176), so the merge was conflict-free by construction (--no-ff to mark it).
+- Verified on main: pytest 441, stress 0/0, bake-off 30/30, door-a 79/81 (EN 26/27, HI 27/27, MR 26/27), render 456/456 missing 0, sim survivors_le_4. Muse spend unchanged Rs12.97.
+- Records: HANDOFF merged-line + pytest count updated; PROJECT-UPDATE entry prepended; pushed main to origin (require_escalated for SSH).
+- Owner parts ON HOLD per owner: Groq key + live bake-off, OWNER-END-TODO physical tests. Phase 5 (5.1 anything-else+prefetch, 5.2 judge, 5.3 crash restart) is code-only and can proceed; 5.4 Indian phone provider needs the owner server/provider decision eventually.
