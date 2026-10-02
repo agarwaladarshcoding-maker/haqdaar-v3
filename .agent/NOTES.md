@@ -2066,3 +2066,19 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Owner redirected mid-F3: reviewer keeps F1+F2 (committed + pushed on audit-fixes), Antigravity does F3+F4+F5 via PROMPT-ANTIGRAVITY-E-AUDIT-REST.md (branch step-audit-rest from audit-fixes tip, 3 part-commits).
 - F3 design note recorded in prompt: planner/terminal ladder agreement via shared speakable predicate (import from terminals, T17 frozen); confirm-loop T14 needs a SEPARATE repeat counter (not turn_n).
 - No F3 code edits were made before the handoff (only planner reads) — Antigravity starts F3 clean.
+
+## Audit fixes F3 (step-audit-rest branch) — Engine correctness DONE
+- #9 Widen/ladder agreement: planner now uses `_filter_speakable` from `terminals.py` to evaluate speakable survivors at each rung of the widening ladder. Added `test_widen_ladder_agreement_with_terminals_on_unspeakable_raw_survivors` to `test_planner.py`.
+- #10 Word lists out of Engine: Moved yes/no word lists and matching to `haqdaar/model/confirm.py` with `match_confirm()`, wired into `Model.confirm()`. Engine calls `model.confirm(...)` without importing `haqdaar.model` (preserving import discipline). Added `tests/test_confirm.py` with 40 tests covering EN, HI, MR.
+- `READBACK_REPLAY_MAX`: Moved `READBACK_REPLAY_MAX = 2` and `CONFIRM_REPEAT_MAX = 3` to `contracts/tunables.py`. Deleted excuse comment.
+- Confirm-loop turn accounting: Used `confirm_repeats` bounded by `tunables.CONFIRM_REPEAT_MAX` to terminate repeat-mashing. `#`, `*`, and SILENCE do not consume cap turns (`turn_n`). Added `test_confirm_repeat_mashing_terminates_without_cap_turn_consumption` in `test_call_spoken.py`.
+- NEAREST `ladder_rung`: Fixed to report `len(answered_soft)` (0 when no soft boxes answered per T18). Updated `test_call.py:506` assertion to `== 0`.
+- `contracts/types.py` & `lines.yaml`: Fixed comment count to 50 fixed lines; removed dead `drop_category` line ID from `types.py` and `lines.yaml`.
+- Track-1 LOWs:
+  - `filter.py`: Fixed `speakable()` ANY escape valve for dict corpora; documented OR-bit_length heuristic. Verified `grep -nE "[<>]=?|int\(|float\("` is clean. Added dict corpus test in `test_filter.py`.
+  - `terminals.py`: Documented D8 priority ordering via snapshot pre-order in `_sort_survivors`.
+  - `planner.py`: Documented `_inferred_questions` excluding category vs Engine live `question_count`.
+  - `call.py`: Documented `box_strikes` cumulative approximation per T11; verified Door A comment validity.
+  - Checked CLARIFY/REPEAT/META: Model generates these typed turn results; Engine logs them as UNCLEAR in absence of value. No action required per prompt instruction.
+- Verification: pytest 429 passed, make stress (0 crashes, 0 truth failures), make model-bakeoff (30/30 offline), make door-a-check (79/81, 97.53%), make render (456 texts, 0 missing), make sim (completed cleanly). Muse spend delta Rs0.00.
+

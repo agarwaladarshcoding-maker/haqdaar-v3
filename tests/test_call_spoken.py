@@ -190,6 +190,10 @@ class MockModel:
             return self._turn_res
         return Answer(box=box, value="farmer", span="farmer")
 
+    def confirm(self, text: str, lang: Optional[str] = None) -> Optional[bool]:
+        from haqdaar.model.confirm import match_confirm
+        return match_confirm(text, lang)
+
 
 @pytest.fixture
 def fixture_corpus(tmp_path, monkeypatch):
@@ -780,3 +784,38 @@ def test_door_a_model_selection_pick(fixture_corpus, tmp_path):
     assert named["value"] == "S2"
     assert named["candidate_count"] == 2
     assert "scheme:S2:name" in audio.played
+
+
+def test_confirm_repeat_mashing_terminates_without_cap_turn_consumption(fixture_corpus, tmp_path):
+    """Mashing repeat (#) in confirm loop terminates at repeat bound without consuming cap turns."""
+    # Opener speech yields farming. Confirmation loop gets:
+    # 3 '#' repeats (hits CONFIRM_REPEAT_MAX = 3) -> loop breaks to unclear / next turn
+    # followed by valid keypad answers for remaining questions.
+    # The call must NOT hit MAX_TURNS prematurely because repeats do not consume turn_n.
+    audio = MockAudioSession(inputs=[
+        Digit("1"),                     # Turn 0 (hi)
+        Speech(text="kisan hu main"),   # Opener -> proposes farming
+        Digit("#"),                     # Confirm repeat 1
+        Digit("#"),                     # Confirm repeat 2
+        Digit("#"),                     # Confirm repeat 3 (hits bound)
+        Digit("1"),                     # State -> MAHARASHTRA
+        Digit("1"),                     # Gender -> female
+        Digit("3"),                     # Social category -> SC
+        Digit("2"),                     # Anything else -> no
+    ])
+    log = Log.open("test_repeat_mashing", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = MockModel(opener_res=[
+        Stamp(box="category", value="farming", span="kisan")
+    ])
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert audio.hung_up
+    lines = [json.loads(l) for l in open(tmp_path / "test_repeat_mashing.jsonl")]
+    close_line = lines[-1]
+    # The call reached normal terminal rather than max_turns
+    assert close_line["stop"] != STOP_MAX_TURNS
+    # Repeats did not advance turn_n for each mash
+    turn_records = [l for l in lines if "turn_n" in l]
+    max_turn_n = max(l["turn_n"] for l in turn_records)
+    assert max_turn_n < tunables.MAX_TURNS

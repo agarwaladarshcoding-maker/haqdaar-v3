@@ -61,13 +61,6 @@ from haqdaar.engine.terminals import (
     scheme_summary_chunk,
 )
 
-# Step 1.8: bounded replay for an unmapped read-back key (5-8), so a stuck key can
-# never loop forever. This is a small tunable that would normally live in
-# contracts/tunables.py alongside OVERFLOW_READ_CAP; it lives here because this
-# step's file list does not include tunables.py (see the step report).
-READBACK_REPLAY_MAX: int = 2
-
-
 def _next_lang(curr_lang: str) -> str:
     """Rotate hi -> mr -> en -> hi (D13's `*` cycle). Shared by the question phase
     and the read-back menu so both keypads use the same rotation."""
@@ -206,6 +199,10 @@ class Engine:
         turn_n = 0
         question_count = 0
         silence_ladder = 0
+        # T11 box strikes: counts non-ANSWER turns per box towards keypad drop.
+        # Interleaved SILENCE turns do not reset this counter; keeping strikes
+        # cumulative per box ensures callers who alternate between silence and
+        # unclear speech reliably receive keypad fallback.
         box_strikes: dict[str, int] = {b: 0 for b in SEVEN_BOXES}
         ladder_rung = 0
         stop_reason: Optional[str] = None
@@ -656,18 +653,26 @@ class Engine:
                     )
                     audio.say(confirm_seq)
 
-                    # Confirmation loop
-                    confirm_turns = 0
+                    # Confirmation loop: bounded against repeat-mashing via confirm_repeats
+                    # without consuming cap turns (# and SILENCE do not consume turns per T14/T16)
+                    confirm_repeats = 0
                     while True:
                         confirm_inp = audio.next_input(profile="confirm")
                         if isinstance(confirm_inp, Digit):
                             silence_ladder = 0
                             if confirm_inp.digit == "#":
                                 audio.repeat()
-                                confirm_turns += 1
-                                if (turn_n + confirm_turns) >= tunables.MAX_TURNS:
-                                    turn_n += confirm_turns
-                                    stop_reason = STOP_MAX_TURNS
+                                confirm_repeats += 1
+                                if confirm_repeats >= tunables.CONFIRM_REPEAT_MAX:
+                                    turn_n += 1
+                                    box_strikes[box] += 1
+                                    log.write(TurnLogRecord(
+                                        turn_n=turn_n,
+                                        turn_class="UNCLEAR",
+                                        transcript="#",
+                                    ))
+                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                        audio.say(("unclear_prompt",))
                                     break
                                 continue
                             elif confirm_inp.digit == "*":
@@ -678,22 +683,29 @@ class Engine:
                                 log.write(LangSwitchRecord(
                                     lang=new_lang,
                                     lang_source="keypad",
-                                    turn_n=turn_n + confirm_turns,
+                                    turn_n=turn_n,
                                 ))
                                 audio.say((
                                     "bundle_confirm_intro",
                                     f"chip_{box}_{proposed_val}",
                                     "confirm_yn_suffix",
                                 ))
-                                confirm_turns += 1
-                                if (turn_n + confirm_turns) >= tunables.MAX_TURNS:
-                                    turn_n += confirm_turns
-                                    stop_reason = STOP_MAX_TURNS
+                                confirm_repeats += 1
+                                if confirm_repeats >= tunables.CONFIRM_REPEAT_MAX:
+                                    turn_n += 1
+                                    box_strikes[box] += 1
+                                    log.write(TurnLogRecord(
+                                        turn_n=turn_n,
+                                        turn_class="UNCLEAR",
+                                        transcript="*",
+                                    ))
+                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                        audio.say(("unclear_prompt",))
                                     break
                                 continue
                             elif confirm_inp.digit == "1":
                                 # CONFIRM ACCEPT: caller confirmed!
-                                turn_n += 1 + confirm_turns
+                                turn_n += 1
                                 box_vector[box] = proposed_val
                                 box_strikes[box] = 0
                                 question_count += 1
@@ -708,7 +720,7 @@ class Engine:
                                 break
                             elif confirm_inp.digit == "2":
                                 # CONFIRM MISMATCH / RE-ASK: caller rejected!
-                                turn_n += 1 + confirm_turns
+                                turn_n += 1
                                 box_strikes[box] += 1
                                 log.write(TurnLogRecord(
                                     turn_n=turn_n,
@@ -720,7 +732,7 @@ class Engine:
                                 break
                             else:
                                 # Out-of-menu digit on confirm
-                                turn_n += 1 + confirm_turns
+                                turn_n += 1
                                 box_strikes[box] += 1
                                 log.write(TurnLogRecord(
                                     turn_n=turn_n,
@@ -735,24 +747,38 @@ class Engine:
                             rung = confirm_inp.n if (hasattr(confirm_inp, "n") and confirm_inp.n) else (silence_ladder + 1)
                             silence_ladder = rung
                             log.write(TurnLogRecord(
-                                turn_n=turn_n + confirm_turns,
+                                turn_n=turn_n,
                                 turn_class="SILENCE",
                                 silence_n=rung,
                             ))
                             if rung == 1:
                                 audio.repeat()
-                                confirm_turns += 1
-                                if (turn_n + confirm_turns) >= tunables.MAX_TURNS:
-                                    turn_n += confirm_turns
-                                    stop_reason = STOP_MAX_TURNS
+                                confirm_repeats += 1
+                                if confirm_repeats >= tunables.CONFIRM_REPEAT_MAX:
+                                    turn_n += 1
+                                    box_strikes[box] += 1
+                                    log.write(TurnLogRecord(
+                                        turn_n=turn_n,
+                                        turn_class="UNCLEAR",
+                                        transcript="silence_limit",
+                                    ))
+                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                        audio.say(("unclear_prompt",))
                                     break
                                 continue
                             elif rung == 2:
                                 audio.say(("silence_presence",))
-                                confirm_turns += 1
-                                if (turn_n + confirm_turns) >= tunables.MAX_TURNS:
-                                    turn_n += confirm_turns
-                                    stop_reason = STOP_MAX_TURNS
+                                confirm_repeats += 1
+                                if confirm_repeats >= tunables.CONFIRM_REPEAT_MAX:
+                                    turn_n += 1
+                                    box_strikes[box] += 1
+                                    log.write(TurnLogRecord(
+                                        turn_n=turn_n,
+                                        turn_class="UNCLEAR",
+                                        transcript="silence_limit",
+                                    ))
+                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                        audio.say(("unclear_prompt",))
                                     break
                                 continue
                             else:
@@ -769,7 +795,7 @@ class Engine:
                                 return
 
                         elif isinstance(confirm_inp, Noise):
-                            turn_n += 1 + confirm_turns
+                            turn_n += 1
                             box_strikes[box] += 1
                             log.write(TurnLogRecord(
                                 turn_n=turn_n,
@@ -790,8 +816,13 @@ class Engine:
                         elif isinstance(confirm_inp, Speech):
                             silence_ladder = 0
                             spk = str(getattr(confirm_inp, "text", "") or "").strip().lower()
-                            if spk in ("1", "yes", "haan", "ha", "ho", "sahi", "right", "correct"):
-                                turn_n += 1 + confirm_turns
+                            if model is not None and hasattr(model, "confirm"):
+                                is_confirmed = model.confirm(spk, lang=getattr(audio, "language", None))
+                            else:
+                                is_confirmed = None
+
+                            if is_confirmed is True:
+                                turn_n += 1
                                 box_vector[box] = proposed_val
                                 box_strikes[box] = 0
                                 question_count += 1
@@ -804,8 +835,8 @@ class Engine:
                                     span=spk,
                                 ))
                                 break
-                            elif spk in ("2", "no", "nahi", "na", "wrong", "fix", "chuki"):
-                                turn_n += 1 + confirm_turns
+                            elif is_confirmed is False:
+                                turn_n += 1
                                 box_strikes[box] += 1
                                 log.write(TurnLogRecord(
                                     turn_n=turn_n,
@@ -816,7 +847,7 @@ class Engine:
                                     audio.say(("unclear_prompt",))
                                 break
                             else:
-                                turn_n += 1 + confirm_turns
+                                turn_n += 1
                                 box_strikes[box] += 1
                                 log.write(TurnLogRecord(
                                     turn_n=turn_n,
@@ -870,7 +901,7 @@ class Engine:
                     b for b in WIDENING_ORDER
                     if box_vector.get(b) not in (None, UNASKED, UNKNOWN)
                 ]
-                ladder_rung = len(answered_soft) if answered_soft else len(WIDENING_ORDER)
+                ladder_rung = len(answered_soft)
             else:
                 ladder_rung = 0
 
@@ -1104,7 +1135,7 @@ class Engine:
             # key can never loop forever. After READBACK_REPLAY_MAX replays in a
             # row on the same scheme, treat the next one as 9.
             replays += 1
-            if replays > READBACK_REPLAY_MAX:
+            if replays > tunables.READBACK_REPLAY_MAX:
                 replays = 0
                 ix += 1
                 heard = set()

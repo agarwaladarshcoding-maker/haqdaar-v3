@@ -23,6 +23,7 @@ from haqdaar.model.client import GroqModelClient
 from haqdaar.model.prompts.opener import build_opener_prompt
 from haqdaar.model.prompts.system import SYSTEM_PROMPT
 from haqdaar.model.prompts.turn import build_turn_prompt
+from haqdaar.model.confirm import match_confirm
 from haqdaar.model.span_guard import SpanGuard
 
 
@@ -219,3 +220,8 @@ class Model:
 
         # 5. UNCLEAR (default)
         return Unclear(reason=str(data.get("reason", "unclear")))
+
+    def confirm(self, transcript: str, lang: Optional[str] = None) -> Optional[bool]:
+        """T09: Model owns language. Classify confirmation utterance as True (accept), False (reject), or None (unclear)."""
+        return match_confirm(transcript, lang=lang)
+

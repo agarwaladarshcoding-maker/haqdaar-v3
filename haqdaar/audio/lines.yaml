@@ -296,12 +296,6 @@ lines:
     hi: "मैंने आपके काम वाली बात अलग रख दी है।"
     mr: "मी तुमच्या कामाची गोष्ट बाजूला ठेवली आहे."
 
-  drop_category:
-    pinned: true
-    en: "I have set aside your category."
-    hi: "मैंने आपकी श्रेणी वाली बात अलग रख दी है।"
-    mr: "मी तुमच्या श्रेणीची गोष्ट बाजूला ठेवली आहे."
-
   results_widened_lead:
     pinned: true
     en: "With that set aside, these schemes match."

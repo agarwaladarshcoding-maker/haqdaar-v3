@@ -13,6 +13,7 @@ from haqdaar.contracts.types import (
     Unclear,
 )
 from haqdaar.model.client import GroqModelClient, ModelClientResponse
+from haqdaar.model.confirm import match_confirm
 from haqdaar.model.router import Model
 from haqdaar.model.span_guard import SpanGuard
 
@@ -28,4 +29,5 @@ __all__ = [
     "Meta",
     "Unclear",
     "TurnResult",
+    "match_confirm",
 ]
