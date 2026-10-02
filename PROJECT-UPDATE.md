@@ -98,6 +98,25 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+### 2 Oct — Step E: Audit remainder (engine correctness, hardening, pipeline reports)
+- **Engine correctness (Part F3):**
+  - Widening ladder in the planner now shares the speakable check from terminals so predicted rungs agree.
+  - Spoken confirmation words (yes/no in Hindi, Marathi, English) moved out of Engine into Model.
+  - Confirm loop now bounds repeats separately; silence and `#` repeats do not eat cap turns.
+  - Fixed nearest ladder rung accounting (0 when no soft boxes were answered).
+  - Cleaned types, removed dead drop_category line, and documented priority ordering.
+- **Server, audio, and model hardening (Part F4):**
+  - Added a one-caller guard: second phone stream gets a clean busy rejection instead of starting a new engine.
+  - Ear now drains old audio packets before listening so past audio is not transcribed as ghost speech.
+  - Added a shared 5-second deadline across speech recognition providers.
+  - Defended model calls against unexpected client crashes; guarded malformed scheme clips; suppressed audioop warning.
+- **Pipeline reports and repo hygiene (Part F5):**
+  - Added roster accounting to all pipeline reports (`gates.json`, `cards.json`, `translate.json`, `derive.json`): 30 roster - 3 quarantined == 27 kept.
+  - Added Muse spend tracking to `run_all.py --cost` alongside Groq and Sarvam.
+  - Renamed text counting step in `run_all.py` to match what it does.
+  - Fixed scheme counts in test docstrings, cleaned `.gitignore` rules for notes, and added a test guarding the Twilio import boundary.
+- **Verified:** 441 unit tests pass, `make stress` 1,000 callers (0 crashes, 0 truth failures), `make model-bakeoff` (30/30 offline pass), `make door-a-check` (79/81 top-1 hits, 97.5%), `make render` (456 clips on disk, 0 missing), `make sim` finishes cleanly. Muse spend delta: ₹0.00.
+
 ### 2 Oct — Step 4.5: Fallback wiring + live API passes
 - **Wired Ear failure signals and Model circuit breaker into call loop (`haqdaar/engine/call.py`):**
   - When speech recognition fails (STT error/timeout) or the model fails twice, the call immediately drops to keypad-only mode.

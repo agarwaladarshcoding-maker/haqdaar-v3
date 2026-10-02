@@ -13,6 +13,8 @@ __pycache__/
 .pytest_cache/
 node_modules/
 .agent/
+# Explicitly track NOTES.md while keeping TASK.md and other agent scratch ignored
+!.agent/NOTES.md
 .DS_Store
 haqdaar-v2-brain/.obsidian/workspace*.json
 brain/.obsidian/workspace*.json

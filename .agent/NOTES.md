@@ -2094,4 +2094,27 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   - Parked items verified: `mouth.py` lock-free `_cleared` read is GIL-atomic and benign; `HANGUP_WAIT_S` 15s linger is bounded and safe.
 - Verification: pytest 435 passed (2 warnings from third-party testclient only), make stress (0 crashes, 0 truth failures), make model-bakeoff (30/30 offline), make door-a-check (79/81, 97.53%), make render (456 texts, 0 missing), make sim (completed cleanly). Muse spend delta Rs0.00.
 
+## Audit fixes F5 (step-audit-rest branch) — Pipeline Reports and Repo Hygiene DONE
+- Gate-report roster accounting:
+  - Added `compute_roster_accounting(kept_slugs, yaml_path=None)` in `haqdaar/data/pipeline/p1_scrape.py` computing `roster_size`, `quarantined_count`, `quarantined_slugs`, and `kept_count` against `schemes.yaml` (roster size 30).
+  - Integrated into `p2_derive.py` (`derive.json`), `p3_cards.py` (`cards.json`), `p4_translate.py` (`translate.json`), and `p5_gates.py` (`gates.json`). All additive keys preserve existing keys without breaking readers.
+  - Reconciled reports on disk in `data_cache/reports/`: 30 roster - 3 quarantined ('ab-pmjay', 'pm-sym', 'pmsby') == 27 kept.
+  - Added reconciliation unit tests in `tests/test_pipeline_reports.py`.
+- `print_cost` blind spot (`haqdaar/data/pipeline/run_all.py`):
+  - Added `MUSE_LEDGER = REPORTS_DIR / "muse_usage.jsonl"` and integrated Muse accounting into `print_cost()` displaying requests, prompt/completion tokens, spend against `tunables.MUSE_CAP_INR` (₹60), and per-task breakdown.
+  - Resolved dynamic parameter lookup to preserve `monkeypatch` behavior in `tests/test_run_all.py`.
+  - Added test in `tests/test_pipeline_reports.py` verifying `print_cost` with fake ledgers.
+- `_run_snapshot` rename and docstring fix (`run_all.py`):
+  - Renamed `_run_snapshot()` to `_count_texts()` with docstring accurately stating: "Count texts the call can say and report missing audio clips."
+  - Updated step in `_steps()` to `Step("p6 texts", ...)`. Preserved `_run_snapshot = _count_texts` alias for backward compatibility.
+- Stale words:
+  - Updated `tests/test_real_snapshot.py:1` from "real 12 schemes" to "real 11 schemes".
+  - Verified `p2_derive.py` "Reads 12 files" was already resolved.
+- `.gitignore` confusion:
+  - Replaced ambiguous `.agent/` rule with explicit `.agent/` followed by `!.agent/NOTES.md` and documentation comment. Verified `git status` tracks `NOTES.md` while keeping `TASK.md` ignored.
+- Twilio boundary test:
+  - Added `test_twilio_imports_confined_to_telephony_boundary()` in `tests/test_scrape.py` using AST walk over all `haqdaar/**/*.py` files to enforce that `twilio` module imports live strictly within `haqdaar/audio/telephony/`.
+- Verification: pytest 441 passed, make stress (0 crashes, 0 truth failures), make model-bakeoff (30/30 offline), make door-a-check (79/81, 97.53%), make render (456 texts, 0 missing), make sim (completed cleanly). Muse spend delta Rs0.00.
+
+
 

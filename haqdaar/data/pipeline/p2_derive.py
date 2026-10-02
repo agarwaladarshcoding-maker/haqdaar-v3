@@ -37,6 +37,7 @@ from haqdaar.contracts.types import ANY, HARD_BOXES, SEVEN_BOXES, ValueCode
 from haqdaar.data.pipeline.p1_scrape import (
     DEFAULT_PRIORITY,
     DEFAULT_SCHEMES_FILE,
+    compute_roster_accounting,
     load_scheme_priorities,
 )
 
@@ -954,12 +955,18 @@ def run_pipeline_extract(
     # Write the quarantine report and enforce the floor (D2): the run fails only if too few
     # schemes survive, never because one scheme had a problem.
     kept_slugs = [s["myscheme_slug"] for s in derived_schemes]
+    accounting = compute_roster_accounting(kept_slugs, schemes_file)
     reports_dir.mkdir(parents=True, exist_ok=True)
     report_path = reports_dir / "derive.json"
     tmp_report = report_path.with_suffix(".tmp")
     with open(tmp_report, "w", encoding="utf-8") as f:
         json.dump(
-            {"stage": "derive", "kept": kept_slugs, "quarantined": quarantined},
+            {
+                "stage": "derive",
+                "kept": kept_slugs,
+                "quarantined": quarantined,
+                **accounting,
+            },
             f, indent=2, ensure_ascii=False,
         )
     tmp_report.rename(report_path)
