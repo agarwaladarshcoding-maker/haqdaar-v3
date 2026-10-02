@@ -1,0 +1,9 @@
+{"call_id": "pass-direct-match", "snapshot_id": "CURRENT", "caller_hash": "caller_01", "lang": "hi", "lang_source": "default", "t0": 0.0}
+{"turn_n": 0, "class": "ANSWER", "transcript": "hi"}
+{"turn_n": 1, "class": "ANSWER", "box": "category", "value": "farming", "transcript": "1"}
+{"turn_n": 2, "class": "ANSWER", "box": "occupation", "value": "farmer", "transcript": "1"}
+{"slug": "pm-kisan", "ending": "direct_match", "sections": ["summary", "benefit_text"], "lang": "hi"}
+{"slug": "pmfby", "ending": "direct_match", "sections": ["summary"], "lang": "hi"}
+{"slug": "kcc", "ending": "direct_match", "sections": ["summary"], "lang": "hi"}
+{"slug": "smam", "ending": "direct_match", "sections": ["summary"], "lang": "hi"}
+{"stop": "survivors_le_4", "ladder_rung": 0, "mode": "voice"}

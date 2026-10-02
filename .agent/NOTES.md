@@ -2141,3 +2141,29 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Build 2 (Wire up prefetch): Added PhoneAudio.prefetch(self, scheme_ids) in haqdaar/audio/phone.py resolving render keys via Corpus.chunks() and passing to AudioPool.prefetch(). Bounded in try/except (failures logged, never crash or block), gated by tunables.AUDIO_PREFETCH_ON_STOP. In haqdaar/engine/call.py:883-921, computed ranked_ids from Terminals.ranked(candidate_survs, corpus) and called audio.prefetch(ranked_ids), reusing ranked_ids in readback menu paging. Added no-op prefetch to FakeAudio in haqdaar/sim.py.
 - Build 3 (Carried nit: Turn.wait_input direct test): Added 7 direct unit tests in tests/test_turn.py covering wait_input: pre-queued DTMF key, pre-queued hangup, hung_up flag, keypad silence timeout, spoken profile delegating to Ear.listen with drain_media and parameters, spoken barge-in key during playback, and keypad_only degradation.
 - Verification: Full pytest suite 456 passed (up from 441, +15 new tests), make stress (0 crashes, 0 truth failures), make model-bakeoff (30/30 offline), make door-a-check (79/81, 97.53%), make render (456 texts, 0 missing), make sim (completed cleanly). Muse spend delta ₹0.00.
+
+## Step 5.2 — tools/judge.py + sim opener UNCLEAR fix
+- Setup: Base verified on main (step-5.1 merged @ 6cb7648, PROMPT-ANTIGRAVITY-5.2-JUDGE.md written and committed @ 3485dde, pytest 456 pass). Switched to branch step-5.2-judge.
+- Sim opener UNCLEAR-vs-empty-stamps asymmetry:
+  - In `haqdaar/model/router.py:105-110`: `opener()` now inspects `raw_data.get("class") == "UNCLEAR"` and returns `Unclear(reason=...)` rather than ignoring the class field and returning `[]`.
+  - In `haqdaar/engine/call.py:522`: guarded `model_failed` so that `Unclear` with `reason in ("unclear", "unrecognized")` does not get flagged as an engine model failure.
+  - Downstream behaviour unified: both `{"class": "UNCLEAR", "stamps": []}` / `{"class": "UNCLEAR"}` and `{"stamps": []}` flow through the same re-ask path with `unclear_prompt`, identical `turn_class="UNCLEAR"` logging, and `opener_prompt` re-ask on next turn.
+- Build tools/judge.py:
+  - Offline, stdlib-only delivery log judge evaluating logs solely from D9 delivery records + turn lines without audio or engine reruns.
+  - Evaluates T04 conditions: (1) untrue (named scheme not in survivors, nearest read as matches, dead-end without widening step, benefit/document claim outside corpus); (2) system hung up unprompted; (3) ended before a terminal state.
+  - Evaluates T04 branch 3 / T18 pass rules: dead-end through full ladder with nearest labelled nearest, exactly one survivor named honestly, keypad-only terminal.
+  - Turn accounting: scores solely on confirmed `turn_class="ANSWER"` lines; ignores `PROPOSAL` lines.
+- Fixtures and Tests:
+  - 8 hand-made fixture logs in `fixtures/judge_logs/`: `pass-direct-match`, `pass-dead-end-with-ladder`, `pass-keypad-only-terminal`, `PROPOSAL-ignored`, `fail-untrue-nearest-as-match`, `fail-dead-end-without-ladder`, `fail-ended-before-terminal`, `fail-unprompted-hangup`.
+  - 12 comprehensive unit tests in `tests/test_judge.py` covering all 8 fixtures, CLI exit codes (0 on all pass, 1 on any fail), in-memory records, router-level Unclear equivalence, and full simulated call execution symmetry.
+- Verification:
+  - Full pytest suite: 468 passed (up from 456, +12 new tests in test_judge.py).
+  - `tools/judge.py fixtures/judge_logs/pass-direct-match.jsonl`: PASS (exit code 0).
+  - `tools/judge.py fixtures/judge_logs/fail-unprompted-hangup.jsonl`: FAIL (exit code 1).
+  - `make stress`: 1,000 callers (0 crashes, 0 truth failures).
+  - `make model-bakeoff`: 30/30 offline passed (100%).
+  - `make door-a-check`: 79/81 top-1 accuracy (97.53%).
+  - `make render`: 456 texts on disk, 0 missing.
+  - `make sim SNAP=snapshots/CURRENT KEYS="2 1 0 0 0 1 1 h"`: completed cleanly, newly generated log evaluated as PASS by `tools/judge.py`.
+  - Muse spend delta: ₹0.00 (data_cache/reports/muse_usage.jsonl untouched).
+

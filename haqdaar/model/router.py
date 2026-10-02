@@ -103,7 +103,12 @@ class Model:
             return Unclear(reason=err_reason)
 
         raw_data = resp.data or {}
+        cls_name = str(raw_data.get("class", "")).upper().strip()
+        if cls_name == "UNCLEAR":
+            return Unclear(reason=str(raw_data.get("reason", "unclear")))
         raw_stamps = raw_data.get("stamps", [])
+        if not raw_stamps:
+            return Unclear(reason="unclear")
 
         # Parse raw stamps into typed Stamp objects
         candidate_stamps: list[Stamp] = []
