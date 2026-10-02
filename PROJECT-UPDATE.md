@@ -19,7 +19,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 - Pick the next question that cuts the list down fastest (Step 4), drop schemes that don't fit (Step 3),
   and choose how to end the call (Step 5).
 - Take a real phone call through a Cloudflare tunnel, with every key arriving on time (Step 1).
-- `pytest -q` → **456 passed**.
+- `pytest -q` → **468 passed**.
 - Ring your phone into the real backend in one command: `make call-me`.
 - Back up all the scheme data: `make backup`. The text part is also saved in git.
 
@@ -82,6 +82,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 | `tools/cards_sheet.py` | Generates 20-card audit sheet and sample. `make cards-sheet`. |
 | `tools/ear_check.py` | Verifies speech to text across 3 sentences × en/hi/mr. `make ear-check`. |
 | `tools/door_a_check.py` | Verifies Door A accuracy across all 30 schemes in 3 languages. `make door-a-check`. |
+| `tools/judge.py` | Offline delivery log judge: PASS/FAIL from D9 delivery records and turn lines alone. |
 
 ### Other
 | File | What it does |
@@ -97,6 +98,21 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 ---
 
 ## 3 · Log — newest first
+
+### 2 Oct — Step 5.2: Delivery log judge + sim opener UNCLEAR fix
+- **Offline delivery log judge (`tools/judge.py`):**
+  - Scores call logs purely from D9 delivery records and turn lines without needing audio or rerunning the engine.
+  - Flags untrue claims (schemes not in survivors, nearest read as matches, dead-ends skipping widening, claims outside corpus).
+  - Flags unprompted system hangups and calls terminating before reaching a terminal.
+  - Scores solely on confirmed `ANSWER` turns, ignoring spoken `PROPOSAL` turns.
+  - Per-call PASS/FAIL with one-line reason and summary counts; exits 1 if any call fails.
+- **Sim opener UNCLEAR unification (`haqdaar/model/router.py`, `haqdaar/engine/call.py`):**
+  - Unmatched opener speech returning `{"class": "UNCLEAR", "stamps": []}` or `{"stamps": []}` now both return `Unclear(reason="unclear")`.
+  - Both flow through the exact same specific re-ask path with `unclear_prompt`, logging `turn_class="UNCLEAR"` without tripping engine model failure accounting.
+- **Fixtures & tests (`fixtures/judge_logs/`, `tests/test_judge.py`):**
+  - 8 hand-made fixtures testing all pass and fail rules.
+  - 12 unit tests covering all judge rules, CLI exit codes, and sim opener execution symmetry.
+- **Verified:** 468 unit tests pass, `make stress` 1,000 callers (0 crashes, 0 truth failures), `make model-bakeoff` (30/30 offline pass), `make door-a-check` (79/81 top-1 hits, 97.5%), `make render` (456 clips on disk, 0 missing), `make sim` finishes cleanly and passes judge. Muse spend delta: ₹0.00.
 
 ### 2 Oct — Step 5.1: Anything-else voice turn + scheme-audio prefetch
 - **Anything-else hears voice (`haqdaar/engine/call.py`):**

@@ -1,0 +1,7 @@
+{"call_id": "PROPOSAL-ignored", "snapshot_id": "CURRENT", "caller_hash": "caller_08", "lang": "hi", "lang_source": "default", "t0": 0.0}
+{"turn_n": 0, "class": "ANSWER", "transcript": "hi"}
+{"turn_n": 1, "class": "PROPOSAL", "box": "category", "value": "jobs_skills", "transcript": "मुझे नौकरी चाहिए"}
+{"turn_n": 2, "class": "ANSWER", "box": "category", "value": "farming", "transcript": "नहीं मुझे खेती चाहिए"}
+{"slug": "pm-kisan", "ending": "direct_match", "sections": ["summary"], "lang": "hi"}
+{"slug": "pmfby", "ending": "direct_match", "sections": ["summary"], "lang": "hi"}
+{"stop": "survivors_le_4", "ladder_rung": 0, "mode": "voice"}

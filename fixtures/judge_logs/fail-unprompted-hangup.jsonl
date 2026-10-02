@@ -1,0 +1,4 @@
+{"call_id": "fail-unprompted-hangup", "snapshot_id": "CURRENT", "caller_hash": "caller_07", "lang": "hi", "lang_source": "default", "t0": 0.0}
+{"turn_n": 0, "class": "ANSWER", "transcript": "hi"}
+{"turn_n": 1, "class": "ANSWER", "box": "category", "value": "farming", "transcript": "1"}
+{"stop": "system_hangup", "ladder_rung": 0, "mode": "voice"}

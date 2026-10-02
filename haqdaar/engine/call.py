@@ -38,6 +38,7 @@ from haqdaar.contracts.types import (
     Speech,
     Stop,
     UNASKED,
+    Unclear,
     UNKNOWN,
     Widen,
     WIDENING_ORDER,
@@ -519,7 +520,8 @@ class Engine:
                                 if isinstance(res, list):
                                     seeds = [s for s in res if s.box != "scheme"]
                                 else:
-                                    model_failed = True
+                                    if not (isinstance(res, Unclear) and getattr(res, "reason", "") in ("unclear", "unrecognized")):
+                                        model_failed = True
                                     seeds = []
                             else:
                                 seeds = []  # clean naming: zero model calls (T12)
