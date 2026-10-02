@@ -2270,3 +2270,37 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - The owner's older dashboard (tss-voice-agent/dashboard): Next.js 15 app router, plain CSS,
   password + jose JWT cookie, server-only proxy to a FastAPI backend, 750 ms polling. Same
   shape as this plan. Most of its files are iCloud-evicted and hang on read.
+
+## Hosting audit + plan round 2 (3 Oct 2026 night)
+- Owner asked: host the backend so the Vercel site is live; Schemes page needs a table and
+  "add a scheme". PLAN-DASHBOARD.md rewritten (round 2). Still PLAN ONLY.
+- Engine is NOT ready to host. Gaps, with places:
+  - No Twilio signature check, no auth, no rate limit on /answer or /stream; /docs and /tone open.
+  - An idle /stream socket that never sends `start` holds the one call slot for ever (server.py ~241-271).
+  - `callSid` goes unsanitised into file names: log.py:65 AND my trace.py:38. `../` escapes the
+    logs dir. Fix in step E1 (clean the id once in server.py before Log.open and Trace).
+  - CALL_CEILING_S (tunables.py:38) is used nowhere.
+  - /health always ok; corpus loads lazily on the first call (server.py:192-206).
+  - audio/ is gitignored (888 clips, 36.6 MB; CURRENT needs 459). Corpus.load fails on a fresh
+    clone: "Pool index missing at audio/index.json". Ship the pool in the build; do not
+    re-render (bytes may not match the committed digests).
+  - Only pyproject.toml; no Dockerfile. Deps unpinned. Needs Python 3.11/3.12 (audioop).
+    server.py:40 imports tools.tone, so it must run from a repo checkout.
+  - Port 8000 is hardcoded; no PORT env.
+  - Writes: logs/calls/, logs/calls/trace/, data_cache/reports/{stt,groq}_usage.jsonl. Need a
+    persistent volume.
+- Owner-only blockers: logs/server.log:355 "could not update the number (HTTP Error 401)" =
+  Twilio creds look wrong; Groq key lacks llama-3.3-70b-versatile (client.py:62 hardcodes it,
+  ignores tunables.GROQ_MODEL) so each call goes keypad-only after 2 spoken answers;
+  `fly` CLI is installed (/opt/homebrew/bin/fly) but not logged in.
+- v2 /stream has never taken a real phone call. Sept calls were pre-v2 demo code.
+- Host choice: Fly.io Mumbai (bom). ~$3.19/mo shared-cpu-1x 512MB + $0.15/GB volume. Render
+  free sleeps after 15 min: unusable for calls.
+- Adding a scheme today: no --slug flag on any step; `make render` cannot target one scheme
+  (would render the 16-scheme backlog: 318 clips, 49,239 chars); CURRENT is a plain overwrite
+  (p6_snapshot.py:663-666), not atomic; server caches the corpus for the process life.
+  Cost so far: Muse ~Rs 0.53/scheme, TTS ~18 clips / ~3,200 chars / ~3 MB per scheme.
+  9 topics are fixed (contracts/vocab.py:17-18). Scrape uses Playwright with the Chrome channel
+  (tunables.py:164); a data-centre IP may be refused by myscheme: test in step S1.
+- Once schemes are added from the site, the server disk is the truth and git is behind:
+  plan has a nightly + pre-publish backup.

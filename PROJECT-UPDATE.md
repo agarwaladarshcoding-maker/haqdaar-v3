@@ -99,6 +99,26 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+### 3 Oct (night) — Dashboard plan, round 2: can the engine be hosted? Not yet, but close.
+- **Changed — `PLAN-DASHBOARD.md`.** The engine now gets hosted too (Fly.io, Mumbai), so the
+  site is live all day and the laptop can be shut. The Schemes page gets a real table and an
+  "add a scheme" flow in seven stages with two owner approvals. The build order now starts
+  with the engine: E1 lock the doors, E2 host it, E3 data door, then the dashboard.
+- **Found — what the engine lacks before hosting** (audit, nothing changed in code):
+  - No lock: anyone with the address can hold the one call slot, or run fake calls that spend
+    Sarvam and Groq credit. A crafted call id can write files outside the logs folder.
+  - No build recipe. The 37 MB of voice clips are not in git, so a fresh copy cannot start a call.
+  - The "longest call" limit is never enforced. The health check says ok even with no clips.
+  - The last `make run` logged a Twilio "401 Unauthorized": the Twilio login looks wrong.
+  - The Groq key still cannot use the engine's model, so calls drop to keypad after two
+    spoken answers.
+  - The current engine has never taken a real phone call (the Sept calls were the old code).
+- **Found — adding a scheme today** is 11 hand steps, runs over the whole list every time, and
+  the voice step would also make clips for all 16 waiting schemes. About half a rupee of Muse
+  and 3,200 characters of Sarvam voice per scheme so far.
+- **Waiting on the owner:** the five choices in `PLAN-DASHBOARD.md` §10. Step E1 needs nothing
+  from the owner and can start on his word.
+
 ### 3 Oct (night) — Plan for the dashboard (`PLAN-DASHBOARD.md`). Nothing built yet.
 - **Added — a plan, not code.** The owner wants the UI to be the front door: a CRM-style site
   on Vercel with a "call my phone" button, call logs, the scheme list, API use, the plan and
