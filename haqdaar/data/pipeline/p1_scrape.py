@@ -22,7 +22,7 @@ import os
 from pathlib import Path
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 from urllib.parse import urlparse
 
 import yaml
@@ -136,6 +136,32 @@ def load_scheme_priorities(yaml_path: Path = DEFAULT_SCHEMES_FILE) -> Dict[str, 
         priorities[slug] = p
 
     return priorities
+
+
+def compute_roster_accounting(
+    kept_slugs: Sequence[str],
+    yaml_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Compute roster accounting: roster_size, quarantined_count, quarantined_slugs, kept_count.
+
+    Guarantees: roster_size - quarantined_count == kept_count.
+    """
+    yaml_file = yaml_path if yaml_path is not None else DEFAULT_SCHEMES_FILE
+    if yaml_file.exists():
+        roster = load_scheme_slugs(yaml_file)
+    else:
+        roster = list(kept_slugs)
+
+    roster_set = set(roster)
+    kept_set = set(kept_slugs)
+    quarantined = sorted(roster_set - kept_set)
+
+    return {
+        "roster_size": len(roster),
+        "quarantined_count": len(quarantined),
+        "quarantined_slugs": quarantined,
+        "kept_count": len(kept_slugs),
+    }
 
 
 def is_cache_valid(slug: str, cache_dir: Path = RAW_CACHE_DIR) -> bool:

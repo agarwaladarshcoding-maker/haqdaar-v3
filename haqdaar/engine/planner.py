@@ -29,6 +29,7 @@ from haqdaar.contracts.types import (
     WIDENING_ORDER,
 )
 from haqdaar.engine.filter import Filter
+from haqdaar.engine.terminals import _filter_speakable
 
 EXPECTED_TURNS_KEYPAD: int = 1
 EXPECTED_TURNS_SPOKEN: int = 2
@@ -210,7 +211,13 @@ def _nearest_candidates(
 
 
 def _inferred_questions(box_vector: Mapping[BoxId, ValueCode], corpus: Any) -> int:
-    """Count questions asked so far from box_vector (opener is turn 0, not question 0)."""
+    """Count questions asked so far from box_vector (opener is turn 0, not question 0).
+
+    Used only when question_count is omitted (e.g. offline tests or standalone calls).
+    Excludes `category` because per T10 D2 the category opener prompt is turn 0, not
+    a demographic question chosen by the minimax planner. Live engine runs pass the
+    actual runtime `question_count` explicitly.
+    """
     count = 0
     for b in SEVEN_BOXES:
         if b == "category":
@@ -261,7 +268,9 @@ def next_action(
                 if gag is not None:
                     capped = _cap_stop(turn_count, question_count, box_vector, corpus)
                     return capped if capped is not None else Ask(gag)
-                return Widen(rung_box)
+                speakable_widened = _filter_speakable(widened, test_vector, corpus)
+                if len(speakable_widened) >= 1:
+                    return Widen(rung_box)
 
         # The ladder found nothing. The terminal will be Nearest or Empty, and
         # the same rule applies to the nearest candidates.

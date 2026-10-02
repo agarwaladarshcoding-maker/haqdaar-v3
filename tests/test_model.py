@@ -484,3 +484,22 @@ def test_groq_client_missing_key_returns_error(tmp_path):
     resp = client.call([{"role": "user", "content": "test"}])
     assert not resp.success
     assert resp.error == "no_key"
+
+
+def test_model_router_defensive_against_raising_custom_client():
+    """A raising custom client is caught and converted to Unclear(reason=...) with failure increment."""
+    class RaisingClient:
+        def call(self, messages, task=""):
+            raise RuntimeError("simulated client explosion")
+
+    model = Model(client=RaisingClient())
+    res_opener = model.opener("I need help with farming")
+    assert isinstance(res_opener, Unclear)
+    assert "client_exception" in res_opener.reason
+    assert model.failures == 1
+
+    res_turn = model.turn("farmer", box="occupation")
+    assert isinstance(res_turn, Unclear)
+    assert "client_exception" in res_turn.reason
+    assert model.failures == 2
+    assert model.keypad_only is True

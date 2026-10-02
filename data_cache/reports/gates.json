@@ -6,5 +6,13 @@
     "hi": 27,
     "mr": 27
   },
-  "failures": []
+  "failures": [],
+  "roster_size": 30,
+  "quarantined_count": 3,
+  "quarantined_slugs": [
+    "ab-pmjay",
+    "pm-sym",
+    "pmsby"
+  ],
+  "kept_count": 27
 }

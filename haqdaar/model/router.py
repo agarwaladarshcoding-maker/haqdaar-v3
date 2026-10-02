@@ -23,6 +23,7 @@ from haqdaar.model.client import GroqModelClient
 from haqdaar.model.prompts.opener import build_opener_prompt
 from haqdaar.model.prompts.system import SYSTEM_PROMPT
 from haqdaar.model.prompts.turn import build_turn_prompt
+from haqdaar.model.confirm import match_confirm
 from haqdaar.model.span_guard import SpanGuard
 
 
@@ -90,7 +91,12 @@ class Model:
             {"role": "user", "content": build_opener_prompt(transcript, lang=lang)},
         ]
 
-        resp = self.client.call(messages, task="model_opener")
+        try:
+            resp = self.client.call(messages, task="model_opener")
+        except Exception as e:
+            self._failures += 1
+            return Unclear(reason=f"client_exception: {e}")
+
         if not resp.success:
             self._failures += 1
             err_reason = "timeout" if resp.is_timeout else (resp.error or "model_failure")
@@ -176,7 +182,12 @@ class Model:
             },
         ]
 
-        resp = self.client.call(messages, task="model_turn")
+        try:
+            resp = self.client.call(messages, task="model_turn")
+        except Exception as e:
+            self._failures += 1
+            return Unclear(reason=f"client_exception: {e}")
+
         if not resp.success:
             self._failures += 1
             err_reason = "timeout" if resp.is_timeout else (resp.error or "model_failure")
@@ -219,3 +230,8 @@ class Model:
 
         # 5. UNCLEAR (default)
         return Unclear(reason=str(data.get("reason", "unclear")))
+
+    def confirm(self, transcript: str, lang: Optional[str] = None) -> Optional[bool]:
+        """T09: Model owns language. Classify confirmation utterance as True (accept), False (reject), or None (unclear)."""
+        return match_confirm(transcript, lang=lang)
+

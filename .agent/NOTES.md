@@ -2066,3 +2066,55 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Owner redirected mid-F3: reviewer keeps F1+F2 (committed + pushed on audit-fixes), Antigravity does F3+F4+F5 via PROMPT-ANTIGRAVITY-E-AUDIT-REST.md (branch step-audit-rest from audit-fixes tip, 3 part-commits).
 - F3 design note recorded in prompt: planner/terminal ladder agreement via shared speakable predicate (import from terminals, T17 frozen); confirm-loop T14 needs a SEPARATE repeat counter (not turn_n).
 - No F3 code edits were made before the handoff (only planner reads) — Antigravity starts F3 clean.
+
+## Audit fixes F3 (step-audit-rest branch) — Engine correctness DONE
+- #9 Widen/ladder agreement: planner now uses `_filter_speakable` from `terminals.py` to evaluate speakable survivors at each rung of the widening ladder. Added `test_widen_ladder_agreement_with_terminals_on_unspeakable_raw_survivors` to `test_planner.py`.
+- #10 Word lists out of Engine: Moved yes/no word lists and matching to `haqdaar/model/confirm.py` with `match_confirm()`, wired into `Model.confirm()`. Engine calls `model.confirm(...)` without importing `haqdaar.model` (preserving import discipline). Added `tests/test_confirm.py` with 40 tests covering EN, HI, MR.
+- `READBACK_REPLAY_MAX`: Moved `READBACK_REPLAY_MAX = 2` and `CONFIRM_REPEAT_MAX = 3` to `contracts/tunables.py`. Deleted excuse comment.
+- Confirm-loop turn accounting: Used `confirm_repeats` bounded by `tunables.CONFIRM_REPEAT_MAX` to terminate repeat-mashing. `#`, `*`, and SILENCE do not consume cap turns (`turn_n`). Added `test_confirm_repeat_mashing_terminates_without_cap_turn_consumption` in `test_call_spoken.py`.
+- NEAREST `ladder_rung`: Fixed to report `len(answered_soft)` (0 when no soft boxes answered per T18). Updated `test_call.py:506` assertion to `== 0`.
+- `contracts/types.py` & `lines.yaml`: Fixed comment count to 50 fixed lines; removed dead `drop_category` line ID from `types.py` and `lines.yaml`.
+- Track-1 LOWs:
+  - `filter.py`: Fixed `speakable()` ANY escape valve for dict corpora; documented OR-bit_length heuristic. Verified `grep -nE "[<>]=?|int\(|float\("` is clean. Added dict corpus test in `test_filter.py`.
+  - `terminals.py`: Documented D8 priority ordering via snapshot pre-order in `_sort_survivors`.
+  - `planner.py`: Documented `_inferred_questions` excluding category vs Engine live `question_count`.
+  - `call.py`: Documented `box_strikes` cumulative approximation per T11; verified Door A comment validity.
+  - Checked CLARIFY/REPEAT/META: Model generates these typed turn results; Engine logs them as UNCLEAR in absence of value. No action required per prompt instruction.
+- Verification: pytest 429 passed, make stress (0 crashes, 0 truth failures), make model-bakeoff (30/30 offline), make door-a-check (79/81, 97.53%), make render (456 texts, 0 missing), make sim (completed cleanly). Muse spend delta Rs0.00.
+
+## Audit fixes F4 (step-audit-rest branch) — Server / Audio / Model Hardening DONE
+- #6 One-caller guard (`haqdaar/server.py`): Added `_ACTIVE_CALL`, `_ACTIVE_CALL_LOCK`, `try_acquire_call()`, `release_call()`, and `is_call_active()`. In `stream_endpoint`, if `not try_acquire_call()`, logs "stream refused busy: another call is active", accepts socket and immediately closes with WebSocket code 1008 ("busy") without spawning an engine thread. Released in websocket `finally` block. Added unit tests `test_stream_rejects_second_concurrent_caller_as_busy` and `test_stream_accepts_subsequent_call_after_first_closes` in `tests/test_phone_call.py`.
+- #7 Stale-media drain (`haqdaar/audio/ear.py`, `turn.py`): Added `Ear.drain_media()` and `self._needs_stale_drain`. In `Ear.listen()`, clears queued `MediaEvent`s if `drain_stale=True` or `_needs_stale_drain=True` (set true after every STT transcription). In `turn.py`, calls `ear.drain_media()` when mouth finishes playing before starting `listen()`. Added unit tests `test_listen_drains_stale_media_queued_during_stt` and `test_listen_explicit_drain_stale` in `tests/test_ear.py`.
+- #8 STT shared deadline (`haqdaar/contracts/tunables.py`, `ear.py`): Added `STT_TIMEOUT_S = 5.0` tunable. In `ear.py`, `SarvamSTT.transcribe` and `GroqWhisperSTT.transcribe` accept an optional `timeout: float`. In `SpeechToText.transcribe`, the total timeout is shared across both providers: Sarvam runs with `total_timeout`; if it fails, elapsed time is deducted from `total_timeout` and Groq receives the remaining deadline (or aborts immediately with `deadline_exceeded` if `<= 0.2s`). Added unit tests `test_shared_stt_deadline_caps_total_time` and `test_shared_stt_deadline_aborts_groq_if_no_time_left` in `tests/test_ear.py`.
+- Small items:
+  - `audioop` DeprecationWarning (`ear.py`, `render.py`): Suppressed module-level DeprecationWarning for `audioop` via `warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*audioop.*")` with version guard comment (# Python 3.13 deprecates audioop; HAQDAAR runtime is pinned to 3.11). Verified pytest runs with 0 audioop warnings.
+  - `_CALLER_HASH` leak (`server.py`): Added `_CALLER_HASH_TS` tracking timestamp per call and `_prune_caller_hashes(max_age_s=300.0)` called during `/answer` and `/stream` to prune abandoned or stale hash entries older than 5 minutes. Added unit test `test_caller_hash_pruning_cleans_stale_entries` in `tests/test_phone_call.py`.
+  - Model defensive try (`haqdaar/model/router.py`): Wrapped `client.call` inside `try...except Exception as e:` in `Model.opener()` and `Model.turn()`. Converts unexpected client exceptions into a typed `Unclear(reason=f"client_exception: {e}")` and increments `_failures` counter instead of crashing the call loop. Added unit tests `test_model_opener_defensive_try_on_client_exception` and `test_model_turn_defensive_try_on_client_exception` in `tests/test_model.py`.
+  - `_clips` 3-part split guard (`haqdaar/audio/phone.py`): Guarded `token.split(":", 2)` against malformed tokens with fewer than 3 parts; returns empty list and logs warning instead of raising `ValueError`. Added unit test `test_clips_malformed_scheme_token_does_not_crash` in `tests/test_phone_call.py`.
+  - Parked items verified: `mouth.py` lock-free `_cleared` read is GIL-atomic and benign; `HANGUP_WAIT_S` 15s linger is bounded and safe.
+- Verification: pytest 435 passed (2 warnings from third-party testclient only), make stress (0 crashes, 0 truth failures), make model-bakeoff (30/30 offline), make door-a-check (79/81, 97.53%), make render (456 texts, 0 missing), make sim (completed cleanly). Muse spend delta Rs0.00.
+
+## Audit fixes F5 (step-audit-rest branch) — Pipeline Reports and Repo Hygiene DONE
+- Gate-report roster accounting:
+  - Added `compute_roster_accounting(kept_slugs, yaml_path=None)` in `haqdaar/data/pipeline/p1_scrape.py` computing `roster_size`, `quarantined_count`, `quarantined_slugs`, and `kept_count` against `schemes.yaml` (roster size 30).
+  - Integrated into `p2_derive.py` (`derive.json`), `p3_cards.py` (`cards.json`), `p4_translate.py` (`translate.json`), and `p5_gates.py` (`gates.json`). All additive keys preserve existing keys without breaking readers.
+  - Reconciled reports on disk in `data_cache/reports/`: 30 roster - 3 quarantined ('ab-pmjay', 'pm-sym', 'pmsby') == 27 kept.
+  - Added reconciliation unit tests in `tests/test_pipeline_reports.py`.
+- `print_cost` blind spot (`haqdaar/data/pipeline/run_all.py`):
+  - Added `MUSE_LEDGER = REPORTS_DIR / "muse_usage.jsonl"` and integrated Muse accounting into `print_cost()` displaying requests, prompt/completion tokens, spend against `tunables.MUSE_CAP_INR` (₹60), and per-task breakdown.
+  - Resolved dynamic parameter lookup to preserve `monkeypatch` behavior in `tests/test_run_all.py`.
+  - Added test in `tests/test_pipeline_reports.py` verifying `print_cost` with fake ledgers.
+- `_run_snapshot` rename and docstring fix (`run_all.py`):
+  - Renamed `_run_snapshot()` to `_count_texts()` with docstring accurately stating: "Count texts the call can say and report missing audio clips."
+  - Updated step in `_steps()` to `Step("p6 texts", ...)`. Preserved `_run_snapshot = _count_texts` alias for backward compatibility.
+- Stale words:
+  - Updated `tests/test_real_snapshot.py:1` from "real 12 schemes" to "real 11 schemes".
+  - Verified `p2_derive.py` "Reads 12 files" was already resolved.
+- `.gitignore` confusion:
+  - Replaced ambiguous `.agent/` rule with explicit `.agent/` followed by `!.agent/NOTES.md` and documentation comment. Verified `git status` tracks `NOTES.md` while keeping `TASK.md` ignored.
+- Twilio boundary test:
+  - Added `test_twilio_imports_confined_to_telephony_boundary()` in `tests/test_scrape.py` using AST walk over all `haqdaar/**/*.py` files to enforce that `twilio` module imports live strictly within `haqdaar/audio/telephony/`.
+- Verification: pytest 441 passed, make stress (0 crashes, 0 truth failures), make model-bakeoff (30/30 offline), make door-a-check (79/81, 97.53%), make render (456 texts, 0 missing), make sim (completed cleanly). Muse spend delta Rs0.00.
+
+
+

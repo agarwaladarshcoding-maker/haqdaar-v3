@@ -1,4 +1,4 @@
-"""Plan 2.3 — the call runs on a snapshot built from the real 12 schemes.
+"""Plan 2.3 — the call runs on a snapshot built from the real 11 schemes.
 
 Built in a temp dir with silent stubs (the real clips live in audio/, which is not in git), so
 this checks the wiring, not the voice. A deleted clip must stop the load, not the call.

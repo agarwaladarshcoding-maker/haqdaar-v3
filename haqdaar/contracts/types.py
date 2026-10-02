@@ -51,7 +51,7 @@ SCHEME_CHUNKS: tuple[str, ...] = (
     "how_to_apply",
 )
 
-# 46 fixed line IDs (05-DATA-CONTRACT.md §4)
+# 49 fixed line IDs (05-DATA-CONTRACT.md §4)
 FIXED_LINE_IDS: tuple[str, ...] = (
     "greeting_trilingual",
     "consent_notice",
@@ -98,7 +98,6 @@ FIXED_LINE_IDS: tuple[str, ...] = (
     "drop_income_band",
     "drop_age",
     "drop_occupation",
-    "drop_category",
     "results_widened_lead",
     "terminal_nearest_preamble",
     "terminal_empty",

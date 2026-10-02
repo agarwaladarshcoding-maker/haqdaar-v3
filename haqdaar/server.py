@@ -55,8 +55,42 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+# One caller at a time guard (D14)
+_ACTIVE_CALL: bool = False
+_ACTIVE_CALL_LOCK = threading.Lock()
+
+
+def is_call_active() -> bool:
+    with _ACTIVE_CALL_LOCK:
+        return _ACTIVE_CALL
+
+
+def try_acquire_call() -> bool:
+    global _ACTIVE_CALL
+    with _ACTIVE_CALL_LOCK:
+        if _ACTIVE_CALL:
+            return False
+        _ACTIVE_CALL = True
+        return True
+
+
+def release_call() -> None:
+    global _ACTIVE_CALL
+    with _ACTIVE_CALL_LOCK:
+        _ACTIVE_CALL = False
+
+
 # call id -> sha256 of the caller's number, from /answer until that call's stream starts.
 _CALLER_HASH: dict[str, str] = {}
+_CALLER_HASH_TS: dict[str, float] = {}
+
+
+def _prune_caller_hashes(max_age_s: float = 300.0) -> None:
+    now = time.monotonic()
+    stale = [k for k, ts in _CALLER_HASH_TS.items() if now - ts > max_age_s]
+    for k in stale:
+        _CALLER_HASH.pop(k, None)
+        _CALLER_HASH_TS.pop(k, None)
 
 
 def caller_hash(number: str) -> str:
@@ -74,8 +108,10 @@ async def answer(request: Request) -> Response:
     """
     form = urllib.parse.parse_qs((await request.body()).decode("utf-8", "replace"))
     call_id = (form.get("CallSid") or [""])[0]
+    _prune_caller_hashes()
     if call_id:
         _CALLER_HASH[call_id] = caller_hash((form.get("From") or [""])[0])
+        _CALLER_HASH_TS[call_id] = time.monotonic()
     domain = NGROK_DOMAIN or os.environ.get("NGROK_DOMAIN", "")
     stream_url = f"wss://{domain}/stream"
     say("answer  line picked up, sent stream XML")
@@ -196,6 +232,12 @@ async def stream_endpoint(websocket: WebSocket) -> None:
     from haqdaar.audio.phone import PhoneAudio
     from haqdaar.audio.turn import Turn
 
+    if not try_acquire_call():
+        say("stream  refused busy: another call is active")
+        await websocket.accept()
+        await websocket.close(code=1008, reason="busy")
+        return
+
     await websocket.accept()
     loop = asyncio.get_running_loop()
 
@@ -228,6 +270,7 @@ async def stream_endpoint(websocket: WebSocket) -> None:
                 audio = PhoneAudio(corpus, pool, mouth, turn, close=hang_up, log=say)
                 call_id = event.call_sid or f"call_{int(time.time())}"
                 number_hash = _CALLER_HASH.pop(call_id, "")
+                _CALLER_HASH_TS.pop(call_id, None)
                 say(f"start   call ..{call_id[-6:]}")
                 threading.Thread(
                     target=_run_engine,
@@ -249,6 +292,7 @@ async def stream_endpoint(websocket: WebSocket) -> None:
     except Exception as e:
         say(f"!! stream error: {e!r}")
     finally:
+        release_call()
         if turn is not None:
             turn.push_hangup()  # wakes the engine if it is waiting for a key
         ended.set()

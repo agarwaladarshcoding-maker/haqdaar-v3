@@ -32,6 +32,7 @@ import unicodedata
 from pathlib import Path
 
 from haqdaar.contracts import tunables, vocab
+from haqdaar.data.pipeline.p1_scrape import compute_roster_accounting
 from haqdaar.data.pipeline.p2_derive import DERIVED_DIR, REPORTS_DIR
 
 # The six spoken sections. `name` is here because a scheme with no name in a
@@ -284,6 +285,8 @@ def run_gates(derived_dir=None, reports_dir=None) -> int:
     ]
 
     reports_dir.mkdir(parents=True, exist_ok=True)
+    slugs = [r["scheme_id"] for r in rows]
+    accounting = compute_roster_accounting(slugs)
     with (reports_dir / "gates.json").open("w", encoding="utf-8") as f:
         json.dump(
             {
@@ -291,6 +294,7 @@ def run_gates(derived_dir=None, reports_dir=None) -> int:
                 "ok": ok_count,
                 "per_language": per_lang,
                 "failures": failures,
+                **accounting,
             },
             f,
             indent=2,

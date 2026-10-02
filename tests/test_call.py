@@ -503,7 +503,7 @@ def test_persona_p2_nearest_two_end_to_end(corpus, tmp_path):
     lines = [json.loads(l) for l in open(tmp_path / "test_p2_nearest.jsonl")]
     close_line = lines[-1]
     assert close_line["stop"] == STOP_ZERO_SURVIVORS
-    assert close_line["ladder_rung"] >= 1
+    assert close_line["ladder_rung"] == 0  # T18: 0 answered soft boxes -> ladder_rung == 0
     assert close_line["mode"] == "keypad_only"
 
 

@@ -134,7 +134,11 @@ class PhoneAudio:
         if token.startswith(("name:", "end:")):
             return []  # engine bookkeeping marks, not speech
         if token.startswith("scheme:"):
-            _, sid, section = token.split(":", 2)
+            parts = token.split(":", 2)
+            if len(parts) != 3:
+                self._log(f"!! malformed scheme token: {token!r}")
+                return []
+            _, sid, section = parts
             keys = self.corpus.chunks(sid, self.language)
             ix = SCHEME_CHUNKS.index(section) if section in SCHEME_CHUNKS else -1
             return self._clip(token, keys[ix] if 0 <= ix < len(keys) else "")

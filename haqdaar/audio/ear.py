@@ -33,7 +33,11 @@ import time
 from typing import Any, Callable, Optional
 import wave
 
+# audioop is deprecated in Python 3.11/3.12 and removed in 3.13+. Runtime is pinned to 3.11.
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*audioop.*")
 import audioop
+
 from dotenv import load_dotenv
 import httpx
 
@@ -174,6 +178,7 @@ class SarvamSTT:
         wav_bytes: bytes,
         lang: str = "",
         hint: str = "",
+        timeout: Optional[float] = None,
     ) -> SttResult:
         if not self.api_key:
             return SttResult(
@@ -202,8 +207,9 @@ class SarvamSTT:
         }
 
         t0 = time.monotonic()
+        eff_timeout = timeout if timeout is not None else self.timeout
         try:
-            with httpx.Client(timeout=self.timeout) as client:
+            with httpx.Client(timeout=eff_timeout) as client:
                 resp = client.post(self.endpoint, headers=headers, data=data, files=files)
             latency = time.monotonic() - t0
             if resp.status_code == 200:
@@ -268,6 +274,7 @@ class GroqWhisperSTT:
         wav_bytes: bytes,
         lang: str = "",
         hint: str = "",
+        timeout: Optional[float] = None,
     ) -> SttResult:
         if not self.api_key:
             return SttResult(
@@ -297,8 +304,9 @@ class GroqWhisperSTT:
         }
 
         t0 = time.monotonic()
+        eff_timeout = timeout if timeout is not None else self.timeout
         try:
-            with httpx.Client(timeout=self.timeout) as client:
+            with httpx.Client(timeout=eff_timeout) as client:
                 resp = client.post(self.endpoint, headers=headers, data=data, files=files)
             latency = time.monotonic() - t0
             if resp.status_code == 200:
@@ -407,9 +415,12 @@ class SpeechToText:
         wav_bytes = audio_bytes if is_wav else pcm_to_wav(audio_bytes, pad_seconds=1.0)
         duration_s = max(0.0, (len(audio_bytes) / 16000.0) if not is_wav else ((len(wav_bytes) - 44) / 16000.0))
 
-        # 1. Primary: Sarvam STT
+        total_timeout = float(os.environ.get("STT_TIMEOUT_S", str(tunables.STT_TIMEOUT_S)))
+        t0 = time.monotonic()
+
+        # 1. Primary: Sarvam STT (gets full budget)
         if self.sarvam_ok and self.sarvam.api_key:
-            res = self.sarvam.transcribe(wav_bytes, lang=lang, hint=hint)
+            res = self.sarvam.transcribe(wav_bytes, lang=lang, hint=hint, timeout=total_timeout)
             self._write_ledger(res, duration_s, lang)
             if res.success:
                 self.sarvam_failures = 0
@@ -419,8 +430,22 @@ class SpeechToText:
             self.sarvam_ok = False
             self._log(f"!! Sarvam STT failed ({res.error}); falling back to Groq Whisper")
 
-        # 2. Fallback: Groq Whisper
-        res = self.groq.transcribe(wav_bytes, lang=lang, hint=hint)
+        # 2. Fallback: Groq Whisper (gets remainder of shared deadline)
+        elapsed = time.monotonic() - t0
+        remaining_timeout = total_timeout - elapsed
+        if remaining_timeout <= 0.2:
+            timeout_res = SttResult(
+                transcript="",
+                lang="",
+                provider="groq",
+                success=False,
+                error="deadline_exceeded",
+                latency_s=elapsed,
+            )
+            self._write_ledger(timeout_res, duration_s, lang)
+            return timeout_res
+
+        res = self.groq.transcribe(wav_bytes, lang=lang, hint=hint, timeout=remaining_timeout)
         self._write_ledger(res, duration_s, lang)
         return res
 
@@ -540,6 +565,7 @@ class Ear:
         self.last_discarded_transcript: Optional[str] = None
         self.stt_failed: bool = False
         self.failures: int = 0
+        self._needs_stale_drain: bool = False
 
     @property
     def keypad_only(self) -> bool:
@@ -550,6 +576,23 @@ class Ear:
         """For testing or manual degradation: force ear STT failure."""
         self.stt_failed = True
         self.failures += 1
+
+    def drain_media(self) -> int:
+        """Drain queued media packets (e.g. from during STT or line playback) (TOP-10 #7)."""
+        stale_non_media = []
+        drained = 0
+        while not self._events.empty():
+            try:
+                ev = self._events.get_nowait()
+                if ev[0] == "media":
+                    drained += 1
+                else:
+                    stale_non_media.append(ev)
+            except queue.Empty:
+                break
+        for ev in stale_non_media:
+            self._events.put_nowait(ev)
+        return drained
 
     # --- socket loop methods (thread-safe, O(1), non-blocking) --------------------
     def push_media(self, payload: bytes, is_ulaw: bool = True) -> None:
@@ -576,6 +619,7 @@ class Ear:
         timeout: float = 6.0,
         lang: str = "",
         hint: str = "",
+        drain_stale: bool = False,
     ) -> Input:
         """Wait for input on the line: key, speech, noise, silence, or hangup.
 
@@ -590,6 +634,11 @@ class Ear:
 
         if self.hung_up:
             return Hangup()
+
+        # Drain stale media packets queued before listen() started / during previous STT (TOP-10 #7)
+        if drain_stale or self._needs_stale_drain:
+            self.drain_media()
+            self._needs_stale_drain = False
 
         self.vad.reset()
         self.stt.reset_circuit()
@@ -658,6 +707,7 @@ class Ear:
         # Call STT (timeout handled internally, never raises)
         t0 = time.monotonic()
         stt_res = self.stt.transcribe(speech_pcm, lang=lang, hint=hint)
+        self._needs_stale_drain = True
 
         # Check if key arrived during STT
         if not self._keys.empty():

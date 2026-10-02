@@ -374,3 +374,17 @@ def test_speakable_when_hard_box_is_any_on_every_scheme(tmp_path, monkeypatch):
     bv = {b: UNASKED for b in SEVEN_BOXES}
     assert speakable(0, bv, c)
     assert speakable(1, bv, c)
+
+
+def test_speakable_with_dict_corpus_any_escape_valve():
+    """A dict-like corpus mapping (box, val) -> mask properly triggers ANY escape valve when all ANY."""
+    dict_corpus = {
+        ("state", "MAHARASHTRA"): 1,
+        ("gender", "ANY"): 1,
+        ("social_category", "GEN"): 1,
+    }
+    bv = {b: UNASKED for b in SEVEN_BOXES}
+    bv["state"] = "MAHARASHTRA"
+    bv["social_category"] = "GEN"
+    scheme = {"state": "MAHARASHTRA", "gender": "ANY", "social_category": "GEN"}
+    assert speakable(scheme, bv, dict_corpus) is True

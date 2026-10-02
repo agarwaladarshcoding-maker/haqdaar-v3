@@ -31,6 +31,7 @@ import yaml
 from dotenv import load_dotenv
 
 from haqdaar.contracts import tunables
+from haqdaar.data.pipeline.p1_scrape import compute_roster_accounting
 from haqdaar.data.pipeline.p2_derive import (
     BASE_DIR,
     DERIVED_DIR,
@@ -390,6 +391,8 @@ def run_translate(
     tmp.replace(schemes_path)
 
     reports_dir.mkdir(parents=True, exist_ok=True)
+    slugs = [r.get("myscheme_slug") or r.get("scheme_id", "") for r in records]
+    accounting = compute_roster_accounting(slugs)
     with open(reports_dir / "translate.json", "w", encoding="utf-8") as f:
         json.dump(
             {
@@ -398,6 +401,7 @@ def run_translate(
                 "requests": translator.requests if translator is not None else 0,
                 "chars": translator.chars if translator is not None else 0,
                 "failures": failures,
+                **accounting,
             },
             f,
             indent=2,
