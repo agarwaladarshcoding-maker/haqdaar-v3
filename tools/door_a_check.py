@@ -12,6 +12,7 @@ from pathlib import Path
 import sys
 import time
 
+from haqdaar.data.door_a_sources import load_repo_scheme_entries
 from haqdaar.engine.door_a import DoorA
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,11 +28,11 @@ def run_door_a_check() -> int:
     total = len(utterances)
 
     print("=" * 70)
-    print(f"HAQDAAR v2 Door A Offline Evaluation — {total} Utterances (30 schemes × 3 forms)")
+    print(f"HAQDAAR v2 Door A Offline Evaluation — {total} Utterances (27 servable schemes × 3 forms)")
     print("Mode: Offline (exact alias fast-path + cross-script token matcher)")
     print("=" * 70)
 
-    door_a = DoorA()
+    door_a = DoorA(scheme_entries=load_repo_scheme_entries())
 
     correct = 0
     lang_stats = {"en": {"correct": 0, "total": 0}, "hi": {"correct": 0, "total": 0}, "mr": {"correct": 0, "total": 0}}
@@ -68,7 +69,7 @@ def run_door_a_check() -> int:
                 "shortlist": res.shortlist[:3],
             })
 
-        print(f"[{idx:02d}/90] [{lang}] {status:<4} expected={slug:<14} pred={predicted:<14} act={res.action:<13} ({lat*1000:.2f}ms)")
+        print(f"[{idx:02d}/{total}] [{lang}] {status:<4} expected={slug:<14} pred={predicted:<14} act={res.action:<13} ({lat*1000:.2f}ms)")
 
     overall_acc = (correct / total) * 100.0 if total else 0.0
     mean_lat = sum(latencies) / len(latencies) if latencies else 0.0

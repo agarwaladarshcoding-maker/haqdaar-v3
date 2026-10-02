@@ -15,7 +15,11 @@ and `stretch()` are ported from the 15 Sep demo (`demo-15sep:haqdaar/voice_demo.
 """
 from __future__ import annotations
 
+# audioop is deprecated in Python 3.11/3.12 and removed in 3.13+. Runtime is pinned to 3.11.
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*audioop.*")
 import audioop
+
 import base64
 import io
 import json

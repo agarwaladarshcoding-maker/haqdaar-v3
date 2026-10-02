@@ -22,7 +22,7 @@ import os
 from pathlib import Path
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence
 from urllib.parse import urlparse
 
 import yaml
@@ -136,6 +136,32 @@ def load_scheme_priorities(yaml_path: Path = DEFAULT_SCHEMES_FILE) -> Dict[str, 
         priorities[slug] = p
 
     return priorities
+
+
+def compute_roster_accounting(
+    kept_slugs: Sequence[str],
+    yaml_path: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Compute roster accounting: roster_size, quarantined_count, quarantined_slugs, kept_count.
+
+    Guarantees: roster_size - quarantined_count == kept_count.
+    """
+    yaml_file = yaml_path if yaml_path is not None else DEFAULT_SCHEMES_FILE
+    if yaml_file.exists():
+        roster = load_scheme_slugs(yaml_file)
+    else:
+        roster = list(kept_slugs)
+
+    roster_set = set(roster)
+    kept_set = set(kept_slugs)
+    quarantined = sorted(roster_set - kept_set)
+
+    return {
+        "roster_size": len(roster),
+        "quarantined_count": len(quarantined),
+        "quarantined_slugs": quarantined,
+        "kept_count": len(kept_slugs),
+    }
 
 
 def is_cache_valid(slug: str, cache_dir: Path = RAW_CACHE_DIR) -> bool:
@@ -358,7 +384,8 @@ def scrape_all_slugs(
     """Scrape every slug against one already-open page (D2: quarantine, don't crash).
 
     A per-slug failure is set aside with its reason and the loop moves on; scrape_scheme
-    already writes nothing to cache on error, so a quarantined slug leaves no raw file.
+    writes nothing to cache on error, and any stale raw file from an earlier run is
+    deleted, so a quarantined slug leaves no raw file for p2 to re-derive (AUDIT #2).
     """
     results: List[Dict[str, Any]] = []
     quarantined: List[Dict[str, str]] = []
@@ -374,6 +401,11 @@ def scrape_all_slugs(
         except Exception as e:
             logger.error("Error scraping slug '%s': %s", slug, e)
             quarantined.append({"slug": slug, "reason": str(e)})
+            for suffix in (".json", ".html"):
+                stale = cache_dir / f"{slug}{suffix}"
+                if stale.exists():
+                    stale.unlink()
+                    logger.warning("Deleted stale raw file for quarantined slug '%s': %s", slug, stale.name)
 
     return results, quarantined
 

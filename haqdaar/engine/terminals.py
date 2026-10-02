@@ -116,7 +116,13 @@ def _get_specificity(scheme: Any, corpus: Any = None) -> int:
 
 
 def _sort_survivors(survivors: Sequence[Any], corpus: Any = None) -> list[Any]:
-    """Sort survivors by specificity descending, breaking ties deterministically."""
+    """Sort survivors by specificity descending, breaking ties deterministically.
+
+    D8 priority ordering holds via snapshot pre-ordering: p6_snapshot.py (step 1.8)
+    pre-sorts schemes by (priority, slug) when assigning bit indices. Thus, for
+    integer scheme indices `s`, `tie = s` preserves the pre-sorted (priority, slug)
+    order directly without altering frozen Corpus interfaces or mask layouts.
+    """
     def sort_key(s: Any):
         spec = _get_specificity(s, corpus)
         tie = s if isinstance(s, int) else _get_scheme_id(s, corpus)

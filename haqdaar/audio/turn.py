@@ -109,6 +109,8 @@ class Turn:
                     return Hangup()
                 return Digit(digit=key)
 
+            if hasattr(self.ear, "drain_media"):
+                self.ear.drain_media()
             return self.ear.listen(timeout=gap_s, lang=lang, hint=hint)
 
         # 3. Keypad mode (or normal profile)

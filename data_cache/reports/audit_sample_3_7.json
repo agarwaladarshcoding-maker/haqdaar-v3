@@ -1,34 +1,26 @@
 {
   "seed": 42,
   "sample_ids": [
-    "ab-pmjay",
     "apy",
     "day-nrlm",
     "igndps",
     "ignwps",
-    "mgnrega",
+    "jsy1",
     "naps",
     "nfbs",
-    "nps-tsep",
     "nsap-ignoaps",
     "pm-kisan",
     "pm-svanidhi",
     "pmay-g",
     "pmegp",
     "pmjjby",
+    "pmkmdy",
     "pmmvy",
     "pmmy",
     "pmsfss",
-    "rkvyshfshc",
-    "smam"
-  ],
-  "failing_ids": [
-    "ignwps",
-    "mgnrega",
-    "nfbs",
-    "nps-tsep",
-    "pmjjby",
-    "pmmvy",
+    "pmuy2",
+    "pmv",
     "rkvyshfshc"
-  ]
+  ],
+  "failing_ids": []
 }

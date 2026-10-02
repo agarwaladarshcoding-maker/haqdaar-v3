@@ -33,6 +33,7 @@ REPORTS_DIR = Path("data_cache/reports")
 GROQ_LEDGER = REPORTS_DIR / "groq_usage.jsonl"
 SARVAM_LEDGER = REPORTS_DIR / "sarvam_usage.jsonl"
 SARVAM_TTS_LEDGER = REPORTS_DIR / "sarvam_tts_usage.jsonl"
+MUSE_LEDGER = REPORTS_DIR / "muse_usage.jsonl"
 
 
 class Step:
@@ -62,12 +63,12 @@ def _steps() -> list[Step]:
         Step("p4 translate", paid=True, run=p4_translate.run_translate),
         Step("p4 lines", paid=True, run=p4_translate.run_translate_lines),
         Step("p5 gates", paid=False, run=p5_gates.run_gates),
-        Step("p6 snapshot", paid=False, run=_run_snapshot),
+        Step("p6 texts", paid=False, run=_count_texts),
     ]
 
 
-def _run_snapshot() -> int:
-    """Build a snapshot from what p2..p5 wrote, and say what audio is still missing."""
+def _count_texts() -> int:
+    """Count texts the call can say and report missing audio clips."""
     from haqdaar.data.pipeline.texts import _load_schemes, all_texts, missing
 
     derived_dir = Path(tunables.CARDS_FILE).parent
@@ -77,6 +78,10 @@ def _run_snapshot() -> int:
     print(f"texts the call can say: {len(texts)}")
     print(f"texts still missing: {len(gaps)}")
     return 0
+
+
+# Backward compatibility alias
+_run_snapshot = _count_texts
 
 
 def _read_ledger(path: Path) -> list[dict[str, Any]]:
@@ -95,14 +100,24 @@ def _read_ledger(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def print_cost() -> int:
-    """What has been spent so far, from the two ledgers.
+def print_cost(
+    groq_ledger: Optional[Path] = None,
+    sarvam_ledger: Optional[Path] = None,
+    sarvam_tts_ledger: Optional[Path] = None,
+    muse_ledger: Optional[Path] = None,
+) -> int:
+    """What has been spent so far, from the ledgers.
 
     These are running totals over every run ever made, not the cost of one run: the ledgers
     are append-only on purpose, so a bill cannot be made to look smaller by re-running.
     """
-    groq = _read_ledger(GROQ_LEDGER)
-    sarvam = _read_ledger(SARVAM_LEDGER)
+    g_ledger = groq_ledger if groq_ledger is not None else GROQ_LEDGER
+    s_ledger = sarvam_ledger if sarvam_ledger is not None else SARVAM_LEDGER
+    t_ledger = sarvam_tts_ledger if sarvam_tts_ledger is not None else SARVAM_TTS_LEDGER
+    m_ledger = muse_ledger if muse_ledger is not None else MUSE_LEDGER
+
+    groq = _read_ledger(g_ledger)
+    sarvam = _read_ledger(s_ledger)
 
     print("Groq (cards, facets, aliases, summary)")
     print(f"  requests: {len(groq)}")
@@ -127,7 +142,7 @@ def print_cost() -> int:
     for lang in sorted(by_lang):
         print(f"    {lang}: {by_lang[lang]} chars")
 
-    tts = _read_ledger(SARVAM_TTS_LEDGER)
+    tts = _read_ledger(t_ledger)
     print("Sarvam TTS (make render)")
     print(f"  requests: {len(tts)}")
     print(f"  chars: {sum(int(r.get('chars') or 0) for r in tts)}")
@@ -136,6 +151,21 @@ def print_cost() -> int:
         tts_by_lang[str(row.get("lang") or "?")] += int(row.get("chars") or 0)
     for lang in sorted(tts_by_lang):
         print(f"    {lang}: {tts_by_lang[lang]} chars")
+
+    muse = _read_ledger(m_ledger)
+    print("Muse (contributor tasks)")
+    print(f"  requests: {len(muse)}")
+    muse_prompt = sum(int(r.get("prompt_tokens") or 0) for r in muse)
+    muse_completion = sum(int(r.get("completion_tokens") or 0) for r in muse)
+    muse_spent = sum(float(r.get("inr") or 0.0) for r in muse)
+    print(f"  prompt tokens: {muse_prompt}")
+    print(f"  completion tokens: {muse_completion}")
+    print(f"  spent: ₹{muse_spent:.2f} / ₹{tunables.MUSE_CAP_INR:.0f} cap")
+    muse_by_task: dict[str, int] = defaultdict(int)
+    for row in muse:
+        muse_by_task[str(row.get("task") or "?")] += 1
+    for task in sorted(muse_by_task):
+        print(f"    {task}: {muse_by_task[task]} requests")
     return 0
 
 

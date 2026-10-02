@@ -9,23 +9,13 @@ Matches spoken scheme names at the opener, enabling direct navigation:
 """
 from __future__ import annotations
 
-import csv
-from dataclasses import dataclass, field
-import json
-import logging
-from pathlib import Path
+from dataclasses import dataclass
 import re
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any, Sequence
 import unicodedata
 
-import yaml
-
 from haqdaar.contracts import tunables
-from haqdaar.contracts.types import Lang
-
-logger = logging.getLogger(__name__)
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+from haqdaar.contracts.types import Lang, SchemeEntry
 
 # Devanagari to Latin phonetic mapping table
 _DEVA_MAPPING: dict[str, str] = {
@@ -66,6 +56,11 @@ GENERIC_STOP_WORDS: set[str] = {
     "central", "kendriya", "केंद्रीय",
     "state", "rajya", "राज्य",
     "pradhan", "mantri", "प्रधान", "मंत्री",
+    # Joined + short PM forms (df 10-15 across schemes: pure honorific noise).
+    # Without these, "pradhanmantri"-style tokens inflate overlap and a generic
+    # need can read the wrong scheme (pmsby-hi misread pmfby).
+    "pm", "पीएम", "प्रधानमंत्री", "पंतप्रधान",
+    "pradhanmantri", "pradhanamntri", "pantpradhan", "pntapradhan",
     "loan", "लोन", "कर्ज", "karj",
     "subsidy", "सब्सिडी", "अनुदान",
     "card", "कार्ड",
@@ -86,24 +81,6 @@ GENERIC_STOP_WORDS: set[str] = {
     "mala", "baddal", "mahiti", "havi", "aahe", "dya", "sanga", "kripya", "chi", "cha",
     "che", "kara", "arj", "karaycha", "aamhala", "have", "hote"
 }
-
-# Manual aliases loaded from data source for schemes without extracted alias cards (e.g. quarantined)
-_MANUAL_ALIASES_CACHE: dict[str, dict[str, list[str]]] | None = None
-
-def _load_manual_aliases() -> dict[str, dict[str, list[str]]]:
-    global _MANUAL_ALIASES_CACHE
-    if _MANUAL_ALIASES_CACHE is not None:
-        return _MANUAL_ALIASES_CACHE
-    path = BASE_DIR / "haqdaar/data/manual_aliases.json"
-    if path.exists():
-        try:
-            _MANUAL_ALIASES_CACHE = json.loads(path.read_text(encoding="utf-8"))
-            return _MANUAL_ALIASES_CACHE
-        except Exception as exc:
-            logger.warning("Failed to load manual aliases from %s: %s", path, exc)
-            return {}
-    return {}
-
 
 def devanagari_to_latin(text: str) -> str:
     """Phonetically transliterate Devanagari text to Latin characters."""
@@ -158,16 +135,6 @@ class DoorAResult:
     shortlist: tuple[str, ...] = ()
 
 
-@dataclass
-class SchemeEntry:
-    """Scheme entry indexed for Door A matching."""
-    slug: str
-    priority: int = 2
-    names: dict[str, str] = field(default_factory=dict)
-    aliases: list[str] = field(default_factory=list)
-    distinctive_tokens: set[str] = field(default_factory=set)
-
-
 class DoorA:
     """Door A scheme matching engine.
     
@@ -190,7 +157,9 @@ class DoorA:
         elif corpus is not None:
             self._load_from_corpus(corpus)
         else:
-            self._load_from_defaults()
+            # AUDIT #5: Engine reads no disk. Callers pass entries explicitly
+            # (haqdaar.data.door_a_sources.load_repo_scheme_entries) or a corpus.
+            raise ValueError("DoorA needs scheme_entries or corpus")
 
     def _load_from_corpus(self, corpus: Any) -> None:
         """Extract schemes and aliases from loaded Corpus."""
@@ -198,6 +167,11 @@ class DoorA:
         for ix, sid in enumerate(scheme_ids):
             spec = corpus.specificity(ix) if hasattr(corpus, "specificity") else 2
             entry = SchemeEntry(slug=sid, priority=spec)
+            # Slug spellings callers actually say (mirrors the roster loader).
+            for variant in {sid, sid.replace("-", " "), sid.replace("-", "")}:
+                norm = normalize_text(variant)
+                if norm and norm not in entry.aliases:
+                    entry.aliases.append(norm)
             self._schemes[sid] = entry
 
         # Load aliases from alias sets across languages
@@ -215,103 +189,6 @@ class DoorA:
 
         self._index_tokens()
 
-    def _load_from_defaults(self) -> None:
-        """Load 30-scheme roster from schemes.yaml + derived jsonl + candidates.csv."""
-        schemes_yaml_path = BASE_DIR / "haqdaar/data/pipeline/schemes.yaml"
-        if not schemes_yaml_path.exists():
-            logger.error("Door A: schemes.yaml not found at %s; Door A matcher has no schemes", schemes_yaml_path)
-            return
-
-        schemes_yaml = yaml.safe_load(schemes_yaml_path.read_text(encoding="utf-8")).get("schemes", [])
-        
-        derived_map: dict[str, Any] = {}
-        derived_path = BASE_DIR / "data_cache/derived/schemes.jsonl"
-        if derived_path.exists():
-            for line in derived_path.read_text(encoding="utf-8").splitlines():
-                if line.strip():
-                    item = json.loads(line)
-                    derived_map[item["scheme_id"]] = item
-
-        candidates_map: dict[str, Any] = {}
-        cand_path = BASE_DIR / "data_cache/derived/candidates.csv"
-        if cand_path.exists():
-            with open(cand_path, "r", encoding="utf-8") as f:
-                for r in csv.DictReader(f):
-                    candidates_map[r["slug"]] = r
-
-        manual_aliases = _load_manual_aliases()
-        for sc in schemes_yaml:
-            slug = sc["slug"]
-            priority = sc.get("priority", 2)
-            d = derived_map.get(slug, {})
-            c = candidates_map.get(slug, {})
-
-            aliases: set[str] = set()
-            aliases.add(slug)
-            aliases.add(slug.replace("-", " "))
-            aliases.add(slug.replace("-", ""))
-
-            if c.get("short_title"):
-                st = c["short_title"].lower()
-                aliases.add(st)
-                aliases.add(st.replace("-", " "))
-                aliases.add(st.replace("-", ""))
-            if c.get("name"):
-                aliases.add(c["name"].lower())
-
-            names = {}
-            for f in ["scheme_name_en", "scheme_name_hi", "scheme_name_mr"]:
-                if d.get(f):
-                    names[f.replace("scheme_name_", "")] = d[f]
-                    aliases.add(d[f].lower())
-
-            for f in ["aliases_en", "aliases_hi", "aliases_mr"]:
-                for a in d.get(f, []):
-                    aliases.add(a.lower())
-
-            if slug in manual_aliases:
-                for lang_aliases in manual_aliases[slug].values():
-                    for a in lang_aliases:
-                        aliases.add(a.lower())
-
-            # Expand common prefixes: "pradhan mantri" <-> "pm" and "प्रधानमंत्री" / "पंतप्रधान" <-> "पीएम"
-            expanded: set[str] = set(aliases)
-            for a in aliases:
-                if a.startswith("pradhan mantri "):
-                    expanded.add("pm " + a[15:])
-                elif a.startswith("pm "):
-                    expanded.add("pradhan mantri " + a[3:])
-                if a.startswith("प्रधानमंत्री "):
-                    expanded.add("पीएम " + a[12:])
-                elif a.startswith("पंतप्रधान "):
-                    expanded.add("पीएम " + a[10:])
-                elif a.startswith("पीएम "):
-                    expanded.add("प्रधानमंत्री " + a[5:])
-                    expanded.add("पंतप्रधान " + a[5:])
-
-            alias_entries: list[str] = []
-            distinctive_tokens: set[str] = set()
-            for a in expanded:
-                norm = normalize_text(a)
-                if norm:
-                    alias_entries.append(norm)
-                    words = [w for w in norm.split() if w not in GENERIC_STOP_WORDS and len(w) > 1]
-                    distinctive_tokens.update(words)
-
-                    lat = normalize_text(devanagari_to_latin(a))
-                    if lat and lat != norm:
-                        alias_entries.append(lat)
-                        lat_words = [w for w in lat.split() if w not in GENERIC_STOP_WORDS and len(w) > 1]
-                        distinctive_tokens.update(lat_words)
-
-            self._schemes[slug] = SchemeEntry(
-                slug=slug,
-                priority=priority,
-                names=names,
-                aliases=alias_entries,
-                distinctive_tokens=distinctive_tokens,
-            )
-
     def _index_tokens(self) -> None:
         """Populate distinctive tokens for all registered schemes."""
         for entry in self._schemes.values():
@@ -326,10 +203,9 @@ class DoorA:
         """Create DoorA matcher from a loaded Corpus."""
         return cls(corpus=corpus)
 
-    @classmethod
-    def from_sources(cls) -> DoorA:
-        """Create DoorA matcher from pipeline sources (schemes.yaml + derived data)."""
-        return cls()
+    def has_scheme(self, slug: str) -> bool:
+        """True if slug is a registered (servable) scheme."""
+        return slug in self._schemes
 
     def _score_scheme(self, query: str, scheme: SchemeEntry) -> tuple[float, str | None]:
         q_norm = normalize_text(query)
@@ -340,6 +216,10 @@ class DoorA:
         all_q_tokens = q_tokens | q_lat_tokens
 
         best_alias_len = 0
+        overlap = all_q_tokens & scheme.distinctive_tokens
+        # Script-folded count: Devanagari + its Latin twin are one word.
+        overlap_n = len({normalize_text(devanagari_to_latin(t)) for t in overlap})
+
         matched_alias: str | None = None
         exact_full = False
 
@@ -359,12 +239,11 @@ class DoorA:
                         matched_alias = alias
 
         if exact_full:
-            return tunables.DOOR_A_EXACT_SCORE, matched_alias
+            return tunables.DOOR_A_EXACT_SCORE, matched_alias, overlap_n
         if best_alias_len > 0:
             score = tunables.DOOR_A_ALIAS_SCORE_BASE + best_alias_len * 5.0 + (4 - scheme.priority)
-            return score, matched_alias
+            return score, matched_alias, overlap_n
 
-        overlap = all_q_tokens & scheme.distinctive_tokens
         if overlap:
             extra_query_tokens = all_q_tokens - scheme.distinctive_tokens
             token_score = len(overlap) * 40.0
@@ -373,9 +252,9 @@ class DoorA:
             token_score += precision * 30.0 + recall * 20.0
             token_score -= len(extra_query_tokens) * 10.0
             score = token_score + (4 - scheme.priority) * 0.5
-            return score, None
+            return score, None, overlap_n
 
-        return 0.0, None
+        return 0.0, None, 0
 
     def match(self, transcript: str, lang: str = "en") -> DoorAResult:
         """Match transcript against schemes.
@@ -426,11 +305,11 @@ class DoorA:
                     )
 
         # 2. Token match on registered schemes
-        scored: list[tuple[str, float, str | None]] = []
+        scored: list[tuple[str, float, str | None, int]] = []
         for slug, scheme in self._schemes.items():
-            s, matched_al = self._score_scheme(transcript, scheme)
+            s, matched_al, ov_n = self._score_scheme(transcript, scheme)
             if s > 0:
-                scored.append((slug, s, matched_al))
+                scored.append((slug, s, matched_al, ov_n))
 
         scored.sort(key=lambda x: x[1], reverse=True)
         shortlist = tuple(x[0] for x in scored[:10])
@@ -443,7 +322,7 @@ class DoorA:
                 shortlist=(),
             )
 
-        top_slug, top_score, top_alias = scored[0]
+        top_slug, top_score, top_alias, _ = scored[0]
         if top_score < tunables.DOOR_A_SCORE_FLOOR:
             return DoorAResult(
                 action="downgrade_to_b",
@@ -452,22 +331,41 @@ class DoorA:
                 shortlist=shortlist,
             )
 
-        # Candidates within tie band of top score are considered ambiguous/tied
-        close_candidates = [x[0] for x in scored if x[1] >= tunables.DOOR_A_TIE_BAND * top_score]
+        # T12: the code pass counts alias evidence (exact or substring match).
+        # Token overlap alone is fuzzy matching, which is the model's job
+        # (search #2 in the opener). Reading or picking without an alias
+        # misfires on plain need-statements ("I need farming schemes" read
+        # smam at 0.09). 1 grounded -> read, 2 -> pick, 3+ -> loud
+        # downgrade, 0 -> silent Door B.
+        close = [(x[0], x[2], x[3]) for x in scored
+                 if x[1] >= tunables.DOOR_A_TIE_BAND * top_score]
+        # A candidate counts with alias evidence, or with token overlap on
+        # 2+ folded words. A single shared word ("agriculture", "krishi") is
+        # a need-statement, not a naming; the model arbitrates those (T12 #2).
+        grounded = [(slug, al) for slug, al, ov_n in close
+                    if al or ov_n >= tunables.DOOR_A_MIN_TOKEN_OVERLAP]
         confidence = min(1.0, top_score / tunables.DOOR_A_ALIAS_SCORE_BASE)
 
-        if len(close_candidates) == 1:
+        if len(grounded) == 1:
             return DoorAResult(
                 action="read",
-                scheme_ids=(close_candidates[0],),
+                scheme_ids=(grounded[0][0],),
                 confidence=confidence,
-                matched_alias=top_alias,
+                matched_alias=grounded[0][1],
                 shortlist=shortlist,
             )
-        elif len(close_candidates) == 2:
+        elif len(grounded) == 2:
             return DoorAResult(
                 action="keypad_pick",
-                scheme_ids=tuple(close_candidates[:2]),
+                scheme_ids=(grounded[0][0], grounded[1][0]),
+                confidence=confidence,
+                matched_alias=grounded[0][1],
+                shortlist=shortlist,
+            )
+        elif len(grounded) >= 3:
+            return DoorAResult(
+                action="downgrade_to_b",
+                scheme_ids=tuple(s for s, _ in grounded),
                 confidence=confidence,
                 matched_alias=top_alias,
                 shortlist=shortlist,
@@ -475,8 +373,8 @@ class DoorA:
         else:
             return DoorAResult(
                 action="downgrade_to_b",
-                scheme_ids=tuple(close_candidates),
-                confidence=confidence,
+                scheme_ids=(),
+                confidence=0.0,
                 matched_alias=top_alias,
                 shortlist=shortlist,
             )
@@ -485,8 +383,23 @@ class DoorA:
         """Return top-k candidate scheme IDs for downstream LLM routing."""
         scored: list[tuple[str, float]] = []
         for slug, scheme in self._schemes.items():
-            s, _ = self._score_scheme(transcript, scheme)
+            s, _, _ = self._score_scheme(transcript, scheme)
             if s > 0:
                 scored.append((slug, s))
         scored.sort(key=lambda x: x[1], reverse=True)
         return tuple(x[0] for x in scored[:k])
+
+
+def unmatched_content(transcript: str, matched_alias: str | None) -> bool:
+    """True if the transcript has content words beyond the matched alias.
+
+    Used by the opener to tell a clean scheme naming ("PM Kisan", no model
+    call needed) from a mixed utterance ("I'm a farmer, tell me about PM
+    Kisan", whose box facts still need the model).
+    """
+    seen = set(normalize_text(matched_alias or "").split())
+    seen |= set(normalize_text(devanagari_to_latin(matched_alias or "")).split())
+    return any(
+        t for t in normalize_text(transcript).split()
+        if t not in seen and t not in GENERIC_STOP_WORDS
+    )

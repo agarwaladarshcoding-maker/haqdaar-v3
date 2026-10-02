@@ -1,10 +1,18 @@
 {
-  "schemes": 28,
-  "ok": 28,
+  "schemes": 27,
+  "ok": 27,
   "per_language": {
-    "en": 28,
-    "hi": 28,
-    "mr": 28
+    "en": 27,
+    "hi": 27,
+    "mr": 27
   },
-  "failures": []
+  "failures": [],
+  "roster_size": 30,
+  "quarantined_count": 3,
+  "quarantined_slugs": [
+    "ab-pmjay",
+    "pm-sym",
+    "pmsby"
+  ],
+  "kept_count": 27
 }

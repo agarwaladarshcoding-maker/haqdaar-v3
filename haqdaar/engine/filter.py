@@ -41,6 +41,11 @@ def _get_scheme_count(corpus):
     if isinstance(corpus, (list, tuple)):
         return len(corpus)
     if isinstance(corpus, dict):
+        # Heuristic for dict corpora (masks mapping (box, val) to int mask):
+        # Assumes every scheme bit (0..N-1) is set in at least one mask,
+        # so combined.bit_length() gives the total scheme count N.
+        # If the highest scheme index bit is never set in any mask, this would
+        # undercount. In production, Corpus is a Corpus object with _scheme_ids.
         combined = 0
         for m in corpus.values():
             if isinstance(m, int):
@@ -254,8 +259,18 @@ def speakable(scheme, box_vector=None, corpus=None, *, vector=None):
         bit = 2**target
         for box in HARD_BOXES:
             is_any = False
+            vals = None
             if corpus is not None and not isinstance(corpus, dict) and hasattr(corpus, "values"):
                 vals = corpus.values(box)
+            elif isinstance(corpus, dict):
+                if "values" in corpus and callable(corpus["values"]):
+                    vals = corpus["values"](box)
+                elif "values" in corpus and isinstance(corpus["values"], dict):
+                    vals = corpus["values"].get(box, [])
+                else:
+                    vals = [v for k in corpus.keys() if isinstance(k, tuple) and len(k) == 2 and k[0] == box]
+
+            if vals is not None:
                 if not vals:
                     # An empty closed set means no scheme in the snapshot is
                     # non-ANY on this box, so there is nothing to vet. Treating

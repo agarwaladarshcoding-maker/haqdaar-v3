@@ -2041,3 +2041,86 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Observed this session on branch: pytest 372, stress 0/0, bakeoff 30/30 offline.
 - Nits: fixed PROJECT-UPDATE "5 warmup items"->6 in record commit. Carried to Phase 5 backlog: Turn.wait_input direct test gap (forced-failure test bypasses it via MockAudioSession), sim opener UNCLEAR-vs-empty-stamps asymmetry, ear stt_failed/failures redundancy (harmless), NOTES "370 tests" label in Step D section.
 - PHASE 4 CODE COMPLETE after this merge. Remaining: owner end-file, Phase 5, Phase 6.
+
+## Code audit Phases 0-4 (Oct 2026) — 36 findings, report in AUDIT-PHASE1-4.md
+- Ran as workflow: 4 parallel tracks (engine+contracts, audio+model+server, pipeline+snapshot, tests+hygiene) + synthesis. Critic pass produced no usable output (disclosed in report).
+- Top-3 all spot-verified by reviewer with targeted checks: (1) quarantined ab-pmjay ships in CURRENT 12; (2) p1 never deletes stale raw (Sep-12 ab-pmjay.json on disk), p2 globs raw/*.json ignoring scrape quarantine; (3) Door A dead code in prod (no refs in call/server/sim). F6 mechanism verified (thread per websocket, no guard).
+- Good news verified: truth-lock intact (filter/planner/terminals faithful), Corpus.load rule intact+tested, socket loop non-blocking, never-raise paths pass, tests offline (conftest triple guard), suite 372 green, no secrets in history.
+- Suggested fix order in report: F1 quarantine+snapshot rebuild, F2 Door A wiring+stamps+purity, then confirm-loop accounting, one-caller guard, small batch. Prompts on owner's word.
+
+## Audit fixes F1 (audit-fixes branch) — quarantine bypass + 11-scheme snapshot DONE
+- p1: quarantine now deletes stale raw .json/.html (test: stale files gone). p2: new load_scrape_quarantine() skips scrape-quarantined slugs (test: client never called). Both tests failed pre-fix, green post-fix. Full suite 374.
+- Removed stale raw/derived ab-pmjay (were tracked!). Rebuilt: cards 27/27, gates 27/27, snapshot snap_20261001_212944 (11 schemes), render 459/459 missing 0, stress 0/0, sim voice-mode OK. Regenerated 3.7 sample (ab-pmjay out, 0 failing) + rescaffolded audit_3_7.md (all PENDING, safe).
+- MAJOR FINDING while rebuilding: schemes.jsonl is NOT reproducible from caches. Commit 0a0ba3a hand-merged/live-regenerated all chunks for 6 schemes (kcc, naps, pm-kisan, pm-svanidhi, pmay-g, pmegp) without updating caches; full p2 rerun restores older cache text and breaks 4 gates. Fix applied: kept blessed HEAD text (matches rendered audio), dropped only ab-pmjay line, regenerated cards/gates/snapshot from it. LANDMINE (documented): a future full pipeline-extract rerun will flip those 6 schemes back to cache text. Proper cure = re-bless via caches + re-render audio (needs owner: user-facing text + Sarvam spend).
+- make backup fails under sandbox (writes outside workspace to ~/haqdaar-backup) — env restriction, not product bug. Skipped.
+
+## Audit fixes F2 (audit-fixes branch) — Door A wired + t_name + purity DONE
+- Purity (#5): SchemeEntry -> contracts.types; disk loader -> haqdaar/data/door_a_sources.py (tools/tests use it); DoorA() bare raises; engine has zero disk refs. door_a_check + tests updated.
+- Wiring (#3): opener runs DoorA.from_corpus BEFORE model: read (name+summary, t_name+t_end stamped, exempt, T10 +1 turn, door_a_done), keypad_pick (options+names, 1/2 read, else decline; T12 +1 turn/+1 q), downgrade (silent on 0, line on >=3), model-selection search #2 (1->read, 2->pick, >=3 line; unserved slugs ignored via has_scheme). Fixed the res[0]-scheme-as-category bug as a side effect. Scheme stays OUT of box_vector (filter iterates items; LOG record carries it).
+- Matcher precision found by sim tests: token-only reads misfired ("agriculture"->smam). Fix: candidates need alias evidence OR >=2 folded token overlap (DOOR_A_MIN_TOKEN_OVERLAP=2); joined PM forms added to stops (pmsby-hi misread pmfby). Benchmark now 81 utterances (9 quarantined dropped from fixture) at 79/81 (2 single-token namings downgrade; model arbitrates live). quarantined_slugs() + loader stripping + manual_aliases.json removed (held only quarantined).
+- lines.yaml door_a_option_1/2 rewritten slot-free + 6 clips re-rendered (Sarvam, 54 chars). confirm_bundle_opener ("You said {bundle}") is DEAD (never said) — left alone.
+- Sim hi/en broke then fixed by the precision work. test_real_snapshot green.
+- SELF-INFLICTED: a python probe called build_snapshot(schemes) with defaults -> wrote 2 rogue snapshots + flipped CURRENT (stress/sim failed). Recovered: deleted rogues, CURRENT back to snap_20261001_212944. Lesson: build_snapshot defaults write the REAL snapshots/ dir + flip CURRENT. Full suite 386 green after recovery.
+
+## Handoff: F1+F2 done by reviewer, rest to Antigravity (Step E)
+- Owner redirected mid-F3: reviewer keeps F1+F2 (committed + pushed on audit-fixes), Antigravity does F3+F4+F5 via PROMPT-ANTIGRAVITY-E-AUDIT-REST.md (branch step-audit-rest from audit-fixes tip, 3 part-commits).
+- F3 design note recorded in prompt: planner/terminal ladder agreement via shared speakable predicate (import from terminals, T17 frozen); confirm-loop T14 needs a SEPARATE repeat counter (not turn_n).
+- No F3 code edits were made before the handoff (only planner reads) — Antigravity starts F3 clean.
+
+## Audit fixes F3 (step-audit-rest branch) — Engine correctness DONE
+- #9 Widen/ladder agreement: planner now uses `_filter_speakable` from `terminals.py` to evaluate speakable survivors at each rung of the widening ladder. Added `test_widen_ladder_agreement_with_terminals_on_unspeakable_raw_survivors` to `test_planner.py`.
+- #10 Word lists out of Engine: Moved yes/no word lists and matching to `haqdaar/model/confirm.py` with `match_confirm()`, wired into `Model.confirm()`. Engine calls `model.confirm(...)` without importing `haqdaar.model` (preserving import discipline). Added `tests/test_confirm.py` with 40 tests covering EN, HI, MR.
+- `READBACK_REPLAY_MAX`: Moved `READBACK_REPLAY_MAX = 2` and `CONFIRM_REPEAT_MAX = 3` to `contracts/tunables.py`. Deleted excuse comment.
+- Confirm-loop turn accounting: Used `confirm_repeats` bounded by `tunables.CONFIRM_REPEAT_MAX` to terminate repeat-mashing. `#`, `*`, and SILENCE do not consume cap turns (`turn_n`). Added `test_confirm_repeat_mashing_terminates_without_cap_turn_consumption` in `test_call_spoken.py`.
+- NEAREST `ladder_rung`: Fixed to report `len(answered_soft)` (0 when no soft boxes answered per T18). Updated `test_call.py:506` assertion to `== 0`.
+- `contracts/types.py` & `lines.yaml`: Fixed comment count to 50 fixed lines; removed dead `drop_category` line ID from `types.py` and `lines.yaml`.
+- Track-1 LOWs:
+  - `filter.py`: Fixed `speakable()` ANY escape valve for dict corpora; documented OR-bit_length heuristic. Verified `grep -nE "[<>]=?|int\(|float\("` is clean. Added dict corpus test in `test_filter.py`.
+  - `terminals.py`: Documented D8 priority ordering via snapshot pre-order in `_sort_survivors`.
+  - `planner.py`: Documented `_inferred_questions` excluding category vs Engine live `question_count`.
+  - `call.py`: Documented `box_strikes` cumulative approximation per T11; verified Door A comment validity.
+  - Checked CLARIFY/REPEAT/META: Model generates these typed turn results; Engine logs them as UNCLEAR in absence of value. No action required per prompt instruction.
+- Verification: pytest 429 passed, make stress (0 crashes, 0 truth failures), make model-bakeoff (30/30 offline), make door-a-check (79/81, 97.53%), make render (456 texts, 0 missing), make sim (completed cleanly). Muse spend delta Rs0.00.
+
+## Audit fixes F4 (step-audit-rest branch) — Server / Audio / Model Hardening DONE
+- #6 One-caller guard (`haqdaar/server.py`): Added `_ACTIVE_CALL`, `_ACTIVE_CALL_LOCK`, `try_acquire_call()`, `release_call()`, and `is_call_active()`. In `stream_endpoint`, if `not try_acquire_call()`, logs "stream refused busy: another call is active", accepts socket and immediately closes with WebSocket code 1008 ("busy") without spawning an engine thread. Released in websocket `finally` block. Added unit tests `test_stream_rejects_second_concurrent_caller_as_busy` and `test_stream_accepts_subsequent_call_after_first_closes` in `tests/test_phone_call.py`.
+- #7 Stale-media drain (`haqdaar/audio/ear.py`, `turn.py`): Added `Ear.drain_media()` and `self._needs_stale_drain`. In `Ear.listen()`, clears queued `MediaEvent`s if `drain_stale=True` or `_needs_stale_drain=True` (set true after every STT transcription). In `turn.py`, calls `ear.drain_media()` when mouth finishes playing before starting `listen()`. Added unit tests `test_listen_drains_stale_media_queued_during_stt` and `test_listen_explicit_drain_stale` in `tests/test_ear.py`.
+- #8 STT shared deadline (`haqdaar/contracts/tunables.py`, `ear.py`): Added `STT_TIMEOUT_S = 5.0` tunable. In `ear.py`, `SarvamSTT.transcribe` and `GroqWhisperSTT.transcribe` accept an optional `timeout: float`. In `SpeechToText.transcribe`, the total timeout is shared across both providers: Sarvam runs with `total_timeout`; if it fails, elapsed time is deducted from `total_timeout` and Groq receives the remaining deadline (or aborts immediately with `deadline_exceeded` if `<= 0.2s`). Added unit tests `test_shared_stt_deadline_caps_total_time` and `test_shared_stt_deadline_aborts_groq_if_no_time_left` in `tests/test_ear.py`.
+- Small items:
+  - `audioop` DeprecationWarning (`ear.py`, `render.py`): Suppressed module-level DeprecationWarning for `audioop` via `warnings.filterwarnings("ignore", category=DeprecationWarning, message=".*audioop.*")` with version guard comment (# Python 3.13 deprecates audioop; HAQDAAR runtime is pinned to 3.11). Verified pytest runs with 0 audioop warnings.
+  - `_CALLER_HASH` leak (`server.py`): Added `_CALLER_HASH_TS` tracking timestamp per call and `_prune_caller_hashes(max_age_s=300.0)` called during `/answer` and `/stream` to prune abandoned or stale hash entries older than 5 minutes. Added unit test `test_caller_hash_pruning_cleans_stale_entries` in `tests/test_phone_call.py`.
+  - Model defensive try (`haqdaar/model/router.py`): Wrapped `client.call` inside `try...except Exception as e:` in `Model.opener()` and `Model.turn()`. Converts unexpected client exceptions into a typed `Unclear(reason=f"client_exception: {e}")` and increments `_failures` counter instead of crashing the call loop. Added unit tests `test_model_opener_defensive_try_on_client_exception` and `test_model_turn_defensive_try_on_client_exception` in `tests/test_model.py`.
+  - `_clips` 3-part split guard (`haqdaar/audio/phone.py`): Guarded `token.split(":", 2)` against malformed tokens with fewer than 3 parts; returns empty list and logs warning instead of raising `ValueError`. Added unit test `test_clips_malformed_scheme_token_does_not_crash` in `tests/test_phone_call.py`.
+  - Parked items verified: `mouth.py` lock-free `_cleared` read is GIL-atomic and benign; `HANGUP_WAIT_S` 15s linger is bounded and safe.
+- Verification: pytest 435 passed (2 warnings from third-party testclient only), make stress (0 crashes, 0 truth failures), make model-bakeoff (30/30 offline), make door-a-check (79/81, 97.53%), make render (456 texts, 0 missing), make sim (completed cleanly). Muse spend delta Rs0.00.
+
+## Audit fixes F5 (step-audit-rest branch) — Pipeline Reports and Repo Hygiene DONE
+- Gate-report roster accounting:
+  - Added `compute_roster_accounting(kept_slugs, yaml_path=None)` in `haqdaar/data/pipeline/p1_scrape.py` computing `roster_size`, `quarantined_count`, `quarantined_slugs`, and `kept_count` against `schemes.yaml` (roster size 30).
+  - Integrated into `p2_derive.py` (`derive.json`), `p3_cards.py` (`cards.json`), `p4_translate.py` (`translate.json`), and `p5_gates.py` (`gates.json`). All additive keys preserve existing keys without breaking readers.
+  - Reconciled reports on disk in `data_cache/reports/`: 30 roster - 3 quarantined ('ab-pmjay', 'pm-sym', 'pmsby') == 27 kept.
+  - Added reconciliation unit tests in `tests/test_pipeline_reports.py`.
+- `print_cost` blind spot (`haqdaar/data/pipeline/run_all.py`):
+  - Added `MUSE_LEDGER = REPORTS_DIR / "muse_usage.jsonl"` and integrated Muse accounting into `print_cost()` displaying requests, prompt/completion tokens, spend against `tunables.MUSE_CAP_INR` (₹60), and per-task breakdown.
+  - Resolved dynamic parameter lookup to preserve `monkeypatch` behavior in `tests/test_run_all.py`.
+  - Added test in `tests/test_pipeline_reports.py` verifying `print_cost` with fake ledgers.
+- `_run_snapshot` rename and docstring fix (`run_all.py`):
+  - Renamed `_run_snapshot()` to `_count_texts()` with docstring accurately stating: "Count texts the call can say and report missing audio clips."
+  - Updated step in `_steps()` to `Step("p6 texts", ...)`. Preserved `_run_snapshot = _count_texts` alias for backward compatibility.
+- Stale words:
+  - Updated `tests/test_real_snapshot.py:1` from "real 12 schemes" to "real 11 schemes".
+  - Verified `p2_derive.py` "Reads 12 files" was already resolved.
+- `.gitignore` confusion:
+  - Replaced ambiguous `.agent/` rule with explicit `.agent/` followed by `!.agent/NOTES.md` and documentation comment. Verified `git status` tracks `NOTES.md` while keeping `TASK.md` ignored.
+- Twilio boundary test:
+  - Added `test_twilio_imports_confined_to_telephony_boundary()` in `tests/test_scrape.py` using AST walk over all `haqdaar/**/*.py` files to enforce that `twilio` module imports live strictly within `haqdaar/audio/telephony/`.
+- Verification: pytest 441 passed, make stress (0 crashes, 0 truth failures), make model-bakeoff (30/30 offline), make door-a-check (79/81, 97.53%), make render (456 texts, 0 missing), make sim (completed cleanly). Muse spend delta Rs0.00.
+
+
+
+
+## Merge: step-audit-rest -> audit-fixes (c2c961d, pushed)
+- Review: spawned step-e-reviewer child; verdict HOLD on 1 item (types.py comment "50" vs 49-tuple after drop_category removal). Verified the rest inline: blessed schemes.jsonl untouched (only reports/gates.json +9/-1 additive keys), lines.yaml only drops drop_category (explains render 459->456 texts, 0 missing), Widen shape + planner/terminal signatures frozen, no paid API in tests (fake keys only).
+- Reviewer fixup 09840c3 (comment 50->49), pytest 441 green, merge --no-ff, pushed a84eebe..c2c961d (needed require_escalated: sandbox blocks SSH).
+- E confirmed complete: STT #8 IMPLEMENTED (shared deadline, 2 tests), not merely documented. Muse spend delta Rs0.00.
+- Audit leftovers: (a) audit-fixes->main merge (needs owner word); (b) owner-blocked: Groq key + live bake-off, OWNER-END-TODO physical tests; (c) accepted parks: mouth _cleared, HANGUP_WAIT linger, p6 chunk keys, --all-schemes hatch, demo-15sep, plan staleness, dead-branch deletion (~30, needs explicit ask); (d) schemes.jsonl re-bless + re-render needs owner (user-facing text + Sarvam spend).

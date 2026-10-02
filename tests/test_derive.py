@@ -595,3 +595,46 @@ def test_level_other_than_central_or_maharashtra_quarantines_scheme(tmp_path: Pa
     assert len(report["quarantined"]) == 1
     assert report["quarantined"][0]["slug"] == "gujarat-scheme"
     assert "level GUJARAT not served" in report["quarantined"][0]["reason"]
+
+
+def test_derive_skips_scrape_quarantined_raw_files(tmp_path: Path, monkeypatch):
+    """AUDIT #2: p2 must not derive a raw file whose slug was quarantined at scrape —
+    the file may be stale cache from before the quarantine (ab-pmjay)."""
+    monkeypatch.setattr(tunables, "MIN_SCHEMES", 0)
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir(parents=True)
+    reports_dir = tmp_path / "reports"
+    reports_dir.mkdir(parents=True)
+    raw_scheme = {
+        "myscheme_slug": "stale-scheme",
+        "source_url": "https://www.myscheme.gov.in/schemes/stale-scheme",
+        "fetched_on": "2026-09-12",
+        "benefits": "Benefits text.",
+        "eligibility": "Eligibility text.",
+        "exclusions": "Exclusions text.",
+        "documents": "Documents text.",
+        "apply": "Apply text.",
+        "source_sha256": "fake_sha_for_test",
+    }
+    (raw_dir / "stale-scheme.json").write_text(json.dumps(raw_scheme))
+    (raw_dir / "stale-scheme.html").write_text("<html><title>Stale</title></html>")
+    (reports_dir / "scrape.json").write_text(json.dumps({
+        "stage": "scrape",
+        "kept": [],
+        "quarantined": [{"slug": "stale-scheme", "reason": "Page not found. Writing nothing."}],
+    }))
+
+    client = MagicMock()
+    client.call.side_effect = AssertionError("must not derive a scrape-quarantined slug")
+
+    results = run_pipeline_extract(
+        raw_dir=raw_dir,
+        extract_cache_dir=tmp_path / "extract",
+        derived_dir=tmp_path / "derived",
+        reports_dir=reports_dir,
+        client=client,
+    )
+
+    assert results == []
+    assert not (tmp_path / "derived" / "stale-scheme.json").exists()
+    client.call.assert_not_called()

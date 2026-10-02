@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from haqdaar.contracts import tunables, vocab
+from haqdaar.data.pipeline.p1_scrape import compute_roster_accounting
 from haqdaar.data.pipeline.p2_derive import (
     BASE_DIR,
     DERIVED_DIR,
@@ -361,9 +362,16 @@ def run_cards(
 
     reports_dir.mkdir(parents=True, exist_ok=True)
     ok_count = sum(1 for row in rows if row["ok"])
+    slugs = [r.get("myscheme_slug") or r.get("scheme_id", "") for r in rows]
+    accounting = compute_roster_accounting(slugs)
     with open(reports_dir / "cards.json", "w", encoding="utf-8") as f:
         json.dump(
-            {"schemes": len(rows), "ok": ok_count, "failures": failures},
+            {
+                "schemes": len(rows),
+                "ok": ok_count,
+                "failures": failures,
+                **accounting,
+            },
             f,
             indent=2,
             ensure_ascii=False,

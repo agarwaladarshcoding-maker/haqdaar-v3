@@ -13,6 +13,7 @@ Hard rules:
 """
 from __future__ import annotations
 
+import time
 from typing import Any, Mapping, Optional
 
 from haqdaar.contracts import tunables
@@ -42,6 +43,7 @@ from haqdaar.contracts.types import (
     WIDENING_ORDER,
 )
 from haqdaar.data.log import Log
+from haqdaar.engine.door_a import DoorA, unmatched_content
 from haqdaar.engine.filter import Filter
 from haqdaar.engine.planner import Planner
 from haqdaar.engine.terminals import (
@@ -59,17 +61,57 @@ from haqdaar.engine.terminals import (
     scheme_summary_chunk,
 )
 
-# Step 1.8: bounded replay for an unmapped read-back key (5-8), so a stuck key can
-# never loop forever. This is a small tunable that would normally live in
-# contracts/tunables.py alongside OVERFLOW_READ_CAP; it lives here because this
-# step's file list does not include tunables.py (see the step report).
-READBACK_REPLAY_MAX: int = 2
-
-
 def _next_lang(curr_lang: str) -> str:
     """Rotate hi -> mr -> en -> hi (D13's `*` cycle). Shared by the question phase
     and the read-back menu so both keypads use the same rotation."""
     return "mr" if curr_lang == "hi" else ("en" if curr_lang == "mr" else "hi")
+
+
+def _door_a_read(audio: Any, log: Log, slug: str, transcript: str, span: str,
+                 turn_n: int, candidate_count: int, t0: float) -> None:
+    """Door A read-back (T12/ARCH §6): name + summary, exempt from echo-confirm.
+
+    Token pattern mirrors Terminals.direct_match (name mark, name chunk, summary
+    chunk, end mark). t_name/t_end are monotonic-clock proxies for the provider
+    marks (utterance end → first word of name / last word of summary); the bar
+    is judged on t_name. The scheme lives in this LOG record only — never in
+    box_vector, whose keys all enter the filter table (T12: the pseudo-box
+    never enters the filter table, never gets a mask).
+    """
+    if hasattr(audio, "on_mark"):
+        audio.on_mark(f"door_a_name:{slug}")
+    t_name = time.monotonic() - t0
+    audio.say((mark_name(slug), scheme_name_chunk(slug), scheme_summary_chunk(slug),
+               mark_end(slug)))
+    t_end = time.monotonic() - t0
+    log.write(TurnLogRecord(
+        turn_n=turn_n,
+        turn_class="ANSWER",
+        box="scheme",
+        value=slug,
+        transcript=transcript,
+        span=span,
+        t_name=t_name,
+        t_end=t_end,
+        candidate_count=candidate_count,
+    ))
+
+
+def _door_a_pick(audio: Any, s1: str, s2: str) -> str | None:
+    """Door A 2-candidate keypad turn (T12): name both, press 1/2/3.
+
+    Returns "1"/"2" (picked), "hangup", or None (0/3/anything else declines).
+    One turn, no repeats.
+    """
+    audio.say(("door_a_option_1", scheme_name_chunk(s1),
+               "door_a_option_2", scheme_name_chunk(s2),
+               "door_a_option_none"))
+    pick = audio.next_input(profile="normal")
+    if isinstance(pick, Hangup):
+        return "hangup"
+    if isinstance(pick, Digit) and pick.digit in ("1", "2"):
+        return pick.digit
+    return None
 
 
 class Engine:
@@ -157,6 +199,10 @@ class Engine:
         turn_n = 0
         question_count = 0
         silence_ladder = 0
+        # T11 box strikes: counts non-ANSWER turns per box towards keypad drop.
+        # Interleaved SILENCE turns do not reset this counter; keeping strikes
+        # cumulative per box ensures callers who alternate between silence and
+        # unclear speech reliably receive keypad fallback.
         box_strikes: dict[str, int] = {b: 0 for b in SEVEN_BOXES}
         ladder_rung = 0
         stop_reason: Optional[str] = None
@@ -165,6 +211,10 @@ class Engine:
         # the questioning loop. Turn and question budgets are call-wide, so a
         # second subject spends what is left, never a fresh allowance.
         door_b_used = False
+        # Door A: a read-back satisfies the opener (the caller stated their
+        # need by naming a scheme), so the opener is not re-asked. Reset on
+        # Door B re-entry, when a new subject re-opens Door A.
+        door_a_done = False
         while True:
             stop_reason = None
             # Door A (Architecture §6, box 0): `category` is the opener, not a
@@ -187,6 +237,7 @@ class Engine:
                     box_vector.get("category") in (None, UNASKED)
                     and bool(opener_vals)
                     and (mode == "voice" or len(opener_vals) <= tunables.KEYPAD_CARDINALITY_MAX)
+                    and not door_a_done
                 )
                 if opener_open:
                     action = Ask("category")
@@ -450,16 +501,106 @@ class Engine:
                     proposed_span = ""
 
                     if box == "category":
-                        res = model.opener(transcript, lang=curr_lang)
-                        if isinstance(res, list) and res:
-                            for s in res:
-                                if s.box == "category":
-                                    proposed_val = s.value
-                                    proposed_span = s.span
-                                    break
-                            if proposed_val is None and res:
-                                proposed_val = res[0].value
-                                proposed_span = res[0].span
+                        # Door A (T12/ARCH §6): exact code match before the model.
+                        # Unavailable in keypad-only mode (this is the voice branch).
+                        door = DoorA.from_corpus(corpus)
+                        door_t0 = time.monotonic()
+                        dres = door.match(transcript, lang=curr_lang)
+                        door_a_read = False
+                        model_failed = False
+                        if dres.action == "read":
+                            _door_a_read(audio, log, dres.scheme_ids[0], transcript,
+                                         dres.matched_alias or transcript, turn_n, 1, door_t0)
+                            turn_n += 1  # T10: opener costs 2 turns when it fills anything
+                            door_a_done = True
+                            door_a_read = True
+                            if unmatched_content(transcript, dres.matched_alias):
+                                res = model.opener(transcript, lang=curr_lang)
+                                if isinstance(res, list):
+                                    seeds = [s for s in res if s.box != "scheme"]
+                                else:
+                                    model_failed = True
+                                    seeds = []
+                            else:
+                                seeds = []  # clean naming: zero model calls (T12)
+                        elif dres.action == "keypad_pick":
+                            s1, s2 = dres.scheme_ids[0], dres.scheme_ids[1]
+                            outcome = _door_a_pick(audio, s1, s2)
+                            turn_n += 1
+                            question_count += 1  # T12: the pick costs 1 turn against the six
+                            if outcome == "hangup":
+                                audio.hangup()
+                                return
+                            if outcome in ("1", "2"):
+                                slug = s1 if outcome == "1" else s2
+                                _door_a_read(audio, log, slug, transcript,
+                                             dres.matched_alias or transcript, turn_n, 2,
+                                             time.monotonic())
+                                turn_n += 1
+                                door_a_done = True
+                                door_a_read = True
+                                seeds = []
+                            else:
+                                # Declined: Door B, one keypad turn, no repeats
+                                audio.say(("door_a_downgrade_to_b",))
+                                res = model.opener(transcript, lang=curr_lang)
+                                seeds = [s for s in res if s.box != "scheme"] if isinstance(res, list) else []
+                        else:  # downgrade_to_b
+                            downgrade_line_said = False
+                            if dres.scheme_ids:
+                                audio.say(("door_a_downgrade_to_b",))
+                                downgrade_line_said = True
+                            # else: 0 matches go to Door B silently (ARCH §6 diagram)
+                            # T12 search #2: model selection from the alias closed
+                            # set. The code pass found nothing; the model may
+                            # still hear a scheme name (mis-hearings live here).
+                            res = model.opener(transcript, lang=curr_lang)
+                            model_ids: list[str] = []
+                            if isinstance(res, list):
+                                for s in res:
+                                    if (s.box == "scheme" and s.value not in model_ids
+                                            and door.has_scheme(s.value)):
+                                        model_ids.append(s.value)
+                                seeds = [s for s in res if s.box != "scheme"]
+                            else:
+                                seeds = []
+                            if len(model_ids) == 1:
+                                span = next(s.span for s in res if s.box == "scheme")
+                                _door_a_read(audio, log, model_ids[0], transcript,
+                                             span, turn_n, 1, door_t0)
+                                turn_n += 1
+                                door_a_done = True
+                                door_a_read = True
+                            elif len(model_ids) == 2:
+                                outcome = _door_a_pick(audio, model_ids[0], model_ids[1])
+                                turn_n += 1
+                                question_count += 1
+                                if outcome == "hangup":
+                                    audio.hangup()
+                                    return
+                                if outcome in ("1", "2"):
+                                    slug = model_ids[0] if outcome == "1" else model_ids[1]
+                                    _door_a_read(audio, log, slug, transcript,
+                                                 transcript, turn_n, 2, time.monotonic())
+                                    turn_n += 1
+                                    door_a_done = True
+                                    door_a_read = True
+                                elif not downgrade_line_said:
+                                    audio.say(("door_a_downgrade_to_b",))
+                            elif len(model_ids) >= 3 and not downgrade_line_said:
+                                audio.say(("door_a_downgrade_to_b",))
+                        # Scheme stamps never become box values (the old res[0]
+                        # fallback could stamp a scheme id as the category value).
+                        for s in seeds:
+                            if s.box == "category":
+                                proposed_val = s.value
+                                proposed_span = s.span
+                                break
+                        if not proposed_val and door_a_read and not model_failed:
+                            # Named scheme already read and nothing to confirm:
+                            # planner asks on. (A failed model pass still falls
+                            # through so failure accounting runs.)
+                            continue
                     else:
                         res = model.turn(transcript, box=box, ask_count=box_strikes[box])
                         if hasattr(res, "box") and hasattr(res, "value") and res.value:
@@ -512,18 +653,26 @@ class Engine:
                     )
                     audio.say(confirm_seq)
 
-                    # Confirmation loop
-                    confirm_turns = 0
+                    # Confirmation loop: bounded against repeat-mashing via confirm_repeats
+                    # without consuming cap turns (# and SILENCE do not consume turns per T14/T16)
+                    confirm_repeats = 0
                     while True:
                         confirm_inp = audio.next_input(profile="confirm")
                         if isinstance(confirm_inp, Digit):
                             silence_ladder = 0
                             if confirm_inp.digit == "#":
                                 audio.repeat()
-                                confirm_turns += 1
-                                if (turn_n + confirm_turns) >= tunables.MAX_TURNS:
-                                    turn_n += confirm_turns
-                                    stop_reason = STOP_MAX_TURNS
+                                confirm_repeats += 1
+                                if confirm_repeats >= tunables.CONFIRM_REPEAT_MAX:
+                                    turn_n += 1
+                                    box_strikes[box] += 1
+                                    log.write(TurnLogRecord(
+                                        turn_n=turn_n,
+                                        turn_class="UNCLEAR",
+                                        transcript="#",
+                                    ))
+                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                        audio.say(("unclear_prompt",))
                                     break
                                 continue
                             elif confirm_inp.digit == "*":
@@ -534,22 +683,29 @@ class Engine:
                                 log.write(LangSwitchRecord(
                                     lang=new_lang,
                                     lang_source="keypad",
-                                    turn_n=turn_n + confirm_turns,
+                                    turn_n=turn_n,
                                 ))
                                 audio.say((
                                     "bundle_confirm_intro",
                                     f"chip_{box}_{proposed_val}",
                                     "confirm_yn_suffix",
                                 ))
-                                confirm_turns += 1
-                                if (turn_n + confirm_turns) >= tunables.MAX_TURNS:
-                                    turn_n += confirm_turns
-                                    stop_reason = STOP_MAX_TURNS
+                                confirm_repeats += 1
+                                if confirm_repeats >= tunables.CONFIRM_REPEAT_MAX:
+                                    turn_n += 1
+                                    box_strikes[box] += 1
+                                    log.write(TurnLogRecord(
+                                        turn_n=turn_n,
+                                        turn_class="UNCLEAR",
+                                        transcript="*",
+                                    ))
+                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                        audio.say(("unclear_prompt",))
                                     break
                                 continue
                             elif confirm_inp.digit == "1":
                                 # CONFIRM ACCEPT: caller confirmed!
-                                turn_n += 1 + confirm_turns
+                                turn_n += 1
                                 box_vector[box] = proposed_val
                                 box_strikes[box] = 0
                                 question_count += 1
@@ -564,7 +720,7 @@ class Engine:
                                 break
                             elif confirm_inp.digit == "2":
                                 # CONFIRM MISMATCH / RE-ASK: caller rejected!
-                                turn_n += 1 + confirm_turns
+                                turn_n += 1
                                 box_strikes[box] += 1
                                 log.write(TurnLogRecord(
                                     turn_n=turn_n,
@@ -576,7 +732,7 @@ class Engine:
                                 break
                             else:
                                 # Out-of-menu digit on confirm
-                                turn_n += 1 + confirm_turns
+                                turn_n += 1
                                 box_strikes[box] += 1
                                 log.write(TurnLogRecord(
                                     turn_n=turn_n,
@@ -591,24 +747,38 @@ class Engine:
                             rung = confirm_inp.n if (hasattr(confirm_inp, "n") and confirm_inp.n) else (silence_ladder + 1)
                             silence_ladder = rung
                             log.write(TurnLogRecord(
-                                turn_n=turn_n + confirm_turns,
+                                turn_n=turn_n,
                                 turn_class="SILENCE",
                                 silence_n=rung,
                             ))
                             if rung == 1:
                                 audio.repeat()
-                                confirm_turns += 1
-                                if (turn_n + confirm_turns) >= tunables.MAX_TURNS:
-                                    turn_n += confirm_turns
-                                    stop_reason = STOP_MAX_TURNS
+                                confirm_repeats += 1
+                                if confirm_repeats >= tunables.CONFIRM_REPEAT_MAX:
+                                    turn_n += 1
+                                    box_strikes[box] += 1
+                                    log.write(TurnLogRecord(
+                                        turn_n=turn_n,
+                                        turn_class="UNCLEAR",
+                                        transcript="silence_limit",
+                                    ))
+                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                        audio.say(("unclear_prompt",))
                                     break
                                 continue
                             elif rung == 2:
                                 audio.say(("silence_presence",))
-                                confirm_turns += 1
-                                if (turn_n + confirm_turns) >= tunables.MAX_TURNS:
-                                    turn_n += confirm_turns
-                                    stop_reason = STOP_MAX_TURNS
+                                confirm_repeats += 1
+                                if confirm_repeats >= tunables.CONFIRM_REPEAT_MAX:
+                                    turn_n += 1
+                                    box_strikes[box] += 1
+                                    log.write(TurnLogRecord(
+                                        turn_n=turn_n,
+                                        turn_class="UNCLEAR",
+                                        transcript="silence_limit",
+                                    ))
+                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                        audio.say(("unclear_prompt",))
                                     break
                                 continue
                             else:
@@ -625,7 +795,7 @@ class Engine:
                                 return
 
                         elif isinstance(confirm_inp, Noise):
-                            turn_n += 1 + confirm_turns
+                            turn_n += 1
                             box_strikes[box] += 1
                             log.write(TurnLogRecord(
                                 turn_n=turn_n,
@@ -646,8 +816,13 @@ class Engine:
                         elif isinstance(confirm_inp, Speech):
                             silence_ladder = 0
                             spk = str(getattr(confirm_inp, "text", "") or "").strip().lower()
-                            if spk in ("1", "yes", "haan", "ha", "ho", "sahi", "right", "correct"):
-                                turn_n += 1 + confirm_turns
+                            if model is not None and hasattr(model, "confirm"):
+                                is_confirmed = model.confirm(spk, lang=getattr(audio, "language", None))
+                            else:
+                                is_confirmed = None
+
+                            if is_confirmed is True:
+                                turn_n += 1
                                 box_vector[box] = proposed_val
                                 box_strikes[box] = 0
                                 question_count += 1
@@ -660,8 +835,8 @@ class Engine:
                                     span=spk,
                                 ))
                                 break
-                            elif spk in ("2", "no", "nahi", "na", "wrong", "fix", "chuki"):
-                                turn_n += 1 + confirm_turns
+                            elif is_confirmed is False:
+                                turn_n += 1
                                 box_strikes[box] += 1
                                 log.write(TurnLogRecord(
                                     turn_n=turn_n,
@@ -672,7 +847,7 @@ class Engine:
                                     audio.say(("unclear_prompt",))
                                 break
                             else:
-                                turn_n += 1 + confirm_turns
+                                turn_n += 1
                                 box_strikes[box] += 1
                                 log.write(TurnLogRecord(
                                     turn_n=turn_n,
@@ -726,7 +901,7 @@ class Engine:
                     b for b in WIDENING_ORDER
                     if box_vector.get(b) not in (None, UNASKED, UNKNOWN)
                 ]
-                ladder_rung = len(answered_soft) if answered_soft else len(WIDENING_ORDER)
+                ladder_rung = len(answered_soft)
             else:
                 ladder_rung = 0
 
@@ -822,6 +997,7 @@ class Engine:
                 box_vector["category"] = UNASKED
                 box_strikes["category"] = 0
                 # The next round re-opens Door A: the caller states a new subject.
+                door_a_done = False
                 continue
             break
 
@@ -959,7 +1135,7 @@ class Engine:
             # key can never loop forever. After READBACK_REPLAY_MAX replays in a
             # row on the same scheme, treat the next one as 9.
             replays += 1
-            if replays > READBACK_REPLAY_MAX:
+            if replays > tunables.READBACK_REPLAY_MAX:
                 replays = 0
                 ix += 1
                 heard = set()

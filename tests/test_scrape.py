@@ -246,3 +246,62 @@ def test_pipeline_not_imported_by_runtime():
         and not hasattr(haqdaar.engine.planner, "scrape_scheme")
         and not hasattr(haqdaar.engine.terminals, "scrape_scheme")
     )
+
+
+def test_scrape_all_slugs_quarantine_deletes_stale_raw_files(tmp_path: Path):
+    """AUDIT #2: a quarantine must leave no raw file — p2 globs raw/ and would
+    otherwise re-derive the stale cache of a quarantined slug (ab-pmjay, Sep-12)."""
+    cache_dir = tmp_path / "raw"
+    cache_dir.mkdir(parents=True)
+    # Stale cache from an earlier successful run.
+    (cache_dir / "scheme-b.json").write_text(json.dumps({"myscheme_slug": "scheme-b"}))
+    (cache_dir / "scheme-b.html").write_text("<html>stale</html>")
+    page = _fake_page(bad_slugs={"scheme-b"})
+
+    results, quarantined = scrape_all_slugs(
+        ["scheme-a", "scheme-b", "scheme-c"], page, cache_dir=cache_dir, polite_delay=0
+    )
+
+    assert [q["slug"] for q in quarantined] == ["scheme-b"]
+    assert not (cache_dir / "scheme-b.json").exists()
+    assert not (cache_dir / "scheme-b.html").exists()
+    assert (cache_dir / "scheme-a.json").exists()
+    assert (cache_dir / "scheme-c.json").exists()
+
+
+def test_twilio_imports_confined_to_telephony_boundary():
+    """TEST-PLAN §3: Twilio imports must live ONLY under haqdaar/audio/telephony/."""
+    import ast
+
+    repo_root = Path(__file__).resolve().parent.parent
+    pkg_root = repo_root / "haqdaar"
+    telephony_dir = pkg_root / "audio" / "telephony"
+
+    violations: list[str] = []
+    for py_file in pkg_root.rglob("*.py"):
+        if telephony_dir in py_file.parents or py_file.parent == telephony_dir:
+            continue
+
+        try:
+            tree = ast.parse(py_file.read_text(encoding="utf-8"), filename=str(py_file))
+        except Exception:
+            continue
+
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if "twilio" in alias.name:
+                        violations.append(
+                            f"{py_file.relative_to(repo_root)}:{node.lineno} imports '{alias.name}'"
+                        )
+            elif isinstance(node, ast.ImportFrom):
+                mod = node.module or ""
+                if "twilio" in mod:
+                    violations.append(
+                        f"{py_file.relative_to(repo_root)}:{node.lineno} imports from '{mod}'"
+                    )
+
+    assert not violations, "Twilio imported outside audio/telephony boundary:\n" + "\n".join(
+        violations
+    )
+

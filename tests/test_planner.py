@@ -476,3 +476,50 @@ def test_widen_asks_unasked_hard_box_before_widening(corpus):
     act = next_action(bv, corpus)
     assert isinstance(act, Ask)
     assert act.box in HARD_BOXES
+
+
+def test_widen_ladder_agreement_with_terminals_on_unspeakable_raw_survivors(corpus):
+    """#9: Planner and Terminals agree on widening ladder rungs.
+    When a soft box drop recovers raw survivors that cannot be spoken (e.g. hard box
+    is UNKNOWN and scheme is non-ANY on it), Planner skips that rung rather than
+    emitting Widen, agreeing with Terminals.classify_shape.
+    """
+    from haqdaar.engine.terminals import Terminals, DELIVERY_EMPTY
+
+    bv = {
+        "category": "business_loans",
+        "state": UNKNOWN,
+        "gender": "female",
+        "social_category": "SC",
+        "age": "35-35",
+        "income_band": "30000-30000",
+    }
+    # Raw survivors: 0
+    assert len(Filter.survivors(bv, corpus)) == 0
+    # Dropping income_band yields S5 as raw survivor:
+    dropped_vec = {
+        "category": "business_loans",
+        "state": UNKNOWN,
+        "gender": "female",
+        "social_category": "SC",
+        "age": "35-35",
+    }
+    assert len(Filter.survivors(dropped_vec, corpus)) == 1
+    # But S5 is non-ANY on state (requires MAHARASHTRA), so with state=UNKNOWN it is unspeakable:
+    assert Filter.speakable(4, dropped_vec, corpus) is False
+
+    # Planner must NOT emit Widen for income_band since it cannot be spoken
+    act = next_action(bv, corpus)
+    assert isinstance(act, Stop)
+    assert act.reason == STOP_ZERO_SURVIVORS
+
+    from haqdaar.engine.terminals import Terminals, DELIVERY_NEAREST
+
+    # Terminals.classify_shape agrees: ladder produced no speakable matches, goes to nearest
+    shape, resolved, drops = Terminals.classify_shape(
+        box_vector=bv,
+        corpus=corpus,
+    )
+    assert shape == DELIVERY_NEAREST
+    assert drops == []
+

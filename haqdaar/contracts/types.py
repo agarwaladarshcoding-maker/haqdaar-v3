@@ -3,7 +3,7 @@
 UNOWNED. Shared types, markers, and interfaces matching 04-INTERFACES.md.
 """
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
 from typing import Literal, Union
 
@@ -51,7 +51,7 @@ SCHEME_CHUNKS: tuple[str, ...] = (
     "how_to_apply",
 )
 
-# 46 fixed line IDs (05-DATA-CONTRACT.md §4)
+# 49 fixed line IDs (05-DATA-CONTRACT.md §4)
 FIXED_LINE_IDS: tuple[str, ...] = (
     "greeting_trilingual",
     "consent_notice",
@@ -98,7 +98,6 @@ FIXED_LINE_IDS: tuple[str, ...] = (
     "drop_income_band",
     "drop_age",
     "drop_occupation",
-    "drop_category",
     "results_widened_lead",
     "terminal_nearest_preamble",
     "terminal_empty",
@@ -168,6 +167,16 @@ class Answer:
     box: BoxId
     value: ValueCode
     span: str
+
+
+@dataclass
+class SchemeEntry:
+    """Scheme entry indexed for Door A matching (shared by engine + data loader)."""
+    slug: str
+    priority: int = 2
+    names: dict[str, str] = field(default_factory=dict)
+    aliases: list[str] = field(default_factory=list)
+    distinctive_tokens: set[str] = field(default_factory=set)
 
 
 @dataclass(frozen=True)
