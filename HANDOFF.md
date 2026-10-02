@@ -122,9 +122,12 @@ Phase 3 + Phase 4 code is DONE and merged (steps A–D). What remains:
 - Keys: Groq key needs `llama-3.3-70b-versatile` (or new model name), then live bake-off rerun.
 - Tags: `v1-keypad`, then `v1-voice`.
 
-**Next big thing (proposed 3 Oct, waiting for the owner's go):** the dashboard. A site on Vercel
-that is the front door: call button, call logs, schemes, API use, plan, settings. Read
-`PLAN-DASHBOARD.md`. Nothing is built; step D0 starts with the owner's answers to its §8.
+**In progress (3 Oct): the dashboard.** The front door in the browser: `make dashboard`, then
+http://127.0.0.1:3210. It runs on this computer only; hosting is dropped for now (owner).
+Read `PLAN-DASHBOARD.md`: build order §8, the look §13, data shapes §14.
+- Built: the left bar and the Home page (step D1), on branch `step-6.1-dashboard-home`.
+- Next: D2, the Calls page.
+- The site is `dashboard/` (Next.js). Its data comes from `tools/dashboard_api.py`.
 
 ## 5 · Rules that caught real bugs (keep them)
 

@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls calls-ui sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock
+.PHONY: run call calls calls-ui dashboard sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock
 
 test:
 	$(PYTHON) -m pytest
@@ -26,6 +26,12 @@ calls:
 # The call page: each call as a back and forth with timings. This computer only (port 8001).
 calls-ui:
 	$(PYTHON) -m tools.call_viewer $(ARGS)
+
+# The dashboard: the control room in the browser (http://127.0.0.1:3210). This computer only.
+# Starts the data door (port 8001, reads files) and the site (port 3210). Ctrl+C stops both.
+dashboard:
+	@test -d dashboard/node_modules || (cd dashboard && npm install)
+	@$(PYTHON) -m tools.dashboard_api & DOOR=$$!; trap "kill $$DOOR 2>/dev/null" EXIT INT TERM; cd dashboard && npm run dev
 
 # Backup: ring your phone (CALL_ME_NUMBER in .env, or TO=+91...). Needs make run.
 # Uses the live tunnel; HOST=<address> to aim at another server.

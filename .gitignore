@@ -22,3 +22,8 @@ brain/.obsidian/workspace*.json
 !fixtures/audio/
 voice_demo_clips/
 .claude/settings.local.json
+
+# dashboard (Next.js)
+dashboard/.next/
+dashboard/next-env.d.ts
+dashboard/tsconfig.tsbuildinfo

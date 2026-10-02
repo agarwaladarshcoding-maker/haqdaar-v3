@@ -99,6 +99,42 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+### 3 Oct (late night) — The dashboard: left bar and Home page built. Hosting dropped for now.
+Branch `step-6.1-dashboard-home`. Not merged, not pushed.
+- **Changed — the plan.** Owner's word: no hosting for now. The dashboard runs on this
+  computer. `PLAN-DASHBOARD.md` keeps the hosting parts as "parked", and now also holds the
+  look (§13) and the data shapes (§14).
+- **Added — the dashboard.** `make dashboard`, then open http://127.0.0.1:3210.
+  - **The left bar** has every page: Home, Live call, Calls, Schemes, Voice lines, Usage and
+    money, Quality, Plan and architecture, System, Settings. Only Home is built. Each of the
+    others shows its step number and says what it will show.
+  - **Home** shows, on real data:
+    - the yellow plate: is the engine on, the Call my phone button, schemes live on calls,
+      the snapshot, and what the keys mean on a call;
+    - the last 24 hours: calls, passed the judge, average length, slowest AI reply;
+    - **Needs a look**, worst first. Tonight it lists: Twilio refused the login, Groq cannot
+      run the engine's model, the engine is off, Muse is blocked for today, 16 checked
+      schemes have no voice, 21 audit verdicts are waiting, 3 schemes are set aside, no real
+      phone call yet;
+    - schemes: 11 live, 16 with no voice, 3 set aside;
+    - money: Muse in rupees against its two caps, the other services in units;
+    - the last 5 calls, each drawn as a "call tape": a bar when the AI spoke, a tick when
+      the caller did something.
+  - It refreshes by itself every 5 seconds.
+- **Added — the data door.** `tools/dashboard_api.py` (port 8001). It only reads files. The
+  old call page and its routes are still served from it.
+- **The look.** From the yellow PCO booth sign: a yellow plate with black and red letters,
+  indigo ink, cool grey behind. Light and dark. Works on a narrow screen.
+- **Know this:**
+  - The Call my phone button does not place a call yet. That is step D3. Tonight it is off
+    anyway, because the engine is off.
+  - The site is on port 3210, not 3000: another app of yours already uses 3000.
+  - `dashboard/` needs Node. `make dashboard` installs what it needs the first time.
+  - A call still opens in the first call page (port 8001) until the Calls page is built (D2).
+- **Checks:** pytest 496 (was 491) · `make stress` 1,000 callers, 0 crashes, 0 truth failures ·
+  the site builds clean · looked at in a browser: light, dark, narrow · vault in sync · no
+  paid API was called.
+
 ### 3 Oct (night) — Dashboard plan, round 2: can the engine be hosted? Not yet, but close.
 - **Changed — `PLAN-DASHBOARD.md`.** The engine now gets hosted too (Fly.io, Mumbai), so the
   site is live all day and the laptop can be shut. The Schemes page gets a real table and an

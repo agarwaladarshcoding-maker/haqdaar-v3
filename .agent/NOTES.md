@@ -2304,3 +2304,26 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   (tunables.py:164); a data-centre IP may be refused by myscheme: test in step S1.
 - Once schemes are added from the site, the server disk is the truth and git is behind:
   plan has a nightly + pre-publish backup.
+
+## Dashboard step D1: left bar + Home (3 Oct 2026 late night)
+- Owner dropped hosting for now. Dashboard is local: `make dashboard` -> data door on 8001
+  (tools/dashboard_api.py) + site on 3210 (dashboard/, Next.js 16.3.8, React 19.3, plain CSS,
+  no UI kit). Port 3000 is taken by another app of the owner's (node pid seen); do NOT kill it.
+- `next dev` writes dashboard/AGENTS.md + CLAUDE.md by itself ("this is NOT the Next.js you
+  know": read node_modules/next/dist/docs before writing Next code). Committed as it asks.
+- Next 16 facts used: page `params` is a Promise; `devIndicators: false` in next.config.mjs
+  (the dev badge sat on the engine lamp); next/font/google with `axes: ["wdth"]` for Anek.
+- Design (PLAN-DASHBOARD §13): PCO booth sign. Yellow #FFC400 plate is the one loud thing;
+  indigo ink #101B33; booth-glass ground #E9EDF1; red #C8102E; blue #2346D8. Fonts: Anek
+  Latin + Anek Devanagari (display), Mukta (body), Martian Mono (data). Light + dark tokens
+  in dashboard/app/globals.css; nothing below the tokens uses a raw colour.
+- Pages list lives in dashboard/app/lib/nav.ts (slug, step, what it will show). Unbuilt pages
+  render through dashboard/app/[section]/page.tsx. To build a page: add app/<slug>/page.tsx
+  and set `built: true`.
+- /api/home shape: PLAN-DASHBOARD §14. "Needs a look" reads real signs: last `tunnel` line of
+  logs/server.log, last 3 `model*` rows of groq_usage.jsonl, Muse guard, calls, gates.json,
+  audit_3_7.md PENDING count.
+- Headless Chrome light mode: `--blink-settings=preferredColorScheme=1` (the Mac is in dark).
+- The Call my phone button is NOT wired (D3). It is disabled while the engine is off and
+  links to /live when on.
+- Checks: pytest 496, stress 0/0, `npm run build` clean.

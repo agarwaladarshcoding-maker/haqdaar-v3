@@ -1,7 +1,12 @@
-# PLAN-DASHBOARD — the dashboard as the front door (3 Oct 2026, round 2)
+# PLAN-DASHBOARD — the dashboard as the front door (3 Oct 2026, round 3)
 
-Status: **a proposal, waiting for the owner's go.** Nothing here is built yet.
+Status: **being built.** The left bar and the Home page are done (step D1, 3 Oct).
 Written in plain words on purpose. Read `HANDOFF.md` first if you are new.
+
+**Round 3 (owner, 3 Oct): hosting is dropped for now.** The dashboard runs on this computer:
+`make dashboard`, then http://127.0.0.1:3210. No Fly.io, no Vercel yet. §2 and §3 are parked
+and kept for the day hosting comes back. The build order is §8, the look is §13, the data
+shapes are §14.
 
 Round 2 changes: the engine gets hosted too (§2), an honest list of what it lacks before that
 (§3), the Schemes page gets a real table and an "add a scheme" flow (§5), and the build order
@@ -21,7 +26,7 @@ The phone line cannot take calls from the public yet (trial account, one verifie
 Indian number). So the dashboard is built around **calls we start ourselves**: "call my phone"
 and a free typed test call. When the line opens later, incoming calls show up in the same list.
 
-## 2 · Two parts, both hosted
+## 2 · PARKED · Two parts, both hosted
 
 ```
  your browser
@@ -48,7 +53,7 @@ and a free typed test call. When the line opens later, incoming calls show up in
 - **Caller words** then sit on the server's own disk in Mumbai, behind the token. They are not
   copied anywhere else.
 
-## 3 · Is the engine ready to be hosted today? Not yet. Close.
+## 3 · PARKED · Is the engine ready to be hosted today? Not yet. Close.
 
 The call code itself moves cleanly: it is plain Python and needs no special system software.
 But an audit on 3 Oct found these gaps. The first four are code, and I can close them. The
@@ -219,14 +224,14 @@ without it.
 
 ## 6 · How it works under the hood
 
-- **The dashboard** is a Next.js site in a `dashboard/` folder in this repo. Vercel builds it
-  from GitHub on every push to `main`. It has a login, the pages, and a small relay: the
-  browser only talks to the dashboard, and the dashboard talks to the engine. The engine's
-  token never reaches the browser.
-- **The engine's data door** is a second small program on the server, grown from
-  `tools/call_viewer.py`. It answers "list the calls", "list the schemes" and so on. It runs
-  apart from the call server so a slow page can never touch a live call. It refuses any
-  request without the token.
+- **The dashboard** is a Next.js site in the `dashboard/` folder of this repo. For now it runs
+  on this computer only (port 3210). The browser only talks to the dashboard, and the
+  dashboard talks to the data door. A login and a token come back with hosting.
+- **The data door** is `tools/dashboard_api.py` (port 8001), grown from
+  `tools/call_viewer.py`. It answers "what does Home show", "list the calls" and so on from
+  files the project already writes. It only reads, and it runs apart from the call server, so
+  a slow page can never touch a live call.
+- **`make dashboard`** starts both. Ctrl+C stops both.
 - **The live view** asks for the call's timed trace once a second. No new moving parts.
 - **The call button:** the dashboard asks the engine, and the engine asks Twilio to ring the
   saved number, as `make call` does today. One call at a time.
@@ -255,21 +260,19 @@ One step at a time, on your word. Each ends with something you can check.
 
 | Step | What you get | Needs you? |
 |---|---|---|
-| **E1** | The doors locked (§3 gap 1 and 4), with tests | No |
-| **E2** | The engine on Fly.io: build recipe, clips shipped, logs kept, real health check | Fly login, keys put on the server, Twilio login fixed |
-| **E3** | The engine's data door with the token | No |
-| **D0** | The look: a design pass with the design skill, one page mocked for you to accept | A yes on the look |
-| **D1** | The dashboard live on Vercel: login, sidebar, Home, Calls, engine light | A password |
-| **D2** | Live call: Call my phone, the live view, the typed test call | **The first real call** |
-| **S1** | Schemes table and detail, Voice lines, play buttons. Test: can the server fetch from myscheme? | No |
+| **D1** | **Done.** The left bar with every page, and the Home page, on real data | No |
+| **D2** | Calls: the table with filters, and each call as a back and forth with times | No |
+| **D3** | Live call: Call my phone for real, the live view, the typed test call | Twilio login fixed; **the first real call** |
+| **S1** | Schemes table and detail, Voice lines, play buttons | No |
 | **S2** | "Just this scheme" mode for each pipeline step, safe snapshot switch, backup | No |
 | **S3** | Add a scheme from the site, stage by stage, with Undo | Your two approvals per scheme; Muse and Sarvam money |
-| **D3** | Usage and money, Quality | No |
-| **D4** | Plan and architecture, System | No |
-| **D5** | Settings: key status and Test, Muse guard; Replace a key if you say yes | A yes on replacing keys |
-| **D6** | The Phase 6 score sheet, listen and review | Your ears |
+| **D4** | Usage and money, Quality | No |
+| **D5** | Plan and architecture, System | No |
+| **D6** | Settings: key status and Test, Muse guard; Replace a key if you say yes | A yes on replacing keys |
+| **D7** | The Phase 6 score sheet, listen and review | Your ears |
+| *parked* | E1 lock the doors, E2 host the engine, E3 token, then the site on Vercel | Fly login, keys on the server |
 
-E1 can start now and needs nothing from you. E2 is the first step that does.
+D2 is next and needs nothing from you.
 
 ## 9 · What it costs
 
@@ -284,8 +287,7 @@ E1 can start now and needs nothing from you. E2 is the first step that does.
 
 Each has the default I would pick. "Go with the defaults" is a full answer.
 
-1. **Host the engine on Fly.io, Mumbai?** Default: yes. This also settles the "server location"
-   item in `OWNER-END-TODO.md`.
+1. **Host the engine on Fly.io, Mumbai?** Parked with hosting. Not needed now.
 2. **Who uses the site?** Default: you run it; one other person can look but not change.
 3. **May keys be replaced from the website?** Default: not at first. Status and Test only.
 4. **Voice for new schemes:** the same voices as the 11 live ones? Default: yes. This is the
@@ -309,3 +311,72 @@ Each has the default I would pick. "Go with the defaults" is a full answer.
   page per call with transcript and reply times, cost per call, pass and fail counts.
 - CRMs: records that move through named stages, a table with filters, a detail view per row.
 - Dashboard practice: a few key numbers on top, a list of what needs attention, then tables.
+
+## 13 · The look
+
+The idea comes from the public call office, the yellow PCO booth sign every Indian town has:
+a yellow board, black and red letters. Haqdaar is a phone line for people who know that sign.
+
+**One loud thing, everything else quiet.** The loud thing is the yellow plate on Home that
+holds the call button. No other part of the site uses yellow as a fill.
+
+| Name | Colour | Used for |
+|---|---|---|
+| Booth glass | `#E9EDF1` | the page behind everything |
+| Paper | `#FFFFFF` | cards and tables |
+| Indigo ink | `#101B33` | all text; the left bar is a darker cut, `#0E1730` |
+| Signboard yellow | `#FFC400` | the plate, the name board, the open page in the left bar |
+| Signboard red | `#C8102E` | the small capital line on the plate; problems and failures |
+| Ballpoint blue | `#2346D8` | links; the caller in the call tape; meters |
+| Green | `#12805C` | pass, live, engine on |
+| Amber | `#9A5B00` | "look at this": not understood, slow, near a cap |
+
+There is a dark set of the same colours for night work. It follows the computer's setting.
+The yellow plate stays yellow in both.
+
+**Type.**
+- Headings and the name board: **Anek** (Latin and Devanagari drawn as one family), set wide
+  and heavy, like painted sign lettering. So हक़दार and HAQDAAR match.
+- Reading text: **Mukta**, which also covers Hindi and Marathi, so a caller's words and a
+  scheme's name look right.
+- Ids, times and money: **Martian Mono**.
+
+**Layout.** A fixed bar on the left with every page, grouped: Run (Home, Live call, Calls),
+Content (Schemes, Voice lines), Watch (Usage and money, Quality), Know (Plan and
+architecture, System), then Settings. The engine lamp sits at the foot of the bar. A page not
+built yet shows its step number in the bar and says what it will show. On a narrow screen the
+bar becomes a strip across the top.
+
+**Signs that carry meaning.**
+- A problem is a red square, a warning is an amber diamond, a note is a ring. Shape, not only colour.
+- **The call tape:** each call is drawn as a strip. A bar is the AI speaking (longer bar,
+  longer speech). A tick is the caller: a key, speech, or silence. Amber means not understood,
+  red means a problem. You can read a call's shape without opening it.
+- **The keypad on the plate** shows what the keys mean on a call: 1 Hindi, 2 Marathi,
+  3 English, 0 don't know, # say again.
+
+**Words.** Plain and short. A button says what it does. An empty or broken state says what
+happened and what to do next.
+
+## 14 · Data shapes
+
+The site asks the data door one question per page. Home asks `GET /api/home`:
+
+| Part | What it holds |
+|---|---|
+| `engine` | `on`, `live_call` (the call going on now, or none), `snapshot`, `line`, `phone_tail` (last 2 digits only) |
+| `numbers` | for the last 24 hours: `calls`, `judged`, `passed`, `avg_length_s`, `slowest_reply_s`, `reply_budget_s`; and `all_calls`, `phone_calls` |
+| `needs` | a list, worst first: `level` (bad, warn, info), `title`, `detail`, `page` (where to go) |
+| `schemes` | `chosen`, `checked`, `live`, `no_voice`, `set_aside`, `set_aside_slugs`, `languages` |
+| `money` | `muse` (`today`, `day_cap`, `all`, `cap`, `blocked`, `open`) and `units` (name, value, unit, note per service) |
+| `recent` | the last 5 calls: id, when, language, phone or sim, length, turns, problems, verdict, and `strip` (the marks for the call tape) |
+
+"Last 24 hours", not "today": the owner works at night, and a count that resets at midnight
+would be wrong at 1 a.m.
+
+"Needs a look" is worked out from real signs, not guesses: the tunnel's last line in the
+server log (Twilio login), the last three model requests in the Groq ledger, the Muse guard,
+failed or troubled calls, schemes with no voice, audit verdicts still waiting, and whether a
+real phone call has ever been logged.
+
+Still served from step 5.5: `GET /api/calls` and `GET /api/calls/{key}`.
