@@ -1,31 +1,25 @@
 import type { Metadata } from "next";
-import { Anek_Devanagari, Anek_Latin, Martian_Mono, Mukta } from "next/font/google";
+import { Inter, Noto_Sans_Devanagari } from "next/font/google";
 import "./globals.css";
 import { getHome } from "./lib/api";
 import Refresh from "./ui/Refresh";
-import Sidebar from "./ui/Sidebar";
+import Shell from "./ui/Shell";
 
-// Signboard display face (Latin and Devanagari cut from the same family), a plain reading
-// face that also covers Devanagari, and a mono for ids and timers.
-const anekLatin = Anek_Latin({ subsets: ["latin"], axes: ["wdth"], variable: "--f-anek-latin", display: "swap" });
-const anekDeva = Anek_Devanagari({ subsets: ["devanagari"], axes: ["wdth"], variable: "--f-anek-deva", display: "swap" });
-const mukta = Mukta({ subsets: ["latin", "devanagari"], weight: ["400", "500", "600", "700"], variable: "--f-mukta", display: "swap" });
-const mono = Martian_Mono({ subsets: ["latin"], variable: "--f-mono", display: "swap" });
+// One plain face for everything. Hindi and Marathi words fall through to its Devanagari partner.
+const inter = Inter({ subsets: ["latin"], variable: "--f-inter", display: "swap" });
+const deva = Noto_Sans_Devanagari({ subsets: ["devanagari"], variable: "--f-deva", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "Haqdaar control room",
+  title: "Haqdaar",
   description: "Run and watch the Haqdaar phone line.",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const home = await getHome();
   return (
-    <html lang="en" className={`${anekLatin.variable} ${anekDeva.variable} ${mukta.variable} ${mono.variable}`}>
+    <html lang="en" className={`${inter.variable} ${deva.variable}`}>
       <body>
-        <div className="shell">
-          <Sidebar engineOn={home ? home.engine.on : null} />
-          <main className="main">{children}</main>
-        </div>
+        <Shell engineOn={home ? home.engine.on : null}>{children}</Shell>
         <Refresh />
       </body>
     </html>

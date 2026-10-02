@@ -1,7 +1,8 @@
 // Every page of the dashboard, in the order of the left bar. `step` is the build step in
 // PLAN-DASHBOARD.md that makes the page; `will` is what it shows once built.
 
-export type Page = { slug: string; name: string; icon: string; built?: boolean; step?: string; will?: string };
+// `short` is the name in the left bar when the full name is too long for it.
+export type Page = { slug: string; name: string; short?: string; icon: string; built?: boolean; step?: string; will?: string };
 
 export const GROUPS: { title: string; pages: Page[] }[] = [
   {
@@ -35,7 +36,7 @@ export const GROUPS: { title: string; pages: Page[] }[] = [
     title: "Watch",
     pages: [
       {
-        slug: "usage", name: "Usage and money", icon: "coin", step: "D4",
+        slug: "usage", name: "Usage and money", short: "Usage", icon: "coin", step: "D4",
         will: "One card per service: Muse in rupees against its caps, Sarvam, Groq and Twilio in units, with a chart per day.",
       },
       {
@@ -48,7 +49,7 @@ export const GROUPS: { title: string; pages: Page[] }[] = [
     title: "Know",
     pages: [
       {
-        slug: "plan", name: "Plan and architecture", icon: "map", step: "D5",
+        slug: "plan", name: "Plan and architecture", short: "Plan", icon: "map", step: "D5",
         will: "How a call flows, the phases done and left, the project log, and your to-do list as a checklist.",
       },
       {

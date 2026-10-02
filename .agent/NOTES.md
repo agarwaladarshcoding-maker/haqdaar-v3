@@ -2327,3 +2327,22 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - The Call my phone button is NOT wired (D3). It is disabled while the engine is off and
   links to /live when on.
 - Checks: pytest 496, stress 0/0, `npm run build` clean.
+
+## Dashboard look, second version (3 Oct 2026 late night)
+- Owner rejected the PCO-signboard look ("looking very bad"). Gave a reference: dark rounded
+  left bar, line icons, mint pill on the open page, folds to an icon rail. Wants a simpler
+  font and ONE PAGE AT A TIME for design.
+- Installed UI UX Pro Max skill (github.com/nextlevelbuilder/ui-ux-pro-max-skill @ 09170ee,
+  MIT) into .claude/skills/ui-ux-pro-max/ (gitignored, 3.3 MB). Scripts checked: local CSV
+  search only, no network; file writes only with --persist (not used). Run it as
+  `.venv/bin/python .claude/skills/ui-ux-pro-max/scripts/search.py "<query>" --design-system`
+  or `--domain ux|typography|color|...`. Its pick for this product: Minimalism/Swiss, dark.
+- New tokens in dashboard/app/globals.css: ground #24262C, panel #1B1D22, raised #2A2D34,
+  mint #BFE8DC (ink #0F2A23), mint line #8FDCC6; light set under prefers-color-scheme: light.
+  Font: Inter + Noto Sans Devanagari (next/font). Icons: lucide-react.
+- dashboard/app/ui/Shell.tsx is the frame (client): left bar + fold state in localStorage
+  key `haqdaar.menu`. Sidebar.tsx and Keypad.tsx are deleted.
+- Gotcha: `.main` is a grid; without `grid-template-columns: minmax(0, 1fr)` a wide table
+  pushes the page sideways on narrow screens.
+- The owner had `make dashboard` running himself (ports 3210/8001 busy). Do not start a second
+  one or kill his; the dev server hot-reloads edits. Check with lsof first.

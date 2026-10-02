@@ -10,10 +10,14 @@ export default async function Section({ params }: { params: Promise<{ section: s
   if (!page) notFound();
   return (
     <>
-      <header className="top"><h1 className="top-title">{page.name}</h1></header>
+      <header className="top">
+        <div>
+          <h1 className="top-title">{page.name}</h1>
+          <p className="top-sub">Not built yet. It comes in step {page.step}.</p>
+        </div>
+      </header>
       <section className="card later">
-        <p className="later-step">Not built yet · step {page.step}</p>
-        <h2>What this page will show</h2>
+        <h2 className="card-title">What this page will show</h2>
         <p>{page.will}</p>
         {page.slug === "calls" && (
           <p>Until then, calls open in the first call page: <a href={DOOR}>{DOOR}</a></p>

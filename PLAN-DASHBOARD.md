@@ -312,51 +312,57 @@ Each has the default I would pick. "Go with the defaults" is a full answer.
 - CRMs: records that move through named stages, a table with filters, a detail view per row.
 - Dashboard practice: a few key numbers on top, a list of what needs attention, then tables.
 
-## 13 · The look
+## 13 · The look (second version, 3 Oct)
 
-The idea comes from the public call office, the yellow PCO booth sign every Indian town has:
-a yellow board, black and red letters. Haqdaar is a phone line for people who know that sign.
+The first version (a yellow signboard, wide heavy letters) was rejected by the owner as bad.
+This version follows the owner's reference picture: a dark, rounded bar on the left, grey
+labels with thin line icons, and the open page shown as a mint pill. Rules for the choices
+came from the UI UX Pro Max skill (installed in `.claude/skills/ui-ux-pro-max/`), which
+recommends a plain, minimal, dark dashboard style for this kind of tool.
 
-**One loud thing, everything else quiet.** The loud thing is the yellow plate on Home that
-holds the call button. No other part of the site uses yellow as a fill.
+**We design one page at a time.** Home and the left bar are done. Each next page gets its own
+pass and the owner's look before the one after.
 
-| Name | Colour | Used for |
-|---|---|---|
-| Booth glass | `#E9EDF1` | the page behind everything |
-| Paper | `#FFFFFF` | cards and tables |
-| Indigo ink | `#101B33` | all text; the left bar is a darker cut, `#0E1730` |
-| Signboard yellow | `#FFC400` | the plate, the name board, the open page in the left bar |
-| Signboard red | `#C8102E` | the small capital line on the plate; problems and failures |
-| Ballpoint blue | `#2346D8` | links; the caller in the call tape; meters |
-| Green | `#12805C` | pass, live, engine on |
-| Amber | `#9A5B00` | "look at this": not understood, slow, near a cap |
+**Colours** (dark is the main set; a light set follows the computer's setting):
 
-There is a dark set of the same colours for night work. It follows the computer's setting.
-The yellow plate stays yellow in both.
+| Name | Dark | Light | Used for |
+|---|---|---|---|
+| Ground | `#24262C` | `#F2F4F6` | the page behind everything |
+| Panel | `#1B1D22` | `#FFFFFF` | the left bar and every card |
+| Raised | `#2A2D34` | `#EEF1F4` | hover, icon tiles, bar tracks |
+| Text | `#ECEEF2` | `#171A21` | words |
+| Muted | `#9AA0AD` | `#5D6675` | labels, hints, menu items not open |
+| Mint | `#BFE8DC` | `#BFE8DC` | the open page in the menu, the main button |
+| Mint line | `#8FDCC6` | `#12806A` | links, meters, the caller in the call tape |
+| Green / Amber / Red / Blue | | | fine · look at this · wrong · a note |
 
-**Type.**
-- Headings and the name board: **Anek** (Latin and Devanagari drawn as one family), set wide
-  and heavy, like painted sign lettering. So हक़दार and HAQDAAR match.
-- Reading text: **Mukta**, which also covers Hindi and Marathi, so a caller's words and a
-  scheme's name look right.
-- Ids, times and money: **Martian Mono**.
+Mint is the only accent. Green, amber and red are kept for meaning, never for decoration.
 
-**Layout.** A fixed bar on the left with every page, grouped: Run (Home, Live call, Calls),
-Content (Schemes, Voice lines), Watch (Usage and money, Quality), Know (Plan and
-architecture, System), then Settings. The engine lamp sits at the foot of the bar. A page not
-built yet shows its step number in the bar and says what it will show. On a narrow screen the
-bar becomes a strip across the top.
+**Type.** One plain font for everything: **Inter**. Hindi and Marathi words fall to **Noto
+Sans Devanagari**. Numbers line up in columns. No second display font, no capitals-only labels.
+
+**The left bar.**
+- A rounded dark panel that floats beside the page.
+- One item per page: a thin line icon and a name. The open page is a mint pill.
+- **Fold menu** at the foot shrinks it to icons only, as in the reference. The choice is
+  remembered. On a narrow screen it is always folded.
+- The engine lamp sits above the fold button.
+
+**Cards.** Rounded dark panels with no borders, 20 px apart. A card has a title, and at most
+one small link or tag on the right.
 
 **Signs that carry meaning.**
-- A problem is a red square, a warning is an amber diamond, a note is a ring. Shape, not only colour.
-- **The call tape:** each call is drawn as a strip. A bar is the AI speaking (longer bar,
-  longer speech). A tick is the caller: a key, speech, or silence. Amber means not understood,
-  red means a problem. You can read a call's shape without opening it.
-- **The keypad on the plate** shows what the keys mean on a call: 1 Hindi, 2 Marathi,
-  3 English, 0 don't know, # say again.
+- A problem, a warning and a note each have their own icon and colour, not colour alone.
+- **The call tape:** each call is drawn as a strip. A grey bar is the AI speaking (longer bar,
+  longer speech). A mint tick is the caller. Amber is "not understood", red is a problem.
 
 **Words.** Plain and short. A button says what it does. An empty or broken state says what
-happened and what to do next.
+happened and what to do next. A missing number is a dash with the reason under it.
+
+**Checked against the skill's list:** icons are drawn icons, not emoji · every clickable thing
+is at least 44 px tall and shows a hover and a keyboard focus state · text contrast is 4.5:1
+or better in both sets · reduced motion is respected · no sideways scroll at 375, 768, 1024
+and 1440 px wide.
 
 ## 14 · Data shapes
 

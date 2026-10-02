@@ -27,3 +27,6 @@ voice_demo_clips/
 dashboard/.next/
 dashboard/next-env.d.ts
 dashboard/tsconfig.tsbuildinfo
+
+# third-party design skill (MIT, 3 MB of lookup data): installed locally, not kept in git
+.claude/skills/ui-ux-pro-max/

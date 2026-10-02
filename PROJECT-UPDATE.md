@@ -99,6 +99,26 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+### 3 Oct (late night) — Dashboard look redone from the owner's reference. One page: Home.
+- **Why.** The owner said the first look (yellow signboard, wide heavy letters) was very bad,
+  gave a reference picture of a dark left bar, and asked for a simpler font and one page at a time.
+- **Changed — the left bar.** Now a dark rounded panel with thin line icons and grey names.
+  The open page is a mint pill, as in the reference. **Fold menu** shrinks it to icons only and
+  remembers the choice. "Usage and money" and "Plan and architecture" are "Usage" and "Plan"
+  in the bar so nothing wraps.
+- **Changed — Home.** Same facts, calmer layout: the engine and Call my phone card, the
+  schemes bar, four number cards, Needs a look (each line is one click), money and use, last calls.
+  The yellow plate and the keypad picture are gone.
+- **Changed — the font.** One plain font, Inter, for everything. Hindi and Marathi use Noto
+  Sans Devanagari.
+- **Added — the UI UX Pro Max skill** (free, MIT licence, from GitHub), in
+  `.claude/skills/ui-ux-pro-max/`. It is 3 MB of design rules, so it is not kept in git. I read
+  its scripts before running them: they only search its own files.
+- **Added — icons** from the `lucide-react` package.
+- **Checks:** the site type-checks clean · looked at in a browser: dark, light, narrow · no
+  Python changed, pytest still 496.
+- **Not done on purpose:** no other page was touched. Calls is next, with its own design pass.
+
 ### 3 Oct (late night) — The dashboard: left bar and Home page built. Hosting dropped for now.
 Branch `step-6.1-dashboard-home`. Not merged, not pushed.
 - **Changed — the plan.** Owner's word: no hosting for now. The dashboard runs on this
