@@ -19,7 +19,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 - Pick the next question that cuts the list down fastest (Step 4), drop schemes that don't fit (Step 3),
   and choose how to end the call (Step 5).
 - Take a real phone call through a Cloudflare tunnel, with every key arriving on time (Step 1).
-- `pytest -q` → **152 passed**.
+- `pytest -q` → **456 passed**.
 - Ring your phone into the real backend in one command: `make call-me`.
 - Back up all the scheme data: `make backup`. The text part is also saved in git.
 
@@ -97,6 +97,20 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 ---
 
 ## 3 · Log — newest first
+
+### 2 Oct — Step 5.1: Anything-else voice turn + scheme-audio prefetch
+- **Anything-else hears voice (`haqdaar/engine/call.py`):**
+  - The "anything else" turn now listens for speech in voice mode using the confirm profile.
+  - Understands yes/no via the model confirm matcher across Hindi, Marathi, and English, with keypad 1 and 2 as fallback.
+  - Saying "yes" re-opens the question loop for a new topic; saying "no" or silence ends the call with the farewell.
+  - Keypad-only mode remains unchanged.
+- **Scheme-audio prefetch (`haqdaar/audio/phone.py`, `haqdaar/engine/call.py`):**
+  - Added `PhoneAudio.prefetch()` to fetch scheme audio chunks into the Tier 1 cache using `Corpus.chunks()`.
+  - Terminal phase calls prefetch with the ranked scheme list before playing audio, warming clips so playback starts without cold disk pauses.
+  - Prefetch never blocks or crashes the call; respects `AUDIO_PREFETCH_ON_STOP`.
+- **Turn input test (`tests/test_turn.py`):**
+  - Added direct unit tests for `Turn.wait_input()` covering keys, hangups, silence gaps, Ear listening, and barge-in.
+- **Verified:** 456 unit tests pass, `make stress` 1,000 callers (0 crashes, 0 truth failures), `make model-bakeoff` (30/30 offline pass), `make door-a-check` (79/81 top-1 hits, 97.5%), `make render` (456 clips on disk, 0 missing), `make sim` finishes cleanly. Muse spend delta: ₹0.00.
 
 ### 2 Oct — Audit fixes merged to main (reviewed, verified, pushed)
 - **Merged:** `audit-fixes` into `main` — fast-forward, no conflicts. All 36 audit findings

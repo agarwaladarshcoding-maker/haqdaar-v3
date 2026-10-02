@@ -62,6 +62,10 @@ class MockAudioSession:
         self.marks: list[str] = []
         self.input_profiles: list[str] = []
         self.ear = ear
+        self.prefetched: list[list[str]] = []
+
+    def prefetch(self, scheme_ids: Any) -> None:
+        self.prefetched.append(list(scheme_ids))
 
     @property
     def keypad_only(self) -> bool:
@@ -104,7 +108,7 @@ class MockAudioSession:
 
     def next_input(self, profile: str = "normal") -> Digit | Noise | Silence | Hangup | Speech:
         self.input_profiles.append(profile)
-        if self.ear is not None and not self.keypad_only and profile == "spoken":
+        if self.ear is not None and not self.keypad_only and profile in ("spoken", "confirm"):
             return self.ear.listen()
         if self.inputs:
             item = self.inputs.pop(0)
@@ -181,6 +185,8 @@ class MockModel:
     def opener(self, transcript: str, lang: str = "en") -> list[Stamp] | Unclear:
         if self.keypad_only:
             return Unclear(reason="keypad_only")
+        if callable(self._opener_res):
+            return self._opener_res(transcript, lang)
         return self._opener_res
 
     def turn(self, transcript: str, box: str, window=None, ask_count: int = 0) -> Any:
@@ -819,3 +825,238 @@ def test_confirm_repeat_mashing_terminates_without_cap_turn_consumption(fixture_
     turn_records = [l for l in lines if "turn_n" in l]
     max_turn_n = max(l["turn_n"] for l in turn_records)
     assert max_turn_n < tunables.MAX_TURNS
+
+
+def test_anything_else_voice_yes_reopens_loop_and_hears_new_topic(fixture_corpus, tmp_path):
+    """Voice 'yes' at anything-else re-opens question loop, and caller's new-topic utterance is heard."""
+    openers = [
+        [Stamp(box="category", value="farming", span="farming")],
+        [Stamp(box="category", value="education", span="education")],
+    ]
+
+    def mock_opener(transcript: str, lang: str = "en"):
+        return openers.pop(0) if openers else [Stamp(box="category", value="farming", span="farming")]
+
+    audio = MockAudioSession(inputs=[
+        Digit("1"),                             # Turn 0: language Hindi
+        Speech(text="I need farming schemes"),  # Opener 1
+        Digit("1"),                             # Confirm farming
+        Digit("2"),                             # State: 2 = OTHER
+        Digit("1"),                             # Gender: 1 = female
+        Digit("3"),                             # Social category: 3 = SC
+        Digit("0"),                             # Readback menu: 0 = leave menu
+        Speech(text="haan"),                    # Anything else: voice "haan" (yes)!
+        # Loop re-opens! Category is unasked.
+        Speech(text="I want education schemes"),# Opener 2 (new-topic utterance)
+        Digit("1"),                             # Confirm education
+        Digit("0"),                             # Readback after second terminal: 0 = leave menu
+        Speech(text="nahi"),                    # Second anything else: voice "nahi" (no) -> ends!
+    ])
+    log = Log.open("test_ae_voice_yes", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = MockModel(opener_res=mock_opener)
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert audio.hung_up
+    assert audio.played.count("anything_else") == 2
+    assert "closing_farewell" in audio.played
+
+    lines = [json.loads(l) for l in open(tmp_path / "test_ae_voice_yes.jsonl")]
+    confirmed_answers = [l for l in lines if l.get("class") == "ANSWER" and l.get("box") == "category"]
+    assert len(confirmed_answers) == 2
+    assert confirmed_answers[0]["value"] == "farming"
+    assert confirmed_answers[1]["value"] == "education"
+    assert lines[-1]["mode"] == "voice"
+
+
+def test_anything_else_voice_no_ends_call(fixture_corpus, tmp_path):
+    """Voice 'no' at anything-else ends the call cleanly."""
+    audio = MockAudioSession(inputs=[
+        Digit("1"),                             # Turn 0: language Hindi
+        Speech(text="I need farming schemes"),  # Opener
+        Digit("1"),                             # Confirm farming
+        Digit("2"),                             # State: 2 = OTHER
+        Digit("1"),                             # Gender: 1 = female
+        Digit("3"),                             # Social category: 3 = SC
+        Digit("0"),                             # Readback menu: 0 = leave menu
+        Speech(text="nahi"),                    # Anything else: voice "nahi" (no)
+    ])
+    log = Log.open("test_ae_voice_no", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = MockModel(opener_res=[Stamp(box="category", value="farming", span="farming")])
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert audio.hung_up
+    assert audio.played.count("anything_else") == 1
+    assert "closing_farewell" in audio.played
+    lines = [json.loads(l) for l in open(tmp_path / "test_ae_voice_no.jsonl")]
+    assert lines[-1]["mode"] == "voice"
+
+
+def test_anything_else_voice_silence_ends_call(fixture_corpus, tmp_path):
+    """Silence at anything-else ends call cleanly without hang or extra turn."""
+    audio = MockAudioSession(inputs=[
+        Digit("1"),                             # Turn 0: language Hindi
+        Speech(text="I need farming schemes"),  # Opener
+        Digit("1"),                             # Confirm farming
+        Digit("2"),                             # State: 2 = OTHER
+        Digit("1"),                             # Gender: 1 = female
+        Digit("3"),                             # Social category: 3 = SC
+        Digit("0"),                             # Readback menu: 0 = leave menu
+        Silence(n=1),                           # Anything else: silence
+    ])
+    log = Log.open("test_ae_voice_silence", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = MockModel(opener_res=[Stamp(box="category", value="farming", span="farming")])
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert audio.hung_up
+    assert audio.played.count("anything_else") == 1
+    assert "closing_farewell" in audio.played
+
+
+def test_anything_else_keypad_1_in_voice_mode_reopens_loop(fixture_corpus, tmp_path):
+    """Keypad fallback '1' in voice mode re-opens loop."""
+    audio = MockAudioSession(inputs=[
+        Digit("1"),                             # Turn 0: language Hindi
+        Speech(text="I need farming schemes"),  # Opener 1
+        Digit("1"),                             # Confirm farming
+        Digit("2"),                             # State: 2 = OTHER
+        Digit("1"),                             # Gender: 1 = female
+        Digit("3"),                             # Social category: 3 = SC
+        Digit("0"),                             # Readback menu: 0 = leave menu
+        Digit("1"),                             # Anything else: keypad 1 fallback
+        # Re-opened loop
+        Speech(text="I need farming schemes"),  # Opener 2
+        Digit("1"),                             # Confirm
+        Digit("0"),                             # Readback after second terminal: 0 = leave menu
+        Digit("2"),                             # Second anything else: keypad 2 -> ends
+    ])
+    log = Log.open("test_ae_keypad_1_voice", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = MockModel(opener_res=[Stamp(box="category", value="farming", span="farming")])
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert audio.hung_up
+    assert audio.played.count("anything_else") == 2
+    assert "closing_farewell" in audio.played
+
+
+def test_anything_else_keypad_2_in_voice_mode_ends_call(fixture_corpus, tmp_path):
+    """Keypad fallback '2' in voice mode ends call."""
+    audio = MockAudioSession(inputs=[
+        Digit("1"),                             # Turn 0: language Hindi
+        Speech(text="I need farming schemes"),  # Opener
+        Digit("1"),                             # Confirm farming
+        Digit("2"),                             # State: 2 = OTHER
+        Digit("1"),                             # Gender: 1 = female
+        Digit("3"),                             # Social category: 3 = SC
+        Digit("0"),                             # Readback menu: 0 = leave menu
+        Digit("2"),                             # Anything else: keypad 2
+    ])
+    log = Log.open("test_ae_keypad_2_voice", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = MockModel(opener_res=[Stamp(box="category", value="farming", span="farming")])
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert audio.hung_up
+    assert audio.played.count("anything_else") == 1
+    assert "closing_farewell" in audio.played
+
+
+def test_prefetch_called_with_ranked_ids_at_terminal_phase(fixture_corpus, tmp_path):
+    """Engine calls audio.prefetch once at terminal phase with ranked scheme ids."""
+    audio = MockAudioSession(inputs=[
+        Digit("1"),                             # Turn 0: language Hindi
+        Speech(text="I need farming schemes"),  # Opener
+        Digit("1"),                             # Confirm
+        Digit("2"),                             # State: 2 = OTHER
+        Digit("1"),                             # Gender: 1 = female
+        Digit("3"),                             # Social category: 3 = SC
+        Digit("0"),                             # Readback menu: 0 = leave menu
+        Digit("2"),                             # Anything else
+    ])
+    log = Log.open("test_prefetch_called", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = MockModel(opener_res=[Stamp(box="category", value="farming", span="farming")])
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert len(audio.prefetched) == 1
+    ranked_ids = audio.prefetched[0]
+    assert len(ranked_ids) > 0
+    # Every prefetched id is a scheme string
+    assert all(isinstance(s, str) and len(s) > 0 for s in ranked_ids)
+
+
+def test_prefetch_failure_does_not_crash_call(fixture_corpus, tmp_path):
+    """If audio.prefetch raises an exception, the call completes successfully."""
+    class FailingAudioSession(MockAudioSession):
+        def prefetch(self, scheme_ids: Any) -> None:
+            raise RuntimeError("Prefetch disk read error")
+
+    audio = FailingAudioSession(inputs=[
+        Digit("1"),                             # Turn 0: language Hindi
+        Speech(text="I need farming schemes"),  # Opener
+        Digit("1"),                             # Confirm
+        Digit("2"),                             # State: 2 = OTHER
+        Digit("1"),                             # Gender: 1 = female
+        Digit("3"),                             # Social category: 3 = SC
+        Digit("2"),                             # Readback
+        Digit("2"),                             # Readback
+        Digit("2"),                             # Anything else
+    ])
+    log = Log.open("test_prefetch_fail", fixture_corpus.snapshot_id, logs_dir=tmp_path)
+    model = MockModel(opener_res=[Stamp(box="category", value="farming", span="farming")])
+
+    Engine.run_call(audio, model, fixture_corpus, log)
+
+    assert audio.hung_up
+    assert "closing_farewell" in audio.played
+
+
+def test_phone_audio_prefetch_respects_tunable_and_handles_failures(monkeypatch):
+    """PhoneAudio.prefetch resolves chunk render keys, respects AUDIO_PREFETCH_ON_STOP, and handles pool errors."""
+    from haqdaar.audio.phone import PhoneAudio
+    from haqdaar.audio.mouth import Mouth
+    from haqdaar.audio.turn import Turn
+
+    class MockCorpus:
+        def chunks(self, scheme_id: str, lang: str):
+            if scheme_id == "s1":
+                return ("rk1", "rk2")
+            return ()
+
+    class MockPool:
+        def __init__(self):
+            self.calls: list[list[str]] = []
+            self.should_fail = False
+
+        def prefetch(self, keys):
+            if self.should_fail:
+                raise RuntimeError("Pool IO failure")
+            self.calls.append(list(keys))
+
+    corpus = MockCorpus()
+    pool = MockPool()
+    mouth = Mouth(lambda item: None, "test")
+    turn = Turn(mouth)
+    logs: list[str] = []
+    phone = PhoneAudio(corpus, pool, mouth, turn, close=lambda: None, log=logs.append)
+    phone.language = "hi"
+
+    # Case 1: Tunable on -> calls pool.prefetch with resolved keys
+    monkeypatch.setattr(tunables, "AUDIO_PREFETCH_ON_STOP", True)
+    phone.prefetch(["s1"])
+    assert pool.calls == [["rk1", "rk2"]]
+
+    # Case 2: Tunable off -> does NOT call pool.prefetch
+    pool.calls.clear()
+    monkeypatch.setattr(tunables, "AUDIO_PREFETCH_ON_STOP", False)
+    phone.prefetch(["s1"])
+    assert pool.calls == []
+
+    # Case 3: Pool failure -> logs failure and does NOT raise
+    monkeypatch.setattr(tunables, "AUDIO_PREFETCH_ON_STOP", True)
+    pool.should_fail = True
+    phone.prefetch(["s1"])
+    assert any("prefetch failed" in l for l in logs)
