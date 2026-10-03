@@ -2366,3 +2366,14 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   Next 16 dev uses .next/dev, so a build does not disturb his dev server.
 - Gotcha: `<ol>` needed list-style reset too (notes showed "1. 2. 3.").
 - The Call my phone button has NOT rung a real phone: engine off + Twilio 401.
+
+## Calls page hand-off to Antigravity — paused (3 Oct 2026)
+- Work order: PROMPT-ANTIGRAVITY-6.3-CALLS-PAGE.md (commit 628818a on step-6.1-dashboard-home):
+  /calls table with filters in the address, /calls/[key] page, owner verdict saved in
+  logs/verdicts.json, shared Talk.tsx, ASCII example of both pages for the owner.
+- Antigravity has a CLI: ~/.local/bin/agy (alias antigravity). `agy --print="<prompt>"` must
+  have the prompt attached with `=`, else it eats the next flag as the prompt.
+- In --print (headless) mode every shell command is auto-denied ("command" permission), so it
+  produced nothing. Options: permissions.allow rules in ~/.gemini/settings.json, or
+  --dangerously-skip-permissions, or the owner runs it in the app. Owner chose none yet and
+  paused the step to work on something else. Nothing was changed by Antigravity.
