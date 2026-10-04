@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls calls-ui dashboard sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock
+.PHONY: run call calls calls-ui dashboard sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock
 
 test:
 	$(PYTHON) -m pytest
@@ -125,6 +125,10 @@ listen:
 # make listen-cards L=hi N=2
 listen-cards:
 	$(PYTHON) -m tools.listen cards $(L) $(N)
+
+# Step 7.7a: same lines at three speeds in scratch/pace-samples/ (no API); make pace-samples
+pace-samples:
+	$(PYTHON) -m tools.pace_samples
 
 # Plan 2.3: build the real snapshot from the audio-ready schemes and flip snapshots/CURRENT to it.
 snapshot:
