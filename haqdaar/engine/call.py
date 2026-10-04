@@ -604,7 +604,7 @@ class Engine:
         door_a_done = False
         # 7.3 talk-first: the opener is one short line. The nine-choice list plays on
         # key 0, or once the caller has missed twice (silence or words we could not use).
-        opener_menu = ""  # why the list is playing: "key_0" or "two_misses"; "" = short line only
+        opener_menu = ""  # why the list is playing: "key_0", "two_misses" or "silence"; "" = short line only
         opener_misses = 0
         while True:
             stop_reason = None
@@ -694,6 +694,10 @@ class Engine:
                     silence_ladder = rung
                     # The loop says the prompt itself on its next pass, so none is passed here.
                     if _answer_silence(audio, log, rung, turn_n, ()):
+                        # A quiet caller at the opener hears the key list once before the goodbye.
+                        if box == "category" and not opener_menu:
+                            opener_menu = "silence"
+                            log.write({"mode": mode, "opener_menu": opener_menu, "opener_misses": opener_misses})
                         continue
                     audio.hangup()
                     survs_s = Filter.survivors(box_vector, corpus)

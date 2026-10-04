@@ -411,29 +411,41 @@ def test_talk_first_opener(corpus, tmp_path):
     assert any(l.get("class") == "ANSWER" and l.get("box") == "category" and l.get("transcript") == "1"
                for l in lines)
 
-    # Three misses (UNCLEAR_TRIES) of words we cannot use bring the list. Not before. A silence
-    # in between is not a miss: it adds nothing to the count.
-    for name, misses in (("junk", [junk, junk, junk]), ("mixed", [junk, Silence(n=1), junk, junk])):
-        audio, lines = run(f"misses_{name}", [Digit("3")] + misses + rest)
-        said = audio.opening
-        assert said[0] == ("opener_short_prompt",), name
-        assert all("opener_prompt" not in o for o in said[:len(misses)]), name  # before the third miss
-        assert "opener_prompt" in said[len(misses)], name                      # after it: the list
-        assert {"mode": "voice", "opener_menu": "two_misses", "opener_misses": 3} in lines, name
-        assert any(l.get("class") == "ANSWER" and l.get("box") == "category" for l in lines), name
+    # Three misses (UNCLEAR_TRIES) of words we cannot use bring the list. Not before.
+    misses = [junk, junk, junk]
+    audio, lines = run("misses_junk", [Digit("3")] + misses + rest)
+    said = audio.opening
+    assert said[0] == ("opener_short_prompt",)
+    assert all("opener_prompt" not in o for o in said[:len(misses)])  # before the third miss
+    assert "opener_prompt" in said[len(misses)]                      # after it: the list
+    assert {"mode": "voice", "opener_menu": "two_misses", "opener_misses": 3} in lines
+    assert any(l.get("class") == "ANSWER" and l.get("box") == "category" for l in lines)
+
+    # A silence in between is not a miss: it adds nothing to the count, but the quiet itself brings
+    # the list, so the third miss has nothing left to add.
+    audio, lines = run("misses_mixed", [Digit("3"), junk, Silence(n=1), junk, junk] + rest)
+    assert {"mode": "voice", "opener_menu": "silence", "opener_misses": 1} in lines
+    assert not any(l.get("opener_menu") == "two_misses" for l in lines)
+    assert audio.played.index("waiting_for_reply") < audio.played.index("opener_prompt")
 
     # Two misses do not bring the list, and silence alone never does.
     audio, lines = run("two_misses", [Digit("3"), junk, junk] + rest)
     assert "opener_prompt" not in audio.played
+    # Silence is not a miss, but a caller quiet at the opener hears the list once, after the reminder.
     audio, lines = run("silent_only", [Digit("3"), Silence(n=1)] + rest)
-    assert "opener_prompt" not in audio.played
-    assert not any("opener_menu" in l for l in lines)
+    assert audio.opening[0] == ("opener_short_prompt",)
+    assert audio.played.count("opener_prompt") == 1
+    assert audio.played.index("waiting_for_reply") < audio.played.index("opener_prompt")
+    assert {"mode": "voice", "opener_menu": "silence", "opener_misses": 0} in lines
 
 
 def _reprompt_is_right(prompt, said):
     """After a silent wait: the "we are waiting" line, then the live prompt again."""
     if said[:1] != ("waiting_for_reply",) or len(said) < 2:
         return False
+    if prompt[:1] == ("opener_short_prompt",):
+        # quiet at the short opener: the long one that brings the key list follows the reminder
+        return said[1:2] == ("opener_prompt",)
     return set(said[1:]) <= set(prompt)
 
 

@@ -190,3 +190,11 @@ def test_silence_does_not_count_as_an_unclear_answer(corpus, tmp_path):
     audio = _run(corpus, tmp_path, "silent_not_unclear", [Digit("3"), Digit("1"), Digit("2"), JUNK, Silence(n=1), JUNK]
                  + [Speech("I am a woman"), Speech("yes")] + BASE_KEYS[4:])
     assert "keypad_gender" not in audio.played
+
+
+def test_a_quiet_caller_at_the_opener_hears_the_key_list_once_before_the_goodbye(corpus, tmp_path):
+    audio = _run(corpus, tmp_path, "quiet_list", [Digit("3"), Silence(n=1), Silence(n=2)])
+    assert audio.hung_up and audio.played[-1] == "closing_farewell"
+    assert audio.played.count("opener_short_prompt") == 1
+    assert audio.played.count("opener_prompt") == 1          # the line that brings the key list
+    assert audio.played.index("waiting_for_reply") < audio.played.index("opener_prompt")

@@ -151,6 +151,13 @@ def _quiet_call(monkeypatch, script):
     return be.run_call("gone", "keys_only", remind_s=30.0, hangup_s=60.0)
 
 
+def _quiet_before_goodbye(res):
+    """Seconds from the end of the last clip said before the goodbye (at the opener that is the
+    key list, which runs on after opener_prompt) to the start of the goodbye."""
+    bye = next(c for c in res.clips if c["name"] == "closing_farewell")
+    return bye["start"] - max(c["end"] for c in res.clips if c["end"] <= bye["start"])
+
+
 def _gap_after(res, before_name, after_name, nth=0):
     """Seconds from the end of the nth clip `before_name` to the start of the next `after_name`."""
     ends = [c["end"] for c in res.clips if c["name"] == before_name]
@@ -158,21 +165,21 @@ def _gap_after(res, before_name, after_name, nth=0):
     return start - ends[nth]
 
 
-@pytest.mark.parametrize("script,prompt,first_quiet", [
-    (["3", "s", "s"], "opener_short_prompt", 0),            # quiet at the opener
-    (["3", "1", "s", "s"], "state_q_maharashtra", 0),       # quiet at the first question
+@pytest.mark.parametrize("script,prompt,again", [
+    # quiet at the opener: the second time round it is the long opener that brings the key list
+    (["3", "s", "s"], "opener_short_prompt", "opener_prompt"),
+    (["3", "1", "s", "s"], "state_q_maharashtra", "state_q_maharashtra"),   # quiet at the first question
 ])
-def test_total_quiet_reminder_at_30_s_and_goodbye_at_60_s(monkeypatch, script, prompt, first_quiet):
+def test_total_quiet_reminder_at_30_s_and_goodbye_at_60_s(monkeypatch, script, prompt, again):
     res = _quiet_call(monkeypatch, script)
     assert res.error == "" and res.closed_at is not None
     said = _agent(res)
     assert said.count("waiting_for_reply") == 1 and said[-1] == "closing_farewell"
-    # the reminder comes 30 s after the prompt ends, then the prompt again, then 30 s more
+    # the reminder comes 30 s after the prompt ends, then the prompt again (at the opener: the key
+    # list), then 30 s more counted from the end of what was said last
     assert _gap_after(res, prompt, "waiting_for_reply") == pytest.approx(30.0, abs=1.0)
-    assert _gap_after(res, prompt, "closing_farewell", nth=1) == pytest.approx(30.0, abs=1.0)
-    first = next(c for c in res.clips if c["name"] == prompt)
-    # 60 s of quiet in all, plus the time the reminder and the prompt take to say
-    assert 60.0 <= next(c for c in res.clips if c["name"] == "closing_farewell")["start"] - first["end"] <= 66.0
+    assert _quiet_before_goodbye(res) == pytest.approx(30.0, abs=1.0)
+    assert again in said[said.index("waiting_for_reply"):]
 
 
 def test_total_quiet_at_the_language_pick_replays_the_greeting_then_says_goodbye(monkeypatch):
@@ -202,16 +209,17 @@ def test_a_noise_is_not_a_reply_the_wait_does_not_move(monkeypatch):
     assert res.error == "" and said[-1] == "closing_farewell"
     assert said.count("waiting_for_reply") == 1
     assert _gap_after(res, "opener_short_prompt", "waiting_for_reply") == pytest.approx(30.0, abs=1.5)
-    first = next(c for c in res.clips if c["name"] == "opener_short_prompt")
-    assert 60.0 <= res.closed_at - first["end"] <= 75.0
+    # the second quiet runs from the end of the key list, which the opener says after the reminder
+    assert "opener_prompt" in said
+    assert _quiet_before_goodbye(res) == pytest.approx(30.0, abs=1.5)
 
 
 def test_coughs_in_both_waits_do_not_stretch_the_call(monkeypatch):
     res = _cough_call(monkeypatch, ["3", "s", "s"], [10.0, 25.0, 45.0, 70.0])
     said = _agent(res)
     assert said.count("waiting_for_reply") == 1 and said[-1] == "closing_farewell"
-    first = next(c for c in res.clips if c["name"] == "opener_short_prompt")
-    assert res.closed_at - first["end"] <= 75.0
+    assert "opener_prompt" in said
+    assert _quiet_before_goodbye(res) <= 45.0   # the second wait runs from the end of the key list
 
 
 def test_a_cough_at_the_language_pick_is_not_a_reply(monkeypatch):
