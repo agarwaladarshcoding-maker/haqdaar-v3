@@ -348,13 +348,15 @@ def test_confirm_mismatch_reask_and_then_accept(fixture_corpus, tmp_path):
 
 
 def test_confirm_mismatch_two_strikes_drops_to_keypad(fixture_corpus, tmp_path):
-    """2 mismatches / strikes on a box drops that box to the keypad menu."""
+    """3 mismatches / strikes (UNCLEAR_TRIES) on a box drop that box to the keypad menu."""
     audio = MockAudioSession(inputs=[
         Digit("1"),                             # Turn 0: Hindi
         Speech(text="I need farming schemes"),  # Spoken opener
         Digit("2"),                             # Strike 1: mismatch
         Speech(text="Still farming"),           # Re-ask spoken opener
-        Digit("2"),                             # Strike 2: mismatch -> box drops to keypad menu!
+        Digit("2"),                             # Strike 2: mismatch
+        Speech(text="Farming again"),           # Re-ask spoken opener
+        Digit("2"),                             # Strike 3: mismatch -> box drops to keypad menu!
         # Now box is keypad! Opener prompt is re-played with keypad menu.
         Digit("1"),                             # Keypad selection: 1 = farming!
         Digit("2"),                             # State: OTHER
@@ -371,9 +373,9 @@ def test_confirm_mismatch_two_strikes_drops_to_keypad(fixture_corpus, tmp_path):
 
     lines = [json.loads(l) for l in open(tmp_path / "test_confirm_keypad_drop.jsonl")]
     unclears = [l for l in lines if l.get("class") == "UNCLEAR"]
-    assert len(unclears) >= 2
+    assert len(unclears) >= 3
 
-    # After 2 strikes, the next ANSWER for category is keypad-based
+    # After 3 strikes, the next ANSWER for category is keypad-based
     answers = [l for l in lines if l.get("class") == "ANSWER" and l.get("box") == "category"]
     keypad_ans = answers[-1]
     assert keypad_ans["transcript"] == "1"
@@ -381,30 +383,27 @@ def test_confirm_mismatch_two_strikes_drops_to_keypad(fixture_corpus, tmp_path):
 
 
 def test_confirm_silence_handling_ladder(fixture_corpus, tmp_path):
-    """Silence during confirmation runs the silence ladder: rung 1 no-reply line + prompt again, rung 2 presence first, rung 3 farewell & hangup."""
+    """Silence during confirmation runs the silence ladder: rung 1 "we are waiting" line + prompt again, rung 2 farewell & hangup."""
     audio = MockAudioSession(inputs=[
         Digit("1"),                             # Turn 0: Hindi
         Speech(text="I need farming schemes"),  # Spoken opener
-        Silence(n=1),                           # Silence rung 1 -> repeat
-        Silence(n=2),                           # Silence rung 2 -> presence
-        Silence(n=3),                           # Silence rung 3 -> closing farewell & hangup
+        Silence(n=1),                           # Silence rung 1 -> waiting line + repeat
+        Silence(n=2),                           # Silence rung 2 -> closing farewell & hangup
     ])
     log = Log.open("test_confirm_silence", fixture_corpus.snapshot_id, logs_dir=tmp_path)
     model = MockModel(opener_res=[Stamp(box="category", value="farming", span="farming")])
 
     Engine.run_call(audio, model, fixture_corpus, log)
 
-    assert "did_not_get_reply" in audio.played
-    assert "silence_presence" in audio.played
+    assert "waiting_for_reply" in audio.played
     assert "closing_farewell" in audio.played
     assert audio.hung_up is True
 
     lines = [json.loads(l) for l in open(tmp_path / "test_confirm_silence.jsonl")]
     silence_lines = [l for l in lines if l.get("class") == "SILENCE"]
-    assert len(silence_lines) == 3
+    assert len(silence_lines) == 2
     assert silence_lines[0]["silence_n"] == 1
     assert silence_lines[1]["silence_n"] == 2
-    assert silence_lines[2]["silence_n"] == 3
 
 
 def test_confirm_noise_and_invalid_digits(fixture_corpus, tmp_path):
@@ -904,8 +903,7 @@ def test_anything_else_voice_silence_ends_call(fixture_corpus, tmp_path):
         Digit("3"),                             # Social category: 3 = SC
         Digit("0"),                             # Readback menu: 0 = leave menu
         Silence(n=1),                           # Anything else: silence, asked again
-        Silence(n=2),
-        Silence(n=3),                           # ladder spent: farewell and hangup
+        Silence(n=2),                           # ladder spent: farewell and hangup
     ])
     log = Log.open("test_ae_voice_silence", fixture_corpus.snapshot_id, logs_dir=tmp_path)
     model = MockModel(opener_res=[Stamp(box="category", value="farming", span="farming")])
@@ -913,7 +911,7 @@ def test_anything_else_voice_silence_ends_call(fixture_corpus, tmp_path):
     Engine.run_call(audio, model, fixture_corpus, log)
 
     assert audio.hung_up
-    assert audio.played.count("anything_else") == 3  # asked, then again after each of two silences
+    assert audio.played.count("anything_else") == 2  # asked, then again after the first silence
     assert "closing_farewell" in audio.played
 
 

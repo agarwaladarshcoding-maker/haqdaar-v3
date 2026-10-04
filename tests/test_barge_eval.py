@@ -78,7 +78,7 @@ def test_a_long_cough_at_a_question_costs_no_turn_and_asks_once():
 
 
 def test_a_room_that_keeps_coughing_cannot_hold_the_call():
-    """After CUT_IN_FALSE_MAX false cuts in one wait the sound goes to the engine as before."""
+    """After CUT_IN_FALSE_MAX false cuts in one wait the sound is a noise; the line drops it."""
     be.KINDS["_coughs"] = dict(
         acts=[be._say("", 0.6), be._say("", 0.6, 3.0), be._say("", 0.6, 6.0), be._say("", 0.6, 9.0)],
         answers=True, voice=True)
@@ -87,8 +87,8 @@ def test_a_room_that_keeps_coughing_cannot_hold_the_call():
     finally:
         del be.KINDS["_coughs"]
     assert res.error == "" and row["closed"] and row["n_stop"] == 1
-    # two false cuts in the first wait, then the third cough reaches the engine as noise
-    assert row["false_cut"] >= tunables.CUT_IN_FALSE_MAX and row["extra_noise"] >= 1
+    # two false cuts in the first wait, then the third cough is a noise: dropped, never a turn
+    assert row["false_cut"] >= tunables.CUT_IN_FALSE_MAX and row["extra_noise"] == 0
 
 
 def test_hmm_at_a_yes_no_is_said_again_but_a_word_is_an_answer():
@@ -106,7 +106,7 @@ def test_a_key_pressed_twice_fast_does_not_wipe_the_scheme():
     queued (name, summary, menu) and then be dropped too: 13 s of dead air."""
     row, res = be.run_case("spoken", "keys_only", "results_exact_preamble", 200, "key_twice")
     assert not row["stopped"]
-    assert row["max_quiet_ms"] < 9000
+    assert row["max_quiet_ms"] < be.DEAD_AIR_MS
     assert "scheme:S4:summary" in _agent(res)
 
 
@@ -141,3 +141,97 @@ def test_quick_matrix_every_call_ends_cleanly(tmp_path):
     for cid in ("C1", "C2", "C3", "C5a", "C6a", "C6b", "C9", "C10", "C11", "C12", "C13"):
         assert status[cid] == "pass", (cid, status[cid])
     assert (tmp_path / "scorecard.md").exists() and (tmp_path / "results.jsonl").exists()
+
+
+# --- T1: total quiet, with the real 30 s and 60 s ---------------------------------------
+
+
+def _quiet_call(monkeypatch, script):
+    monkeypatch.setitem(be.SCRIPTS, "gone", script)
+    return be.run_call("gone", "keys_only", remind_s=30.0, hangup_s=60.0)
+
+
+def _gap_after(res, before_name, after_name, nth=0):
+    """Seconds from the end of the nth clip `before_name` to the start of the next `after_name`."""
+    ends = [c["end"] for c in res.clips if c["name"] == before_name]
+    start = next(c["start"] for c in res.clips if c["name"] == after_name and c["start"] >= ends[nth])
+    return start - ends[nth]
+
+
+@pytest.mark.parametrize("script,prompt,first_quiet", [
+    (["3", "s", "s"], "opener_short_prompt", 0),            # quiet at the opener
+    (["3", "1", "s", "s"], "state_q_maharashtra", 0),       # quiet at the first question
+])
+def test_total_quiet_reminder_at_30_s_and_goodbye_at_60_s(monkeypatch, script, prompt, first_quiet):
+    res = _quiet_call(monkeypatch, script)
+    assert res.error == "" and res.closed_at is not None
+    said = _agent(res)
+    assert said.count("waiting_for_reply") == 1 and said[-1] == "closing_farewell"
+    # the reminder comes 30 s after the prompt ends, then the prompt again, then 30 s more
+    assert _gap_after(res, prompt, "waiting_for_reply") == pytest.approx(30.0, abs=1.0)
+    assert _gap_after(res, prompt, "closing_farewell", nth=1) == pytest.approx(30.0, abs=1.0)
+    first = next(c for c in res.clips if c["name"] == prompt)
+    # 60 s of quiet in all, plus the time the reminder and the prompt take to say
+    assert 60.0 <= next(c for c in res.clips if c["name"] == "closing_farewell")["start"] - first["end"] <= 66.0
+
+
+def test_total_quiet_at_the_language_pick_replays_the_greeting_then_says_goodbye(monkeypatch):
+    def quiet_greeting(world, caller):
+        caller.script[0] = "s"
+    monkeypatch.setitem(be.SCRIPTS, "gone", ["s", "s"])
+    res = be.run_call("gone", "keys_only", inject=quiet_greeting, remind_s=30.0, hangup_s=60.0)
+    said = _agent(res)
+    assert said.count("greeting_trilingual") == 2 and "waiting_for_reply" not in said
+    assert said[-1] == "closing_farewell"
+    assert _gap_after(res, "greeting_trilingual", "greeting_trilingual") == pytest.approx(30.0, abs=1.0)
+
+
+def _cough_call(monkeypatch, script, cough_at, inject_kind="cough"):
+    def cough(world, caller):
+        for t in cough_at:
+            world.at(be.T0 + t, lambda: caller.speak(world.now, 0.4, "", level=be.LOUD))
+    monkeypatch.setitem(be.SCRIPTS, "gone", script)
+    return be.run_call("gone", "keys_only", inject=cough, remind_s=30.0, hangup_s=60.0)
+
+
+def test_a_noise_is_not_a_reply_the_wait_does_not_move(monkeypatch):
+    """Quiet, with a cough (no words) in the first wait: the reminder still comes 30 s after the
+    prompt ends and the call ends at about 60 s, as if it were fully quiet."""
+    res = _cough_call(monkeypatch, ["3", "s", "s"], [10.0])
+    said = _agent(res)
+    assert res.error == "" and said[-1] == "closing_farewell"
+    assert said.count("waiting_for_reply") == 1
+    assert _gap_after(res, "opener_short_prompt", "waiting_for_reply") == pytest.approx(30.0, abs=1.5)
+    first = next(c for c in res.clips if c["name"] == "opener_short_prompt")
+    assert 60.0 <= res.closed_at - first["end"] <= 75.0
+
+
+def test_coughs_in_both_waits_do_not_stretch_the_call(monkeypatch):
+    res = _cough_call(monkeypatch, ["3", "s", "s"], [10.0, 25.0, 45.0, 70.0])
+    said = _agent(res)
+    assert said.count("waiting_for_reply") == 1 and said[-1] == "closing_farewell"
+    first = next(c for c in res.clips if c["name"] == "opener_short_prompt")
+    assert res.closed_at - first["end"] <= 75.0
+
+
+def test_a_cough_at_the_language_pick_is_not_a_reply(monkeypatch):
+    def quiet_greeting(world, caller):
+        caller.script[0] = "s"
+        world.at(be.T0 + 12.0, lambda: caller.speak(world.now, 0.4, "", level=be.LOUD))
+    monkeypatch.setitem(be.SCRIPTS, "gone", ["s", "s"])
+    res = be.run_call("gone", "keys_only", inject=quiet_greeting, remind_s=30.0, hangup_s=60.0)
+    said = _agent(res)
+    assert said.count("greeting_trilingual") == 2 and said[-1] == "closing_farewell"
+    assert _gap_after(res, "greeting_trilingual", "greeting_trilingual") == pytest.approx(30.0, abs=1.5)
+    assert _gap_after(res, "greeting_trilingual", "closing_farewell", nth=1) == pytest.approx(30.0, abs=1.5)
+
+
+def test_real_words_after_a_cough_still_start_the_count_again(monkeypatch):
+    def cough_then_words(world, caller):
+        world.at(be.T0 + 10.0, lambda: caller.speak(world.now, 0.4, "", level=be.LOUD))
+        world.at(be.T0 + 40.0, lambda: caller.speak(world.now, 1.5, "hello", level=be.LOUD))
+    monkeypatch.setitem(be.SCRIPTS, "gone", ["3", "s", "s", "s", "s"])
+    res = be.run_call("gone", "voice_qa", inject=cough_then_words, remind_s=30.0, hangup_s=60.0)
+    assert res.error == "" and res.closed_at is not None
+    assert _agent(res).count("waiting_for_reply") == 2   # one before the words, one after
+    assert res.closed_at - be.T0 > 100.0                  # the words at 40 s started the count again

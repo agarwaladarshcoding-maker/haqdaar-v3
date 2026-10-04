@@ -250,13 +250,14 @@ def test_turn_0_and_keypad_mode_entry(corpus, tmp_path):
 
 
 def test_noise_spends_turn_silence_does_not(corpus, tmp_path):
-    """NOISE increments turn_n; SILENCE leaves turn_n unchanged."""
-    # Inputs: Turn 0=Digit(1), Question 1: Silence(1), Silence(2), Noise(), Answer(1), AnythingElse=2
+    """NOISE increments turn_n; SILENCE leaves turn_n unchanged. Noise is not quiet: the silence
+    count after it starts again from 1, so two silences with a noise between never end the call."""
+    # Inputs: Turn 0=Digit(1), Question 1: Silence(1), Noise(), Silence(1), Answer(1), AnythingElse=2
     audio = MockAudio(inputs=[
         Digit("1"),
         Silence(n=1),
-        Silence(n=2),
         Noise(),
+        Silence(n=1),
         Digit("1"),
         Digit("2"),
     ])
@@ -270,26 +271,28 @@ def test_noise_spends_turn_silence_does_not(corpus, tmp_path):
     question_turns = turns[1:]
     # Silence at turn_n=0
     assert question_turns[0]["class"] == "SILENCE" and question_turns[0]["turn_n"] == 0 and question_turns[0]["silence_n"] == 1
-    assert question_turns[1]["class"] == "SILENCE" and question_turns[1]["turn_n"] == 0 and question_turns[1]["silence_n"] == 2
     # Noise increments to turn_n=1
-    assert question_turns[2]["class"] == "NOISE" and question_turns[2]["turn_n"] == 1
+    assert question_turns[1]["class"] == "NOISE" and question_turns[1]["turn_n"] == 1
+    # The silence after the noise is a first silence again, so the call goes on
+    assert question_turns[2]["class"] == "SILENCE" and question_turns[2]["turn_n"] == 1 and question_turns[2]["silence_n"] == 1
     # Answer increments to turn_n=2
     assert question_turns[3]["class"] == "ANSWER" and question_turns[3]["turn_n"] == 2
+    assert audio.played.count("waiting_for_reply") == 2
 
 
 def test_silence_ladder_timeout_hangup(corpus, tmp_path):
-    """Rung 3 of silence ladder triggers closing_farewell and hangup."""
+    """Rung 2 of the silence ladder triggers closing_farewell and hangup (rung 1 is the reminder)."""
     audio = MockAudio(inputs=[
         Digit("1"),
         Silence(n=1),
         Silence(n=2),
-        Silence(n=3),
     ])
     log = Log.open("test_silence_hangup", corpus.snapshot_id, logs_dir=tmp_path)
     Engine.run_call(audio, None, corpus, log)
 
     assert audio.hung_up
     assert "closing_farewell" in audio.played
+    assert audio.played.count("waiting_for_reply") == 1
     lines = [json.loads(l) for l in open(tmp_path / "test_silence_hangup.jsonl")]
     assert lines[-1]["stop"] in STOP_REASONS
 
@@ -328,7 +331,7 @@ def test_control_keys_hash_and_star(corpus, tmp_path):
 
 
 def test_out_of_menu_digit_strike_and_drop(corpus, tmp_path):
-    """Out-of-menu digit is logged as UNCLEAR; second strike drops box to UNKNOWN."""
+    """Out-of-menu digit is logged as UNCLEAR; the third strike (UNCLEAR_TRIES) drops box to UNKNOWN."""
     # category (the opener, asked first) now has all 9 vocab.CATEGORY values as
     # valid keys 1-9 (D6, step 1.5a), so every digit 1-9 is a real pick there,
     # and "0" is reserved for "don't know" (D7/F8, step 1.6), not a strike. So
@@ -338,7 +341,8 @@ def test_out_of_menu_digit_strike_and_drop(corpus, tmp_path):
         Digit("1"),    # Turn 0
         Digit("1"),    # opener: category -> farming
         Digit("5"),    # state: out of menu strike 1 (re-ask)
-        Digit("5"),    # state: out of menu strike 2 (drop to UNKNOWN)
+        Digit("5"),    # state: out of menu strike 2 (re-ask)
+        Digit("5"),    # state: out of menu strike 3 (drop to UNKNOWN)
         Digit("1"),    # Next box
         Digit("3"),    # Next box
         Digit("9"), Digit("9"), Digit("9"),   # read-back: walk the schemes

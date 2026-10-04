@@ -100,6 +100,8 @@ class Line:
 def _fast(monkeypatch):
     monkeypatch.setattr(tunables, "KEY_GUARD_MS", 0)
     monkeypatch.setattr(tunables, "SILENCE_GAP_S", 0.3)
+    monkeypatch.setattr(tunables, "SILENCE_REMIND_S", 0.3)
+    monkeypatch.setattr(tunables, "SILENCE_HANGUP_S", 0.6)
     monkeypatch.setattr(tunables, "SPEECH_CUT_IN", True)
 
 

@@ -116,9 +116,10 @@ def _door_a_read(audio: Any, log: Log, slug: str, transcript: str, span: str,
     ))
 
 
-# The silence ladder ends the call on the third silent wait in a row (Silence.n counts them
-# across every wait; any key or word resets it, so one counter serves the whole call).
-SILENCE_HANGUP_RUNG = 3
+# The silence ladder ends the call on the second silent wait in a row (Silence.n counts them
+# across every wait; any key, word or noise resets it, so one counter serves the whole call).
+# Each wait is long (SILENCE_REMIND_S, then the rest up to SILENCE_HANGUP_S), so two is the whole ladder.
+SILENCE_HANGUP_RUNG = 2
 
 
 def _answer_silence(
@@ -126,10 +127,10 @@ def _answer_silence(
 ) -> bool:
     """The one answer to silence at every wait (7.3): never a silent default, never dead air.
 
-    True: the caller was told "no reply" and the live `prompt` was said again, so wait again.
+    True: the caller was told "we are waiting" and the live `prompt` was said again, so wait again.
     False: the ladder is spent; the farewell is said and the caller hangs up and closes the log.
     A silence spends no turn. `prompt` is empty where the loop says its own prompt next.
-    `say_reply` is False at turn 0: no language is picked yet, so the "no reply" line would come
+    `say_reply` is False at turn 0: no language is picked yet, so the "waiting" line would come
     out in Hindi; the trilingual greeting is the re-prompt and the loop plays it again.
     """
     log.write(TurnLogRecord(turn_n=turn_n, turn_class="SILENCE", silence_n=rung))
@@ -139,8 +140,7 @@ def _answer_silence(
             audio.on_mark("closing_farewell")
         return False
     if say_reply:
-        presence = ("silence_presence",) if rung == 2 else ()
-        audio.say(presence + ("did_not_get_reply",) + prompt)
+        audio.say(("waiting_for_reply",) + prompt)
     return True
 
 
@@ -326,7 +326,7 @@ class Engine:
                 mode = "keypad_only"
                 log.write({"mode": "keypad_only"})
                 audio.say(("keypad_only_mode",))
-            if box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
+            if box_strikes[box] >= tunables.UNCLEAR_TRIES:
                 if mode == "keypad_only" or is_box_keypad:
                     box_vector[box] = UNKNOWN
                     question_count += 1
@@ -649,11 +649,11 @@ class Engine:
 
                 assert isinstance(action, Ask)
                 box = action.box
-                if box == "category" and not opener_menu and opener_misses >= 2:
+                if box == "category" and not opener_menu and opener_misses >= tunables.UNCLEAR_TRIES:
                     opener_menu = "two_misses"
                     log.write({"mode": mode, "opener_menu": opener_menu, "opener_misses": opener_misses})
 
-                is_box_keypad = (mode == "keypad_only") or (box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD)
+                is_box_keypad = (mode == "keypad_only") or (box_strikes[box] >= tunables.UNCLEAR_TRIES)
 
                 # Verify box cardinality for keypad mode
                 vals = corpus.values(box)
@@ -682,7 +682,7 @@ class Engine:
                         prompt_id = "opener_prompt" if opener_menu else "opener_short_prompt"
                     elif box == "state":
                         prompt_id = "state_q_maharashtra"
-                    elif box_strikes[box] == 1:
+                    elif box_strikes[box] >= 1:
                         prompt_id = f"rephrase_{box}"
                     else:
                         prompt_id = f"q_{box}"
@@ -692,8 +692,6 @@ class Engine:
                 if isinstance(inp, Silence):
                     rung = inp.n if (hasattr(inp, "n") and inp.n) else (silence_ladder + 1)
                     silence_ladder = rung
-                    if box == "category" and not is_box_keypad:
-                        opener_misses += 1
                     # The loop says the prompt itself on its next pass, so none is passed here.
                     if _answer_silence(audio, log, rung, turn_n, ()):
                         continue
@@ -727,7 +725,7 @@ class Engine:
                             stop_reason = STOP_MAX_TURNS
                             break
                         continue
-                    if box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
+                    if box_strikes[box] >= tunables.UNCLEAR_TRIES:
                         if mode == "keypad_only" or is_box_keypad:
                             box_vector[box] = UNKNOWN
                             question_count += 1
@@ -766,6 +764,8 @@ class Engine:
                         audio, log, corpus, box, inp, box_vector, box_strikes,
                         turn_n, question_count, mode, is_box_keypad,
                     )
+                    if box_strikes[box] == 0:
+                        opener_misses = 0  # a valid key clears the unclear count
                     if stop_reason:
                         break
                     continue
@@ -784,7 +784,7 @@ class Engine:
                             turn_class="UNCLEAR",
                             discarded_transcript=str(transcript),
                         ))
-                        if box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
+                        if box_strikes[box] >= tunables.UNCLEAR_TRIES:
                             box_vector[box] = UNKNOWN
                             question_count += 1
                             log.write(TurnLogRecord(
@@ -826,6 +826,8 @@ class Engine:
                             # 7.3: a question about a named scheme ("how much money is in PM Kisan?")
                             # is answered, not read out. No turn, no strike, the opener again.
                             turn_n -= 1
+                            box_strikes[box] = 0
+                            opener_misses = 0
                             continue
                         if dres.action == "read":
                             _door_a_read(audio, log, dres.scheme_ids[0], transcript,
@@ -937,6 +939,8 @@ class Engine:
                             # Named scheme already read and nothing to confirm:
                             # planner asks on. (A failed model pass still falls
                             # through so failure accounting runs.)
+                            box_strikes[box] = 0
+                            opener_misses = 0
                             continue
                     else:
                         turn_kwargs = {"english": True, "lang": inp.lang} if getattr(inp, "english", False) else {}
@@ -979,6 +983,8 @@ class Engine:
                             audio, log, corpus, box, pending, box_vector, box_strikes,
                             turn_n, question_count, mode, is_box_keypad,
                         )
+                        if box_strikes[box] == 0:
+                            opener_misses = 0
                         if stop_reason:
                             break
                         continue
@@ -989,6 +995,8 @@ class Engine:
                         ):
                             # A question never moves the call: no turn, no strike, same box again.
                             turn_n -= 1
+                            box_strikes[box] = 0
+                            opener_misses = 0
                             continue
                         # Model did not understand speech -> UNCLEAR
                         box_strikes[box] += 1
@@ -1007,7 +1015,7 @@ class Engine:
                             mode = "keypad_only"
                             log.write({"mode": "keypad_only"})
                             audio.say(("keypad_only_mode",))
-                        elif box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                        elif box_strikes[box] < tunables.UNCLEAR_TRIES:
                             audio.say(("unclear_prompt",))
                         if turn_n >= tunables.MAX_TURNS:
                             stop_reason = STOP_MAX_TURNS
@@ -1064,7 +1072,7 @@ class Engine:
                                         turn_class="UNCLEAR",
                                         transcript="#",
                                     ))
-                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                    if box_strikes[box] < tunables.UNCLEAR_TRIES:
                                         audio.say(("unclear_prompt",))
                                     break
                                 continue
@@ -1092,7 +1100,7 @@ class Engine:
                                         turn_class="UNCLEAR",
                                         transcript="*",
                                     ))
-                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                    if box_strikes[box] < tunables.UNCLEAR_TRIES:
                                         audio.say(("unclear_prompt",))
                                     break
                                 continue
@@ -1101,6 +1109,7 @@ class Engine:
                                 turn_n += 1
                                 box_vector[box] = proposed_val
                                 box_strikes[box] = 0
+                                opener_misses = 0
                                 question_count += 1
                                 log.write(TurnLogRecord(
                                     turn_n=turn_n,
@@ -1120,7 +1129,7 @@ class Engine:
                                     turn_class="UNCLEAR",
                                     transcript="2",
                                 ))
-                                if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                if box_strikes[box] < tunables.UNCLEAR_TRIES:
                                     audio.say(("unclear_prompt",))
                                 break
                             else:
@@ -1150,7 +1159,7 @@ class Engine:
                                     log.write({"mode": "keypad_only"})
                                     audio.say(("keypad_only_mode",))
                                     break
-                                elif box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
+                                elif box_strikes[box] >= tunables.UNCLEAR_TRIES:
                                     break
                                 else:
                                     audio.say(("unclear_prompt",))
@@ -1178,7 +1187,7 @@ class Engine:
                                     turn_class="UNCLEAR",
                                     transcript="silence_limit",
                                 ))
-                                if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                if box_strikes[box] < tunables.UNCLEAR_TRIES:
                                     audio.say(("unclear_prompt",))
                                 break
                             continue
@@ -1198,7 +1207,7 @@ class Engine:
                                 mode = "keypad_only"
                                 log.write({"mode": "keypad_only"})
                                 audio.say(("keypad_only_mode",))
-                            elif box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                            elif box_strikes[box] < tunables.UNCLEAR_TRIES:
                                 audio.say(("unclear_prompt",))
                             break
 
@@ -1214,6 +1223,7 @@ class Engine:
                                 turn_n += 1
                                 box_vector[box] = proposed_val
                                 box_strikes[box] = 0
+                                opener_misses = 0
                                 question_count += 1
                                 log.write(TurnLogRecord(
                                     turn_n=turn_n,
@@ -1232,7 +1242,7 @@ class Engine:
                                     turn_class="UNCLEAR",
                                     transcript=spk,
                                 ))
-                                if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                if box_strikes[box] < tunables.UNCLEAR_TRIES:
                                     audio.say(("unclear_prompt",))
                                 break
                             else:
@@ -1256,7 +1266,7 @@ class Engine:
                                     mode = "keypad_only"
                                     log.write({"mode": "keypad_only"})
                                     audio.say(("keypad_only_mode",))
-                                elif box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
+                                elif box_strikes[box] < tunables.UNCLEAR_TRIES:
                                     audio.say(("unclear_prompt",))
                                 break
 
@@ -1457,7 +1467,7 @@ class Engine:
                                 took=False,
                                 why="not_on_menu",
                             )
-                        if ae_strikes >= tunables.BOX_STRIKES_TO_KEYPAD:
+                        if ae_strikes >= tunables.UNCLEAR_TRIES:
                             break  # a stuck key must not loop forever: take it as "no"
                         audio.say(("unclear_prompt",))
                         continue

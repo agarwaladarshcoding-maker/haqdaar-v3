@@ -383,8 +383,8 @@ def _lines(tmp_path, name):
 
 
 def test_talk_first_opener(corpus, tmp_path):
-    """7.3: the opener is one short line. The list plays only on key 0 or after two misses; a
-    key 1-9 pressed at once still answers. Keys stay a full second way in."""
+    """7.3: the opener is one short line. The list plays only on key 0 or after three misses; a
+    key 1-9 pressed at once still answers. Keys stay a full second way in. Silence is not a miss."""
     def run(name, script, model=None):
         audio = WaitRecorder(script)
         log = Log.open(name, corpus.snapshot_id, logs_dir=tmp_path)
@@ -411,31 +411,30 @@ def test_talk_first_opener(corpus, tmp_path):
     assert any(l.get("class") == "ANSWER" and l.get("box") == "category" and l.get("transcript") == "1"
                for l in lines)
 
-    # Two misses, whether silence or words we cannot use, bring the list. Not before.
-    for name, misses in (("silent", [Silence(n=1), Silence(n=2)]), ("junk", [junk, junk]),
-                         ("mixed", [junk, Silence(n=1)])):
+    # Three misses (UNCLEAR_TRIES) of words we cannot use bring the list. Not before. A silence
+    # in between is not a miss: it adds nothing to the count.
+    for name, misses in (("junk", [junk, junk, junk]), ("mixed", [junk, Silence(n=1), junk, junk])):
         audio, lines = run(f"misses_{name}", [Digit("3")] + misses + rest)
-        said = audio.opening[:3]
-        assert "opener_prompt" not in said[0] and "opener_prompt" not in said[1], name
+        said = audio.opening
         assert said[0] == ("opener_short_prompt",), name
-        assert "opener_short_prompt" in said[1], name  # one miss: still the short line
-        assert "opener_prompt" in said[2], name       # two misses: the list
-        assert {"mode": "voice", "opener_menu": "two_misses", "opener_misses": 2} in lines, name
+        assert all("opener_prompt" not in o for o in said[:len(misses)]), name  # before the third miss
+        assert "opener_prompt" in said[len(misses)], name                      # after it: the list
+        assert {"mode": "voice", "opener_menu": "two_misses", "opener_misses": 3} in lines, name
         assert any(l.get("class") == "ANSWER" and l.get("box") == "category" for l in lines), name
 
-    # One miss alone does not bring the list.
-    audio, lines = run("one_miss", [Digit("3"), junk] + rest)
+    # Two misses do not bring the list, and silence alone never does.
+    audio, lines = run("two_misses", [Digit("3"), junk, junk] + rest)
     assert "opener_prompt" not in audio.played
+    audio, lines = run("silent_only", [Digit("3"), Silence(n=1)] + rest)
+    assert "opener_prompt" not in audio.played
+    assert not any("opener_menu" in l for l in lines)
 
 
 def _reprompt_is_right(prompt, said):
-    """After a silent wait: the no-reply line (after "I am still here" on the second), then the
-    live prompt again. The short opener line grows into the list on the second miss."""
-    said = said[1:] if said[:1] == ("silence_presence",) else said
-    if said[:1] != ("did_not_get_reply",) or len(said) < 2:
+    """After a silent wait: the "we are waiting" line, then the live prompt again."""
+    if said[:1] != ("waiting_for_reply",) or len(said) < 2:
         return False
-    again = said[1:]
-    return set(again) <= set(prompt) or (prompt == ("opener_short_prompt",) and again == ("opener_prompt",))
+    return set(said[1:]) <= set(prompt)
 
 
 def _kind(prompt):
@@ -499,10 +498,10 @@ def test_language_prompt_wrong_keys(corpus, tmp_path):
 @pytest.mark.parametrize("lang,key", [("en", "3"), ("hi", "1"), ("mr", "2")])
 def test_silence_always_reprompts(corpus, tmp_path, monkeypatch, lang, key):
     """7.3: every wait that hears nothing says the no-reply line, then asks again, in the
-    caller's language; and a caller who stays silent is let go by the ladder, in three waits."""
+    caller's language; and a caller who stays silent is let go by the ladder, in two waits."""
     monkeypatch.setattr(tunables, "QA_ENABLED", True)
     monkeypatch.setattr(tunables, "QA_SEARCH", True)
-    for line_id in ("opener_short_prompt", "did_not_get_reply"):
+    for line_id in ("opener_short_prompt", "waiting_for_reply"):
         assert all(load_lines()[line_id].get(l, "").strip() for l in ("en", "hi", "mr")), line_id
 
     # 1. One silence at every position of a whole call, by keys and by voice.
@@ -540,15 +539,15 @@ def test_silence_always_reprompts(corpus, tmp_path, monkeypatch, lang, key):
     audio = Turn0([Silence(n=1), Digit(key)] + BASE_KEYS[1:])
     Engine.run_call(audio, SweepModel(), corpus, Log.open("t0", corpus.snapshot_id, logs_dir=tmp_path))
     assert audio.played[:2] == ["greeting_trilingual", "greeting_trilingual"]  # the greeting replays
-    assert "did_not_get_reply" not in audio.played  # no language is picked yet, so no one-language line
+    assert "waiting_for_reply" not in audio.played  # no language is picked yet, so no one-language line
     assert audio.language == lang
     # (the log's header row carries "default" until a language is chosen; only the rows after count)
     picked = [l for l in _lines(tmp_path, "t0") if "lang_source" in l and "call_id" not in l]
     assert picked and all(l["lang_source"] == "keypad" for l in picked)
 
-    audio = Turn0([Silence(n=1), Silence(n=2), Silence(n=3)])
+    audio = Turn0([Silence(n=1), Silence(n=2)])
     Engine.run_call(audio, SweepModel(), corpus, Log.open("t0_gone", corpus.snapshot_id, logs_dir=tmp_path))
-    assert audio.played == ["greeting_trilingual", "greeting_trilingual", "greeting_trilingual", "closing_farewell"]
+    assert audio.played == ["greeting_trilingual", "greeting_trilingual", "closing_farewell"]
     assert audio.hung_up
     lines = _lines(tmp_path, "t0_gone")
     assert "stop" in lines[-1] and not any("lang_source" in l for l in lines if "call_id" not in l)
@@ -560,20 +559,20 @@ def test_silence_always_reprompts(corpus, tmp_path, monkeypatch, lang, key):
     assert audio.silent_waits == 1 and len(audio.reprompts) == 1
     prompt, said, _ = audio.reprompts[0]
     assert _reprompt_is_right(prompt, said) and "door_a_option_1" in said
-    audio = WaitRecorder([Silence(n=1), Silence(n=2), Silence(n=3)])
+    audio = WaitRecorder([Silence(n=1), Silence(n=2)])
     assert _door_a_pick(audio, log, 1, "S1", "S2") == "hangup"
     assert audio.played[-1] == "closing_farewell"
 
-    # 4. A caller who goes quiet at any point is let go on the third silent wait in a row.
+    # 4. A caller who goes quiet at any point is let go on the second silent wait in a row.
     runs = ladder_ends = 0
     for base in (BASE_KEYS, BASE_SPOKEN):
         for pos in range(len(base) + 1):
             audio = GoneCaller([Digit(key)] + base[1:pos])
             Engine.run_call(audio, SweepModel(), corpus, Log.open(f"gone_{runs}", corpus.snapshot_id, logs_dir=tmp_path))
             runs += 1
-            assert audio.hung_up and audio.silent_run <= 3
+            assert audio.hung_up and audio.silent_run <= 2
             if audio.silent_run:
-                assert audio.silent_run == 3 and audio.played[-1] == "closing_farewell"
+                assert audio.silent_run == 2 and audio.played[-1] == "closing_farewell"
                 ladder_ends += 1
     assert ladder_ends >= runs // 2, "most runs should have ended by the ladder"
 
@@ -629,11 +628,15 @@ def test_voice_at_any_time_unclear_speech_asks_again_and_picks_nothing(monkeypat
     monkeypatch.setattr(tunables, "LANGS_OFFERED", ("hi", "mr", "en"))
     monkeypatch.setattr(tunables, "SPEECH_CUT_IN", True)
     monkeypatch.setattr(tunables, "KEY_GUARD_MS", 0)
+    monkeypatch.setattr(tunables, "SILENCE_REMIND_S", 0.3)            # no words is quiet: the wait runs on
     line, stt, select = _greeting_line([said])
     line.phone.language = "mr"                                        # a pick would change this
     got = select()
     assert stt.calls == 1                                             # the case was really reached
-    assert isinstance(got, (Speech, Noise)) and not isinstance(got, tuple)
+    if said:
+        assert isinstance(got, Speech) and not isinstance(got, tuple)
+    else:
+        assert got == Silence(n=1)                                    # sound with no words is not a reply
     assert line.phone.language == "mr"
     assert not line.turn.hung_up.is_set()
 
@@ -651,6 +654,8 @@ def test_voice_at_any_time_voice_off_the_greeting_is_as_before(monkeypatch):
     monkeypatch.setattr(tunables, "SPEECH_CUT_IN", False)
     monkeypatch.setattr(tunables, "SILENCE_GAP_S", 0.2)
     monkeypatch.setattr(tunables, "TURN0_GAP_S", 0.2)
+    monkeypatch.setattr(tunables, "SILENCE_REMIND_S", 0.2)
+    monkeypatch.setattr(tunables, "SILENCE_HANGUP_S", 0.4)
     line, stt, select = _greeting_line(["Hindi"])
     got = select()
     assert isinstance(got, Silence) and stt.calls == 0                # the voice is not heard

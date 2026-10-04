@@ -28,6 +28,8 @@ def phone(tmp_path, monkeypatch):
         "CALL_LOGS_DIR": str(tmp_path / "calls"),
         "SILENCE_GAP_S": 0.2,
         "TURN0_GAP_S": 0.2,
+        "SILENCE_REMIND_S": 0.2,
+        "SILENCE_HANGUP_S": 0.4,
         "HANGUP_WAIT_S": 1.0,
         "KEY_GUARD_MS": 0,  # the scripted caller presses the moment a prompt starts
     }.items():
@@ -98,7 +100,7 @@ def test_the_log_keeps_only_a_hash_of_the_number(phone):
 
 
 def test_a_keypad_question_is_followed_by_its_menu(phone):
-    got = _call(["3"])  # pick English, then stay silent until the call gives up
+    got = _call(["3", "0"])  # pick English, ask for the list with 0, then stay silent until the call gives up
     said = _said(got)
     menu_start = said.index("opener_prompt")
     menu = said[menu_start + 1:said.index("keypad_unknown_suffix", menu_start)]

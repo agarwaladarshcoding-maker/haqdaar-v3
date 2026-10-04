@@ -45,6 +45,7 @@ MENU_BOX: dict[str, str] = {
 STAND_IN: dict[str, str] = {
     "opener_short_prompt": "opener_prompt",
     "did_not_get_reply": "unclear_prompt",
+    "waiting_for_reply": "did_not_get_reply",
 }
 TURN0_KEYS: dict[str, Lang] = {"1": "hi", "2": "mr", "3": "en"}
 # Played even over a waiting key: the call is ending, nothing comes after it to answer.
@@ -94,9 +95,9 @@ class PhoneAudio:
         self.say(("greeting_trilingual",))
         if tunables.SPEECH_CUT_IN and hasattr(self.turn, "wait_input"):
             # No language is chosen yet, so the speech service is told none and finds it itself.
-            heard = self.turn.wait_input(tunables.TURN0_GAP_S, profile="greeting", lang="")
-            if isinstance(heard, (Speech, Noise)):
-                lang = language_from_words(heard.text) if isinstance(heard, Speech) else None
+            heard = self._wait_words(profile="greeting", lang="")
+            if isinstance(heard, Speech):
+                lang = language_from_words(heard.text)
                 self._silence = 0
                 if lang is None:
                     self._log("<- voice: no language heard")
@@ -106,7 +107,7 @@ class PhoneAudio:
                 return lang, "voice"
             key = heard.digit if isinstance(heard, Digit) else HANGUP if isinstance(heard, Hangup) else None
         else:
-            key = self.turn.wait(tunables.TURN0_GAP_S)
+            key = self.turn.wait(self._quiet_wait_s())
         if key in tunables.turn0_keys():
             self._silence = 0
             self.language = tunables.turn0_keys()[key]
@@ -121,6 +122,31 @@ class PhoneAudio:
         self._silence = 0
         self._log(f"<- key {key}: not a language")
         return Digit(digit=key)
+
+    def _quiet_wait_s(self) -> float:
+        """How long to wait for the caller's reply: the long first wait, then the rest of the way
+        to the hang-up. Any key or words zero _silence (noise does not), so the long wait starts again."""
+        if self._silence == 0:
+            return tunables.SILENCE_REMIND_S
+        return tunables.SILENCE_HANGUP_S - tunables.SILENCE_REMIND_S
+
+    def _wait_words(self, profile: str, lang: str) -> Input:
+        """Wait for a key or real words. Sound with no words (Noise) is not a reply: it is dropped
+        and the wait goes on for what is left of the gap, so a cough cannot keep the call alive.
+        The gap starts when the clip ends (the turn waits out the mouth first), so the deadline is
+        worked out from what the mouth still has to say. Ends as Silence when the gap is used up."""
+        gap = self._quiet_wait_s()
+        remaining = getattr(self.mouth, "remaining", None)
+        deadline = time.monotonic() + (remaining() if callable(remaining) else 0.0) + gap
+        left = gap
+        while True:
+            heard = self.turn.wait_input(left, profile=profile, lang=lang)
+            if not isinstance(heard, Noise):
+                return heard
+            left = deadline - time.monotonic()
+            self._log(f"<- noise, no words ({profile})")
+            if left <= 0.05:
+                return Silence(n=1)
 
     def say(self, sequence: tuple[str, ...]) -> None:
         clips: list[Clip] = []
@@ -228,7 +254,7 @@ class PhoneAudio:
                     inp = replace(inp, prompt_n=self.turn.prompt_n, cut_clip=cut[0], heard_ms=cut[1])
                 return inp
         if hasattr(self.turn, "wait_input"):
-            inp = self.turn.wait_input(tunables.SILENCE_GAP_S, profile=profile, lang=self.language)
+            inp = self._wait_words(profile=profile, lang=self.language)
             if isinstance(inp, Silence):
                 self._silence += 1
                 inp = Silence(n=self._silence)
@@ -236,11 +262,11 @@ class PhoneAudio:
             elif isinstance(inp, Digit):
                 self._silence = 0
                 self._log(f"<- key {inp.digit} ({profile})")
-            elif isinstance(inp, (Speech, Noise)):
+            elif isinstance(inp, Speech):
                 self._silence = 0
             return inp
 
-        key = self.turn.wait(tunables.SILENCE_GAP_S)
+        key = self.turn.wait(self._quiet_wait_s())
         if key is None:
             self._silence += 1
             self._log(f"<- silence {self._silence} ({profile})")

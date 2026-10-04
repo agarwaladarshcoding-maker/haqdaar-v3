@@ -59,6 +59,10 @@ MODEL_S = 0.5            # what one model call costs
 ANSWER_S = 1.2           # what writing an answer costs
 TTS_S = 0.7              # what live speech costs
 LOUD, QUIET = 3000, 0
+# The matrix runs with short quiet waits so the whole run stays fast; the real 30/60 is tried in
+# its own test. The dead-air limit (C10) is the longest single wait plus 3 s.
+MATRIX_REMIND_S, MATRIX_HANGUP_S = 6.0, 12.0
+DEAD_AIR_MS = int((max(MATRIX_REMIND_S, MATRIX_HANGUP_S - MATRIX_REMIND_S) + 3) * 1000)
 
 
 def _frame(level: int) -> bytes:
@@ -485,12 +489,14 @@ def lang_key(lang: str) -> str:
 
 def run_call(script_name: str, flags_name: str, lang: str = "en",
              inject: Optional[Callable[[World, Caller], None]] = None,
-             echo_level: int = 0, stt_fail: bool = False, bed: int = QUIET, n: int = 0) -> Result:
+             echo_level: int = 0, stt_fail: bool = False, bed: int = QUIET, n: int = 0,
+             remind_s: float = MATRIX_REMIND_S, hangup_s: float = MATRIX_HANGUP_S) -> Result:
     """One whole call on the real engine. `inject` may plan extra caller actions before it starts."""
     corp = corpus()
-    saved = {k: getattr(tunables, k) for k in FLAGS[flags_name]}
+    flags = dict(FLAGS[flags_name], SILENCE_REMIND_S=remind_s, SILENCE_HANGUP_S=hangup_s)
+    saved = {k: getattr(tunables, k) for k in flags}
     saved_time = (turn_mod.time, ear_mod.time, phone_mod.time)
-    for k, v in FLAGS[flags_name].items():
+    for k, v in flags.items():
         setattr(tunables, k, v)
     world = World()
     world.echo_level = echo_level
@@ -989,8 +995,8 @@ def scorecard(rows: list[dict[str, Any]], plain: list[dict[str, Any]]) -> tuple[
         not bad, bad, len(to))
 
     # C10 no long dead air after an input
-    bad = sorted([r for r in quiet if r["max_quiet_ms"] > 9000 and not r["caller_hung_up"]], key=lambda r: -r["max_quiet_ms"])
-    add("C10", "never more than one silence gap of dead air", "<= 9 s",
+    bad = sorted([r for r in quiet if r["max_quiet_ms"] > DEAD_AIR_MS and not r["caller_hung_up"]], key=lambda r: -r["max_quiet_ms"])
+    add("C10", "never more than one silence gap of dead air", f"<= {DEAD_AIR_MS // 1000} s",
         f"max {max((r['max_quiet_ms'] for r in quiet if not r['caller_hung_up']), default=0)} ms", not bad, bad, len(quiet))
 
     # C11 nothing is said twice back to back
