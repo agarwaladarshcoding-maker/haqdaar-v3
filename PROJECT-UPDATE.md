@@ -99,6 +99,19 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+### 4 Oct (evening) — Steps 7.3 to 7.7a built: talk first, never a silent default, one moment, voice any time, tighter clips
+- **Where.** Branch `step-7.8-sweep`, folder `~/code/haqdaar-v2-7.3`. Not on main. Not tried on a phone yet.
+- **7.3 Talk first.** After the language is picked the call says one short line: "What do you want to know? Say it, or press 0 for the list." The nine-choice list plays only on key 0 or after two misses. Keys 1 to 9 still work at once.
+- **7.3 Silence, everywhere.** Every place the call waits now goes through one helper. If nothing is heard it says "I did not get your reply", asks the same thing again, and waits. The third silent wait in a row says goodbye and hangs up. Silence at the language prompt no longer picks Hindi; the greeting just plays again.
+- **Changed on purpose.** Staying quiet inside a scheme used to move on to the next scheme. Now it asks again. One silence at "anything else" used to end the call. Now it asks again.
+- **7.1 fixes from the review.** A failed "speak the answer" no longer pays for a second model call. Raw error text no longer goes into the question log. 64 empty test cases removed, and that test now fails if it checks nothing.
+- **7.4 One moment.** When your words are taken as a question the call says "one moment" once, and stops it just before the answer.
+- **7.5 Voice at any time.** With `SPEECH_CUT_IN=true`: your voice stops the greeting and saying "Hindi" or "English" picks the language. If you speak again while it is still thinking, the old words are dropped and only the newest are answered.
+- **7.6 Tighter clips.** When a clip is loaded, quiet at its start and end is cut to 120 ms. 630 of 1,030 clips get shorter. Nothing on disk changes.
+- **7.7a Speed samples.** `make pace-samples` writes the same three lines slower, as now, and faster, in three languages, for the owner to pick.
+- **Not done.** Three new lines have words but no recorded voice: the opening line, the no-reply line, "one moment". On a real call they are silent until rendered, and a render needs the owner's yes. No phone call yet. The full re-record at a new speed waits for the owner's pick.
+- **Checks.** pytest 2,275 passed (one test fails only in side folders, it passes in the main folder); `make stress` 1,000 callers, 0 crashes, 0 truth failures; keypad `make sim` reads four schemes one by one to the end.
+
 ### 4 Oct — Step 7.2: One scheme at a time (results read one by one)
 - **Why.** In phone test 2, all matching schemes and section menus were dumped into a single audio queue at once (~200 seconds of audio). When a caller interrupted during a scheme's menu, clearing the audio queue lost all subsequent schemes and caused "this scheme" questions to be answered against whatever scheme the loop index drifted to, rather than the scheme the caller actually heard.
 - **Fixed — One scheme at a time.** Terminal sequences are now segmented into individual per-scheme blocks (`render_scheme_block`). The engine plays one scheme, its summary, and its section menu, and waits for input before playing the next scheme.

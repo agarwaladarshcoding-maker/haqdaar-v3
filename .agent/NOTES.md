@@ -2954,3 +2954,83 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 6. `_ask_extra` (call.py:1334) - wait for missing category/state
 7. `_ask_extra` confirmation (call.py:1336) - wait to confirm the extra info
 8. `_readback_schemes` (call.py:1501) - wait for readback section choice
+
+## Re-plan into three lanes (4 Oct ~15:30, Claude Opus as planner)
+- Found: branches step-7.0/7.1/7.2/7.3 all pointed at b1a43fd. Steps 7.1 + 7.2 lived only as uncommitted edits, and the 7.3 Antigravity job (agy_1791106694_2d765b) was already writing on top in the same folder. No rollback point.
+- Done: saved 7.1 + 7.2 as commit 254d828 and moved branch step-7.2-one-at-a-time to it. Made with a temp index (commit-tree), so the working folder and the real index were not touched while the job runs. Checked first that call.py / terminals.py / tests were still at their 13:4x-13:5x times (job had only written NOTES). `git diff step-7.2-one-at-a-time` now shows step 7.3 only. When 7.3 is ready to commit: `git reset --soft step-7.2-one-at-a-time` on step-7.3-talk-first, then commit.
+- Why lanes: 7.3, 7.4, 7.5 all edit call.py (8 `audio.next_input` sites, `_try_question`, greeting) -> one after another. 7.6 is pool.py only and 7.7a is a new tool -> independent, each in its own git worktree.
+- Lane B: worktree ~/code/haqdaar-v2-7.6, branch step-7.6-trim-silence from 254d828. `audio` and `.venv` are symlinks to the main folder (added /audio, /.venv, /.env to .git/info/exclude so they do not show as untracked). Sonnet coder told: new test file only, do not touch test_barge_sweep.py / call.py / lines.yaml / PROJECT-UPDATE.md / .agent, no spend.
+- Lane C prompts written: PROMPT-ANTIGRAVITY-7.7A-PACE-SAMPLES.md (stretch-based samples, no Sarvam) and PROMPT-MUSE-7.3-WORDS-AND-REVIEW.md (words for 3 new lines, then 7.3 review).
+- Work-order drift to remember: the PROMPT-STEP-7.x files say "branch from reviewed main" but main (806299b) has none of 6.x/7.x; branch from the last reviewed step instead. They say `wait_input`; the engine calls `audio.next_input`. Line numbers are stale (opener is call.py ~522-604, `_try_question` ~301, greeting ~435-450). The "Wait Points Map" above uses function names that do not exist; all waits are inline in run_call. PROMPT-STEP-7.2-7.3.md is an older, different 7.2/7.3 (the 7.0 work).
+- Muse spend today: Rs 0 / 30, all time Rs 12.97 / 60, open.
+- Stray untracked at repo root from the running job: test_sandbox.py, scratch/. Left alone.
+
+## Step 7.6 — trim silence (4 Oct ~15:45, Sonnet coder, side folder) — built, not phone-checked
+- Commit 1075941 on step-7.6-trim-silence (folder ~/code/haqdaar-v2-7.6, base 254d828). Not merged, not pushed.
+- pool.py: `trim_edges(data)` used by both load paths (`AudioPool.pin` tier 0 and the tier-1 miss in `AudioPool.get`); trimmed bytes are what is cached. tunables: TRIM_EDGE_MS=120 (same as TAIL_PAD_MS), TRIM_QUIET_LEVEL=15 (mu-law level 0-127, about -48 dBFS). All-quiet clips, clips under 2 gaps, and clips already inside the gap come back unchanged; middle quiet kept.
+- tests/test_trim_silence.py: 8 new tests incl. test_trim_silence_at_load. Claude re-ran: test_trim_silence + test_pool_fds + test_mouth = 15 passed.
+- Coder's full run in the side folder: 2274 passed, 1 failed; make stress 1000 callers crashes 0 truth failures 0.
+- The 1 failure is NOT from this step: tests/test_door_a.py::test_repo_entries_exclude_quarantined_slugs gets an empty quarantine set in the side folder. Same test passes in the main folder (Claude ran it). Cause: a git-ignored data file the loader reads is missing in the worktree (only audio and .venv were linked). Side folders need that file linked too, or ignore this one test there.
+- Clip length: mouth.py:162 takes duration from len(loaded bytes); marks and slow replay use the same bytes. No stored per-clip length found in haqdaar/. Snapshot data was not searched.
+- Measured: 630 of 1,030 real clips get shorter; typical edge 300-500 ms -> 120 ms; none empty.
+- Open: nobody has listened. Level 15 could shave a soft word start or end. Owner hears 3-4 clips after merge (hi and mr too).
+
+## Step 7.3 Antigravity job FAILED on quota; clean rebuild started (4 Oct ~16:00, Claude Opus)
+- agy_1791106694_2d765b ended FAILED after 1017 s: "RESOURCE_EXHAUSTED 429, Individual quota reached". It died mid-work.
+- State it left in the MAIN folder (uncommitted, untouched by Claude): call.py half-rewritten through 17 patch_*.py scripts at the repo root (diff vs 254d828: 342 added, 431 removed; nested callback closures `handle_miss`, `confirm_miss_cb`, `ae_miss_cb`; new `_wait_for_input`). It compiles, but pytest there = 111 failed, 2156 passed. lines.yaml + types.py got two draft lines: opener_short_prompt, did_not_get_reply (words not owner-approved, nothing rendered).
+- Claude tried to set the half-done files aside and put call.py back to 254d828; the permission system blocked it as destructive. So the main folder is left exactly as the job left it. OWNER DECIDES what to do with it (keep, or `git stash -u`, or restore call.py from 254d828).
+- Clean rebuild instead: worktree ~/code/haqdaar-v2-7.3, branch step-7.3-talk-first-clean, base 254d828, Sonnet coder. Brief: map all 8 `audio.next_input` sites first; ONE shared helper; work with the existing silence ladder (test_noise_spends_turn_silence_does_not), never loop forever; no patch scripts, stop if call.py change passes ~250 lines; no spend, no render; two new sweep tests test_talk_first_opener + test_silence_always_reprompts; leave uncommitted for review.
+- Side worktrees fail exactly one test, tests/test_door_a.py::test_repo_entries_exclude_quarantined_slugs (missing git-ignored data). Baseline there = 2266 passed + that 1.
+- Do NOT launch another agy job in the main folder until the half-done state is dealt with.
+
+## Owner (4 Oct ~16:10): "get the job done, how is up to you"
+- Read as: Claude drives all lanes itself with Sonnet coders; no waiting on Antigravity (quota out) or on hand-offs. It is NOT read as a yes to discard the half-done edits in the main folder, to spend on Sarvam/Muse, or to skip the owner's phone checks.
+- 7.7a pace samples moved from Antigravity to a Sonnet coder: worktree ~/code/haqdaar-v2-7.7, branch step-7.7-speed, base 254d828. Running.
+- Order after the 7.3 coder reports: Claude reviews + commits 7.3 -> Sonnet fixes the 4 open 7.1 points on top -> 7.4 code (no render) -> 7.5 code, each as its own commit on the 7.3-clean line, then merge 7.6 and 7.7a in and run the whole check.
+
+## Step 7.7a — pace samples (4 Oct ~16:25, Sonnet coder) — built, waits for the owner's ears
+- Commit 797bd57 on step-7.7-speed (folder ~/code/haqdaar-v2-7.7). tools/pace_samples.py + `make pace-samples` + tests/test_pace_samples.py. No spend. Claude re-ran the new test: passed.
+- 27 WAVs in ~/code/haqdaar-v2-7.7/scratch/pace-samples/ : greeting (opener_prompt), card (pm-kisan/summary), menu (section_menu) x en/hi/mr x slower(0.9)/now/faster(1.1). Untracked on purpose.
+- Lengths now: section menu 11.8 s en, 17.1 s hi, 15.0 s mr. Faster saves about 9 percent.
+- stretch is a mock-up of speed only; the real Sarvam re-record (7.7b) may sound different.
+- Owner question open: slower, same or faster.
+
+## Step 7.3 — talk-first + global silence rule — clean build committed (4 Oct ~16:50)
+- Commit 2ab9ffa on step-7.3-talk-first-clean (folder ~/code/haqdaar-v2-7.3, base 254d828). Sonnet coder; Claude re-ran: pytest 2270 passed + the 1 known side-folder door_a failure; make stress 1000 callers crashes 0 truth failures 0.
+- One helper: `_answer_silence(audio, log, rung, turn_n, prompt) -> bool` (call.py ~110). All 8 waits call it. Rung 1: did_not_get_reply + live prompt. Rung 2: silence_presence first. Rung >= SILENCE_HANGUP_RUNG (3): farewell, returns False, site hangs up. Counter is the existing PhoneAudio._silence (Silence.n), reset by any key or word. No second counter. Silence spends no turn.
+- Opener: voice mode says only opener_short_prompt. Key 0 there = play the list (not "don't know"); keys 1-9 work at once; two misses (silence or unclear) = list. Logged as {"mode", "opener_menu": "key_0"|"two_misses", "opener_misses"}.
+- Turn 0: PhoneAudio.select_language returns (lang, "keypad") or the input (Silence/Hangup/Digit); run_call loops. No Hindi default on silence. Three wrong keys still fall back to Hindi (lang_source default).
+- Changed test expectations: test_call_spoken.py:397 (REPEAT -> did_not_get_reply), :906-916 (anything_else silence now re-asks, 3 silences), test_qa_engine.py:302,:373 (opener_prompt -> opener_short_prompt).
+- BEHAVIOUR CHANGES the owner should hear on the phone: (a) silence in read-back used to move on to the next scheme; now it re-asks and the 3rd silent wait in a row ends the call, so a caller who only listens no longer hears scheme 2 by staying quiet. (b) one silence at "anything else" used to end the call; now re-asks.
+- BLOCKER for a real call: opener_short_prompt and did_not_get_reply have NO recorded clips (PhoneAudio._clip logs "no clip" and skips). The opening would be dead air on the phone until rendered. Render = Sarvam spend = owner's yes on the words + SNAP=snapshots/CURRENT.
+- Known edge left: speech then key 0 while the router is thinking at the short line still treats 0 as "don't know". `FIXED_LINE_IDS` comment still says 49.
+- Follow-up job running (Sonnet, same folder): the 4 open 7.1 review points + turn 0 should replay the greeting without the Hindi did_not_get_reply line.
+
+## 7.1 review fixes + turn-0 tweak (4 Oct ~17:15, Sonnet coder) — committed
+- Commit 9dc47b0 on step-7.3-talk-first-clean. Full pytest now 2209 passed (+ the 1 known side-folder failure). The drop from 2270 is on purpose: 64 empty cases of test_cut_is_always_answered removed (cut placed on the call's last two inputs is never played), +3 new tests. The test now asserts a cut was really seen (336 cases).
+- _try_question: only model.answer is retried; a failed say_text is spoken again with the answer in hand, never a second paid model call. blocked_by is now "exception: <ClassName>", no raw error text. importlib resolved once before the loop (still lazy; the import-discipline test also scans comments on import lines for the word "model").
+- _answer_silence has `say_reply: bool = True`; turn 0 passes False: silence is logged and climbs the ladder but only the greeting replays (no Hindi no-reply line, no silence_presence). Farewell at turn 0 is still in Hindi when no language was picked.
+- New: test_language_prompt_wrong_keys, test_speaking_failure_never_calls_the_model_again, test_exception_text_is_not_written_to_the_question_line.
+- Pytest count floor for later steps on this line: 2209.
+
+## Step 7.4 — "one moment" (4 Oct ~17:40, Sonnet coder) — committed, no clip yet
+- Commit 61e850f on step-7.3-talk-first-clean. Coder's full run: 2215 passed + the 1 known side-folder failure; stress 0/0. Claude re-ran the qa/phone/call/mouth test files.
+- Timing model: PhoneAudio.say / say_text return once audio is handed to the mouth; Mouth._send puts frames on a non-blocking emit queue and starts a new clip at max(now, play_until). model.answer blocks only the engine thread, so the filler plays during it. say_text blocks on TTS when the answer is not cached.
+- Engine._try_question: say(("one_moment",)) once, after the early-return guards and before the model loop; `finally` calls audio.stop_filler() (hasattr-guarded). PhoneAudio.stop_filler(): clears the mouth only if the filler still sounds, then resets mouth.last_cut so was_cut() does not read it as a caller cut. say_text calls stop_filler() after the TTS render, just before _play.
+- `pinned: true` in lines.yaml means "owner-corrected, pipeline leaves it alone", NOT the hot audio set. one_moment is declared unpinned like did_not_get_reply.
+- Open for the phone check: with a cached (fast) answer the filler is cut after a fraction of a second and may sound clipped ("one mo-"). If so, the simple fix is to let the short filler finish (the answer queues right behind it) instead of cutting it. Decide after hearing it.
+- Three lines now wait for the owner's yes + render: opener_short_prompt, did_not_get_reply, one_moment.
+
+## Step 7.5 — voice at any time (4 Oct ~18:15, Sonnet coder) — committed
+- 3022027 (7.5a greeting) + e058a78 (7.5b busy gap) on step-7.3-talk-first-clean.
+- Finding that overturns the work order: guards G1-G8 in turn.py judge KEYS only. Speech in the gap was dropped by `drain_media()` (turn.py ~330, ~366) and by the engine thread being blocked in the model call. So NO guard was changed; guard tests untouched.
+- 7.5a: new haqdaar/audio/lang_words.py `language_from_words(text)` (pure; Latin + Devanagari names; number words only in a reply of <= 2 words; None if two or zero languages or one not offered). New LangSource "voice". New wait profile "greeting" in Turn.wait_input (old "turn0" unchanged). PhoneAudio.select_language uses it with lang="" (STT auto-detect: SarvamSTT and GroqWhisperSTT already treat "" as auto) when SPEECH_CUT_IN is on; unclear words are a miss (greeting replays), three misses fall back to Hindi like three wrong keys.
+- 7.5b: Turn.newer_input(gap_s, lang) + PhoneAudio.newer_words(); engine helper `_newer_words(audio, old_text)` checked at the box router and in _try_question before the filler/paid call and again before say_text; say_text re-checks after the TTS render. Old answer is never spoken; a paid call already in flight is spent. Trace row: took=False why=newer_words. Voice only; keys in the gap keep G3/G4/G8.
+- Limits: needs SPEECH_CUT_IN=true (off by default). LANGS_OFFERED default is hi,en so "Marathi" by voice asks for a key. An utterance over 7 s is cut by the VAD and its tail may count as newer words. confirm / anything-else yes-no sites are not checked for newer words directly. haqdaar-v2-brain data-contract lists lang_source values and should gain "voice" (not done).
+- Not verifiable offline: whether live STT returns a transcript for one word ("Hindi") on 8 kHz phone audio with auto-detect; whether voice over the greeting reaches the 400 ms cut-in on the real line.
+
+## Whole line joined on step-7.8-sweep (4 Oct ~18:30, Claude Opus)
+- Branch step-7.8-sweep in ~/code/haqdaar-v2-7.3 = step-7.3-talk-first-clean (7.1-7.5) + merge of step-7.6-trim-silence + merge of step-7.7-speed. No merge conflicts.
+- Claude ran there: pytest 2275 passed + the 1 known side-folder failure (test_door_a quarantine test; passes in the main folder); make stress 1000 callers crashes 0 truth failures 0; keypad sim KEYS="1 0 1 2 1 3 9 9 9 9 0 2" reads pm-kisan, pmfby, kcc, smam and stops survivors_le_4; py_compile clean.
+- NOT done: no real phone call, no sim with real models, no render (3 new lines have no clips: opener_short_prompt, did_not_get_reply, one_moment), not merged to main, not pushed. The MAIN folder still holds the failed Antigravity job's half-done edits on branch step-7.3-talk-first.
+- Step 7.8's own extra sweep test (test_whole_call_sweep) was not added: the six step sweeps already run ~1,600 cases. Left for after the owner's phone calls.
