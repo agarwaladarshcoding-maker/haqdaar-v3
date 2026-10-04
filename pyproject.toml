@@ -19,6 +19,9 @@ dependencies = [
     "playwright",
     "pytest",
     "pytest-asyncio",
+    "numpy",
+    "fastembed",
+    "rapidfuzz",
 ]
 
 [tool.setuptools.packages.find]

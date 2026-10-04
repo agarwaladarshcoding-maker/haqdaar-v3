@@ -203,6 +203,11 @@ def _corpus_and_pool() -> tuple[Any, Any]:
         pool.warm(manifest=json.loads(manifest.read_text(encoding="utf-8")))
         _CALL["corpus"], _CALL["pool"] = corpus, pool
         say(f"corpus  {corpus.snapshot_id} loaded")
+        if tunables.TALK_ONLY:
+            from haqdaar.data import scheme_index
+
+            index = scheme_index.get(corpus.snapshot_id)
+            say(f"search  {len(index.ids)} schemes" + ("" if index._vectors is not None else " (names only: no model)"))
         from haqdaar.contracts.types import FIXED_LINE_IDS
 
         for line_id in FIXED_LINE_IDS:

@@ -62,7 +62,7 @@ def speak(text: str, lang: str) -> Optional[bytes]:
             "target_language_code": TTS_LANG[lang],
             "speaker": tunables.TTS_SPEAKERS[lang],
             "model": tunables.TTS_MODEL,
-            "pace": tunables.TTS_PACE,
+            "pace": tunables.LIVE_TTS_PACE,
             "speech_sample_rate": tunables.SAMPLE_RATE,
             "output_audio_codec": "mulaw",
         }

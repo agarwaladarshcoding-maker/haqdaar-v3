@@ -113,6 +113,14 @@ def _line(row: dict[str, Any], answer_said: bool) -> Optional[str]:
         return f"CALLER cut in by {row.get('by')} during{what} after {row.get('heard_ms')} ms"
     if ev == "blocked":
         return f'ANSWER REFUSED ({row.get("rule")}): asked "{_cut(row.get("question", ""), 120)}", refused "{_cut(row.get("text", ""), 120)}"'
+    if ev == "heard":
+        return f'CALLER: "{_cut(row.get("text", ""))}"'
+    if ev == "act":
+        if row.get("action") == "not_for_me":
+            return "AGENT said nothing (the words were not for the agent)"
+        if row.get("action") == "repeat":
+            return "AGENT said its last reply again"
+        return None
     if ev is not None:
         return None
     cls = row.get("class")

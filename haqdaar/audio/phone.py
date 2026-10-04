@@ -167,7 +167,7 @@ class PhoneAudio:
         if not text:
             return False
         t0 = time.monotonic()
-        key = compute_render_key(text, lang)
+        key = self._live_key(text, lang)
         audio = self._saved_answer(key)
         cached = audio is not None
         if audio is None:
@@ -186,6 +186,28 @@ class PhoneAudio:
         self.stop_filler()  # after the render, so the filler covers the wait and the answer never queues behind it
         self._play([("answer", bytes(audio))], "answer")
         return True
+
+    def _live_key(self, text: str, lang: str) -> str:
+        """The cache key of a live sentence. A live pace other than the clips' pace gets its own key."""
+        if tunables.LIVE_TTS_PACE != tunables.TTS_PACE:
+            return compute_render_key(f"{text}|pace={tunables.LIVE_TTS_PACE}", lang)
+        return compute_render_key(text, lang)
+
+    def warm_text(self, text: str) -> None:
+        """7.13: make a sentence's sound ahead of time (the talk loop does this for the 2nd, 3rd
+        sentence while the 1st is said). Says nothing. Never raises."""
+        try:
+            if not tunables.QA_SPEAK or self.turn.hung_up.is_set():
+                return
+            lang = self.language
+            text = live_tts.clean(text, lang)
+            key = self._live_key(text, lang)
+            if text and self._saved_answer(key) is None:
+                audio = (self._speak or live_tts.speak)(text, lang)
+                if audio:
+                    self._save_answer(key, audio)
+        except Exception as e:
+            self._log(f"!! warm failed: {e!r}")
 
     def stop_filler(self) -> None:
         """7.4: cut "one_moment" if it is still sounding. Never waits. Not a caller cut, so

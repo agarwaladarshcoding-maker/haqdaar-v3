@@ -25,9 +25,21 @@ def _on(name: str) -> bool:
 
 QA_ENABLED: bool = _on("QA_ENABLED")            # 7.1 answer a caller's question (text)
 ENGLISH_PIPE: bool = _on("ENGLISH_PIPE")        # 7.1 speech -> English -> work -> caller's language
-QA_SPEAK: bool = _on("QA_SPEAK")                # 7.2 say the answer aloud on a real call (live speech)
+TALK_ONLY: bool = _on("TALK_ONLY")              # 7.13 talk like a person: after the language pick, no keys
+QA_SPEAK: bool = _on("QA_SPEAK") or TALK_ONLY   # 7.2 say the answer aloud on a real call (live speech)
 SPEECH_CUT_IN: bool = _on("SPEECH_CUT_IN")      # 7.2 the caller's voice stops a playing clip
 QA_SEARCH: bool = _on("QA_SEARCH")              # 7.3 find the scheme by search when too many are left
+TALK_TIMEOUT_S: float = float(os.environ.get("TALK_TIMEOUT_S", 6.0))        # one model call of a talk turn
+TALK_ONE_MOMENT_S: float = float(os.environ.get("TALK_ONE_MOMENT_S", 1.5))  # the model is not back this long after the words arrive -> "one moment"
+TALK_MAX_SENTENCES: int = int(os.environ.get("TALK_MAX_SENTENCES", 4))      # C5: up to 4 when the caller asks for detail
+TALK_MAX_WORDS: int = int(os.environ.get("TALK_MAX_WORDS", 70))
+TALK_SENTENCE_WORDS: int = int(os.environ.get("TALK_SENTENCE_WORDS", 24))   # a longer sentence is refused: it is a phone call
+TALK_LOG_CHARS: int = int(os.environ.get("TALK_LOG_CHARS", 1500))           # how much of the call log the model reads
+TALK_MAX_TURNS: int = int(os.environ.get("TALK_MAX_TURNS", 40))             # a talk call always ends
+# Tried in order; the next one only when Groq says "too many requests" (8000 tokens a minute per model).
+# Order by speed measured 5 Oct on real talk prompts: qwen 0.5-0.6 s, gpt-oss-120b 0.7-1.3 s, gpt-oss-20b 0.9-2.8 s.
+TALK_MODELS: str = os.environ.get("TALK_MODELS", "qwen/qwen3.8-27b,openai/gpt-oss-120b,openai/gpt-oss-20b")
+TALK_END_WAIT_MS: int = int(os.environ.get("TALK_END_WAIT_MS", 600))        # quiet that ends the caller's turn in a talk call (keys call: 800)
 QA_MAX_PER_CALL: int = int(os.environ.get("QA_MAX_PER_CALL", 5))
 QA_MAX_SCHEMES: int = int(os.environ.get("QA_MAX_SCHEMES", 4))
 QA_TIMEOUT_S: float = float(os.environ.get("QA_TIMEOUT_S", 4.0))
@@ -117,6 +129,8 @@ TTS_SPEAKERS: dict[str, str] = {
 }
 # 15 Sep: the owner said the voice was too fast at 1.0.
 TTS_PACE: float = float(os.environ.get("TTS_PACE", 0.9))
+# Live voice only. The 582 recorded clips keep TTS_PACE (it is part of their render key).
+LIVE_TTS_PACE: float = float(os.environ.get("LIVE_TTS_PACE", 1.0 if TALK_ONLY else TTS_PACE))
 TTS_WORKERS: int = int(os.environ.get("TTS_WORKERS", 3))
 TTS_TIMEOUT_S: float = float(os.environ.get("TTS_TIMEOUT_S", 60))
 TTS_MAX_ATTEMPTS: int = int(os.environ.get("TTS_MAX_ATTEMPTS", 5))

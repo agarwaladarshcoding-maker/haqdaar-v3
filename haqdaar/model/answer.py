@@ -67,14 +67,15 @@ def shorten(text: str) -> str:
     return text if len(ends) <= 2 else text[:ends[1]].strip()
 
 
-def check_answer(text: str, lang: str, cards: str) -> str | None:
+def check_answer(text: str, lang: str, cards: str, max_sentences: int = 2,
+                 max_words: int | None = None) -> str | None:
     """Name of the first failed check (a `blocked_by` value), or None if the text may go out."""
     if vocab.find_forbidden(text, lang):
         return "forbidden"
     if vocab.find_verdict(text, lang):
         return "verdict"
     sentences = [s for s in _SENTENCE_END.split(_ABBREV.sub("Rs", text)) if s.strip()]
-    if len(sentences) > 2 or len(text.split()) > tunables.QA_MAX_WORDS:
+    if len(sentences) > max_sentences or len(text.split()) > (max_words or tunables.QA_MAX_WORDS):
         return "too_long"
     if digits_of(text) - digits_of(cards):
         return "number"

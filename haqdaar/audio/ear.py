@@ -56,7 +56,7 @@ FRAME_PCM_BYTES: int = FRAME_SAMPLES * BYTES_PER_SAMPLE       # 320
 START_RMS: int = 700
 END_RMS: int = 400
 START_FRAMES: int = 3          # 3 frames (60 ms) > START_RMS to start speech
-END_FRAMES: int = 40           # 40 frames (800 ms) < END_RMS of quiet to end speech
+END_FRAMES: int = (tunables.TALK_END_WAIT_MS // 20) if tunables.TALK_ONLY else 40   # 40 frames (800 ms) < END_RMS of quiet to end speech; a talk call: 600 ms
 MAX_UTTERANCE_FRAMES: int = 350 # 7.0 s maximum utterance
 PRE_ROLL_FRAMES: int = 15      # 300 ms pre-speech buffer
 

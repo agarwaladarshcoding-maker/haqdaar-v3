@@ -188,6 +188,8 @@ class Turn:
     # --- engine thread -------------------------------------------------------------
     @property
     def keypad_only(self) -> bool:
+        if tunables.TALK_ONLY:      # 7.13: a talk call has no keys to fall back to; keep listening
+            return False
         if self.ear is not None:
             return getattr(self.ear, "keypad_only", False)
         return False
