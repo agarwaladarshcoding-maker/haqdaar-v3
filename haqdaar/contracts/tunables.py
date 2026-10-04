@@ -96,6 +96,10 @@ AUDIO_WARM_ON_BOOT: bool = (
 # Render and audio format constants
 SAMPLE_RATE: int = int(os.environ.get("SAMPLE_RATE", 8000))
 TAIL_PAD_MS: int = int(os.environ.get("TAIL_PAD_MS", 120))
+# 7.6: when a clip loads, quiet at its start and end is cut to this gap. 120 = TAIL_PAD_MS, so the
+# tail pad the renderer adds stays. QUIET_LEVEL is the loudest mu-law level (0-127) still counted as quiet.
+TRIM_EDGE_MS: int = int(os.environ.get("TRIM_EDGE_MS", 120))
+TRIM_QUIET_LEVEL: int = int(os.environ.get("TRIM_QUIET_LEVEL", 15))
 # Sarvam TTS (plan 2.1). The bot speaks of itself as a woman in Hindi and Marathi ("पाई",
 # "सांगते"), so every speaker here must be a woman's voice. One speaker per language; change one
 # and only that language re-renders, because the speaker and pace are part of the render key.
