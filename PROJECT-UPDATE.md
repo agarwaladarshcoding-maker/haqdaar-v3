@@ -18,8 +18,8 @@ Each entry says: what was added, what was changed, and what the project can do a
   schemes, reads out what matches, and writes a log of every turn (Step 6).
 - Pick the next question that cuts the list down fastest (Step 4), drop schemes that don't fit (Step 3),
   and choose how to end the call (Step 5).
-- Take a real phone call through a Cloudflare tunnel, with every key arriving on time (Step 1).
-- `pytest -q` → **468 passed**.
+- Read results one scheme at a time: plays each scheme, its menu, waits for keypad or spoken questions, and answers 'this scheme' questions from the scheme currently sounding (Step 7.2).
+- `pytest -q` → **2,267 passed**.
 - Ring your phone into the real backend in one command: `make call-me`.
 - Back up all the scheme data: `make backup`. The text part is also saved in git.
 
@@ -98,6 +98,20 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 ---
 
 ## 3 · Log — newest first
+
+### 4 Oct — Step 7.2: One scheme at a time (results read one by one)
+- **Why.** In phone test 2, all matching schemes and section menus were dumped into a single audio queue at once (~200 seconds of audio). When a caller interrupted during a scheme's menu, clearing the audio queue lost all subsequent schemes and caused "this scheme" questions to be answered against whatever scheme the loop index drifted to, rather than the scheme the caller actually heard.
+- **Fixed — One scheme at a time.** Terminal sequences are now segmented into individual per-scheme blocks (`render_scheme_block`). The engine plays one scheme, its summary, and its section menu, and waits for input before playing the next scheme.
+- **Fixed — Current scheme tracking.** `Engine.current_scheme` is maintained to strictly reflect the scheme currently sounding or just heard. Unnamed "this scheme" questions are answered against `Engine.current_scheme`. Spoken questions naming another scheme jump to that scheme via Door A.
+- **Lock test added.** Added `test_one_scheme_at_a_time` in `tests/test_barge_sweep.py` verifying that N matching schemes produce N separate waits, and that `current-scheme` strictly equals the scheme last heard at each wait across both keypad navigation and spoken questions.
+- **Checks:** pytest passes with 2,267 tests (up from 2,264); `make stress` on 1,000 random callers completes with 0 crashes and 0 truth failures; `make sim` cleanly walks through matching schemes one by one and completes to `closing_farewell`.
+
+### 4 Oct — Step 7.1: Never silent (after a cut, the engine always speaks)
+- **Why.** On the owner's test phone call (..637351), interrupting a scheme readout with a question led to 20 seconds of dead silence because the mouth was cleared and unhandled speech in readback bypassed the menu without speaking.
+- **Fixed — Never silent after a cut.** After any cut (voice barge-in or key cut-in), the engine is guaranteed to speak before it listens again: either the answer to the question, or "sorry, say that again" (`unclear_prompt`) plus the menu it was on. No cut path returns to listen with an empty mouth.
+- **Fixed — Question check retry and logging.** In `Engine._try_question`, if the answer check fails, it retries exactly once more. Both tries are logged to `questions.jsonl` with `write_question_line`. Only if both fail does it fall back to "don't know" / unclear.
+- **Lock test added.** Added `test_cut_is_always_answered` to `tests/test_barge_sweep.py` covering 400 test cases across 8 cut types at every position in both keyed and spoken calls, verifying the engine always speaks after a cut before listening again.
+- **Checks:** pytest passes with 2,264 tests (up from 1,859); `make stress` on 1,000 random callers completes with 0 crashes and 0 truth failures; `make sim` finishes cleanly to closing_farewell.
 
 ### 3 Oct (late night) — Live call page built. Hosting dropped for good. Home stays.
 - **Dropped — hosting.** Owner's word: nothing is hosted, not the site and not the engine.

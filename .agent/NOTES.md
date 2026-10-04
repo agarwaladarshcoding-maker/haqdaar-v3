@@ -2867,3 +2867,90 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Code map (4 Oct, lines drift — confirm by name): turn loop call.py:387 run_call; cut gate turn.py:298 wait_input; was_cut phone.py:145; _try_question call.py:298 + answer.py:70/84; terminals.py:193/390/442 + _read_back call.py:1409; opener call.py:488-556 + router.py:75 + phone.py:262 _menu + door_a.py:156; say phone.py:89/98 + lines.yaml:29 + texts.py:49; greeting phone.py:78 + call.py:395-398; gap turn.py:289 + tunables.py:62 + ear.py:671/794/606; pool.py:119 get; render.py:254/59/84 + SarvamTTS :113 + live_tts.py:51; stress tools/stress.py:147/87/70 + test_barge_sweep.py:24/158 + sim.py:622/182 + server.py:100/209 + call_me.py:18.
 - Git: base commit 8288d9f on step-7.0-live-answers (65 files, found tree, unreviewed, NOT phone-tried). Step branches NOT created yet — sequential, each from previous reviewed tip at "start step N". Review plan: Muse reviews 7.0+7.1 together at step 1, merges to main; steps 2+ branch from main.
 - .agent is gitignored but .agent/NOTES.md is tracked (force-added earlier); .agent/TASK.md is local-only.
+
+## Step 7.1 — Never silent (2026-10-04) — completed
+- Branch step-7.1-never-silent created from step-7.0-live-answers.
+- Baseline pytest: 1859 passed, 0 failures, 2 warnings.
+- Dispatched explore subagent to examine _try_question retry + logging, lines.yaml/texts.py for "sorry, say that again", cut handling across turn loops, and test_barge_sweep.py.
+
+- CRITICAL IMPORT DISCIPLINE in `haqdaar/engine/call.py`: `test_concurrency_and_import_discipline` in `test_call.py:1009-1029` asserts that `call.py` has no top-level import containing "audio", "model", or "pipeline" (and no Thread, asyncio, Queue, Pool). Any model/answer helper (like `write_question_line`) MUST be imported lazily inside methods (e.g. inside `_try_question`), not at module top-level.
+- Exploration findings (inline):
+  - "sorry, say that again" line is `unclear_prompt` ("Sorry, I did not catch that. Please say it again." / "माफ़ कीजिए, मैं समझ नहीं पाई। कृपया इसे फिर से कहें।") which already exists in `lines.yaml`, `texts.py` and has rendered clips in en, hi, mr in the audio pool (AudioPool.get() returns True for all 3 render keys). No new audio render needed.
+  - `_try_question`: when `model.answer` check fails (returns None or exception or audio.say_text is False), retry exactly once more (`for attempt in (1, 2)`). `Router.answer` already writes to `questions.jsonl` on every call, and on unhandled exception we call `write_question_line` lazily via importlib.
+  - `_read_back`: bug 1 freeze root cause identified. When voice cut-in or speech happens in `_read_back`, if `_try_question` fails, previous code did `if not isinstance(rb_inp, Digit): ix += 1; replays = 0; continue` which said NOTHING and entered `wait_input` with empty mouth. Fix: if not question / check failed, say `audio.say(("unclear_prompt", SECTION_MENU))` and do not advance `ix` (bounded by `replays`).
+- Sweep rule lock: Added `test_cut_is_always_answered` in `tests/test_barge_sweep.py`. Uses `CutTrackingAudio` asserting that any cut input (`cut_clip` present) is followed by `say()`, `say_text()`, or `repeat()` before the next `next_input()`. 400 test cases run across 8 cut types at every prompt position of keys and spoken calls with QA off and on. All 400 passed (along with all 1201 previous sweep tests, total 1601 in test_barge_sweep.py).
+- Checks:
+  - `.venv/bin/python -m pytest -q`: 2264 passed, 2 warnings in 166.81s (count up from 1859).
+  - `make stress` (1,000 random callers): crashes 0, truth failures 0.
+  - `make sim KEYS="1 1 2 1 3 9 9 9 2"`: completes cleanly to closing_farewell.
+  - `py_compile`: clean compilation across all modified files.
+
+
+
+
+## Step 7.2 — One scheme at a time (2026-10-04) — in progress
+- Branch `step-7.2-one-at-a-time` created from HEAD keeping all uncommitted working-tree changes from Step 7.1.
+- Baseline pytest run: 2264 passed, 2 warnings in 176.29s. Count = 2264.
+
+## Step 7.1 Muse review (4 Oct ~14:00) — CONDITIONAL PASS, code green
+- pytest 2264 passed (base 1859), stress crashes 0 truth failures 0, keypad sim + spoken sim both reach closing_farewell (traces sim_1791101409, sim_1791101677).
+- All 5 work-order items verified: retry-once + 2 log lines (call.py:363-380), unclear_prompt en/hi/mr in pool + CURRENT snapshot, cut->say in readback + key paths (call.py:1323,1484-1514), sweep test meaningful, HANDOFF section 5 clean.
+- Conditions to fix before 7.1 merge (NOT fixed now: tree owned by step-7.2 job): (1) test_cut_is_always_answered vacuous on 64/400 tail cases, assert cuts_seen>=1; (2) say_text failure re-calls paid model.answer (call.py:393); (3) blocked_by exception unmasked in questions.jsonl (call.py:376); (4) double importlib in loop, use top-level import.
+- Step 7.2 Antigravity job agy_1791101059_183ecf RUNNING on branch step-7.2-one-at-a-time; step-7.1 changes still uncommitted in shared tree — separate 7.1 files at merge time.
+
+## Call-system shutdown fix (4 Oct ~14:00, on step-7.2 branch)
+- Symptom: owner's `make call-me` died with uvicorn `[Errno 48] address already in use` on port 8000 (logs/server.log tail).
+- Root cause: stale server PID 90212 (started 02:54, pre-step-7.1 code, non-venv python) still held 8000; the new server failed to bind and shut down. Worse, run_demo would have rung into the STALE server since /health answered.
+- Fix: killed 90212 (idle 11h, verified no active call); kept live tunnel 28906 (13:47). Proof: fresh .venv server booted clean, /health {"status":"ok"} direct AND through https://tunnel_host/health; probe stopped after, port free.
+- Guard added: tools/run_demo.py port_in_use() + exit-1 with fix instructions instead of spawning a 2nd server; tests/test_run_demo_port.py (2 passed unsandboxed; sandbox blocks bind so they fail under `muse` default sandbox — run in owner terminal).
+- Owner re-run: same `make call-me` command as before (reuses live tunnel, starts fresh server, rings).
+
+## Step 7.2 — One scheme at a time (2026-10-04) — completed
+- Branch: `step-7.2-one-at-a-time` (based on HEAD with step 7.1 changes preserved).
+- Implementation:
+  - `haqdaar/engine/terminals.py`:
+    - Added `render_scheme_block(scheme, corpus=None, *, include_section_menu=True) -> list[str]`.
+    - Refactored `_render_schemes_sequence` to return per-scheme blocks (`list[list[str]]`).
+    - Shape functions (`direct_match`, `overflow`, `widened_match`, `nearest`, `more_sequence`) unpack per-scheme blocks, preserving existing `tuple[str, ...]` interface.
+    - Exposed staticmethods on `Terminals`: `render_scheme_block`, `scheme_blocks`, `render_schemes_sequence`.
+  - `haqdaar/engine/call.py`:
+    - Added `Engine.current_scheme: str | None = None`.
+    - `run_call`: resets `Engine.current_scheme = None` on entry; when `SECTION_MENU in terminal_seq`, plays preamble slice before entering `_read_back`, decoupling schemes from the initial say queue.
+    - `_try_question`: if no scheme is named in spoken question, resolves `ids = [Engine.current_scheme]` when `Engine.current_scheme` is set; named schemes still match via DoorA and take precedence.
+    - `_read_back`: rewritten into outer per-scheme loop and inner wait loop. Queues each scheme independently (`("next_scheme_intro", *block)` for `ix > 0`). Sets `Engine.current_scheme = sid` and `audio.current_scheme = sid` before each `audio.next_input(profile="readback")`. Replaying sections replays within the open scheme. `no_more_schemes` plays on reaching the end of schemes.
+    - Concurrency/import discipline: zero forbidden tokens (`Thread`, `asyncio`, `Queue`, `Pool`); verified by `test_concurrency_and_import_discipline`.
+  - `tests/test_qa_engine.py`:
+    - Adjusted assertion in `test_section_menu_question_is_answered_about_the_open_scheme` (line 212) from `count("section_menu") == 3` to `== 2`: scheme S2 is not queued up front when caller leaves via "0" on S1.
+  - `tests/test_barge_sweep.py`:
+    - Added `OneSchemeTrackingAudio` and `test_one_scheme_at_a_time` verifying that N matching schemes produce N separate waits and that `current-scheme` strictly equals the scheme last heard at each wait.
+    - Verified both keypad navigation and spoken questions (unnamed "this scheme" questions answer from open scheme; named scheme jumps).
+- Verification:
+  - `.venv/bin/python -m pytest -q`: 2267 passed, 2 warnings in 116.53s (count up from 2264).
+  - `make stress` (1,000 random callers): crashes 0, truth failures 0.
+  - `make sim SNAP=snapshots/CURRENT KEYS="1 1 2 1 3 9 9 9 9 0 2"`: cleanly stepped through all 4 schemes (pm-kisan, pmfby, kcc, smam) one scheme at a time with section menus, queries, and reached `closing_farewell`.
+  - `py_compile` & `python3 sync_vault.py --status`: clean, 66 files synced.
+
+## Step 7.2 Muse review (4 Oct ~15:00) — PASS, no blocking bugs
+- Job agy_1791101059_183ecf COMPLETED. pytest 2267 passed, stress crashes 0 truth failures 0, sim to closing_farewell (trace sim_1791103970).
+- All 5 verified: per-scheme blocks (terminals.py:194-223), _read_back one-at-a-time loop with current_scheme set before every readback wait (call.py:1482-1501) and cleared on all exits, "this scheme" fallback (call.py:343-346 + explicit scheme_ids at :1545), test_one_scheme_at_a_time non-vacuous (order [S1,S2], QA attribution, door-jump), HANDOFF section 5 clean.
+- Nits (non-blocking): stale "tractor subsidy" comment at test_barge_sweep.py:337; current-scheme fallback redundant today but harmless; current_scheme crash-mid-readback cleaned by next run_call reset.
+- Owner setting: future Antigravity jobs run with reasoning effort xhigh (connector flag: `--task-type coding -e xhigh`; agy supports low|medium|high|xhigh|max).
+
+## Step 3 rescoped to global silence rule (4 Oct, owner)
+- Owner: silence can come from their side at ANY point, so handle it overall, not just the language prompt.
+- Cancelled narrow job agy_1791105178_66961c before it wrote code (tree clean, no step-7.3 branch existed); relaunched agy_1791105360_1b3608 at xhigh with binding rule: map every wait point first, one shared re-prompt helper, no silent defaults anywhere; must compose with 7.1 never-silent, silence ladder, retry-once.
+
+## Step 3 launch failures + resolution (4 Oct)
+- Narrow job agy_1791105178_66961c cancelled pre-code per owner (scope too narrow).
+- xhigh relaunch agy_1791105360_1b3608 FAILED in 10s: `agy models` lists no xhigh model; --effort xhigh conflicts with every routed model. xhigh is not a valid level.
+- Relaunched agy_1791106694_2d765b with --task-type deep-reasoning (gemini-3.1-pro-high), RUNNING. If owner wants the absolute max, the remaining option is --task-type heavy (claude-opus-4-6-thinking).
+
+### Step 7.3 - Wait Points Map
+1. `_ask_language` (call.py:439) - turn0 wait
+2. `_door_a_pick` (call.py:114) - Door A choice wait
+3. `run_call` main loop, keypad mode (call.py:593) - wait for keypad choice
+4. `run_call` main loop, spoken mode (call.py:604) - wait for spoken input / digits
+5. `_apply_b` (call.py:969) - confirmation wait
+6. `_ask_extra` (call.py:1334) - wait for missing category/state
+7. `_ask_extra` confirmation (call.py:1336) - wait to confirm the extra info
+8. `_readback_schemes` (call.py:1501) - wait for readback section choice

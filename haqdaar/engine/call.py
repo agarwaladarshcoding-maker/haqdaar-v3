@@ -55,6 +55,7 @@ from haqdaar.engine.terminals import (
     DELIVERY_NEAREST,
     DELIVERY_OVERFLOW,
     DELIVERY_WIDENED_MATCH,
+    RESULTS_MORE_PROMPT,
     SECTION_MENU,
     SECTION_SOURCE_FRAME,
     Terminals,
@@ -120,6 +121,8 @@ def _door_a_pick(audio: Any, s1: str, s2: str) -> str | None:
 
 class Engine:
     """Stateful orchestrator for a single phone call."""
+    current_scheme: str | None = None
+
 
     @staticmethod
     def _handle_digit_input(
@@ -339,6 +342,8 @@ class Engine:
             door = DoorA.from_corpus(corpus).match(text, lang=lang)
             if door.action == "read":
                 ids = [door.scheme_ids[0]]  # a scheme named in the question always wins (E2)
+            elif getattr(Engine, "current_scheme", None) is not None:
+                ids = [Engine.current_scheme]  # 7.2: answer "this scheme" questions from current-scheme
             elif ids is None:
                 bv = box_vector or {}
                 survs = Filter.survivors(bv, corpus)
@@ -360,8 +365,40 @@ class Engine:
             }, "scheme_ids": list(ids)}
             if english:
                 kwargs["english"] = True
-            answer = model.answer(text, getattr(audio, "language", "hi"), cards, **kwargs)
-            if not answer or audio.say_text(answer) is False:
+            answer = None
+            for attempt in (1, 2):
+                try:
+                    answer = model.answer(text, getattr(audio, "language", "hi"), cards, **kwargs)
+                except Exception as e:
+                    import importlib
+                    write_fn = getattr(importlib.import_module("haqdaar.model.answer"), "write_question_line", None)
+                    if write_fn:
+                        write_fn(
+                            lang=getattr(audio, "language", "hi"),
+                            question=text,
+                            scheme_ids=list(ids),
+                            answer=None,
+                            blocked_by=f"exception: {e}",
+                            attempt=attempt,
+                        )
+                    answer = None
+                else:
+                    if not hasattr(model, "_ask_answer"):
+                        import importlib
+                        write_fn = getattr(importlib.import_module("haqdaar.model.answer"), "write_question_line", None)
+                        if write_fn:
+                            write_fn(
+                                lang=getattr(audio, "language", "hi"),
+                                question=text,
+                                scheme_ids=list(ids),
+                                answer=answer,
+                                blocked_by=None if answer else "model_null",
+                                attempt=attempt,
+                            )
+                if answer and audio.say_text(answer) is not False:
+                    break
+                answer = None
+            if not answer:
                 return False
         except Exception:
             return False  # a question must never take the call down
@@ -391,6 +428,9 @@ class Engine:
         log: Log,
     ) -> None:
         """Run a single call from connect to hangup."""
+        Engine.current_scheme = None
+        if hasattr(audio, "current_scheme"):
+            audio.current_scheme = None
         # --- 1. Turn 0: Language Selection ---
         if hasattr(audio, "select_language"):
             lang, lang_source = audio.select_language()
@@ -1233,25 +1273,24 @@ class Engine:
                 shape=shape,
                 pre_vetted=True,
             )
-            audio.say(terminal_seq)
-
             # --- D9: Delivery log ---
-            # Every named scheme in terminal_seq already had its name+summary
-            # spoken by the audio.say() above, regardless of what the caller
-            # does next in the read-back menu. So "summary" is seeded for all
-            # of them up front; _read_back appends any extra section the
-            # caller actually asks for, and the record is written once each,
-            # after the caller's interaction with that terminal is fully known
-            # (simplest correct point -- one write per scheme, no rewrites).
             named = [
                 t.split(":", 1)[1] for t in terminal_seq if t.startswith("name:")
             ]
 
             # --- 6. Read-Back Menu ---
-            # section_menu plays after each named scheme. 1-4 replay a section
-            # behind section_source_frame, 9 advances (or pages in more, D8),
-            # * switches language and replays, 0 leaves, other keys replay the menu.
+            # Results queued one scheme at a time: read the scheme, play its menu,
+            # wait, then the next. The engine's current-scheme is always the one
+            # the caller hears.
             if SECTION_MENU in terminal_seq:
+                first_scheme_idx = next(
+                    (i for i, t in enumerate(terminal_seq) if t.startswith("name:")),
+                    len(terminal_seq),
+                )
+                preamble = terminal_seq[:first_scheme_idx]
+                if preamble:
+                    audio.say(preamble)
+
                 sections_heard: dict[str, list[str]] = {n: ["summary"] for n in named}
                 # D8 paging: candidate_survs holds every speakable candidate this
                 # terminal resolved, not just the ones named so far (direct match
@@ -1272,18 +1311,20 @@ class Engine:
                     log.close(reason=STOP_ZERO_SURVIVORS if not survs else STOP_LE_4_SURVIVORS,
                               ladder_rung=ladder_rung, mode=mode)
                     return
-            elif named:
-                # Nearest: "Restraint: summary only, NO section_menu,
-                # auto-advance" (terminals.py nearest()) -- there is no later
-                # touch point for these schemes, so write here.
-                cur_lang = getattr(audio, "language", lang)
-                for n in named:
-                    log.write(DeliveryRecord(
-                        slug=n,
-                        ending=shape,
-                        sections=Engine._heard_sections(audio, n, ["summary"]),
-                        lang=cur_lang,
-                    ))
+            else:
+                audio.say(terminal_seq)
+                if named:
+                    # Nearest: "Restraint: summary only, NO section_menu,
+                    # auto-advance" (terminals.py nearest()) -- there is no later
+                    # touch point for these schemes, so write here.
+                    cur_lang = getattr(audio, "language", lang)
+                    for n in named:
+                        log.write(DeliveryRecord(
+                            slug=n,
+                            ending=shape,
+                            sections=Engine._heard_sections(audio, n, ["summary"]),
+                            lang=cur_lang,
+                        ))
 
             # --- 7. Anything Else ---
             ae_strikes = 0
@@ -1426,7 +1467,7 @@ class Engine:
         turn_n: int,
         qa: Optional[dict[str, Any]] = None,
     ) -> bool:
-        """Drive the read-back menu. Returns False if the caller hung up.
+        """Drive the read-back menu one scheme at a time. Returns False if the caller hung up.
 
         Appends each section actually played to sections_heard[<scheme>] (D9),
         so the caller writes one DeliveryRecord per scheme once this returns.
@@ -1435,140 +1476,187 @@ class Engine:
         OVERFLOW_READ_CAP of them, extending `named` in place, instead of leaving.
         """
         ix = 0
-        heard: set[str] = set()
-        replays = 0
+        just_paged = False
         pending_section: tuple[str, str] | None = None
+
         while ix < len(named):
-            rb_inp = audio.next_input(profile="readback")
-            if pending_section is not None:
-                p_sid, p_sec = pending_section
-                if not (hasattr(audio, "was_cut") and audio.was_cut(f"scheme:{p_sid}:{p_sec}")):
-                    sections_heard[p_sid].append(p_sec)
-                pending_section = None
+            sid = named[ix]
+            # 1. Play this scheme + its menu
+            block = Terminals.render_scheme_block(sid, corpus=corpus, include_section_menu=True)
+            if ix > 0 and not just_paged:
+                audio.say(("next_scheme_intro", *block))
+            else:
+                audio.say(tuple(block))
+            just_paged = False
 
-            if isinstance(rb_inp, Hangup):
-                audio.hangup()
-                return False
-            if isinstance(rb_inp, Silence):
-                # No key on the menu is not a dead end: move on to the next scheme.
-                ix += 1
-                replays = 0
-                continue
-            if (
-                qa is not None
-                and isinstance(rb_inp, Speech)
-                and Engine._try_question(
-                    audio, qa["model"], corpus, log, qa, rb_inp, qa["mode"], turn_n,
-                    # The open scheme first ("this" means it), then the other results just read.
-                    scheme_ids=([named[ix]] + [n for n in named if n != named[ix]])[:tunables.QA_MAX_SCHEMES],
-                    asked="section_menu",
-                )
-            ):
-                audio.say((SECTION_MENU,))  # a question never moves the call: same menu again
-                continue
-            if not isinstance(rb_inp, Digit):
-                ix += 1
-                replays = 0
-                continue
-            key = rb_inp.digit
+            heard: set[str] = set()
+            replays = 0
 
-            if key == "*":
-                # D13's `*` cycle, shared with the question phase (_next_lang):
-                # rotate language, log the switch, then replay the current
-                # scheme's block in the new language. Does not advance ix.
-                new_lang = _next_lang(getattr(audio, "language", "hi"))
-                if hasattr(audio, "language"):
-                    audio.language = new_lang
-                log.write(LangSwitchRecord(
-                    lang=new_lang,
-                    lang_source="keypad",
-                    turn_n=turn_n,
-                ))
-                sid = named[ix]
-                audio.say((
-                    mark_name(sid),
-                    scheme_name_chunk(sid),
-                    scheme_summary_chunk(sid),
-                    mark_end(sid),
-                    SECTION_MENU,
-                ))
-                continue
+            # 2. Wait loop for this scheme's menu
+            while True:
+                # Set current_scheme to the scheme just read before each wait
+                Engine.current_scheme = sid
+                setattr(audio, "current_scheme", sid)
 
-            if key in Engine.SECTION_KEYS and key not in heard:
-                # Each section plays at most once per scheme. Without the guard
-                # a caller (or a fake) holding one key replays it forever.
-                heard.add(key)
-                replays = 0
-                section = Engine.SECTION_KEYS[key]
-                pending_section = (named[ix], section)
-                audio.say((
-                    SECTION_SOURCE_FRAME,
-                    f"scheme:{named[ix]}:{section}",
-                    SECTION_MENU,
-                ))
-                continue
-            if key in Engine.SECTION_KEYS:
-                key = "9"
-            if key == "#":
-                audio.repeat()
-                continue
-            if key == "9":
-                replays = 0
-                if ix == len(named) - 1 and rest:
-                    # D8 paging: more speakable candidates than were named. Page
-                    # in the next OVERFLOW_READ_CAP instead of leaving the menu.
-                    page = rest[:tunables.OVERFLOW_READ_CAP]
-                    del rest[:tunables.OVERFLOW_READ_CAP]
-                    audio.say(Terminals.more_sequence(page, corpus))
-                    for sid in page:
-                        sections_heard[sid] = ["summary"]
-                    named.extend(page)
-                    ix += 1
-                    heard = set()
-                    continue
-                ix += 1
-                heard = set()
-                if ix < len(named):
-                    audio.say(("next_scheme_intro",))
-                else:
-                    audio.say(("no_more_schemes",))
-                continue
-            if key == "0":
-                # 0 = none of these: leave the menu.
+                rb_inp = audio.next_input(profile="readback")
+
                 if pending_section is not None:
                     p_sid, p_sec = pending_section
                     if not (hasattr(audio, "was_cut") and audio.was_cut(f"scheme:{p_sid}:{p_sec}")):
                         sections_heard[p_sid].append(p_sec)
                     pending_section = None
-                return True
-            # Any other digit (5-8): replay the section menu, bounded so a stuck
-            # key can never loop forever. After READBACK_REPLAY_MAX replays in a
-            # row on the same scheme, treat the next one as 9.
-            replays += 1
-            if hasattr(audio, "trace") and getattr(audio, "trace", None) is not None:
-                audio.trace.input_event(
-                    prompt_n=getattr(rb_inp, "prompt_n", -1),
-                    prompt="readback",
-                    event="key",
-                    value=str(key),
-                    took=False,
-                    why="not_on_menu",
-                )
-            if replays > tunables.READBACK_REPLAY_MAX:
-                replays = 0
-                ix += 1
-                heard = set()
-                if ix < len(named):
-                    audio.say(("next_scheme_intro",))
-                else:
-                    audio.say(("no_more_schemes",))
-                continue
-            audio.say(("unclear_prompt", SECTION_MENU))
-            continue
+
+                if isinstance(rb_inp, Hangup):
+                    audio.hangup()
+                    Engine.current_scheme = None
+                    setattr(audio, "current_scheme", None)
+                    return False
+
+                if isinstance(rb_inp, Silence):
+                    if (hasattr(audio, "was_cut") and audio.was_cut("")) or bool(getattr(rb_inp, "cut_clip", "")):
+                        replays += 1
+                        if replays > tunables.READBACK_REPLAY_MAX:
+                            replays = 0
+                            ix += 1
+                            if ix < len(named):
+                                break  # Move to next scheme
+                            else:
+                                audio.say(("no_more_schemes",))
+                                Engine.current_scheme = None
+                                setattr(audio, "current_scheme", None)
+                                return True
+                        audio.say(("unclear_prompt", SECTION_MENU))
+                        continue
+                    # Normal silence on menu moves on to next scheme
+                    ix += 1
+                    if ix < len(named):
+                        break  # Move to next scheme
+                    else:
+                        audio.say(("no_more_schemes",))
+                        Engine.current_scheme = None
+                        setattr(audio, "current_scheme", None)
+                        return True
+
+                if (
+                    qa is not None
+                    and isinstance(rb_inp, Speech)
+                    and Engine._try_question(
+                        audio, qa["model"], corpus, log, qa, rb_inp, qa["mode"], turn_n,
+                        scheme_ids=[sid],
+                        asked="section_menu",
+                    )
+                ):
+                    audio.say((SECTION_MENU,))  # Question answered; replay section menu
+                    continue
+
+                if not isinstance(rb_inp, Digit):
+                    replays += 1
+                    if replays > tunables.READBACK_REPLAY_MAX:
+                        replays = 0
+                        ix += 1
+                        if ix < len(named):
+                            break  # Move to next scheme
+                        else:
+                            audio.say(("no_more_schemes",))
+                            Engine.current_scheme = None
+                            setattr(audio, "current_scheme", None)
+                            return True
+                    audio.say(("unclear_prompt", SECTION_MENU))
+                    continue
+
+                key = rb_inp.digit
+
+                if key == "*":
+                    new_lang = _next_lang(getattr(audio, "language", "hi"))
+                    if hasattr(audio, "language"):
+                        audio.language = new_lang
+                    log.write(LangSwitchRecord(
+                        lang=new_lang,
+                        lang_source="keypad",
+                        turn_n=turn_n,
+                    ))
+                    audio.say(tuple(Terminals.render_scheme_block(sid, corpus=corpus, include_section_menu=True)))
+                    continue
+
+                if key in Engine.SECTION_KEYS and key not in heard:
+                    heard.add(key)
+                    replays = 0
+                    section = Engine.SECTION_KEYS[key]
+                    pending_section = (sid, section)
+                    audio.say((
+                        SECTION_SOURCE_FRAME,
+                        f"scheme:{sid}:{section}",
+                        SECTION_MENU,
+                    ))
+                    continue
+
+                if key in Engine.SECTION_KEYS:
+                    key = "9"
+
+                if key == "#":
+                    audio.repeat()
+                    continue
+
+                if key == "9":
+                    replays = 0
+                    if ix == len(named) - 1 and rest:
+                        page = rest[:tunables.OVERFLOW_READ_CAP]
+                        del rest[:tunables.OVERFLOW_READ_CAP]
+                        audio.say((RESULTS_MORE_PROMPT,))
+                        for psid in page:
+                            sections_heard[psid] = ["summary"]
+                        named.extend(page)
+                        ix += 1
+                        just_paged = True
+                        break  # Move to first scheme of the new page
+                    ix += 1
+                    if ix < len(named):
+                        break  # Move to next scheme
+                    else:
+                        audio.say(("no_more_schemes",))
+                        Engine.current_scheme = None
+                        setattr(audio, "current_scheme", None)
+                        return True
+
+                if key == "0":
+                    if pending_section is not None:
+                        p_sid, p_sec = pending_section
+                        if not (hasattr(audio, "was_cut") and audio.was_cut(f"scheme:{p_sid}:{p_sec}")):
+                            sections_heard[p_sid].append(p_sec)
+                        pending_section = None
+                    Engine.current_scheme = None
+                    setattr(audio, "current_scheme", None)
+                    return True
+
+                # Unmapped digits (5-8):
+                replays += 1
+                if hasattr(audio, "trace") and getattr(audio, "trace", None) is not None:
+                    audio.trace.input_event(
+                        prompt_n=getattr(rb_inp, "prompt_n", -1),
+                        prompt="readback",
+                        event="key",
+                        value=str(key),
+                        took=False,
+                        why="not_on_menu",
+                    )
+                if replays > tunables.READBACK_REPLAY_MAX:
+                    replays = 0
+                    ix += 1
+                    if ix < len(named):
+                        break
+                    else:
+                        audio.say(("no_more_schemes",))
+                        Engine.current_scheme = None
+                        setattr(audio, "current_scheme", None)
+                        return True
+                audio.say(("unclear_prompt", SECTION_MENU))
+
         if pending_section is not None:
             p_sid, p_sec = pending_section
             if not (hasattr(audio, "was_cut") and audio.was_cut(f"scheme:{p_sid}:{p_sec}")):
                 sections_heard[p_sid].append(p_sec)
+        Engine.current_scheme = None
+        setattr(audio, "current_scheme", None)
         return True
 
 

@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 
 from haqdaar.contracts import tunables
-from haqdaar.contracts.types import Answer, Digit, Question, Speech, Unclear
+from haqdaar.contracts.types import Answer, Digit, Question, Silence, Speech, Unclear
 from haqdaar.data.log import Log
 from haqdaar.engine.call import Engine
 from haqdaar.engine.filter import Filter
@@ -209,7 +209,7 @@ def test_section_menu_question_is_answered_about_the_open_scheme(corpus, tmp_pat
     # The scheme whose menu is open comes first, then the other results just read.
     assert model.asked[0][3][0] == "S1" and len(model.asked[0][3]) <= tunables.QA_MAX_SCHEMES
     assert audio.answers == [ANSWER_TEXT]
-    assert audio.played.count("section_menu") == 3  # S1, then S1's menu again, then S2
+    assert audio.played.count("section_menu") == 2  # 7.2: one scheme at a time: S1, then S1 again; S2 not queued on exit 0
 
 
 def test_both_question_is_tried_after_the_confirm_accepts(corpus, tmp_path, qa_on):
@@ -372,3 +372,147 @@ def test_a_question_naming_a_scheme_at_the_opener_is_answered_not_read_out(corpu
     assert audio.answers == [ANSWER_TEXT] and len(model.asked[0][3]) == 1
     assert audio.played.count("opener_prompt") >= 2
     assert len([l for l in lines if l.get("class") == "QUESTION"]) == 1
+
+
+def test_question_retry_and_logging_on_check_failure(corpus, tmp_path, qa_on, monkeypatch):
+    """7.1: When the question check fails, try exactly once more. Log both tries with write_question_line."""
+    from haqdaar.model import answer as qa_answer
+    logged_calls = []
+    monkeypatch.setattr(qa_answer, "write_question_line", lambda **fields: logged_calls.append(fields))
+
+    class RetryModel(QAModel):
+        def __init__(self):
+            super().__init__()
+            self.answer_calls = 0
+
+        def answer(self, question, lang, cards, profile=None, scheme_ids=None, english=False):
+            self.answer_calls += 1
+            if self.answer_calls == 1:
+                return None  # First check fails
+            return "Answer on second try."
+
+    model = RetryModel()
+    audio = QAAudio(_question_inputs())
+    lines = _run(corpus, tmp_path, audio, model)
+    assert model.answer_calls == 2
+    assert audio.answers == ["Answer on second try."]
+    assert any(l.get("class") == "QUESTION" for l in lines)
+    assert len(logged_calls) >= 2
+
+
+def test_question_fails_after_two_tries_and_logs_both(corpus, tmp_path, qa_on, monkeypatch):
+    """7.1: When both tries fail, both are logged and it falls through to don't know / UNCLEAR."""
+    from haqdaar.model import answer as qa_answer
+    logged_calls = []
+    monkeypatch.setattr(qa_answer, "write_question_line", lambda **fields: logged_calls.append(fields))
+
+    class FailModel(QAModel):
+        def __init__(self):
+            super().__init__()
+            self.answer_calls = 0
+
+        def answer(self, question, lang, cards, profile=None, scheme_ids=None, english=False):
+            self.answer_calls += 1
+            return None  # Both tries fail
+
+    model = FailModel()
+    audio = QAAudio(_question_inputs())
+    lines = _run(corpus, tmp_path, audio, model)
+    assert model.answer_calls == 2
+    assert len(logged_calls) == 2
+    assert not any(l.get("class") == "QUESTION" for l in lines)
+    assert any(l.get("class") == "UNCLEAR" for l in lines)
+
+
+def test_read_back_unhandled_speech_says_unclear_and_menu(corpus, tmp_path, qa_on):
+    """7.1: Voice cut or unhandled speech in readback says unclear_prompt + SECTION_MENU."""
+    from haqdaar.engine.terminals import SECTION_MENU
+    class ConfirmModel(QAModel):
+        def turn(self, transcript, box=None, ask_count=0):
+            return Answer(box=box, value=corpus.values(box)[0], span=transcript)
+
+        def confirm(self, text, lang=None):
+            return True if text == "yes" else None
+
+        def sort(self, asked, transcript):
+            return "OTHER"  # Not a question
+
+    model = ConfirmModel()
+    # Reach readback via keypad, then caller speaks junk words at readback menu, then exits with key 0
+    inputs = [Digit("3"), Digit("1"), Digit("2"), Digit("1"), Digit("3"), Digit("1"), Speech("junk words at menu"), Digit("0"), Digit("2")]
+    audio = QAAudio(inputs)
+    lines = _run(corpus, tmp_path, audio, model)
+    assert "unclear_prompt" in audio.played
+    unclear_idx = audio.played.index("unclear_prompt")
+    assert audio.played[unclear_idx + 1] == SECTION_MENU
+
+
+def test_read_back_silence_after_cut_says_unclear_and_menu(corpus, tmp_path, qa_on):
+    """7.1: A cut followed by Silence in readback says unclear_prompt + SECTION_MENU."""
+    from haqdaar.engine.terminals import SECTION_MENU
+    class ConfirmModel(QAModel):
+        def turn(self, transcript, box=None, ask_count=0):
+            return Answer(box=box, value=corpus.values(box)[0], span=transcript)
+
+        def confirm(self, text, lang=None):
+            return True if text == "yes" else None
+
+    model = ConfirmModel()
+    # Reach readback, then a cut followed by Silence, then key 0
+    inputs = [
+        Digit("3"), Digit("1"), Digit("2"), Digit("1"), Digit("3"), Digit("1"),
+        Silence(n=1),  # will be mocked with cut_clip
+        Digit("0"), Digit("2")
+    ]
+    # Set cut_clip on the Silence object (as turn.py would when a cut precedes silence)
+    from dataclasses import replace
+    # But Silence is frozen without cut_clip in its dataclass, so we mock was_cut on audio
+    audio = QAAudio(inputs)
+    audio._cut_triggered = False
+    orig_next = audio.next_input
+    def cut_next_input(profile="normal"):
+        res = orig_next(profile)
+        if profile == "readback" and isinstance(res, Silence) and not audio._cut_triggered:
+            audio._cut_triggered = True
+            audio._cut = True
+        return res
+    audio.next_input = cut_next_input
+    audio.was_cut = lambda token="": getattr(audio, "_cut", False)
+    orig_say = audio.say
+    def tracking_say(seq):
+        audio._cut = False
+        return orig_say(seq)
+    audio.say = tracking_say
+
+    lines = _run(corpus, tmp_path, audio, model)
+    assert "unclear_prompt" in audio.played
+    unclear_idx = audio.played.index("unclear_prompt")
+    assert audio.played[unclear_idx + 1] == SECTION_MENU
+
+
+def test_question_retry_on_exception(corpus, tmp_path, qa_on, monkeypatch):
+    """7.1: When first check raises exception, it retries and logs both tries."""
+    from haqdaar.model import answer as qa_answer
+    logged_calls = []
+    monkeypatch.setattr(qa_answer, "write_question_line", lambda **fields: logged_calls.append(fields))
+
+    class ExModel(QAModel):
+        def __init__(self):
+            super().__init__()
+            self.calls = 0
+
+        def answer(self, question, lang, cards, profile=None, scheme_ids=None, english=False):
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("API timeout")
+            return "Answer on second try after exception."
+
+    model = ExModel()
+    audio = QAAudio(_question_inputs())
+    lines = _run(corpus, tmp_path, audio, model)
+    assert model.calls == 2
+    assert audio.answers == ["Answer on second try after exception."]
+    assert any(l.get("class") == "QUESTION" for l in lines)
+    assert len(logged_calls) >= 2
+    assert "exception" in logged_calls[0].get("blocked_by", "")
+
