@@ -109,7 +109,7 @@ def test_question_in_loop_is_answered_and_call_does_not_move(corpus, tmp_path, q
     q = [l for l in lines if l.get("class") == "QUESTION"]
     assert len(q) == 1 and q[0]["answer"] == ANSWER_TEXT and q[0]["transcript"] == QUESTION
     # turn_n unchanged by the question: it carries the turn count of the line before it.
-    before = lines[lines.index(q[0]) - 1]
+    before = [l for l in lines[:lines.index(q[0])] if "ev" not in l][-1]  # readable rows have no turn_n
     assert q[0]["turn_n"] == before["turn_n"]
     # no turn spent, no strike: no UNCLEAR line, no rephrase prompt, and the same box is asked twice
     assert not any(l.get("class") == "UNCLEAR" for l in lines)

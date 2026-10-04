@@ -17,7 +17,7 @@ import re
 import time
 from typing import Any, Mapping, Optional
 
-from haqdaar.contracts import tunables
+from haqdaar.contracts import tunables, vocab
 from haqdaar.contracts.log_schema import (
     STOP_LE_4_SURVIVORS,
     STOP_MAX_QUESTIONS,
@@ -45,6 +45,7 @@ from haqdaar.contracts.types import (
     Widen,
     WIDENING_ORDER,
 )
+from haqdaar.data import log_text
 from haqdaar.data.log import Log
 from haqdaar.engine.door_a import DoorA, unmatched_content
 from haqdaar.engine.filter import Filter
@@ -70,6 +71,101 @@ def _next_lang(curr_lang: str) -> str:
     and the read-back menu so both keypads use the same rotation."""
     offered = tunables.LANGS_OFFERED  # a paused language is skipped
     return offered[(offered.index(curr_lang) + 1) % len(offered)] if curr_lang in offered else offered[0]
+
+
+LANG_EN = {"hi": "Hindi", "mr": "Marathi", "en": "English"}
+
+
+def _log_key(log: Log, digit: Any, means: str) -> None:
+    """One readable row for a key the engine judged: what the key meant here, in English.
+    Log.write never raises; the guard is for the means being made."""
+    try:
+        log.write({"ev": "key", "key": str(digit), "means": means})
+    except Exception:
+        pass
+
+
+def _answer_means(log: Log, corpus: Any, box: str, digit: str) -> str:
+    """Meaning of a key on a question box: the value it picks, or off the menu."""
+    try:
+        if digit == "#":
+            return "repeat"
+        if digit == "*":
+            return "change language"
+        if digit == "0":
+            return "do not know"
+        vals = corpus.values(box)
+        n = int(digit) if digit.isdigit() else -1
+        if 1 <= n <= len(vals) and n <= tunables.KEYPAD_CARDINALITY_MAX:
+            val = vals[n - 1]
+            label = log_text.lookup(log.snapshot_id)(f"chip_{box}_{val}", "en") or vocab.LABELS.get(val, {}).get("en") or str(val)
+            return f"{box} = {label}"
+    except Exception:
+        pass
+    return "not on the menu"
+
+
+class _LoggedAudio:
+    """The audio the engine talks to, with a readable log row for what is said and what cuts in.
+
+    Every attribute passes straight through, get and set, so hasattr() answers as it does on the
+    real audio and the caller hears exactly the same. Only say, say_text, next_input and
+    select_language are watched: after the real call returns, one `said` or `cut` row is written.
+    A failure in the row is dropped; it must never reach the call.
+    """
+
+    def __init__(self, audio: Any, log: Log, corpus: Any) -> None:
+        object.__setattr__(self, "_real", audio)
+        object.__setattr__(self, "_log", log)
+        object.__setattr__(self, "_corpus", corpus)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        setattr(self._real, name, value)
+
+    def __getattr__(self, name: str) -> Any:
+        attr = getattr(self._real, name)  # raises AttributeError exactly when the real audio would
+        if name == "say":
+            return lambda sequence, *a, **k: self._said(attr(sequence, *a, **k), tuple(sequence))
+        if name == "say_text":
+            return lambda text, *a, **k: self._said_text(attr(text, *a, **k), text)
+        if name in ("next_input", "select_language"):
+            return lambda *a, **k: self._cut(attr(*a, **k))
+        return attr
+
+    def _said(self, result: Any, tokens: tuple[str, ...]) -> Any:
+        try:
+            spoken = [t for t in tokens if not t.startswith(("name:", "end:"))]
+            if spoken:
+                find = log_text.lookup(self._log.snapshot_id)
+                lang = getattr(self._real, "language", "hi")
+                self._log.write({
+                    "ev": "said", "tokens": spoken,
+                    "text": log_text.said_words(spoken, lang, find, self._corpus),
+                    "en": log_text.said_words(spoken, "en", find, self._corpus),
+                })
+        except Exception:
+            pass
+        return result
+
+    def _said_text(self, result: Any, text: str) -> Any:
+        if result is not False:  # False: nothing was said
+            try:
+                self._log.write({"ev": "said", "tokens": ["answer"], "text": text, "en": ""})
+            except Exception:
+                pass
+        return result
+
+    def _cut(self, inp: Any) -> Any:
+        try:
+            if isinstance(inp, (Speech, Digit)) and inp.heard_ms >= 0 and inp.cut_clip:
+                self._log.write({
+                    "ev": "cut", "by": "key" if isinstance(inp, Digit) else "speech",
+                    "clip": inp.cut_clip, "heard_ms": inp.heard_ms,
+                    "en": log_text.lookup(self._log.snapshot_id)(inp.cut_clip, "en"),
+                })
+        except Exception:
+            pass
+        return inp
 
 
 def _newer_words(audio: Any, old_text: str) -> bool:
@@ -163,6 +259,8 @@ def _door_a_pick(audio: Any, log: Log, turn_n: int, s1: str, s2: str) -> str | N
         break
     if isinstance(pick, Hangup):
         return "hangup"
+    if isinstance(pick, Digit):
+        _log_key(log, pick.digit, {"1": "first scheme", "2": "second scheme"}.get(pick.digit, "none of these"))
     if isinstance(pick, Digit) and pick.digit in ("1", "2"):
         return pick.digit
     return None
@@ -193,6 +291,7 @@ class Engine:
         'continue' (to re-ask/loop) or 'break' (to proceed to next question).
         """
         digit = digit_inp.digit
+        _log_key(log, digit, _answer_means(log, corpus, box, digit))
 
         # Control keys
         if digit == "#":
@@ -448,6 +547,13 @@ class Engine:
                             blocked_by=None if answer else "model_null",
                             attempt=attempt,
                         )
+                    blocked = None if answer else getattr(model, "last_blocked", None)
+                    if isinstance(blocked, dict):  # the router kept why it refused; numbers masked like the QUESTION row
+                        log.write({
+                            "ev": "blocked", "rule": str(blocked.get("rule", "")),
+                            "question": re.sub(r"\d{8,}", "\u2026", text),
+                            "text": re.sub(r"\d{8,}", "\u2026", str(blocked.get("text", ""))),
+                        })
                 if answer:
                     break
             if _newer_words(audio, text):
@@ -492,6 +598,7 @@ class Engine:
         log: Log,
     ) -> None:
         """Run a single call from connect to hangup."""
+        audio = _LoggedAudio(audio, log, corpus)
         Engine.current_scheme = None
         if hasattr(audio, "current_scheme"):
             audio.current_scheme = None
@@ -523,11 +630,16 @@ class Engine:
             if isinstance(inp, Digit) and inp.digit in tunables.turn0_keys():
                 lang, lang_source = tunables.turn0_keys()[inp.digit], "keypad"
                 break
+            if isinstance(inp, Digit):
+                _log_key(log, inp.digit, "not on the menu")
             wrong_keys += 1
             if wrong_keys >= 3:
                 lang, lang_source = "hi", "default"
                 break
 
+        if lang_source == "keypad":
+            pressed = next((k for k, v in tunables.turn0_keys().items() if v == lang), "")
+            _log_key(log, pressed, f"language = {LANG_EN.get(lang, lang)}")
         if hasattr(audio, "language"):
             audio.language = lang
 
@@ -762,6 +874,7 @@ class Engine:
                     if inp.digit == "0" and box == "category" and not is_box_keypad and not opener_menu:
                         # At the short line 0 asks for the list; it is not "don't know" yet.
                         opener_menu = "key_0"
+                        _log_key(log, "0", "the key list")
                         log.write({"mode": mode, "opener_menu": opener_menu, "opener_misses": opener_misses})
                         continue
                     turn_n, question_count, stop_reason, act = Engine._handle_digit_input(
@@ -1065,6 +1178,9 @@ class Engine:
                         confirm_inp = audio.next_input(profile="confirm")
                         if isinstance(confirm_inp, Digit):
                             silence_ladder = 0
+                            _log_key(log, confirm_inp.digit, {
+                                "#": "repeat", "*": "change language", "1": "yes", "2": "no",
+                            }.get(confirm_inp.digit, "not on the menu"))
                             if confirm_inp.digit == "#":
                                 audio.repeat()
                                 confirm_repeats += 1
@@ -1422,6 +1538,9 @@ class Engine:
                     return
                 is_yes = False
                 if isinstance(ae_inp, Digit):
+                    _log_key(log, ae_inp.digit, {
+                        "#": "repeat", "*": "change language", "1": "yes", "0": "no", "2": "no",
+                    }.get(ae_inp.digit, "not on the menu"))
                     if ae_inp.digit == "#":
                         continue  # the loop says the line again
                     elif ae_inp.digit == "*":
@@ -1647,6 +1766,12 @@ class Engine:
                     continue
 
                 key = rb_inp.digit
+                if key in Engine.SECTION_KEYS and key not in heard:
+                    means = "read " + Engine.SECTION_KEYS[key].replace("_", " ")
+                else:
+                    means = {"*": "change language", "#": "repeat", "0": "stop reading"}.get(
+                        key, "next scheme" if key in Engine.SECTION_KEYS or key == "9" else "not on the menu")
+                _log_key(log, key, means)
 
                 if key == "*":
                     new_lang = _next_lang(getattr(audio, "language", "hi"))

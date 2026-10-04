@@ -147,7 +147,12 @@ def build_call(rows: list[dict[str, Any]], lookup: Lookup = lambda token, lang: 
 
         rec = row.get("log")
         if isinstance(rec, dict):
-            if "class" in rec:
+            if "ev" in rec:  # readable rows: said and cut the trace shows already, so only these two are notes
+                if rec["ev"] == "blocked":
+                    note(t, f"answer refused ({rec.get('rule')}): {rec.get('text', '')}")
+                elif rec["ev"] == "key" and rec.get("means"):
+                    note(t, f"key {rec.get('key')} means: {rec['means']}")
+            elif "class" in rec:
                 info["turns"] = max(info["turns"], int(rec.get("turn_n") or 0))
                 if rec["class"] in ("UNCLEAR", "NOISE"):
                     info["unclear"] += 1

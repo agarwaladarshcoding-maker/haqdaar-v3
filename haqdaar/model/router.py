@@ -57,6 +57,7 @@ class Model:
         self.translator = translator
         self.client = client if client is not None else GroqModelClient(timeout=timeout)
         self._failures: int = 0
+        self.last_blocked: Optional[dict[str, str]] = None  # the refusal of the last answer(): {"rule", "text"}
 
     @property
     def failures(self) -> int:
@@ -311,6 +312,7 @@ class Model:
         Never raises. Does not count toward failures. Writes one questions.jsonl line.
         """
         t0 = time.monotonic()
+        self.last_blocked = None
         if not isinstance(cards, str):  # the engine hands over one text per scheme
             cards = "\n\n".join(c for c in cards if c)
         question = qa_answer.mask_digits(question or "")
@@ -342,6 +344,8 @@ class Model:
             final, blocked = None, "model_null"
         if key and final and blocked is None:
             answer_store.put(key, final)
+        if blocked is not None:
+            self.last_blocked = {"rule": blocked, "text": raw or ""}
         qa_answer.write_question_line(
             lang=lang,
             question=question,

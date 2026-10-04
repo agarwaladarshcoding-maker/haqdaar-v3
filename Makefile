@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls calls-ui dashboard sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock barge-eval
+.PHONY: run call calls calls-ui dashboard sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock barge-eval log-text
 
 test:
 	$(PYTHON) -m pytest
@@ -133,6 +133,10 @@ pace-samples:
 # Plan 2.3: build the real snapshot from the audio-ready schemes and flip snapshots/CURRENT to it.
 snapshot:
 	$(PYTHON) -m haqdaar.data.pipeline.p6_snapshot
+
+# One call's log as short English text: make log-text ID=<call id>
+log-text:
+	$(PYTHON) -m tools.log_text $(ID)
 
 # Plan 3.6: random keypad callers on the real snapshot; 0 crashes and 0 truth failures.
 stress:

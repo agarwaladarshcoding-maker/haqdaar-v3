@@ -31,6 +31,9 @@ from haqdaar.contracts.log_schema import (
 from haqdaar.contracts.types import Lang, LangSource
 
 
+EV_ROWS = ("said", "key", "cut", "blocked")
+
+
 class Log:
     """Durably writes call logs line by line in JSONL format."""
 
@@ -177,8 +180,12 @@ class Log:
             if "turn_class" in data and "class" not in data:
                 data["class"] = data.pop("turn_class")
 
+            # Readable rows (said, key, cut, blocked): no class/turn_n/stop/mode/lang, so old readers skip them.
+            if data.get("ev") in EV_ROWS:
+                pass
+
             # Check if it represents a mode line or lang line or open line
-            if "mode" in data or "lang" in data or "call_id" in data:
+            elif "mode" in data or "lang" in data or "call_id" in data:
                 # Valid one-off records (e.g. keypad_only mode entry, lang switch, etc.)
                 pass
 

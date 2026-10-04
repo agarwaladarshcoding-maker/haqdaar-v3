@@ -232,7 +232,7 @@ def test_turn_0_and_keypad_mode_entry(corpus, tmp_path):
     Engine.run_call(audio, None, corpus, log)
     assert audio.hung_up
 
-    lines = [json.loads(l) for l in open(tmp_path / "test_turn0.jsonl")]
+    lines = [r for r in (json.loads(l) for l in open(tmp_path / "test_turn0.jsonl")) if "ev" not in r]  # said/key rows come in between
     # Call-open header
     assert lines[0]["call_id"] == "test_turn0"
     # Turn 0 answer, and the lang record carrying what the caller actually pressed
@@ -388,7 +388,7 @@ def test_persona_p1_happy_path_end_to_end(corpus, tmp_path):
     assert "closing_farewell" in audio.played
     assert [t for t in audio.played if t.startswith("name:")]
 
-    lines = [json.loads(l) for l in open(tmp_path / "test_p1_full.jsonl")]
+    lines = [r for r in (json.loads(l) for l in open(tmp_path / "test_p1_full.jsonl")) if "ev" not in r]  # said/key rows come in between
     assert lines[0]["call_id"] == "test_p1_full"
     assert lines[1]["turn_n"] == 0
     assert [l for l in lines if l.get("mode") == "keypad_only" and "stop" not in l]
