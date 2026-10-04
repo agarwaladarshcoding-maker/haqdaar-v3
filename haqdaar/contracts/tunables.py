@@ -30,9 +30,12 @@ QA_SPEAK: bool = _on("QA_SPEAK") or TALK_ONLY   # 7.2 say the answer aloud on a 
 SPEECH_CUT_IN: bool = _on("SPEECH_CUT_IN")      # 7.2 the caller's voice stops a playing clip
 QA_SEARCH: bool = _on("QA_SEARCH")              # 7.3 find the scheme by search when too many are left
 TALK_TIMEOUT_S: float = float(os.environ.get("TALK_TIMEOUT_S", 6.0))        # one model call of a talk turn
-TALK_ONE_MOMENT_S: float = float(os.environ.get("TALK_ONE_MOMENT_S", 1.5))  # the model is not back this long after the words arrive -> "one moment"
-TALK_MAX_SENTENCES: int = int(os.environ.get("TALK_MAX_SENTENCES", 4))      # C5: up to 4 when the caller asks for detail
-TALK_MAX_WORDS: int = int(os.environ.get("TALK_MAX_WORDS", 70))
+# "One moment" while the line is checking. The words reach the engine about 1 s after the caller stops, so 1.0 here
+# is about 2 s of quiet for the caller. If still nothing is said, it is said again every TALK_ONE_MOMENT_AGAIN_S.
+TALK_ONE_MOMENT_S: float = float(os.environ.get("TALK_ONE_MOMENT_S", 1.0))
+TALK_ONE_MOMENT_AGAIN_S: float = float(os.environ.get("TALK_ONE_MOMENT_AGAIN_S", 4.0))
+TALK_MAX_SENTENCES: int = int(os.environ.get("TALK_MAX_SENTENCES", 7))      # full details of a scheme + one closing question
+TALK_MAX_WORDS: int = int(os.environ.get("TALK_MAX_WORDS", 110))
 TALK_SENTENCE_WORDS: int = int(os.environ.get("TALK_SENTENCE_WORDS", 24))   # a longer sentence is refused: it is a phone call
 TALK_LOG_CHARS: int = int(os.environ.get("TALK_LOG_CHARS", 1500))           # how much of the call log the model reads
 TALK_MAX_TURNS: int = int(os.environ.get("TALK_MAX_TURNS", 40))             # a talk call always ends

@@ -188,11 +188,11 @@ def test_verdict_is_blocked(call):
     assert [r["rule"] for r in rows if r.get("ev") == "blocked"][0] in ("verdict", "forbidden")
 
 
-def test_reply_length_two_by_default_up_to_four(call):
+def test_reply_length_has_a_limit(call):
     four = "Take your Aadhaar card. Take your bank passbook. Go to the village office. Fill in the form."
     audio, _, _ = call([Speech("what papers and steps")], [_say(four)])
     assert len(audio.answers) == 4 and " ".join(audio.answers) == four
-    audio, _, rows = call([Speech("what papers and steps")], [_say(four + " Then wait."), _say("Take your Aadhaar card.")])
+    audio, _, rows = call([Speech("what papers and steps")], [_say(four + " Then wait." * 4), _say("Take your Aadhaar card.")])
     assert [r["rule"] for r in rows if r.get("ev") == "blocked"] == ["too_long"]
 
 
@@ -344,3 +344,11 @@ def test_a_short_list_is_shown_with_no_man_or_woman_question(corpus):
     bv = {**{b: UNASKED for b in SEVEN_BOXES}, "category": "pension"}
     got = talk_pick.narrow(["apy", "nps-tsep", "ignwps", "igndps", "nfbs", "pm-kisan"], bv, corpus)
     assert got.ask is None and "ignwps" in got.left
+
+
+def test_one_moment_is_said_again_while_the_line_still_checks(call, monkeypatch):
+    monkeypatch.setattr(tunables, "TALK_ONE_MOMENT_S", 0.01)
+    monkeypatch.setattr(tunables, "TALK_ONE_MOMENT_AGAIN_S", 0.05)
+    audio, _, _ = call([Speech("what is PM Kisan")], [_say("It is for farmers.")], delay=0.2)
+    assert audio.played.count("one_moment") >= 2
+    assert audio.answers == ["It is for farmers."]

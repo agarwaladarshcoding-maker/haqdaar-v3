@@ -243,11 +243,16 @@ class _Talk:
         return "answer", prompt.NOT_SURE.get(self.lang, prompt.NOT_SURE["en"])
 
     # --- the mouth ---
-    def _speak(self, say: str) -> None:
+    def _speak(self, say: str, before_first: Any = None) -> None:
+        """`before_first` is called when the first sentence's sound is ready, just before it is said."""
         if not hasattr(self.audio, "say_text"):
             return
         parts = _sentences(say)
         warm = getattr(self.audio, "warm_text", None)
+        if warm and parts:
+            warm(parts[0])
+        if before_first:
+            before_first()
         ahead = []                              # the later sentences are made while the first is said
         for sentence in parts[1:] if warm else []:
             ahead.append(threading.Thread(target=warm, args=(sentence,), daemon=True))
@@ -263,29 +268,42 @@ class _Talk:
         self.log.write({"ev": "heard", "text": mask_digits(words)})
         t0 = time.monotonic()
         lock = threading.Lock()
-        ready = False
+        done = threading.Event()                # the reply has started to sound, or there is none
+        back = [0.0]                            # when the model came back
 
-        def one_moment() -> None:               # never dead air while the model works
+        def stop_filler() -> None:
             with lock:
-                if not ready:
-                    self.audio.say(("one_moment",))
+                done.set()
 
-        timer = threading.Timer(tunables.TALK_ONE_MOMENT_S, one_moment)
-        timer.daemon = True
-        timer.start()
+        def filler() -> None:
+            """Never dead air while the line is checking: "one moment" after TALK_ONE_MOMENT_S with
+            nothing said, and again every TALK_ONE_MOMENT_AGAIN_S while it is still checking."""
+            wait = tunables.TALK_ONE_MOMENT_S
+            for _ in range(4):
+                if done.wait(wait):
+                    return
+                if back[0] and time.monotonic() - back[0] < 1.5:
+                    wait = 1.5                  # the reply is being voiced; it sounds in a moment
+                    continue
+                with lock:
+                    if done.is_set():
+                        return
+                    self.audio.say(("one_moment",))
+                wait = tunables.TALK_ONE_MOMENT_AGAIN_S
+
+        threading.Thread(target=filler, daemon=True).start()
         try:
             action, say = self._decide(words)
+            back[0] = time.monotonic()
+            self.log.write({"ev": "act", "action": action, "scheme": self.focus,
+                            "ms": int((time.monotonic() - t0) * 1000)})
+            if action == "repeat":
+                say = self.last_say
+            if say:
+                self._speak(say, stop_filler)
+                self.last_say = say
         finally:
-            with lock:
-                ready = True
-            timer.cancel()
-        self.log.write({"ev": "act", "action": action, "scheme": self.focus,
-                        "ms": int((time.monotonic() - t0) * 1000)})
-        if action == "repeat":
-            say = self.last_say
-        if say:
-            self._speak(say)
-            self.last_say = say
+            stop_filler()
         return action
 
     def _end(self, farewell: bool, reason: str = "") -> None:

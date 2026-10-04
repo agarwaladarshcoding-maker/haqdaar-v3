@@ -45,6 +45,9 @@ SCRIPTS: dict[str, tuple[str, list[str]]] = {
     "overtalk": ("hi", ["key:1", "say:मुझे खेती के लिए योजना चाहिए", "during:रुको रुको, एक मिनट",
                         "say:पीएम किसान में कितना पैसा मिलता है", "during:हाँ हाँ ठीक है",
                         "say:आज मौसम कैसा है", "say:धन्यवाद, अलविदा"]),
+    # the owner's call of 5 Oct: asks for details, then says yes to the offer
+    "details": ("hi", ["key:1", "say:मुझे खेती के लिए योजना चाहिए", "say:पीएम किसान के बारे में बताइए",
+                       "say:इसके बारे में पूरी जानकारी विस्तार से बताइए", "say:हाँ बताइए", "say:धन्यवाद, अलविदा"]),
     "quiet": ("hi", ["key:1", "quiet:70"]),
 }
 
