@@ -14,7 +14,8 @@ import pytest
 from haqdaar.contracts import tunables
 from haqdaar.contracts.types import Answer, Digit, Hangup, Noise, Question, Repeat, Silence, Speech, Unclear
 from haqdaar.data.log import Log
-from haqdaar.engine.call import Engine
+from haqdaar.audio.lines import load_lines
+from haqdaar.engine.call import Engine, _door_a_pick
 
 from tests.test_call import MockAudio, corpus  # noqa: F401  (corpus is a fixture)
 
@@ -338,4 +339,212 @@ def test_one_scheme_at_a_time(corpus, tmp_path, monkeypatch):
     assert model2.answered_schemes[2] == ["S1"]
 
 
+# --- 7.3 talk-first opener and the one silence rule -------------------------------------------
 
+class WaitRecorder(SweepAudio):
+    """Keeps what was said between waits, and checks what follows each silent wait."""
+
+    def __init__(self, inputs, said=True):
+        super().__init__(inputs, said=said)
+        self.said: list[tuple[str, ...]] = []      # say() calls since the last wait
+        self.opening: list[tuple[str, ...]] = []   # say() calls before each wait, in order
+        self.prompt: tuple[str, ...] = ()          # the last thing said before the wait now open
+        self.after_silence = None                  # (prompt, language) of a silent wait not yet answered
+        self.silent_waits = 0
+        self.reprompts: list[tuple[tuple[str, ...], tuple[str, ...], str]] = []  # (prompt, said after, lang)
+
+    def say(self, sequence):
+        self.said.append(tuple(sequence))
+        super().say(sequence)
+
+    def next_input(self, profile="normal"):
+        if self.after_silence is not None:
+            flat = tuple(t for call in self.said for t in call)
+            self.reprompts.append((self.after_silence[0], flat, self.after_silence[1]))
+            self.after_silence = None
+        self.opening.append(tuple(t for call in self.said for t in call))
+        if self.said:
+            self.prompt = self.said[-1]
+        self.said = []
+        inp = super().next_input(profile=profile)
+        if isinstance(inp, Silence):
+            self.silent_waits += 1
+            self.after_silence = (self.prompt, self.language)
+        return inp
+
+
+def _lines(tmp_path, name):
+    return [json.loads(l) for l in open(tmp_path / f"{name}.jsonl")]
+
+
+def test_talk_first_opener(corpus, tmp_path):
+    """7.3: the opener is one short line. The list plays only on key 0 or after two misses; a
+    key 1-9 pressed at once still answers. Keys stay a full second way in."""
+    def run(name, script, model=None):
+        audio = WaitRecorder(script)
+        log = Log.open(name, corpus.snapshot_id, logs_dir=tmp_path)
+        Engine.run_call(audio, model or SweepModel(), corpus, log)
+        _check(_lines(tmp_path, name), audio)
+        return audio, _lines(tmp_path, name)
+
+    junk = Speech("hello hello can you hear me")
+    rest = BASE_KEYS[1:]  # category key 1, then the rest of a whole keypad call
+
+    # A fresh call: the first wait follows exactly one line, and the list is never played.
+    audio, lines = run("direct", [Digit("3")] + rest)
+    assert audio.opening[0] == ("opener_short_prompt",)  # the language is chosen before any wait
+    assert "opener_prompt" not in audio.played
+    assert any(l.get("class") == "ANSWER" and l.get("box") == "category" and l.get("transcript") == "1"
+               for l in lines), "a key pressed at once at the short line must still answer"
+
+    # Key 0 plays the list (the opener question and its choices) and is not "don't know".
+    audio, lines = run("zero", [Digit("3"), Digit("0")] + rest)
+    assert audio.opening[0] == ("opener_short_prompt",)
+    assert audio.opening[1] == ("opener_prompt",)
+    assert not any(l.get("box") == "category" and l.get("value") == "unknown" for l in lines)
+    assert {"mode": "voice", "opener_menu": "key_0", "opener_misses": 0} in lines
+    assert any(l.get("class") == "ANSWER" and l.get("box") == "category" and l.get("transcript") == "1"
+               for l in lines)
+
+    # Two misses, whether silence or words we cannot use, bring the list. Not before.
+    for name, misses in (("silent", [Silence(n=1), Silence(n=2)]), ("junk", [junk, junk]),
+                         ("mixed", [junk, Silence(n=1)])):
+        audio, lines = run(f"misses_{name}", [Digit("3")] + misses + rest)
+        said = audio.opening[:3]
+        assert "opener_prompt" not in said[0] and "opener_prompt" not in said[1], name
+        assert said[0] == ("opener_short_prompt",), name
+        assert "opener_short_prompt" in said[1], name  # one miss: still the short line
+        assert "opener_prompt" in said[2], name       # two misses: the list
+        assert {"mode": "voice", "opener_menu": "two_misses", "opener_misses": 2} in lines, name
+        assert any(l.get("class") == "ANSWER" and l.get("box") == "category" for l in lines), name
+
+    # One miss alone does not bring the list.
+    audio, lines = run("one_miss", [Digit("3"), junk] + rest)
+    assert "opener_prompt" not in audio.played
+
+
+def _reprompt_is_right(prompt, said):
+    """After a silent wait: the no-reply line (after "I am still here" on the second), then the
+    live prompt again. The short opener line grows into the list on the second miss."""
+    said = said[1:] if said[:1] == ("silence_presence",) else said
+    if said[:1] != ("did_not_get_reply",) or len(said) < 2:
+        return False
+    again = said[1:]
+    return set(again) <= set(prompt) or (prompt == ("opener_short_prompt",) and again == ("opener_prompt",))
+
+
+def _kind(prompt):
+    if prompt[:1] in (("opener_short_prompt",), ("opener_prompt",)):
+        return "opener"
+    if prompt[0].startswith(("q_", "rephrase_", "keypad_", "state_q")):
+        return "box"
+    if prompt[0] == "bundle_confirm_intro":
+        return "confirm"
+    if prompt == ("anything_else",):
+        return "anything_else"
+    return "readback" if "section_menu" in prompt else "other"
+
+
+class GoneCaller(SweepAudio):
+    """Plays the script, then never says or presses anything: Silence with the ladder count a
+    real line would give (it grows on each silent wait and resets on a key)."""
+
+    def __init__(self, inputs):
+        super().__init__(inputs)
+        self.silent_run = 0
+
+    def select_language(self):
+        self.silent_run = 0
+        return super().select_language()
+
+    def next_input(self, profile="normal"):
+        if not self.inputs:
+            self.waits += 1
+            self.silent_run += 1
+            if self.waits > MAX_WAITS:
+                raise AssertionError("the call never ended")
+            return Silence(n=self.silent_run)
+        self.silent_run = 0
+        return super().next_input(profile=profile)
+
+
+@pytest.mark.parametrize("lang,key", [("en", "3"), ("hi", "1"), ("mr", "2")])
+def test_silence_always_reprompts(corpus, tmp_path, monkeypatch, lang, key):
+    """7.3: every wait that hears nothing says the no-reply line, then asks again, in the
+    caller's language; and a caller who stays silent is let go by the ladder, in three waits."""
+    monkeypatch.setattr(tunables, "QA_ENABLED", True)
+    monkeypatch.setattr(tunables, "QA_SEARCH", True)
+    for line_id in ("opener_short_prompt", "did_not_get_reply"):
+        assert all(load_lines()[line_id].get(l, "").strip() for l in ("en", "hi", "mr")), line_id
+
+    # 1. One silence at every position of a whole call, by keys and by voice.
+    kinds: set[str] = set()
+    silent = 0
+    # The spoken base never reaches a confirm, so a third script says a gender and then goes quiet.
+    confirm_script = [Digit(key), Digit("1"), Digit("2"), Speech("I am a woman"), Silence(n=1),
+                      Speech("yes")] + BASE_KEYS[4:]
+    scripts = [(f"{n}_{pos}", [Digit(key)] + b[1:pos] + [Silence(n=1)] + b[pos:])
+               for n, b in (("keys", BASE_KEYS), ("spoken", BASE_SPOKEN)) for pos in range(1, len(b) + 1)]
+    for name, script in scripts + [("confirm", confirm_script)]:
+        audio = WaitRecorder(script)
+        name = f"silence_{name}"
+        Engine.run_call(audio, SweepModel(), corpus, Log.open(name, corpus.snapshot_id, logs_dir=tmp_path))
+        _check(_lines(tmp_path, name), audio)
+        assert audio.language == lang
+        assert len(audio.reprompts) == audio.silent_waits, f"{name}: a silent wait was not answered"
+        for prompt, said, said_lang in audio.reprompts:
+            assert _reprompt_is_right(prompt, said), f"{name}: {prompt} then {said}"
+            assert said_lang == lang
+            kinds.add(_kind(prompt))
+        silent += audio.silent_waits
+    assert silent >= 10, "the sweep never reached a silent wait"
+    assert {"opener", "box", "confirm", "anything_else", "readback"} <= kinds, kinds
+
+    # 2. Turn 0: silence asks for the language again; nothing is picked for the caller.
+    class Turn0(SweepAudio):
+        def select_language(self):
+            if self.inputs and isinstance(self.inputs[0], Silence):
+                self.waits += 1
+                self.played.append("greeting_trilingual")  # the phone says it on each pass
+                return self.inputs.pop(0)
+            return super().select_language()
+
+    audio = Turn0([Silence(n=1), Digit(key)] + BASE_KEYS[1:])
+    Engine.run_call(audio, SweepModel(), corpus, Log.open("t0", corpus.snapshot_id, logs_dir=tmp_path))
+    assert audio.played[:3] == ["greeting_trilingual", "did_not_get_reply", "greeting_trilingual"]
+    assert audio.language == lang
+    # (the log's header row carries "default" until a language is chosen; only the rows after count)
+    picked = [l for l in _lines(tmp_path, "t0") if "lang_source" in l and "call_id" not in l]
+    assert picked and all(l["lang_source"] == "keypad" for l in picked)
+
+    audio = Turn0([Silence(n=1), Silence(n=2), Silence(n=3)])
+    Engine.run_call(audio, SweepModel(), corpus, Log.open("t0_gone", corpus.snapshot_id, logs_dir=tmp_path))
+    assert audio.played == ["greeting_trilingual", "did_not_get_reply", "greeting_trilingual",
+                            "silence_presence", "did_not_get_reply", "greeting_trilingual", "closing_farewell"]
+    assert audio.hung_up
+    lines = _lines(tmp_path, "t0_gone")
+    assert "stop" in lines[-1] and not any("lang_source" in l for l in lines if "call_id" not in l)
+
+    # 3. Door A's two-name keypad turn: silence asks both names again, never declines.
+    audio = WaitRecorder([Silence(n=1), Digit("2")])
+    log = Log.open("pick", corpus.snapshot_id, logs_dir=tmp_path)
+    assert _door_a_pick(audio, log, 1, "S1", "S2") == "2"
+    assert audio.silent_waits == 1 and len(audio.reprompts) == 1
+    prompt, said, _ = audio.reprompts[0]
+    assert _reprompt_is_right(prompt, said) and "door_a_option_1" in said
+    audio = WaitRecorder([Silence(n=1), Silence(n=2), Silence(n=3)])
+    assert _door_a_pick(audio, log, 1, "S1", "S2") == "hangup"
+    assert audio.played[-1] == "closing_farewell"
+
+    # 4. A caller who goes quiet at any point is let go on the third silent wait in a row.
+    runs = ladder_ends = 0
+    for base in (BASE_KEYS, BASE_SPOKEN):
+        for pos in range(len(base) + 1):
+            audio = GoneCaller([Digit(key)] + base[1:pos])
+            Engine.run_call(audio, SweepModel(), corpus, Log.open(f"gone_{runs}", corpus.snapshot_id, logs_dir=tmp_path))
+            runs += 1
+            assert audio.hung_up and audio.silent_run <= 3
+            if audio.silent_run:
+                assert audio.silent_run == 3 and audio.played[-1] == "closing_farewell"
+                ladder_ends += 1
+    assert ladder_ends >= runs // 2, "most runs should have ended by the ladder"

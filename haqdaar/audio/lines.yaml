@@ -43,6 +43,20 @@ lines:
     hi: "बताइए, आपको किस बात में मदद चाहिए। आप किसी योजना का नाम भी बता सकते हैं।"
     mr: "तुम्हाला कशात मदत हवी आहे ते सांगा. तुम्ही योजनेचे नाव देखील सांगू शकता."
 
+  # 7.3: the short first question. The nine-choice list (opener_prompt) follows only on 0 or
+  # after two misses.
+  opener_short_prompt:
+    pinned: true
+    en: "What do you want to know? Say it, or press 0 for the list."
+    hi: "आप क्या जानना चाहते हैं? बोलें, या सूची के लिए 0 दबाएं।"
+    mr: "तुम्हाला काय जाणून घ्यायचे आहे? सांगा, किंवा सूचीसाठी 0 दाबा."
+
+  # 7.3: said at every wait where the caller gave nothing, then the prompt again.
+  did_not_get_reply:
+    en: "I did not get your reply. Here are the choices again."
+    hi: "मुझे आपका जवाब नहीं मिला। विकल्प फिर से सुनिए।"
+    mr: "मला तुमचे उत्तर मिळाले नाही. पर्याय पुन्हा ऐका."
+
   unclear_prompt:
     en: "Sorry, I did not catch that. Please say it again."
     hi: "माफ़ कीजिए, मैं समझ नहीं पाई। कृपया इसे फिर से कहें।"

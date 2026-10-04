@@ -299,7 +299,7 @@ def test_opener_question_is_answered_by_search_and_the_opener_is_asked_again(cor
     lines = _run(corpus, tmp_path, audio, model)
     assert model.sorted[0] == ("opener", WEAVER_Q)
     assert audio.answers == [ANSWER_TEXT] and model.asked[0][3][0] == "S5"
-    assert audio.played.count("opener_prompt") >= 2  # asked again, no strike, no turn
+    assert audio.played.count("opener_short_prompt") >= 2  # asked again, no strike, no turn
     q = [l for l in lines if l.get("class") == "QUESTION"]
     assert len(q) == 1 and not any(l.get("class") == "UNCLEAR" for l in lines)
 
@@ -370,7 +370,7 @@ def test_a_question_naming_a_scheme_at_the_opener_is_answered_not_read_out(corpu
     lines = _run(corpus, tmp_path, audio, model)
     assert model.sorted[0] == ("opener", q)
     assert audio.answers == [ANSWER_TEXT] and len(model.asked[0][3]) == 1
-    assert audio.played.count("opener_prompt") >= 2
+    assert audio.played.count("opener_short_prompt") >= 2
     assert len([l for l in lines if l.get("class") == "QUESTION"]) == 1
 
 

@@ -75,16 +75,26 @@ class PhoneAudio:
         self._token_clips: dict[str, list[str]] = {}   # token -> names of the clips it played
 
     # --- what the engine calls -----------------------------------------------------
-    def select_language(self) -> tuple[Lang, LangSource]:
+    def select_language(self) -> tuple[Lang, LangSource] | Input:
+        """Say the greeting and wait once. A language key gives (lang, "keypad"). Anything
+        else comes back as the input it was (Silence, Hangup, a wrong key): the engine asks
+        again, so no language is ever picked for a caller who did not pick one."""
         self.say(("greeting_trilingual",))
         key = self.turn.wait(tunables.TURN0_GAP_S)
         if key in tunables.turn0_keys():
+            self._silence = 0
             self.language = tunables.turn0_keys()[key]
             self._log(f"<- key {key}: language {self.language}")
             return self.language, "keypad"
-        self.language = "hi"
-        self._log(f"<- {'no key' if key is None else 'key ' + key}: language hi (default)")
-        return self.language, "default"
+        if key is None:
+            self._silence += 1
+            self._log(f"<- silence {self._silence} (turn0)")
+            return Silence(n=self._silence)
+        if key == HANGUP:
+            return Hangup()
+        self._silence = 0
+        self._log(f"<- key {key}: not a language")
+        return Digit(digit=key)
 
     def say(self, sequence: tuple[str, ...]) -> None:
         clips: list[Clip] = []

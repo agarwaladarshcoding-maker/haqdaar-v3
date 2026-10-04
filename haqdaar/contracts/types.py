@@ -56,6 +56,8 @@ FIXED_LINE_IDS: tuple[str, ...] = (
     "greeting_trilingual",
     "consent_notice",
     "opener_prompt",
+    "opener_short_prompt",
+    "did_not_get_reply",
     "unclear_prompt",
     "anything_else",
     "door_a_option_1",
