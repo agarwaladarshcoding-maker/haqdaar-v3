@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls calls-ui dashboard sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock
+.PHONY: run call calls calls-ui dashboard sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock barge-eval
 
 test:
 	$(PYTHON) -m pytest
@@ -161,3 +161,8 @@ qa-check:
 # Step 7.1: live check of the router's sorting rules, 50 cases, right/wrong per model (Groq)
 qa-router-check:
 	$(PYTHON) -m tools.model_bakeoff --router-check $(ARGS)
+
+# Step 7.9: cut-in scorecard on a virtual clock. ARGS=--quick for a small sample;
+# ARGS="--show keys:voice_qa --at 14:600 --kind cough_long" prints one call.
+barge-eval:
+	$(PYTHON) -m tools.barge_eval $(ARGS)

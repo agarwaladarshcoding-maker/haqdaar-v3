@@ -51,6 +51,8 @@ class Mouth:
         self._repeats = 0                 # `#` presses in a row
         self._cleared = 0                 # bumps on every clear(); a send in flight stops
         self.last_cut: tuple[str, int] = ("", -1)
+        self.no_cut: frozenset[str] = frozenset()   # clips nothing may cut (the goodbye)
+        self._resume: list[tuple[str, bytes, Optional[Tag]]] = []   # what the last clear() cut off
 
     # --- engine thread -------------------------------------------------------------
     def play(self, clips: list[Clip], tag: Optional[Tag] = None) -> None:
@@ -59,6 +61,7 @@ class Mouth:
             self._last = list(clips)
             self._repeats = 0
             self.last_cut = ("", -1)
+            self._resume = []
         self._send(clips, tag)
 
     def repeat(self, tag: Optional[Tag] = None) -> None:
@@ -75,12 +78,19 @@ class Mouth:
     def clear(self) -> tuple[str, int]:
         """Stop talking now. Never waits: safe from the socket loop.
 
-        Returns (cut_clip, heard_ms) for the clip sounding when cleared.
+        Returns (cut_clip, heard_ms) for the clip sounding when cleared. A `no_cut` clip that is
+        sounding is not cut at all; one still waiting behind other clips is sent again.
         """
         with self._lock:
             now = self._clock()
             cut_clip = ""
             heard_ms = -1
+            waiting = [cs for cs in self._clip_schedules if cs["mark"] in self._pending]
+            if waiting and waiting[0]["name"] in self.no_cut:
+                return ("", -1)
+            keep = [cs for cs in waiting if cs["name"] in self.no_cut]
+            self._resume = [(cs["name"], cs["audio"], cs["tag"]) for cs in waiting
+                            if cs["name"] not in self.no_cut]
             for cs in self._clip_schedules:
                 if cs["mark"] in self._pending:
                     cut_clip = cs["name"]
@@ -98,7 +108,20 @@ class Mouth:
             self._cleared += 1
             self.last_cut = (cut_clip, heard_ms)
         self._emit(build_clear(self._sid))
+        for cs in keep:
+            self._send([(cs["name"], cs["audio"])], cs["tag"])
         return (cut_clip, heard_ms)
+
+    def resume(self) -> bool:
+        """Say again what the last clear() cut off, from the start of the cut clip. For a cut
+        that turned out to be nothing (a cough, "hmm"): the caller loses no words. False when
+        there is nothing to say again."""
+        with self._lock:
+            clips, self._resume = self._resume, []
+            self.last_cut = ("", -1)
+        for name, audio, tag in clips:
+            self._send([(name, audio)], tag)
+        return bool(clips)
 
     def on_mark(self, name: str) -> None:
         """The line played up to this mark."""
@@ -175,6 +198,7 @@ class Mouth:
                     "end": end_t,
                     "dur_ms": dur_ms,
                     "tag": tag,
+                    "audio": audio,
                 })
             for i in range(0, len(audio), frame):
                 if self._cleared != generation:

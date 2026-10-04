@@ -35,7 +35,9 @@ QA_MAX_WORDS: int = int(os.environ.get("QA_MAX_WORDS", 40))
 QA_BACKUP_MODEL: str = os.environ.get("QA_BACKUP_MODEL", "qwen/qwen3.8-27b")
 QA_TRANSLATE_TIMEOUT_S: float = float(os.environ.get("QA_TRANSLATE_TIMEOUT_S", 3.0))
 QA_TTS_TIMEOUT_S: float = float(os.environ.get("QA_TTS_TIMEOUT_S", 4.0))
-CUT_IN_MIN_MS: int = int(os.environ.get("CUT_IN_MIN_MS", 400))   # voice this long stops the clip
+CUT_IN_MIN_MS: int = int(os.environ.get("CUT_IN_MIN_MS", 240))   # voice this long stops the clip
+CUT_IN_GAP_MS: int = int(os.environ.get("CUT_IN_GAP_MS", 200))   # quiet this long ends a short burst (two coughs do not add up)
+CUT_IN_FALSE_MAX: int = int(os.environ.get("CUT_IN_FALSE_MAX", 2))   # a cut with no words: the clip is said again, this often per wait
 # The "this call is recorded" line after the language pick. Off (owner, 4 Oct 2026: not needed
 # for now). The line and its clips stay; CONSENT_LINE=true plays it again.
 CONSENT_LINE: bool = _on("CONSENT_LINE")

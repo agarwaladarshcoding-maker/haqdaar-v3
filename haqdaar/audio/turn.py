@@ -47,6 +47,16 @@ class StampedKey:
         return self.prompt_n, self.prompt_name
 
 
+# Sounds a listener makes while the other side talks. Not an answer to anything.
+FILLER_SOUNDS: frozenset[str] = frozenset({
+    "hmm", "hm", "hmmm", "mm", "mmm", "mhm", "uh", "um", "umm", "uh huh", "हम्म", "हूँ", "हूं", "हं",
+})
+# Words that only mean "I am listening" while a clip plays. At a yes/no they may be a yes.
+FILLER_WORDS: frozenset[str] = FILLER_SOUNDS | frozenset({
+    "ok", "okay", "accha", "achha", "acha", "अच्छा", "ओके", "बरं",
+})
+
+
 class Turn:
     def __init__(
         self,
@@ -72,6 +82,7 @@ class Turn:
         self._answered_prompt_n: int = -1
         self._stashed_key: Optional[Digit] = None
         self._gap_watch: bool = False   # 7.5: newer_input already started this busy time's voice watch
+        self._push: tuple[str, int, float] = ("", -1, 0.0)   # the last key that came in: digit, prompt_n, time
         self._keys: "queue.Queue[StampedKey]" = queue.Queue()
         self._lock = threading.Lock()
         if self.ear is not None:
@@ -131,7 +142,11 @@ class Turn:
         sound = self._sounding() if was_playing else None
         # A key in the guard window will be dropped (G5): it must not cut the new prompt.
         in_guard = self.prompt_n > 1 and (now - self.prompt_start_t) < (tunables.KEY_GUARD_MS / 1000.0)
-        if was_playing and not in_guard:
+        # The same key again within KEY_REPEAT_MS will be dropped too (G2): it must not cut either.
+        last_digit, last_n, last_t = self._push
+        repeat = digit == last_digit and self.prompt_n == last_n and (now - last_t) < (tunables.KEY_REPEAT_MS / 1000.0)
+        self._push = (digit, self.prompt_n, now)
+        if was_playing and not in_guard and not repeat:
             cut_clip, heard_ms = self._mouth.clear()
 
         with self._lock:
@@ -314,6 +329,17 @@ class Turn:
         inp = ear.listen(timeout=gap_s, lang=lang, resume=True)
         return inp if isinstance(inp, (Speech, Digit)) else None
 
+    def _false_cut(self, inp: Input, profile: str) -> bool:
+        """Did the caller's sound stop a clip without being an input? Sound with no words, or a
+        listening sound ("hmm", "accha"). Never when speech-to-text broke (the engine must
+        hear of that). At a yes/no or the language pick only a bare sound counts, never a word."""
+        if isinstance(inp, Noise):
+            return not self.keypad_only
+        if isinstance(inp, Speech):
+            word = inp.text.strip(" .,!?।…").lower()
+            return word in (FILLER_SOUNDS if profile in ("confirm", "greeting") else FILLER_WORDS)
+        return False
+
     def wait(self, gap_s: float) -> Optional[str]:
         """The next key, HANGUP, or None after `gap_s` of quiet once the line stops playing."""
         inp = self.wait_input(gap_s=gap_s, profile="normal")
@@ -359,42 +385,62 @@ class Turn:
             if cut_in:
                 self.ear.drain_media()
                 self.ear.start_watch()
-            cut: Optional[tuple[str, int]] = None
-            stamp: Optional[tuple[int, str]] = None   # the prompt the cut clip belonged to
-            # Wait for line to finish playing before listening, checking for barge-in keys
-            while self._mouth.remaining() > 0 and not self.hung_up.is_set():
+            false_cuts = 0
+            while True:
+                cut: Optional[tuple[str, int]] = None
+                stamp: Optional[tuple[int, str]] = None   # the prompt the cut clip belonged to
+                # Wait for line to finish playing before listening, checking for barge-in keys
+                while self._mouth.remaining() > 0 and not self.hung_up.is_set():
+                    key = self.get_valid_key(block=False)
+                    if key is not None:
+                        return key
+                    if cut_in:
+                        in_guard = self.prompt_start_t > 0 and (
+                            self._clock() - self.prompt_start_t < tunables.KEY_GUARD_MS / 1000.0
+                        )
+                        heard = self.ear.watch_voice(in_guard)
+                        if heard == "short":
+                            self._log_event(event="speech", value="", took=False, why="short_voice")
+                        elif heard == "cut":
+                            sound = self._sounding()
+                            cut = self._mouth.clear()
+                            stamp = sound
+                            break
+                    time.sleep(0.02)
+
+                if self.hung_up.is_set():
+                    self.prompt_open = False
+                    return Hangup()
                 key = self.get_valid_key(block=False)
                 if key is not None:
+                    if cut is not None:
+                        self._log_event(event="speech", value="", took=False, why="key_beat_speech")
                     return key
+
                 if cut_in:
-                    in_guard = self.prompt_start_t > 0 and (
-                        self._clock() - self.prompt_start_t < tunables.KEY_GUARD_MS / 1000.0
+                    inp = self.ear.listen(timeout=gap_s, lang=lang, hint=hint, resume=True)
+                else:
+                    if hasattr(self.ear, "drain_media"):
+                        self.ear.drain_media()
+                    inp = self.ear.listen(timeout=gap_s, lang=lang, hint=hint)
+                # A cut that was no input (a cough, "hmm"): say the cut clips again and wait on,
+                # as if nothing happened. No turn, no strike, no words lost.
+                if (
+                    cut is not None and cut[0]
+                    and false_cuts < tunables.CUT_IN_FALSE_MAX
+                    and self._false_cut(inp, profile)
+                    and getattr(self._mouth, "resume", lambda: False)()
+                ):
+                    false_cuts += 1
+                    self._log_event(
+                        event="speech", value=getattr(inp, "text", ""), took=False, why="false_cut",
+                        cut_clip=cut[0], heard_ms=cut[1],
+                        prompt_n=stamp[0] if stamp else None, prompt_name=stamp[1] if stamp else None,
                     )
-                    heard = self.ear.watch_voice(in_guard)
-                    if heard == "short":
-                        self._log_event(event="speech", value="", took=False, why="short_voice")
-                    elif heard == "cut":
-                        sound = self._sounding()
-                        cut = self._mouth.clear()
-                        stamp = sound
-                        break
-                time.sleep(0.02)
-
-            if self.hung_up.is_set():
-                self.prompt_open = False
-                return Hangup()
-            key = self.get_valid_key(block=False)
-            if key is not None:
-                if cut is not None:
-                    self._log_event(event="speech", value="", took=False, why="key_beat_speech")
-                return key
-
-            if cut_in:
-                inp = self.ear.listen(timeout=gap_s, lang=lang, hint=hint, resume=True)
-            else:
-                if hasattr(self.ear, "drain_media"):
                     self.ear.drain_media()
-                inp = self.ear.listen(timeout=gap_s, lang=lang, hint=hint)
+                    self.ear.start_watch()
+                    continue
+                break
             if isinstance(inp, Hangup):
                 self.prompt_open = False
                 return Hangup()

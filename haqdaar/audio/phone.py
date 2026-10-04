@@ -76,6 +76,8 @@ class PhoneAudio:
         self._silence = 0
         self._token_clips: dict[str, list[str]] = {}   # token -> names of the clips it played
         self._filler = False   # 7.4: "one_moment" was said and not yet stopped
+        if hasattr(self.mouth, "no_cut"):
+            self.mouth.no_cut = ALWAYS_SAY   # a key during the goodbye does not chop it
         self._newer: Optional[Input] = None   # 7.5: words the caller said while the engine was busy
 
     # --- what the engine calls -----------------------------------------------------

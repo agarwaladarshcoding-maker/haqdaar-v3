@@ -205,7 +205,8 @@ class Engine:
                     took=True,
                     why="ok",
                 )
-            audio.repeat()
+            # No audio.repeat() here: the question loop says the prompt again on its next pass.
+            # Both together said it twice in a row (and after `*`, once in the old language).
             return turn_n, question_count, None, "continue"
 
         elif digit == "*":
@@ -227,7 +228,8 @@ class Engine:
                     took=True,
                     why="ok",
                 )
-            audio.repeat()
+            # No audio.repeat() here: the question loop says the prompt again on its next pass.
+            # Both together said it twice in a row (and after `*`, once in the old language).
             return turn_n, question_count, None, "continue"
 
         elif digit == "0":
@@ -736,8 +738,8 @@ class Engine:
                                 value=UNKNOWN,
                                 unknown_source="keypad_dropped",
                             ))
-                    else:
-                        audio.repeat()
+                    # The loop says the prompt again on its next pass: no audio.repeat() here,
+                    # or the caller hears the question twice in a row.
                     if turn_n >= tunables.MAX_TURNS:
                         stop_reason = STOP_MAX_TURNS
                         break
@@ -792,8 +794,6 @@ class Engine:
                                 value=UNKNOWN,
                                 unknown_source="keypad_dropped",
                             ))
-                        else:
-                            audio.repeat()
                         if turn_n >= tunables.MAX_TURNS:
                             stop_reason = STOP_MAX_TURNS
                             break

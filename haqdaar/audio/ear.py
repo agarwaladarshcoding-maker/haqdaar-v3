@@ -570,6 +570,7 @@ class Ear:
         self._needs_stale_drain: bool = False
         self._turn_gate: Optional[Any] = None   # set by Turn: the one place keys are judged
         self._voiced_ms: int = 0                # voice heard so far while a clip plays (cut-in)
+        self._quiet_ms: int = 0                 # quiet since the last voiced frame of that burst
 
     @property
     def keypad_only(self) -> bool:
@@ -602,6 +603,7 @@ class Ear:
         """Begin listening for the caller's voice over a playing clip."""
         self.vad.reset()
         self._voiced_ms = 0
+        self._quiet_ms = 0
 
     def watch_voice(self, in_guard: bool = False) -> str:
         """Feed the audio that arrived so far to the voice detector while a clip plays.
@@ -628,6 +630,11 @@ class Ear:
             ended = self.vad.feed_frame(pcm)
             if self.vad.started and frame_rms(pcm) >= self.vad.end_rms:
                 self._voiced_ms += FRAME_MS
+                self._quiet_ms = 0
+            elif self.vad.started:
+                self._quiet_ms += FRAME_MS
+                # The burst is over: a second cough must not add to the first one.
+                ended = ended or self._quiet_ms >= tunables.CUT_IN_GAP_MS
             if self._voiced_ms >= tunables.CUT_IN_MIN_MS:
                 result = "cut"
             elif ended:

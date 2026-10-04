@@ -317,7 +317,10 @@ def test_control_keys_hash_and_star(corpus, tmp_path):
     log = Log.open("test_control_keys", corpus.snapshot_id, logs_dir=tmp_path)
     Engine.run_call(audio, None, corpus, log)
 
-    assert "REPEAT" in audio.played
+    # `#` and `*` each make the question loop say the opener again, once each. No repeat() on
+    # top of that (step 7.9): the two together said the question twice in a row.
+    assert "REPEAT" not in audio.played
+    assert audio.played.count("opener_prompt") == 3
     lines = [json.loads(l) for l in open(tmp_path / "test_control_keys.jsonl")]
     switches = [l for l in lines if l.get("lang") == "mr" and l.get("lang_source") == "keypad"]
     assert len(switches) == 1

@@ -19,7 +19,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 - Pick the next question that cuts the list down fastest (Step 4), drop schemes that don't fit (Step 3),
   and choose how to end the call (Step 5).
 - Read results one scheme at a time: plays each scheme, its menu, waits for keypad or spoken questions, and answers 'this scheme' questions from the scheme currently sounding (Step 7.2).
-- `pytest -q` → **2,267 passed**.
+- `pytest -q` → **2,292 passed** (step 7.9 line).
 - Ring your phone into the real backend in one command: `make call-me`.
 - Back up all the scheme data: `make backup`. The text part is also saved in git.
 
@@ -78,6 +78,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 | `haqdaar/server.py` | FastAPI app exposing `/health`, `/answer` (TwiML Stream XML), `/stream` (audio WS). |
 | `tools/tone.py` | 8 kHz μ-law 440 Hz 1-second pure tone generator (no WAV/RIFF headers). |
 | `tools/run_demo.py` | `make call-me`: tunnel + server + rings your phone, in one command. |
+| `tools/barge_eval.py` | `make barge-eval`: runs the real call 62,000 times on a made-up clock, with the caller cutting in at every clip and moment (keys, speech, coughs, "hmm", noisy rooms, echo, hang-up), and writes a scorecard to `scratch/barge-eval/`. `--show` prints one call as a timeline. |
 | `tools/listen.py` | Plays saved clips on the Mac, with their words printed first. `make listen L=mr N=5`. |
 | `tools/cards_sheet.py` | Generates 20-card audit sheet and sample. `make cards-sheet`. |
 | `tools/ear_check.py` | Verifies speech to text across 3 sentences × en/hi/mr. `make ear-check`. |
@@ -98,6 +99,55 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 ---
 
 ## 3 · Log — newest first
+
+### 4 Oct (night) — Step 7.9: cut-ins tried at every place and moment, six faults fixed
+
+**Why.** The owner asked: try the whole call with the caller cutting in at different places, times and
+ways, hold it against how the good voice-calling systems behave, and fix what we can.
+
+**Added.**
+- `tools/barge_eval.py` + `make barge-eval`. It runs the **real** call code (engine, mouth, ear, turn)
+  on a made-up clock, so nothing waits for real time. Only the edges are fake: the phone line,
+  speech-to-text, the model. The plain call is run once, every clip it played becomes a place, and
+  the caller then does one thing at one moment inside that clip. 62,082 calls in about 2 minutes,
+  the same result every run. `make barge-eval ARGS="--show keys:voice_qa --at 14:600 --kind cough_long"`
+  prints one such call line by line.
+- What the caller does: 8 kinds of key press, clear speech (an answer, a question, "yes", "say that
+  again"), a short cough, a long cough, two coughs, "hmm", a soft far voice, speech then a key, two
+  cut-ins in a row, a sentence with a breath in it, 8 seconds of talk, hang-up. Also rooms with
+  background sound, the agent's own echo, and speech-to-text being down.
+- `tests/test_barge_eval.py`: 17 tests, 7 seconds.
+
+**Faults it found, now fixed.**
+- **A key pressed twice fast wiped a whole scheme.** The first press was dropped (too early), the
+  second cut everything waiting to be said and was then dropped as well. The caller sat in 13 seconds
+  of silence. This one hit keypad callers today. Now a key that will be dropped does not cut.
+- **`#` and `*` said the question twice in a row** (after `*`, once in the old language). Also live
+  today. Now once.
+- **Any key during the goodbye chopped it.** Now nothing can cut the goodbye.
+- **A cough or "hmm" over a clip lost the clip** and, at a question, cost the caller a turn. Now the
+  agent stops, sees there were no words, and says the cut clip again from its start. No turn spent,
+  no "I did not get that". At most twice per wait.
+- **Two short coughs added up to a cut.** Now they do not.
+- **The agent took 440 ms to stop when spoken over.** Now 280 ms (good systems: 200 to 300).
+  This is the setting `CUT_IN_MIN_MS`, 400 -> 240. It is safe to lower because a wrong stop now
+  costs nothing (the clip is said again).
+
+**Found, not fixed (needs the phone and the owner's ear).**
+- Reply after the caller stops talking: about 1.6 s to the first sound. 0.8 s of that is our own
+  wait for end-of-speech.
+- Talk longer than 7 seconds is cut in two; the second half comes in as a new input or is lost.
+- A room with steady background sound: end of speech is never seen, replies take 6 s. A loud room
+  makes the agent stop itself.
+- Echo of the agent's own voice (a caller on speakerphone) makes it stop itself. The quicker stop
+  makes this a little worse: 16 to 31 self-stops a call, was about 10.
+- After a hang-up during "one moment" the engine still sends two clips.
+- Voice cut-in is still off by default (`SPEECH_CUT_IN`), and in scheme read-back it also needs
+  `QA_ENABLED`. Everything about speech above only shows on the phone with those on.
+
+**At this point.** `pytest` 2,292 passed + the 1 known side-folder failure. Stress 1000 callers:
+0 crashes, 0 truth failures. Not yet heard on a real phone. Branch `step-7.9-barge-eval`, not merged.
+
 
 ### 4 Oct (evening) — Steps 7.3 to 7.7a built: talk first, never a silent default, one moment, voice any time, tighter clips
 - **Where.** Branch `step-7.8-sweep`, folder `~/code/haqdaar-v2-7.3`. Not on main. Not tried on a phone yet.
