@@ -2861,3 +2861,9 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Owner's steer: the product is "a person you can talk to, to know about schemes; keys work as
   well". Simple. So the talk path is the main path and keys are the second way in. Plan re-ordered
   in TASK.md: the opening becomes one short "what do you want to know? or press 0 for the list".
+
+## 4 Oct — steps 7.1–7.8 planned (Muse)
+- 8 work orders at repo root: PROMPT-STEP-7.1-NEVER-SILENT.md … PROMPT-STEP-7.8-SWEEP.md. Format mirrors PROMPT-ANTIGRAVITY-7.1 (Setup / What exists / Build / Sweep rule / Tests / Do not). Each step adds one named sweep test (test_cut_is_always_answered … test_whole_call_sweep).
+- Code map (4 Oct, lines drift — confirm by name): turn loop call.py:387 run_call; cut gate turn.py:298 wait_input; was_cut phone.py:145; _try_question call.py:298 + answer.py:70/84; terminals.py:193/390/442 + _read_back call.py:1409; opener call.py:488-556 + router.py:75 + phone.py:262 _menu + door_a.py:156; say phone.py:89/98 + lines.yaml:29 + texts.py:49; greeting phone.py:78 + call.py:395-398; gap turn.py:289 + tunables.py:62 + ear.py:671/794/606; pool.py:119 get; render.py:254/59/84 + SarvamTTS :113 + live_tts.py:51; stress tools/stress.py:147/87/70 + test_barge_sweep.py:24/158 + sim.py:622/182 + server.py:100/209 + call_me.py:18.
+- Git: base commit 8288d9f on step-7.0-live-answers (65 files, found tree, unreviewed, NOT phone-tried). Step branches NOT created yet — sequential, each from previous reviewed tip at "start step N". Review plan: Muse reviews 7.0+7.1 together at step 1, merges to main; steps 2+ branch from main.
+- .agent is gitignored but .agent/NOTES.md is tracked (force-added earlier); .agent/TASK.md is local-only.
