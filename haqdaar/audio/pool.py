@@ -23,6 +23,32 @@ from haqdaar.contracts import tunables
 from haqdaar.contracts.types import RenderKey
 
 
+def _quiet_bytes() -> bytes:
+    """Every mu-law byte at or under TRIM_QUIET_LEVEL, both signs (0xFF and 0x7F are zero)."""
+    n = tunables.TRIM_QUIET_LEVEL
+    return bytes([0xFF - k for k in range(n + 1)] + [0x7F - k for k in range(n + 1)])
+
+
+def trim_edges(data: bytes) -> bytes:
+    """Cut quiet at the start and end of a mu-law clip down to TRIM_EDGE_MS. Middle is never touched.
+
+    A clip that is all quiet (a stub) or shorter than two gaps comes back as it is, so nothing
+    loads empty. bytes.strip runs in C: one fast pass, nothing blocks the mouth.
+    """
+    gap = tunables.SAMPLE_RATE * tunables.TRIM_EDGE_MS // 1000
+    if len(data) < 2 * gap:
+        return data
+    quiet = _quiet_bytes()
+    body = data.strip(quiet)
+    if not body:
+        return data
+    lead = len(data) - len(data.lstrip(quiet))
+    tail = len(data) - lead - len(body)
+    if lead <= gap and tail <= gap:
+        return data
+    return data[max(lead - gap, 0):len(data) - max(tail - gap, 0)]
+
+
 class AudioPool:
     """Internal audio pool implementing three-tier storage with LRU and prefetching."""
 
@@ -74,7 +100,7 @@ class AudioPool:
             file_path = self._audio_dir / f"{key}.ulaw"
             if file_path.exists():
                 with open(file_path, "rb") as f:
-                    self._tier0_pinned[key] = f.read()
+                    self._tier0_pinned[key] = trim_edges(f.read())
                 # If it was in tier 1, remove and reclaim tier 1 LRU space
                 if key in self._tier1_lru:
                     _, size = self._tier1_lru.pop(key)
@@ -136,7 +162,7 @@ class AudioPool:
                 raise KeyError(f"Render key {render_key} not found in pool {self._audio_dir}")
 
         try:
-            data = local_file.read_bytes()  # opens, reads, closes: no handle is kept
+            data = trim_edges(local_file.read_bytes())  # opens, reads, closes: no handle is kept
         except OSError as e:
             raise RuntimeError(f"Failed to read {local_file}: {e}") from e
         size = len(data)
