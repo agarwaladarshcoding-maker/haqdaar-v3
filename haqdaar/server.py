@@ -203,6 +203,13 @@ def _corpus_and_pool() -> tuple[Any, Any]:
         pool.warm(manifest=json.loads(manifest.read_text(encoding="utf-8")))
         _CALL["corpus"], _CALL["pool"] = corpus, pool
         say(f"corpus  {corpus.snapshot_id} loaded")
+        from haqdaar.contracts.types import FIXED_LINE_IDS
+
+        for line_id in FIXED_LINE_IDS:
+            quiet = [l for l in tunables.LANGS_OFFERED
+                     if not (corpus.audio(line_id, l) or corpus.audio(line_id, "all"))]
+            if quiet:
+                say(f"!! line {line_id} has no sound in {','.join(quiet)}")
     return _CALL["corpus"], _CALL["pool"]
 
 

@@ -41,6 +41,11 @@ MENU_BOX: dict[str, str] = {
     "keypad_income_band": "income_band",
     "keypad_occupation": "occupation",
 }
+# A line with no sound yet is said with an older line that has one, so the call never goes quiet.
+STAND_IN: dict[str, str] = {
+    "opener_short_prompt": "opener_prompt",
+    "did_not_get_reply": "unclear_prompt",
+}
 TURN0_KEYS: dict[str, Lang] = {"1": "hi", "2": "mr", "3": "en"}
 # Played even over a waiting key: the call is ending, nothing comes after it to answer.
 ALWAYS_SAY: frozenset[str] = frozenset({"closing_farewell"})
@@ -318,6 +323,8 @@ class PhoneAudio:
             return self._clip(token, keys[ix] if 0 <= ix < len(keys) else "")
         lang = "all" if token == "greeting_trilingual" else self.language
         clips = self._clip(token, self.corpus.audio(token, lang))
+        if not clips and token in STAND_IN:
+            return self._clips(STAND_IN[token])
         box = MENU_BOX.get(token)
         if box:
             clips.extend(self._menu(box))

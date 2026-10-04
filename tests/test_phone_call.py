@@ -171,6 +171,32 @@ def test_clips_malformed_scheme_token_does_not_crash():
     assert phone_audio._clips("scheme:a:b:c") == []
 
 
+def test_a_line_with_no_sound_is_said_with_its_stand_in():
+    """4 Oct phone call: the short opener had no clip, so the caller heard 18 s of nothing."""
+    from haqdaar.audio.phone import PhoneAudio
+
+    class Corpus:
+        def audio(self, line_id, lang, value=None):
+            if line_id in ("opener_short_prompt", "did_not_get_reply"):
+                return ""
+            return f"{line_id}:{value}" if value else line_id
+        def values(self, box):
+            return ("farming", "health")
+
+    class Pool:
+        def get(self, key):
+            return b"x"
+
+    phone_audio = PhoneAudio(Corpus(), Pool(), object(), object(), lambda: None)
+    phone_audio.language = "hi"
+    names = [name for name, _ in phone_audio._clips("opener_short_prompt")]
+    assert names[0] == "opener_prompt"
+    assert "chip_category_farming" in names and names[-1] == "keypad_unknown_suffix"
+    assert [name for name, _ in phone_audio._clips("did_not_get_reply")] == ["unclear_prompt"]
+    # A line with its own sound is not touched.
+    assert [name for name, _ in phone_audio._clips("unclear_prompt")] == ["unclear_prompt"]
+
+
 def test_stop_filler_cuts_only_a_sounding_filler_and_is_not_a_caller_cut():
     from haqdaar.audio.phone import PhoneAudio
 
