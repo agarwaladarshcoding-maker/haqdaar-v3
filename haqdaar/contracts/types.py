@@ -14,7 +14,7 @@ RenderKey = str
 ValueCode = str
 BoxId = str
 Lang = Literal["en", "hi", "mr"]
-LangSource = Literal["keypad", "default"]
+LangSource = Literal["keypad", "voice", "default"]
 
 # Special markers
 UNASKED = "__UNASKED__"

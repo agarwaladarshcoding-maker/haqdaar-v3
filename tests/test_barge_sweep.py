@@ -15,9 +15,11 @@ from haqdaar.contracts import tunables
 from haqdaar.contracts.types import Answer, Digit, Hangup, Noise, Question, Repeat, Silence, Speech, Unclear
 from haqdaar.data.log import Log
 from haqdaar.audio.lines import load_lines
+from haqdaar.audio.ear import SttResult
 from haqdaar.engine.call import Engine, _door_a_pick
 
 from tests.test_call import MockAudio, corpus  # noqa: F401  (corpus is a fixture)
+from tests.test_live_speech import FakeSTT as _LiveFakeSTT, Line as _LiveLine, _NoPool as _LiveNoPool, _later
 
 MAX_WAITS = 200  # a call that asks the caller more often than this is stuck in a loop
 
@@ -574,3 +576,98 @@ def test_silence_always_reprompts(corpus, tmp_path, monkeypatch, lang, key):
                 assert audio.silent_run == 3 and audio.played[-1] == "closing_farewell"
                 ladder_ends += 1
     assert ladder_ends >= runs // 2, "most runs should have ended by the ladder"
+
+
+# --- 7.5 voice at any time --------------------------------------------------------------------
+
+
+class _LangSTT(_LiveFakeSTT):
+    """Says what it is told, one reply per utterance, and keeps the language it was asked for."""
+
+    def __init__(self, texts):
+        super().__init__()
+        self.texts = list(texts)
+        self.asked_lang: list[str] = []
+
+    def transcribe(self, audio, lang="", hint="", is_wav=False):
+        self.calls += 1
+        self.asked_lang.append(lang)
+        text = self.texts.pop(0)
+        return SttResult(transcript=text, lang="", success=bool(text))
+
+
+def _greeting_line(texts, key=None):
+    """A real Mouth, Turn, Ear and PhoneAudio; the greeting is playing; the caller then talks
+    (or presses `key`) over it. Returns (line, stt, what select_language gave)."""
+    stt = _LangSTT(texts)
+    line = _LiveLine(stt=stt)
+    if key is not None:
+        _later(0.05, line.turn.push_key, key)
+    else:
+        _later(0.05, line.voice, 30, 45)
+    return line, stt, line.phone.select_language
+
+
+@pytest.mark.parametrize("lang,said", [
+    ("hi", "Hindi"), ("hi", "हिंदी"), ("mr", "Marathi"), ("mr", "मराठी"), ("en", "English"), ("en", "अंग्रेज़ी"),
+])
+def test_voice_at_any_time_greeting_picks_the_language(monkeypatch, lang, said):
+    monkeypatch.setattr(tunables, "LANGS_OFFERED", ("hi", "mr", "en"))
+    monkeypatch.setattr(tunables, "SPEECH_CUT_IN", True)
+    monkeypatch.setattr(tunables, "KEY_GUARD_MS", 0)
+    line, stt, select = _greeting_line([said])
+    got = select()
+    assert got == (lang, "voice")
+    assert line.phone.language == lang
+    assert stt.calls == 1 and stt.asked_lang == [""]                  # the STT was not told a language
+    assert line.mouth.last_cut[0] == "greeting_trilingual"            # the voice stopped the greeting
+    assert not line.mouth.playing
+
+
+@pytest.mark.parametrize("said", ["mm hello hello", "kisan ke baare mein", "Hindi English", ""])
+def test_voice_at_any_time_unclear_speech_asks_again_and_picks_nothing(monkeypatch, said):
+    monkeypatch.setattr(tunables, "LANGS_OFFERED", ("hi", "mr", "en"))
+    monkeypatch.setattr(tunables, "SPEECH_CUT_IN", True)
+    monkeypatch.setattr(tunables, "KEY_GUARD_MS", 0)
+    line, stt, select = _greeting_line([said])
+    line.phone.language = "mr"                                        # a pick would change this
+    got = select()
+    assert stt.calls == 1                                             # the case was really reached
+    assert isinstance(got, (Speech, Noise)) and not isinstance(got, tuple)
+    assert line.phone.language == "mr"
+    assert not line.turn.hung_up.is_set()
+
+
+def test_voice_at_any_time_a_key_still_works(monkeypatch):
+    monkeypatch.setattr(tunables, "LANGS_OFFERED", ("hi", "mr", "en"))
+    monkeypatch.setattr(tunables, "SPEECH_CUT_IN", True)
+    monkeypatch.setattr(tunables, "KEY_GUARD_MS", 0)
+    line, stt, select = _greeting_line([], key="2")
+    assert select() == ("mr", "keypad")
+    assert stt.calls == 0
+
+
+def test_voice_at_any_time_voice_off_the_greeting_is_as_before(monkeypatch):
+    monkeypatch.setattr(tunables, "SPEECH_CUT_IN", False)
+    monkeypatch.setattr(tunables, "SILENCE_GAP_S", 0.2)
+    monkeypatch.setattr(tunables, "TURN0_GAP_S", 0.2)
+    line, stt, select = _greeting_line(["Hindi"])
+    got = select()
+    assert isinstance(got, Silence) and stt.calls == 0                # the voice is not heard
+
+
+def test_voice_at_any_time_engine_asks_again_after_unclear_speech(corpus, tmp_path):
+    """One miss (words that name no language) replays the greeting and picks nothing; the
+    next answer, by voice, is logged as voice. Misses never hang the caller up."""
+    class Turn0(SweepAudio):
+        def select_language(self):
+            self.played.append("greeting_trilingual")
+            return self.inputs.pop(0) if self.inputs else Hangup()
+
+    audio = Turn0([Speech("mm hello"), Noise(), ("en", "voice")] + BASE_KEYS[1:])
+    Engine.run_call(audio, SweepModel(), corpus, Log.open("v_miss", corpus.snapshot_id, logs_dir=tmp_path))
+    assert audio.played[:3] == ["greeting_trilingual"] * 3
+    assert audio.language == "en"
+    picked = [l for l in _lines(tmp_path, "v_miss") if "lang_source" in l and "call_id" not in l]
+    assert picked and picked[0]["lang_source"] == "voice"
+    assert "closing_farewell" not in audio.played[:3]

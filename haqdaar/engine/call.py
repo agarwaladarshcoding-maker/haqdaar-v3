@@ -475,7 +475,8 @@ class Engine:
         # --- 1. Turn 0: Language Selection ---
         # No language is picked for the caller: silence asks again (the greeting is the
         # prompt, and the audio says it on each pass); a key that is not a language is
-        # a miss, and only the third one falls back to Hindi.
+        # a miss, and only the third one falls back to Hindi. Words that name no language
+        # (7.5) are a miss too: not silence, so they never hang the caller up.
         wrong_keys = 0
         while True:
             if hasattr(audio, "select_language"):

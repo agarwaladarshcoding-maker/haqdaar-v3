@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
 from haqdaar.audio import live_tts
+from haqdaar.audio.lang_words import language_from_words
 from haqdaar.audio.lines import MENU_KEYS
 from haqdaar.audio.mouth import Clip, Mouth
 from haqdaar.audio.turn import HANGUP, Turn
@@ -77,11 +78,26 @@ class PhoneAudio:
 
     # --- what the engine calls -----------------------------------------------------
     def select_language(self) -> tuple[Lang, LangSource] | Input:
-        """Say the greeting and wait once. A language key gives (lang, "keypad"). Anything
-        else comes back as the input it was (Silence, Hangup, a wrong key): the engine asks
-        again, so no language is ever picked for a caller who did not pick one."""
+        """Say the greeting and wait once. A language key gives (lang, "keypad"); with voice on,
+        a language said gives (lang, "voice"). Anything else comes back as the input it was
+        (Silence, Hangup, a wrong key, words that name no language): the engine asks again,
+        so no language is ever picked for a caller who did not pick one."""
         self.say(("greeting_trilingual",))
-        key = self.turn.wait(tunables.TURN0_GAP_S)
+        if tunables.SPEECH_CUT_IN and hasattr(self.turn, "wait_input"):
+            # No language is chosen yet, so the speech service is told none and finds it itself.
+            heard = self.turn.wait_input(tunables.TURN0_GAP_S, profile="greeting", lang="")
+            if isinstance(heard, (Speech, Noise)):
+                lang = language_from_words(heard.text) if isinstance(heard, Speech) else None
+                self._silence = 0
+                if lang is None:
+                    self._log("<- voice: no language heard")
+                    return heard
+                self.language = lang
+                self._log(f"<- voice: language {lang}")
+                return lang, "voice"
+            key = heard.digit if isinstance(heard, Digit) else HANGUP if isinstance(heard, Hangup) else None
+        else:
+            key = self.turn.wait(tunables.TURN0_GAP_S)
         if key in tunables.turn0_keys():
             self._silence = 0
             self.language = tunables.turn0_keys()[key]

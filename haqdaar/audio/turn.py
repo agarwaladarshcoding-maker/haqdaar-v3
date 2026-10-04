@@ -317,8 +317,9 @@ class Turn:
             return Hangup()
 
         # 2. Spoken profile with active Ear. The results menu (readback) listens for words only
-        # when questions are on (7.1 rule 11).
-        spoken = ("spoken", "turn0", "confirm") + (("readback",) if tunables.QA_ENABLED else ())
+        # when questions are on (7.1 rule 11). "greeting" (7.5) is the language pick: unlike
+        # "turn0" the voice cuts it, and the words are heard.
+        spoken = ("spoken", "turn0", "confirm", "greeting") + (("readback",) if tunables.QA_ENABLED else ())
         if profile in spoken and self.ear is not None and not self.keypad_only:
             # The caller's voice may stop a playing clip (S1-S7). Never on turn0 (S5).
             cut_in = (
