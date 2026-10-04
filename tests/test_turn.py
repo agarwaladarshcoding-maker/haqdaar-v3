@@ -7,6 +7,7 @@ import time
 
 from haqdaar.audio.mouth import Mouth
 from haqdaar.audio.turn import HANGUP, Turn
+from haqdaar.contracts import tunables
 from haqdaar.contracts.types import Digit, Hangup, Silence, Speech
 
 
@@ -152,3 +153,64 @@ def test_wait_input_spoken_degraded_to_keypad_only():
     assert isinstance(res, Digit)
     assert res.digit == "2"
     assert ear.drained is False
+
+
+# --- 7.5: voice in the busy gap. The key guards are not changed. ---------------------------
+
+
+class _GapEar(_FakeEar):
+    """An ear that has queued voice (or not) while the engine was busy."""
+
+    def __init__(self, voice: str, text: str = "new words") -> None:
+        super().__init__(speech_text=text)
+        self.voice = voice
+        self.watch_starts = 0
+        self.resumed: list[bool] = []
+
+    def start_watch(self) -> None:
+        self.watch_starts += 1
+
+    def watch_voice(self, in_guard: bool = False) -> str:
+        return self.voice
+
+    def listen(self, timeout: float = 6.0, lang: str = "", hint: str = "", resume: bool = False) -> Speech:
+        self.resumed.append(resume)
+        return super().listen(timeout=timeout, lang=lang, hint=hint)
+
+
+def test_newer_input_gives_the_words_the_caller_said_while_busy(monkeypatch):
+    monkeypatch.setattr(tunables, "SPEECH_CUT_IN", True)
+    mouth, _, _ = _pair()
+    ear = _GapEar("cut")
+    turn = Turn(mouth, ear=ear)
+    got = turn.newer_input(1.0, lang="hi")
+    assert got == Speech(text="new words")
+    assert ear.resumed == [True] and ear.listened_lang == "hi"   # carries on with the voice already heard
+
+
+def test_newer_input_is_none_when_the_caller_stayed_quiet_or_it_is_off(monkeypatch):
+    monkeypatch.setattr(tunables, "SPEECH_CUT_IN", True)
+    mouth, _, _ = _pair()
+    ear = _GapEar("short")                       # a cough is not new words
+    assert Turn(mouth, ear=ear).newer_input(1.0) is None and ear.resumed == []
+    assert Turn(mouth).newer_input(1.0) is None  # no ear
+    ear = _GapEar("cut", text="x")
+    assert Turn(mouth, ear=ear).newer_input(1.0) is not None
+    monkeypatch.setattr(tunables, "SPEECH_CUT_IN", False)
+    ear = _GapEar("cut")
+    assert Turn(mouth, ear=ear).newer_input(1.0) is None and ear.resumed == []
+    monkeypatch.setattr(tunables, "SPEECH_CUT_IN", True)
+    assert Turn(mouth, ear=_FakeEar(keypad_only=True)).newer_input(1.0) is None
+
+
+def test_a_key_in_the_gap_is_still_dropped_whatever_newer_input_found(monkeypatch):
+    """G8 stays: a key pressed for a prompt the engine has moved past never answers the next one."""
+    monkeypatch.setattr(tunables, "SPEECH_CUT_IN", True)
+    monkeypatch.setattr(tunables, "KEY_GUARD_MS", 0)
+    mouth, _, _ = _pair()
+    turn = Turn(mouth, ear=_GapEar("cut"))
+    turn.start_prompt("question")
+    turn.push_key("1")                      # pressed for the question
+    turn.start_prompt("answer")             # the engine moved on while it worked
+    assert turn.newer_input(1.0) == Speech(text="new words")
+    assert turn.get_valid_key() is None     # the old key is still dropped (prompt_closed)

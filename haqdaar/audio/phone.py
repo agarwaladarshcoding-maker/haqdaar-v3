@@ -18,6 +18,7 @@ call is worse. Corpus.load has already refused any snapshot with a missing clip.
 from __future__ import annotations
 
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
@@ -75,6 +76,7 @@ class PhoneAudio:
         self._silence = 0
         self._token_clips: dict[str, list[str]] = {}   # token -> names of the clips it played
         self._filler = False   # 7.4: "one_moment" was said and not yet stopped
+        self._newer: Optional[Input] = None   # 7.5: words the caller said while the engine was busy
 
     # --- what the engine calls -----------------------------------------------------
     def select_language(self) -> tuple[Lang, LangSource] | Input:
@@ -145,6 +147,8 @@ class PhoneAudio:
             return False
         if not cached:
             self._save_answer(key, audio)
+        if self.newer_words():  # 7.5: they spoke again while this was made: never say it
+            return False
         self._token_clips["answer"] = ["answer"]
         self.stop_filler()  # after the render, so the filler covers the wait and the answer never queues behind it
         self._play([("answer", bytes(audio))], "answer")
@@ -196,7 +200,26 @@ class PhoneAudio:
     def keypad_only(self) -> bool:
         return getattr(self.turn, "keypad_only", False)
 
+    def newer_words(self) -> bool:
+        """7.5: did the caller speak again while the engine was busy? If so their words are kept
+        and the next next_input() gives them, so the engine drops what it made from the older
+        words. Reads the queue only; never plays or cuts anything."""
+        if self._newer is None and hasattr(self.turn, "newer_input"):
+            self._newer = self.turn.newer_input(tunables.SILENCE_GAP_S, lang=self.language)
+            if self._newer is not None:
+                self._log("<- newer words while busy")
+        return self._newer is not None
+
     def next_input(self, profile: str = "normal") -> Input:
+        if self._newer is not None:
+            inp, self._newer = self._newer, None
+            if not self.turn.hung_up.is_set():
+                self._silence = 0
+                if isinstance(inp, Speech):
+                    # They spoke over whatever the engine said since: the same cut as a cut-in.
+                    cut = self.mouth.clear() if self.mouth.playing else ("", -1)
+                    inp = replace(inp, prompt_n=self.turn.prompt_n, cut_clip=cut[0], heard_ms=cut[1])
+                return inp
         if hasattr(self.turn, "wait_input"):
             inp = self.turn.wait_input(tunables.SILENCE_GAP_S, profile=profile, lang=self.language)
             if isinstance(inp, Silence):

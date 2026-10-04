@@ -72,6 +72,20 @@ def _next_lang(curr_lang: str) -> str:
     return offered[(offered.index(curr_lang) + 1) % len(offered)] if curr_lang in offered else offered[0]
 
 
+def _newer_words(audio: Any, old_text: str) -> bool:
+    """7.5: True if the caller spoke again while the engine was working on `old_text`.
+
+    The words are then kept by the audio and the next wait gives them, so what was made from
+    the older words must be dropped, never said. Costs nothing: it only reads the queued line.
+    """
+    if not (hasattr(audio, "newer_words") and audio.newer_words()):
+        return False
+    trace = getattr(audio, "trace", None)
+    if trace is not None and hasattr(trace, "input_event"):
+        trace.input_event(prompt_n=-1, prompt="", event="speech", value=old_text, took=False, why="newer_words")
+    return True
+
+
 def _door_a_read(audio: Any, log: Log, slug: str, transcript: str, span: str,
                  turn_n: int, candidate_count: int, t0: float) -> None:
     """Door A read-back (T12/ARCH §6): name + summary, exempt from echo-confirm.
@@ -401,6 +415,8 @@ class Engine:
             }, "scheme_ids": list(ids)}
             if english:
                 kwargs["english"] = True
+            if _newer_words(audio, text):
+                return True  # 7.5: no filler, no paid call for words that are already old
             audio.say(("one_moment",))  # 7.4: once per question, not per retry; it plays while the model works
             filler = True
             import importlib  # lazy: nothing heavy at the top of this file
@@ -432,10 +448,15 @@ class Engine:
                         )
                 if answer:
                     break
+            if _newer_words(audio, text):
+                return True  # 7.5: the answer is for old words; it is never said
             if not answer:
                 return False
-            if audio.say_text(answer) is False and audio.say_text(answer) is False:
-                return False  # speaking is tried twice with the answer in hand, never a second model call
+            if audio.say_text(answer) is False:
+                if _newer_words(audio, text):
+                    return True  # say_text gave up for the same reason
+                if audio.say_text(answer) is False:
+                    return False  # speaking is tried twice with the answer in hand, never a second model call
         except Exception:
             return False  # a question must never take the call down
         finally:
@@ -928,6 +949,11 @@ class Engine:
                             proposed_span = getattr(res, "span", transcript)
 
                     pending = audio.pending_key() if hasattr(audio, "pending_key") else None
+                    if pending is None and _newer_words(audio, transcript):
+                        # 7.5: they spoke again while the router worked; the older words are
+                        # dropped and the loop waits again, which gives the newest words.
+                        turn_n -= 1
+                        continue
                     if pending is not None:
                         if isinstance(pending, Hangup):
                             audio.hangup()

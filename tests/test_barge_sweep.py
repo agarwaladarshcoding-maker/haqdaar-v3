@@ -671,3 +671,81 @@ def test_voice_at_any_time_engine_asks_again_after_unclear_speech(corpus, tmp_pa
     picked = [l for l in _lines(tmp_path, "v_miss") if "lang_source" in l and "call_id" not in l]
     assert picked and picked[0]["lang_source"] == "voice"
     assert "closing_farewell" not in audio.played[:3]
+
+
+class _GapAudio(SweepAudio):
+    """The caller speaks again on the `fire_on`-th look into the busy time (7.5). The new words
+    then come from the next wait, as PhoneAudio gives them."""
+
+    def __init__(self, inputs, fire_on, model):
+        super().__init__(inputs)
+        self.fire_on, self.model = fire_on, model
+        self.looks = 0
+        self.fired_after_answers: list[int] = []
+
+    def newer_words(self):
+        self.looks += 1
+        if self.looks != self.fire_on:
+            return False
+        self.fired_after_answers.append(len(self.model.asked))
+        self.inputs.insert(0, Speech(NEW_WORDS))
+        return True
+
+
+OLD_WORDS = "what does the tractor subsidy give?"
+NEW_WORDS = "what does the tractor subsidy give a farmer?"
+
+
+class _AskedModel(SweepModel):
+    def __init__(self):
+        self.asked: list[str] = []
+
+    def answer(self, question, lang, cards, profile=None, scheme_ids=None, english=False):
+        self.asked.append(question)
+        return f"answer to: {question}"
+
+
+@pytest.mark.parametrize("fire_on", [1, 2, 3])
+def test_voice_at_any_time_newest_words_win_in_the_busy_gap(corpus, tmp_path, monkeypatch, fire_on):
+    monkeypatch.setattr(tunables, "QA_ENABLED", True)
+    monkeypatch.setattr(tunables, "QA_SEARCH", True)
+    model = _AskedModel()
+    audio = _GapAudio([Digit("3"), Digit("1"), Speech(OLD_WORDS)] + BASE_KEYS[3:], fire_on, model)
+    Engine.run_call(audio, model, corpus, Log.open(f"gap{fire_on}", corpus.snapshot_id, logs_dir=tmp_path))
+    lines = _lines(tmp_path, f"gap{fire_on}")
+    _check(lines, audio)
+    assert audio.fired_after_answers, "the caller never spoke again in the gap"
+    assert f"answer to: {OLD_WORDS}" not in audio.answers             # the old answer is never said
+    assert f"answer to: {NEW_WORDS}" in audio.answers                 # the newest words are used
+    if audio.fired_after_answers[0] == 0:
+        assert model.asked == [NEW_WORDS]                             # no paid call for thrown-away words
+    assert all(l.get("transcript") != OLD_WORDS for l in lines if l.get("class") == "QUESTION")
+
+
+def test_voice_at_any_time_gap_looks_reach_both_before_and_after_the_paid_call(corpus, tmp_path, monkeypatch):
+    monkeypatch.setattr(tunables, "QA_ENABLED", True)
+    monkeypatch.setattr(tunables, "QA_SEARCH", True)
+    seen = set()
+    for fire_on in (1, 2, 3):
+        model = _AskedModel()
+        audio = _GapAudio([Digit("3"), Digit("1"), Speech(OLD_WORDS)] + BASE_KEYS[3:], fire_on, model)
+        Engine.run_call(audio, model, corpus, Log.open(f"look{fire_on}", corpus.snapshot_id, logs_dir=tmp_path))
+        seen.update(audio.fired_after_answers)
+    assert seen == {0, 1}, "the test must cover a drop before the paid call and one after it"
+
+
+def test_voice_at_any_time_phone_gap_gives_the_newest_words_and_never_says_the_old_answer(monkeypatch):
+    monkeypatch.setattr(tunables, "SPEECH_CUT_IN", True)
+    monkeypatch.setattr(tunables, "QA_SPEAK", True)
+    monkeypatch.setattr(tunables, "KEY_GUARD_MS", 0)
+    spoken: list[str] = []
+    stt = _LangSTT(["new question"])
+    line = _LiveLine(stt=stt, pool=_LiveNoPool(), speak=lambda t, l: spoken.append(t) or b"\x55" * 8000)
+    assert line.phone.newer_words() is False                          # a quiet line: nothing newer
+    line.voice(30, 45)                                                # they speak while the engine works
+    assert line.phone.say_text("Six thousand rupees a year.") is False   # rendered, then not said
+    assert stt.calls == 1 and spoken                                  # the case was really reached
+    assert [m for m in line.sent if m.get("event") == "media"] == []  # nothing went to the line
+    got = line.phone.next_input("spoken")
+    assert isinstance(got, Speech) and got.text == "new question"     # the next wait gives the new words
+    assert stt.calls == 1                                             # heard once, not twice

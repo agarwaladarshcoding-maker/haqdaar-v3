@@ -71,6 +71,7 @@ class Turn:
         self._last_key_t: float = 0.0
         self._answered_prompt_n: int = -1
         self._stashed_key: Optional[Digit] = None
+        self._gap_watch: bool = False   # 7.5: newer_input already started this busy time's voice watch
         self._keys: "queue.Queue[StampedKey]" = queue.Queue()
         self._lock = threading.Lock()
         if self.ear is not None:
@@ -286,6 +287,33 @@ class Turn:
             return True
         return False
 
+    def newer_input(self, gap_s: float, lang: str = "") -> Optional[Input]:
+        """7.5: the caller spoke while the engine was busy. Their words, or None if they stayed quiet.
+
+        Reads what the ear queued during the busy time with the same voice test as the cut-in,
+        then listens on to the end of the utterance. Waits only while the caller is still
+        talking. Never judged by the key guards: those are for keys, and keys keep their rules.
+        """
+        ear = self.ear
+        if (
+            ear is None
+            or self.hung_up.is_set()
+            or self.keypad_only
+            or not tunables.SPEECH_CUT_IN
+            or not hasattr(ear, "watch_voice")
+        ):
+            return None
+        if not self._gap_watch:
+            # The first look of a busy time starts clean; later looks carry on, so a few words
+            # that began just before the last look are not cut short.
+            ear.start_watch()
+            self._gap_watch = True
+        if ear.watch_voice(False) != "cut":
+            return None
+        self._gap_watch = False
+        inp = ear.listen(timeout=gap_s, lang=lang, resume=True)
+        return inp if isinstance(inp, (Speech, Digit)) else None
+
     def wait(self, gap_s: float) -> Optional[str]:
         """The next key, HANGUP, or None after `gap_s` of quiet once the line stops playing."""
         inp = self.wait_input(gap_s=gap_s, profile="normal")
@@ -303,6 +331,7 @@ class Turn:
         hint: str = "",
     ) -> Input:
         """Wait for input: DTMF digit, spoken audio via Ear, silence, or hangup."""
+        self._gap_watch = False
         if self.hung_up.is_set():
             self.prompt_open = False
             return Hangup()
