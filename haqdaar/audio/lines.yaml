@@ -57,6 +57,12 @@ lines:
     hi: "मुझे आपका जवाब नहीं मिला। विकल्प फिर से सुनिए।"
     mr: "मला तुमचे उत्तर मिळाले नाही. पर्याय पुन्हा ऐका."
 
+  # 7.4: said the moment a spoken question is sent to the model; cut when the answer is ready.
+  one_moment:
+    en: "One moment."
+    hi: "एक क्षण रुकिए।"
+    mr: "एक क्षण थांबा."
+
   unclear_prompt:
     en: "Sorry, I did not catch that. Please say it again."
     hi: "माफ़ कीजिए, मैं समझ नहीं पाई। कृपया इसे फिर से कहें।"

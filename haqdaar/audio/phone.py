@@ -73,6 +73,7 @@ class PhoneAudio:
         self.language: Lang = "hi"
         self._silence = 0
         self._token_clips: dict[str, list[str]] = {}   # token -> names of the clips it played
+        self._filler = False   # 7.4: "one_moment" was said and not yet stopped
 
     # --- what the engine calls -----------------------------------------------------
     def select_language(self) -> tuple[Lang, LangSource] | Input:
@@ -104,6 +105,7 @@ class PhoneAudio:
             clips.extend(made)
         if clips:
             self._play(clips, sequence[0] if sequence else "")
+        self._filler = sequence == ("one_moment",) and bool(clips)
 
     def say_text(self, text: str) -> bool:
         """Say a sentence made during the call (QA_SPEAK). False: nothing was said."""
@@ -128,8 +130,19 @@ class PhoneAudio:
         if not cached:
             self._save_answer(key, audio)
         self._token_clips["answer"] = ["answer"]
+        self.stop_filler()  # after the render, so the filler covers the wait and the answer never queues behind it
         self._play([("answer", bytes(audio))], "answer")
         return True
+
+    def stop_filler(self) -> None:
+        """7.4: cut "one_moment" if it is still sounding. Never waits. Not a caller cut, so
+        was_cut() must not see it."""
+        if not self._filler:
+            return
+        self._filler = False
+        if self.mouth.remaining() > 0:
+            self.mouth.clear()
+            self.mouth.last_cut = ("", -1)
 
     def heard(self, token: str) -> bool:
         """Did every clip of the last say() of `token` play to its end?"""

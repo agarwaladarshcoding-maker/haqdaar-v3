@@ -368,6 +368,7 @@ class Engine:
         if not text:
             return False
         english = bool(getattr(inp, "english", False))
+        filler = False
         try:
             if asked is not None:
                 if not hasattr(model, "sort") or model.sort(asked, text) not in ("QUESTION", "BOTH"):
@@ -400,6 +401,8 @@ class Engine:
             }, "scheme_ids": list(ids)}
             if english:
                 kwargs["english"] = True
+            audio.say(("one_moment",))  # 7.4: once per question, not per retry; it plays while the model works
+            filler = True
             import importlib  # lazy: nothing heavy at the top of this file
             write_fn = getattr(importlib.import_module("haqdaar.model.answer"), "write_question_line", None)
             answer = None
@@ -435,6 +438,11 @@ class Engine:
                 return False  # speaking is tried twice with the answer in hand, never a second model call
         except Exception:
             return False  # a question must never take the call down
+        finally:
+            # say_text cuts the filler itself just before the answer plays (no gap). Every other
+            # way out cuts it here, so the line that follows is not queued behind it.
+            if filler and hasattr(audio, "stop_filler"):
+                audio.stop_filler()
         qa["n"] += 1
         log.write(TurnLogRecord(
             turn_n=turn_n,

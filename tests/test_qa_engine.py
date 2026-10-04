@@ -543,3 +543,117 @@ def test_exception_text_is_not_written_to_the_question_line(corpus, tmp_path, qa
     _run(corpus, tmp_path, QAAudio(_question_inputs()), SecretModel())
     assert logged_calls and all("secret-caller-words" not in str(c) for c in logged_calls)
     assert logged_calls[0]["blocked_by"] == "exception: RuntimeError"
+
+
+class FillerAudio(QAAudio):
+    """Records the order of the filler, its stop, the answer and the fallback line. Like the
+    real PhoneAudio, say_text cuts the filler itself just before the answer plays."""
+
+    def __init__(self, inputs, said=True):
+        super().__init__(inputs, said=said)
+        self.events: list[str] = []
+        self._filler = False
+
+    def say(self, sequence):
+        super().say(sequence)
+        for t in sequence:
+            if t == "one_moment":
+                self.events.append("filler")
+                self._filler = True
+            elif t == "unclear_prompt":
+                self.events.append("fallback")
+
+    def stop_filler(self):
+        if self._filler:
+            self._filler = False
+            self.events.append("stop")
+
+    def say_text(self, text):
+        self.stop_filler()
+        self.events.append("answer")
+        return super().say_text(text)
+
+
+class _ConfirmModel(QAModel):
+    def __init__(self, corpus, **kw):
+        super().__init__(**kw)
+        self._corpus = corpus
+
+    def turn(self, transcript, box=None, ask_count=0):
+        return Answer(box=box, value=self._corpus.values(box)[0], span=transcript)
+
+    def confirm(self, text, lang=None):
+        return True if text == "yes" else None
+
+
+def _filler_run(corpus, tmp_path, qa_on, where, model=None, said=True):
+    model = model or (_ConfirmModel(corpus) if where == "readback" else QAModel())
+    if where == "loop":
+        audio = FillerAudio(_question_inputs(), said=said)
+    elif where == "opener":
+        audio = FillerAudio([Digit("3"), Speech("how much money does tractor subsidy give")] + [Digit("2")] * 20, said=said)
+    else:
+        audio = FillerAudio([Digit("3"), Digit("1"), Speech("hello"), Speech(QUESTION), Speech("yes")] + [Digit("2")] * 20, said=said)
+    _run(corpus, tmp_path, audio, model)
+    return audio, model
+
+
+@pytest.mark.parametrize("where", ["loop", "opener", "readback"])
+def test_one_moment_before_answer(corpus, tmp_path, qa_on, monkeypatch, where):
+    from haqdaar.model import answer as qa_answer
+    monkeypatch.setattr(qa_answer, "write_question_line", lambda **fields: None)
+
+    # said once, then cut, then the answer
+    audio, model = _filler_run(corpus, tmp_path, qa_on, where)
+    assert audio.answers == [ANSWER_TEXT]  # the question path was really reached
+    assert audio.events == ["filler", "stop", "answer"]
+
+    # a retried model call still says it once
+    class RetryModel(QAModel):
+        def answer(self, *a, **k):
+            self.asked.append(a)
+            return None if len(self.asked) == 1 else ANSWER_TEXT
+
+    retry = RetryModel()
+    if where == "readback":
+        retry = type("R", (RetryModel, _ConfirmModel), {})(corpus)
+    audio, model = _filler_run(corpus, tmp_path, qa_on, where, model=retry)
+    assert len(model.asked) == 2 and audio.answers == [ANSWER_TEXT]
+    assert audio.events == ["filler", "stop", "answer"]
+
+    # the model gives nothing twice: the filler is cut before the fallback line
+    class NoneModel(QAModel):
+        def answer(self, *a, **k):
+            self.asked.append(a)
+            return None
+
+    none = NoneModel()
+    if where == "readback":
+        none = type("N", (NoneModel, _ConfirmModel), {})(corpus)
+    audio, model = _filler_run(corpus, tmp_path, qa_on, where, model=none)
+    assert len(model.asked) == 2 and audio.answers == []
+    assert audio.events[:2] == ["filler", "stop"] and audio.events.count("filler") == 1
+    assert audio.events.index("stop") < audio.events.index("fallback") if "fallback" in audio.events else True
+
+    # speaking fails twice: cut once, still said once
+    audio, model = _filler_run(corpus, tmp_path, qa_on, where, said=False)
+    assert len(model.asked) == 1 and audio.events.count("filler") == 1
+    assert audio.events[:2] == ["filler", "stop"]
+
+
+def test_one_moment_is_not_said_when_the_words_are_not_a_question(corpus, tmp_path, qa_on):
+    audio = FillerAudio(_question_inputs())
+    model = QAModel(turn_result=Unclear(reason="unclear"))
+    _run(corpus, tmp_path, audio, model)
+    assert "filler" not in audio.events and audio.answers == []
+    # the same script with a question verdict does reach the question path
+    audio = FillerAudio(_question_inputs())
+    _run(corpus, tmp_path, audio, QAModel())
+    assert audio.events[0] == "filler"
+
+
+def test_one_moment_is_not_said_on_the_keypad_only_path(corpus, tmp_path, qa_on):
+    audio = FillerAudio(_question_inputs())
+    audio.keypad_only = True
+    _run(corpus, tmp_path, audio, QAModel())
+    assert audio.events == [] and audio.answers == []

@@ -169,3 +169,38 @@ def test_clips_malformed_scheme_token_does_not_crash():
     assert phone_audio._clips("scheme:") == []
     assert phone_audio._clips("scheme:foo") == []
     assert phone_audio._clips("scheme:a:b:c") == []
+
+
+def test_stop_filler_cuts_only_a_sounding_filler_and_is_not_a_caller_cut():
+    from haqdaar.audio.phone import PhoneAudio
+
+    class FakeMouth:
+        def __init__(self):
+            self.cleared = 0
+            self.left = 1.0
+            self.last_cut = ("", -1)
+
+        def remaining(self):
+            return self.left
+
+        def clear(self):
+            self.cleared += 1
+            self.last_cut = ("one_moment", 300)
+
+    audio = PhoneAudio.__new__(PhoneAudio)
+    audio.mouth = FakeMouth()
+    audio._filler = False
+    audio.stop_filler()  # no filler said: nothing to cut
+    assert audio.mouth.cleared == 0
+
+    audio._filler = True
+    audio.stop_filler()
+    assert audio.mouth.cleared == 1 and not audio._filler
+    assert audio.mouth.last_cut == ("", -1)  # was_cut() stays false
+    audio.stop_filler()
+    assert audio.mouth.cleared == 1
+
+    audio._filler = True
+    audio.mouth.left = 0.0  # already played or cut by the caller: nothing to clear
+    audio.stop_filler()
+    assert audio.mouth.cleared == 1 and not audio._filler
