@@ -516,3 +516,30 @@ def test_question_retry_on_exception(corpus, tmp_path, qa_on, monkeypatch):
     assert len(logged_calls) >= 2
     assert "exception" in logged_calls[0].get("blocked_by", "")
 
+
+def test_speaking_failure_never_calls_the_model_again(corpus, tmp_path, qa_on, monkeypatch):
+    """7.1 review: the answer is paid for once; a failed say_text is tried again with the same text."""
+    from haqdaar.model import answer as qa_answer
+    monkeypatch.setattr(qa_answer, "write_question_line", lambda **fields: None)
+
+    model = QAModel()
+    audio = QAAudio(_question_inputs(), said=False)
+    lines = _run(corpus, tmp_path, audio, model)
+    assert len(model.asked) == 1
+    assert audio.answers == [ANSWER_TEXT, ANSWER_TEXT]  # spoken twice, never a third time
+    assert not any(l.get("class") == "QUESTION" for l in lines)
+
+
+def test_exception_text_is_not_written_to_the_question_line(corpus, tmp_path, qa_on, monkeypatch):
+    """7.1 review: the exception text can hold caller words or keys; only its class name is written."""
+    from haqdaar.model import answer as qa_answer
+    logged_calls = []
+    monkeypatch.setattr(qa_answer, "write_question_line", lambda **fields: logged_calls.append(fields))
+
+    class SecretModel(QAModel):
+        def answer(self, question, lang, cards, profile=None, scheme_ids=None, english=False):
+            raise RuntimeError("secret-caller-words 123456789012")
+
+    _run(corpus, tmp_path, QAAudio(_question_inputs()), SecretModel())
+    assert logged_calls and all("secret-caller-words" not in str(c) for c in logged_calls)
+    assert logged_calls[0]["blocked_by"] == "exception: RuntimeError"

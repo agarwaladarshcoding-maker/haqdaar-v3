@@ -107,12 +107,16 @@ def _door_a_read(audio: Any, log: Log, slug: str, transcript: str, span: str,
 SILENCE_HANGUP_RUNG = 3
 
 
-def _answer_silence(audio: Any, log: Log, rung: int, turn_n: int, prompt: tuple[str, ...]) -> bool:
+def _answer_silence(
+    audio: Any, log: Log, rung: int, turn_n: int, prompt: tuple[str, ...], *, say_reply: bool = True,
+) -> bool:
     """The one answer to silence at every wait (7.3): never a silent default, never dead air.
 
     True: the caller was told "no reply" and the live `prompt` was said again, so wait again.
     False: the ladder is spent; the farewell is said and the caller hangs up and closes the log.
     A silence spends no turn. `prompt` is empty where the loop says its own prompt next.
+    `say_reply` is False at turn 0: no language is picked yet, so the "no reply" line would come
+    out in Hindi; the trilingual greeting is the re-prompt and the loop plays it again.
     """
     log.write(TurnLogRecord(turn_n=turn_n, turn_class="SILENCE", silence_n=rung))
     if rung >= SILENCE_HANGUP_RUNG:
@@ -120,8 +124,9 @@ def _answer_silence(audio: Any, log: Log, rung: int, turn_n: int, prompt: tuple[
         if hasattr(audio, "on_mark"):
             audio.on_mark("closing_farewell")
         return False
-    presence = ("silence_presence",) if rung == 2 else ()
-    audio.say(presence + ("did_not_get_reply",) + prompt)
+    if say_reply:
+        presence = ("silence_presence",) if rung == 2 else ()
+        audio.say(presence + ("did_not_get_reply",) + prompt)
     return True
 
 
@@ -395,41 +400,39 @@ class Engine:
             }, "scheme_ids": list(ids)}
             if english:
                 kwargs["english"] = True
+            import importlib  # lazy: nothing heavy at the top of this file
+            write_fn = getattr(importlib.import_module("haqdaar.model.answer"), "write_question_line", None)
             answer = None
-            for attempt in (1, 2):
+            for attempt in (1, 2):  # only a failed or empty answer is asked again (the model call is paid)
                 try:
                     answer = model.answer(text, getattr(audio, "language", "hi"), cards, **kwargs)
                 except Exception as e:
-                    import importlib
-                    write_fn = getattr(importlib.import_module("haqdaar.model.answer"), "write_question_line", None)
                     if write_fn:
                         write_fn(
                             lang=getattr(audio, "language", "hi"),
                             question=text,
                             scheme_ids=list(ids),
                             answer=None,
-                            blocked_by=f"exception: {e}",
+                            blocked_by=f"exception: {type(e).__name__}",  # class only: the text can hold caller words
                             attempt=attempt,
                         )
                     answer = None
                 else:
-                    if not hasattr(model, "_ask_answer"):
-                        import importlib
-                        write_fn = getattr(importlib.import_module("haqdaar.model.answer"), "write_question_line", None)
-                        if write_fn:
-                            write_fn(
-                                lang=getattr(audio, "language", "hi"),
-                                question=text,
-                                scheme_ids=list(ids),
-                                answer=answer,
-                                blocked_by=None if answer else "model_null",
-                                attempt=attempt,
-                            )
-                if answer and audio.say_text(answer) is not False:
+                    if write_fn and not hasattr(model, "_ask_answer"):
+                        write_fn(
+                            lang=getattr(audio, "language", "hi"),
+                            question=text,
+                            scheme_ids=list(ids),
+                            answer=answer,
+                            blocked_by=None if answer else "model_null",
+                            attempt=attempt,
+                        )
+                if answer:
                     break
-                answer = None
             if not answer:
                 return False
+            if audio.say_text(answer) is False and audio.say_text(answer) is False:
+                return False  # speaking is tried twice with the answer in hand, never a second model call
         except Exception:
             return False  # a question must never take the call down
         qa["n"] += 1
@@ -480,7 +483,7 @@ class Engine:
                 log.close(reason=STOP_ZERO_SURVIVORS, ladder_rung=0, mode="voice")
                 return
             if isinstance(inp, Silence):
-                if _answer_silence(audio, log, inp.n, 0, ()):
+                if _answer_silence(audio, log, inp.n, 0, (), say_reply=False):
                     continue
                 audio.hangup()
                 log.close(reason=STOP_ZERO_SURVIVORS, ladder_rung=0, mode="voice")

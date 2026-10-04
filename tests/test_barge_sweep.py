@@ -225,10 +225,12 @@ CUT_INJECT = {
     "key_cut_nine": [Digit("9", cut_clip="scheme:S1:summary", heard_ms=500)],
 }
 
+# The call ends on the base's last two inputs, so a cut put at or after them is never played;
+# those positions would pass without checking anything, so they are left out.
 CUT_CASES = [
     (base_name, pos, name)
     for base_name, base in (("keys", BASE_KEYS), ("spoken", BASE_SPOKEN))
-    for pos in range(len(base) + 1)
+    for pos in range(len(base) - 1)
     for name in CUT_INJECT
 ]
 
@@ -242,6 +244,7 @@ def test_cut_is_always_answered(corpus, tmp_path, monkeypatch, base_name, pos, n
     audio = CutTrackingAudio(base[:pos] + CUT_INJECT[name] + base[pos:])
     log = Log.open("cut_sweep", corpus.snapshot_id, logs_dir=tmp_path)
     Engine.run_call(audio, SweepModel(), corpus, log)
+    assert audio.cuts_seen, "the call ended before the cut was played, so nothing was checked"
     assert not audio.cut_pending, "Call ended without speaking after cut"
     _check([json.loads(l) for l in open(tmp_path / "cut_sweep.jsonl")], audio)
 
@@ -468,6 +471,29 @@ class GoneCaller(SweepAudio):
         return super().next_input(profile=profile)
 
 
+def test_language_prompt_wrong_keys(corpus, tmp_path):
+    """Three wrong keys at the language prompt fall back to Hindi (lang_source default);
+    one or two replay the greeting."""
+    class Turn0Keys(SweepAudio):
+        def select_language(self):
+            self.played.append("greeting_trilingual")
+            return self.inputs.pop(0) if self.inputs else Hangup()
+
+    def run(name, script):
+        audio = Turn0Keys(script)
+        Engine.run_call(audio, SweepModel(), corpus, Log.open(name, corpus.snapshot_id, logs_dir=tmp_path))
+        picked = [l for l in _lines(tmp_path, name) if "lang_source" in l and "call_id" not in l]
+        return audio, picked
+
+    audio, picked = run("wrong3", [Digit("8"), Digit("8"), Digit("8")] + BASE_KEYS[1:])
+    assert audio.played[:3] == ["greeting_trilingual"] * 3
+    assert audio.language == "hi" and picked and picked[0]["lang_source"] == "default"
+
+    audio, picked = run("wrong2", [Digit("8"), Digit("8"), ("en", "keypad")] + BASE_KEYS[1:])
+    assert audio.played[:3] == ["greeting_trilingual"] * 3
+    assert audio.language == "en" and picked and picked[0]["lang_source"] == "keypad"
+
+
 @pytest.mark.parametrize("lang,key", [("en", "3"), ("hi", "1"), ("mr", "2")])
 def test_silence_always_reprompts(corpus, tmp_path, monkeypatch, lang, key):
     """7.3: every wait that hears nothing says the no-reply line, then asks again, in the
@@ -511,7 +537,8 @@ def test_silence_always_reprompts(corpus, tmp_path, monkeypatch, lang, key):
 
     audio = Turn0([Silence(n=1), Digit(key)] + BASE_KEYS[1:])
     Engine.run_call(audio, SweepModel(), corpus, Log.open("t0", corpus.snapshot_id, logs_dir=tmp_path))
-    assert audio.played[:3] == ["greeting_trilingual", "did_not_get_reply", "greeting_trilingual"]
+    assert audio.played[:2] == ["greeting_trilingual", "greeting_trilingual"]  # the greeting replays
+    assert "did_not_get_reply" not in audio.played  # no language is picked yet, so no one-language line
     assert audio.language == lang
     # (the log's header row carries "default" until a language is chosen; only the rows after count)
     picked = [l for l in _lines(tmp_path, "t0") if "lang_source" in l and "call_id" not in l]
@@ -519,8 +546,7 @@ def test_silence_always_reprompts(corpus, tmp_path, monkeypatch, lang, key):
 
     audio = Turn0([Silence(n=1), Silence(n=2), Silence(n=3)])
     Engine.run_call(audio, SweepModel(), corpus, Log.open("t0_gone", corpus.snapshot_id, logs_dir=tmp_path))
-    assert audio.played == ["greeting_trilingual", "did_not_get_reply", "greeting_trilingual",
-                            "silence_presence", "did_not_get_reply", "greeting_trilingual", "closing_farewell"]
+    assert audio.played == ["greeting_trilingual", "greeting_trilingual", "greeting_trilingual", "closing_farewell"]
     assert audio.hung_up
     lines = _lines(tmp_path, "t0_gone")
     assert "stop" in lines[-1] and not any("lang_source" in l for l in lines if "call_id" not in l)
