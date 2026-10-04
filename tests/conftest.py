@@ -68,3 +68,11 @@ def _block_unmocked_http_calls(monkeypatch):
 
     monkeypatch.setattr(httpx.AsyncClient, "send", _guarded_async_send)
 
+
+
+@pytest.fixture(autouse=True)
+def _all_three_languages(monkeypatch):
+    """Marathi is paused for callers (tunables.LANGS_OFFERED defaults to hi,en; owner, 4 Oct
+    2026) but it is kept in the system. The suite goes on testing all three languages: key 1
+    Hindi, 2 Marathi, 3 English. tests/test_langs_offered.py tests the paused setting."""
+    monkeypatch.setattr(tunables, "LANGS_OFFERED", ("hi", "mr", "en"))

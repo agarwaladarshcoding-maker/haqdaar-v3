@@ -26,8 +26,9 @@ def test_frames_then_a_mark_per_clip():
     out: list[dict] = []
     mouth = Mouth(out.append, "S")
     mouth.play([("a", b"\x10" * 20000), ("b", b"\x10" * 100)])
-    assert [m["event"] for m in out] == ["media", "media", "media", "mark", "media", "mark"]
-    assert out[3]["mark"]["name"].endswith(":a")
+    assert [m["event"] for m in out] == ["media"] * 13 + ["mark", "media", "mark"]
+    assert out[13]["mark"]["name"].endswith(":a")
+    assert out[-1]["mark"]["name"].endswith(":b")
 
 
 def test_marks_coming_back_mean_done():

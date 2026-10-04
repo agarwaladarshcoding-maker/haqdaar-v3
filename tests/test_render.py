@@ -13,6 +13,12 @@ from haqdaar.audio import render as R
 from haqdaar.data.pipeline.texts import Text, _text
 
 
+@pytest.fixture(autouse=True)
+def _three_part_greeting(monkeypatch):
+    """These tests use a three-part greeting. Marathi is paused for callers, not removed."""
+    monkeypatch.setattr(R, "TRILINGUAL_ORDER", ("hi", "mr", "en"))
+
+
 def _texts() -> list[Text]:
     return [
         _text("en", "Press 1 for Hindi.", "line", "a"),

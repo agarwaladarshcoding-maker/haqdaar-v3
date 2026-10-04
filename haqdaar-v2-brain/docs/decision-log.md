@@ -6,7 +6,7 @@ module: architecture
 status: reviewed
 tags: [decisions, supersession, traceability, staging]
 created: 2026-09-10
-updated: 2026-09-18
+updated: 2026-10-04
 author: Adarsh Agarwala
 last_agent_edit: claude-code
 source_file: source-docs/MAP-done.md
@@ -131,6 +131,24 @@ so they do not clash with D1–D9 in §5. The full text and the reasons are in `
 | V2-D6 | **One vocabulary file, `haqdaar/contracts/vocab.py`.** Every closed list, its labels in 3 languages, and the forbidden phrases. Keypad menus are built from it. A value the LLM gives that is not on the list **sets the scheme aside (quarantine); it never becomes ANY**. `state` comes from the scraped level, never the LLM. CATEGORY is 9 need groups | Closed lists spread over several files; unknown values quietly widened to ANY |
 | V2-D7 | **State = one yes/no question:** "Do you live in Maharashtra? 1 yes, 2 no, 0 don't know". "No" keeps the central schemes (the OTHER mask = schemes whose state is ANY). Prompt id `state_q_maharashtra` | **Supersedes** "cardinality > 9 → never a keypad menu" for `state` ([[tickets/T15]], §1 above) |
 | V2-D8 | **Ranking and paging.** `priority` 1–3 per scheme. Order: specificity, then priority, then slug. Overflow reads 3; key 9 plays the next 3. In the read-back, `*` changes language and `0` means "none of these" | Overflow that read the top 3 and stopped |
+
+## 7 · Step 7 decisions (caller questions and live answers) — built behind switches, 4 Oct 2026
+
+Adarsh asked for these in chat on 3–4 Oct 2026 and told Claude to build all of step 7. Each one
+sits behind a switch that is **off by default**. With the switches off, the rules they touch
+stand as before. **Status: built, not yet ratified.** They become rules only when Adarsh turns
+the switches on for real callers. Numbered **S7-Dn**.
+
+| # | Decision | Switch | What it touches |
+|---|---|---|---|
+| S7-D1 | **One prompt takes one answer.** Every key and spoken turn is stamped with the prompt it came at. Extra keys, a key in a gap, a key for an older prompt and a key in the first 250 ms of a new prompt are dropped and logged. A key beats speech. Hangup is its own event | none (bug fix) | The "keys are never thrown away" behaviour of plan 2.6 |
+| S7-D2 | **A caller may ask a question at any point.** The router says what the words are (answer, answer and question, question, repeat, other). A question never moves the call: no turn, no strike, the same prompt again. At most 5 per call | `QA_ENABLED` | **"Model is Router only"** (§1, [[tickets/T17]]): with the switch on, a second model call writes a short answer from the scheme's own text |
+| S7-D3 | **The answer is fenced by code.** It is thrown away if it holds a yes/no about the caller, a forbidden phrase, a number that is not in the scheme text, or more than 40 words; only the first two sentences are kept. No answer -> the call goes on as before | `QA_ENABLED` | The closed-list rule: answer text is free text, so code checks stand in for the list |
+| S7-D4 | **Speech -> English -> work -> the caller's language.** Sarvam turns speech into English; the router and the answer work on English; Sarvam `sarvam-translate:v1` turns the answer back, and code checks that the numbers are the same | `ENGLISH_PIPE` | The speech step and the router prompt |
+| S7-D5 | **The answer is spoken with live speech** (Sarvam `bulbul:v3`, the same voice as the recorded lines), saved by its content key so the same answer is not made twice | `QA_SPEAK` | **"Zero runtime TTS"** (PRD; glossary "Mouth") |
+| S7-D6 | **The caller's voice can stop a playing clip** (400 ms of voice or more; never during the greeting or a results reading; a key still wins) | `SPEECH_CUT_IN` | Barge-in was keys only |
+| S7-D7 | **Search and saved answers.** With too many schemes left and none named, up to 4 are picked by plain word overlap; an answer that passed every check is saved and reused | `QA_SEARCH` | No index, no embeddings |
+| S7-D8 | **The "this call is recorded" line is not played** (owner, 4 Oct 2026: not needed for now). The line and its clips are kept. Calls are still logged as before | `CONSENT_LINE` (off) | The consent line played after the language pick |
 
 ## Related
 [[01-CONTRADICTIONS]] · [[08-TRACEABILITY]] · [[10-RISK-REGISTER]] · [[maps/wayfinder-map]]

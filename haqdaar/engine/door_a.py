@@ -82,6 +82,24 @@ GENERIC_STOP_WORDS: set[str] = {
     "che", "kara", "arj", "karaycha", "aamhala", "have", "hote"
 }
 
+# Names callers say in English that the snapshot's alias lists lack (spelling variants,
+# short forms). Kept in code so the snapshot is not rebuilt for them; the matcher reads
+# it for every scheme with that slug. An alias the snapshot has already is not repeated.
+_EXTRA_ALIASES: dict[str, tuple[str, ...]] = {
+    "pmmy": ("mudra", "mudra loan", "mudra yojana", "pm mudra yojana", "pradhan mantri mudra yojana"),
+    "pmay-g": (
+        "pradhan mantri awas yojana", "pradhan mantri awaas yojana", "pm awas yojana", "pm awaas yojana",
+        "pradhan mantri awas yojana gramin", "pradhan mantri awaas yojana gramin",
+    ),
+    "smam": (
+        "agriculture mechanization", "agricultural mechanization", "agricultural mechanisation",
+        "sub mission on agriculture mechanization",
+    ),
+    "apy": ("atal pension yojana", "atal pension"),
+    "pmfby": ("pradhan mantri fasal bima yojana", "pm fasal bima yojana", "pm fasal bima", "fasal bima yojana"),
+}
+
+
 def devanagari_to_latin(text: str) -> str:
     """Phonetically transliterate Devanagari text to Latin characters."""
     if not text:
@@ -172,6 +190,9 @@ class DoorA:
                 norm = normalize_text(variant)
                 if norm and norm not in entry.aliases:
                     entry.aliases.append(norm)
+            for extra in _EXTRA_ALIASES.get(sid, ()):
+                if extra not in entry.aliases:
+                    entry.aliases.append(extra)
             self._schemes[sid] = entry
 
         # Load aliases from alias sets across languages

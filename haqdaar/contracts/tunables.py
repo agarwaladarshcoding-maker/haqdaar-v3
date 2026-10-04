@@ -18,6 +18,43 @@ NGROK_DOMAIN: str = os.environ.get("NGROK_DOMAIN", "")
 PHONE_PROVIDER: str = os.environ.get("PHONE_PROVIDER", "twilio")
 
 # Timing and thresholds (04-INTERFACES.md § What is not frozen)
+# Step 7: caller questions. Every switch is off by default; off means the call is as before.
+def _on(name: str) -> bool:
+    return os.environ.get(name, "false").strip().lower() in ("1", "true", "yes", "on")
+
+
+QA_ENABLED: bool = _on("QA_ENABLED")            # 7.1 answer a caller's question (text)
+ENGLISH_PIPE: bool = _on("ENGLISH_PIPE")        # 7.1 speech -> English -> work -> caller's language
+QA_SPEAK: bool = _on("QA_SPEAK")                # 7.2 say the answer aloud on a real call (live speech)
+SPEECH_CUT_IN: bool = _on("SPEECH_CUT_IN")      # 7.2 the caller's voice stops a playing clip
+QA_SEARCH: bool = _on("QA_SEARCH")              # 7.3 find the scheme by search when too many are left
+QA_MAX_PER_CALL: int = int(os.environ.get("QA_MAX_PER_CALL", 5))
+QA_MAX_SCHEMES: int = int(os.environ.get("QA_MAX_SCHEMES", 4))
+QA_TIMEOUT_S: float = float(os.environ.get("QA_TIMEOUT_S", 4.0))
+QA_MAX_WORDS: int = int(os.environ.get("QA_MAX_WORDS", 40))
+QA_BACKUP_MODEL: str = os.environ.get("QA_BACKUP_MODEL", "qwen/qwen3.8-27b")
+QA_TRANSLATE_TIMEOUT_S: float = float(os.environ.get("QA_TRANSLATE_TIMEOUT_S", 3.0))
+QA_TTS_TIMEOUT_S: float = float(os.environ.get("QA_TTS_TIMEOUT_S", 4.0))
+CUT_IN_MIN_MS: int = int(os.environ.get("CUT_IN_MIN_MS", 400))   # voice this long stops the clip
+# The "this call is recorded" line after the language pick. Off (owner, 4 Oct 2026: not needed
+# for now). The line and its clips stay; CONSENT_LINE=true plays it again.
+CONSENT_LINE: bool = _on("CONSENT_LINE")
+# The languages a caller is offered at the greeting, in order: the first is key 1, the next key 2.
+# Marathi is paused (owner, 4 Oct 2026): its lines and clips stay, it is just not offered and
+# `*` does not switch to it. To bring it back: LANGS_OFFERED=hi,mr,en and change the English
+# greeting part in audio/lines.yaml to "press 3".
+LANGS_OFFERED: tuple[str, ...] = tuple(
+    l.strip() for l in os.environ.get("LANGS_OFFERED", "hi,en").split(",") if l.strip()
+)
+
+
+def turn0_keys() -> dict[str, str]:
+    """Greeting key -> language, from LANGS_OFFERED as it is now."""
+    return {str(i + 1): lang for i, lang in enumerate(LANGS_OFFERED)}
+
+
+KEY_REPEAT_MS: int = int(os.environ.get("KEY_REPEAT_MS", 300))
+KEY_GUARD_MS: int = int(os.environ.get("KEY_GUARD_MS", 250))
 ENDPOINT_MS: int = int(os.environ.get("ENDPOINT_MS", 700))
 RESPONSE_BUDGET_S: float = float(os.environ.get("RESPONSE_BUDGET_S", 1.2))
 MODEL_TIMEOUT_S: float = float(os.environ.get("MODEL_TIMEOUT_S", 2.0))

@@ -29,7 +29,7 @@ from haqdaar.contracts.types import (
 
 LANGS: tuple[str, ...] = ("en", "hi", "mr")
 # greeting_trilingual plays Hindi, then Marathi, then English.
-TRILINGUAL_ORDER: tuple[str, ...] = ("hi", "mr", "en")
+TRILINGUAL_ORDER: tuple[str, ...] = tuple(tunables.LANGS_OFFERED)  # a paused language is not played
 
 
 class Text(NamedTuple):

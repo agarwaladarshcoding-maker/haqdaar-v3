@@ -45,6 +45,35 @@ class Trace:
         """One event line, as the server prints it."""
         self._write({"line": line})
 
+    def input_event(
+        self,
+        prompt_n: int,
+        prompt: str,
+        event: str,
+        value: str,
+        took: bool,
+        why: str,
+        cut_clip: str = "",
+        heard_ms: int = -1,
+        ts: Optional[float] = None,
+    ) -> None:
+        """One input event line, taken or dropped (Step 7.0b)."""
+        row: dict[str, Any] = {
+            "prompt_n": prompt_n,
+            "prompt": prompt,
+            "event": event,
+            "value": value,
+            "took": took,
+            "why": why,
+            "cut_clip": cut_clip,
+            "heard_ms": heard_ms,
+        }
+        if ts is not None:
+            row["ts"] = round(ts, 3)
+        else:
+            row["ts"] = round(time.time(), 3)
+        self._write(row)
+
     def record(self, rec: dict[str, Any]) -> None:
         """A copy of one LOG record."""
         self._write({"log": rec})

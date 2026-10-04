@@ -2377,3 +2377,487 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
   produced nothing. Options: permissions.allow rules in ~/.gemini/settings.json, or
   --dangerously-skip-permissions, or the owner runs it in the app. Owner chose none yet and
   paused the step to work on something else. Nothing was changed by Antigravity.
+
+## Scheme Q&A / dynamic answers — findings and plan (2026-10-03)
+- Today no path makes speech at call time. `SarvamTTS` (haqdaar/audio/render.py:113) is used only by
+  `make render`. server.py:199 hard-codes tier2="none".
+- Router (haqdaar/model/router.py:147) returns META/ANSWER/CLARIFY/REPEAT/UNCLEAR. call.py:607-633 only
+  uses results with a value; Clarify/Repeat/Meta fall into the UNCLEAR path. No class for "caller asked
+  about a scheme".
+- Each scheme already has recorded sections in en/hi/mr: summary, benefit_text, who_can_apply,
+  documents, how_to_apply (corpus.chunks). Long source text is data_cache/raw/<slug>.json.
+- Pool is content-addressed (sha256 of text+lang+voice+model+8000), so any answer text rendered with
+  the same voice gets a stable key = a free audio cache.
+- Rules this feature touches: prd.md:79 "zero runtime TTS", notes/model/overview.md:63 "Model is
+  strictly Router only", architecture.md:824 closed list; five model classes are frozen
+  (interfaces.md:25); call.py must not import audio/model (tests/test_call.py:1018-1030); 1.2 s
+  budget; MUSE-BRIEF.md:59 Muse never hears live caller speech -> live answers must use Groq.
+- Risk: Groq key returns 404 for llama-3.3-70b-versatile (HANDOFF.md:95); live router speed was
+  never measured. Must be fixed before any live answer work.
+- Plan given to owner: 4 rungs, cheapest first: (0) word check in ms, (1) match to a recorded
+  section, (2) model picks from a ready-made FAQ list per scheme (still "picks off a closed list",
+  no rule broken), (3) live written + live spoken answer behind a switch, off by default, needs the
+  PRD rule changed by the owner. Every live answer is saved so the next same question is rung 2.
+  Scope assumed: only after results are read, about a named scheme. Waiting for owner OK.
+
+## Scheme Q&A plan v2 — owner's steer (2026-10-03, later)
+- Owner: wants fast lookup + a light model writing the answer live, in the caller's language, and it
+  must sound like a person talking (small pauses), not a canned clip. Points out that by question
+  time only a few schemes are left, so we only need to hold those; search only for confusing questions.
+  I read this as a yes to live answers (the prd.md:79 rule must be changed in source-docs + changelog
+  when we build). My reading, not his exact words.
+- Decision (mine, proposed): no vector DB, no embeddings. At results time (<= STOP_SURVIVORS=4
+  schemes) load their full text into memory, next to the existing prefetch at call.py:915-919.
+  Search only when (a) caller names another scheme -> existing alias lookup, (b) raw text is long ->
+  word-overlap pick of paragraphs in memory.
+- Speed comes from streaming: model streams, cut at first sentence, code checks, send to speech,
+  play while sentence 2 is made. Write straight in hi/mr/en, no separate translate step
+  (translation changed "Rs.50,000" to "50 हजार" before, see PROJECT-UPDATE).
+- Plan v1 rung 2 (hand-made FAQ list) dropped: the saved-answer store fills itself.
+- Unknown, must measure first: small Groq model speed, whether Sarvam bulbul:v3 can stream.
+
+## Measured (2026-10-03, branch step-7.0-live-answers) — script in scratchpad/measure.py, app untouched
+- New Groq key works. Models on the key: openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b,
+  whisper-large-v3(-turbo), a few others. **llama-3.3-70b-versatile is NOT on the list** — that is
+  the 404 in HANDOFF.md:95. haqdaar/model/client.py:62 still defaults to it; tunables.py:110
+  defaults to openai/gpt-oss-120b. The router default must be changed (not done yet).
+- Streamed answer from one scheme card, 5 questions (hi/mr/en):
+  gpt-oss-120b (reasoning_effort low): full short answer in 0.70-1.09 s.
+  qwen3.8-27b: 0.48-2.46 s. gpt-oss-20b: 6-8.5 s then 503 over capacity — do not use.
+- Sarvam bulbul:v3 REST, one sentence: 2.19-3.33 s. THIS is the slow part, not the model.
+  Question -> first real sound today would be about 3-4.5 s.
+- Truth finding: asked "land is in my father's name, can I apply?". Card says land in the
+  FAMILY's name. gpt-oss-120b said "No, you cannot apply" (wrong verdict). qwen said NOT_IN_TEXT.
+  So: the model must state the rule, never a yes/no about the caller, and code must block
+  verdict phrases both ways ("can apply"/"cannot apply", hi/mr forms), like the existing
+  forbidden-phrase gate. Off-topic question (tractor loan) -> both said NOT_IN_TEXT correctly.
+- Owner's steer, his words in short: questions any time, not a fixed slot; system decides from the
+  input (button, answer, question); use what the call already holds first, search the db only if
+  that has no answer or the caller asks straight away; parse the answer while the model writes it.
+
+## Plan stress test + Sarvam streaming (2026-10-03, late) — drafts in .agent/qa_stress_draft.py, .agent/tts_stream_draft.py
+- Decider by model alone (gpt-oss-120b, JSON, low reasoning): 21/26, 0.63-2.21 s, avg 1.13 s.
+  Misses: "किसान?" -> QUESTION, "पता नहीं" -> OTHER, "what did you say?" -> QUESTION,
+  "हेलो आवाज़ आ रही है?" -> QUESTION, "मेरा पीएम किसान का पैसा नहीं आया" -> OTHER.
+  Decision: no separate decider call. Router value first; if no value and the text looks like a
+  question (or names a scheme) -> answer model, which itself returns "no answer" for junk.
+- My word-check regex bug: `किस` matched inside `किसान`. Must be whole-word. In the work order as a test.
+- Answer path with the rule-only prompt: 15 cases, 0 verdicts, 0 bad numbers, 0.8-3.0 s.
+  Father's-land case now states the rule. Weak spots: "money has not come" got a made-up long
+  reply (fix: own-case questions -> null, length cap); "tenant farmer" answer concludes beyond the
+  text and no code check catches it (open risk; owner reads questions.jsonl). Model output has
+  "‑" hyphens and "%" — clean before speech in 7.2.
+- Sarvam streaming works with bulbul:v3 + priya: wss://api.sarvam.ai/text-to-speech/ws?model=bulbul:v3,
+  header Api-Subscription-Key, messages config/text/flush, codec mulaw 8000. First sound 0.30-0.32 s
+  after the text is sent (socket open takes 0.4-1.5 s, so open it early). HTTP
+  /text-to-speech/stream also works: first bytes 0.64 s. REST was 2.2-3.3 s. NOT yet checked: that
+  the bytes are raw mu-law with no header.
+- So the likely real number: answer text ~1 s (up to 3 s) + 0.3 s = first real sound ~1.3 s typical.
+- Other edge cases decided: questions do not cost a turn so cap them (QA_MAX_PER_CALL=5);
+  answer failures must not push the call to keypad-only; only speakable survivors go in the
+  context; >4 survivors and no scheme named -> no answer in 7.1 (search is 7.3); mask 8+ digit
+  runs; keypad-only mode never answers; confirm turn (call.py:662) left for 7.3.
+- Router model risk (pre-existing, not Q&A): client.py:62 default model is gone from Groq, so the
+  live router fails today. gpt-oss-120b can exceed MODEL_TIMEOUT_S=2.0. Bake-off is in work order 2a.
+
+## NVIDIA key as Groq backup — timed, too slow for live (2026-10-03, late)
+- Owner gave an NVIDIA key (in .env as NVIDIA_API_KEY, untracked). Endpoint
+  https://integrate.api.nvidia.com/v1 (OpenAI style), 80 models listed.
+- Timed 12 models on the Hindi answer prompt: only openai/gpt-oss-20b answered, 3.5-21 s per
+  answer (answers were good). gemma-4-31b, nemotron-3.5-lightning, kimi-k3, deepseek-v4.1-flash
+  timed out (12-25 s). Six others gave 404 "Function not found for account".
+- Decision: NVIDIA is not used on a live call. Live backup = second Groq model (qwen3.8-27b),
+  then "no answer" (today's path / recorded line). NVIDIA kept for offline jobs only.
+  Work order 7.1 item 8b says this. Limit: a second Groq model does not help if Groq itself is down
+  or the key is rate-limited; then the call still works by keypad as today.
+
+## Round 2: a well-prompted small router decides the kind (2026-10-03, late) — draft .agent/qa_router_draft.py
+- Owner's steer: one smaller router, properly prompted, should decide question vs answer; put
+  fences (fallbacks/boundaries) around the models. Tested and adopted. The keyword check is dropped.
+- Prompt = rules in order (ANSWER/BOTH first, then REPEAT, QUESTION, OTHER) + 9 examples that
+  are not test cases. 50 cases: the first 26 plus 24 written after the prompt.
+  qwen/qwen3.8-27b: 25/26 + 24/24, middle 0.50 s, slowest 1.77 s, 6 of 50 over 1.2 s.
+  openai/gpt-oss-120b: 24/26 + 22/24, middle ~0.9 s, slowest 2.74 s (over the 2.0 s timeout).
+  openai/gpt-oss-20b: 23/26 + 20/24, slowest 3.21 s.
+  qwen's one miss: "can I apply if I am sixty five?" -> ANSWER (it does hold an age; near BOTH).
+- NOT tested yet: kind + value in ONE call (the combined turn prompt). Only the kind was tested.
+  Work order 7.1 asks for a live check of it.
+- Design now: with QA on, Model.turn returns kind+value in one call (old prompt byte-for-byte when
+  off); new Question result class, Answer.also_question; Model.sort for the two sites with no
+  router call. Fences are item 17a of the work order.
+- Today's system, run for the owner (offline fake model, live snapshot, logs kept in scratchpad):
+  `make sim`-style spoken run: opener said twice -> unclear_prompt -> key 1 -> 4 farming schemes read.
+  Typed call A "पीएम किसान में कितना पैसा मिलता है?" at the opener -> Door A reads the PM-KISAN
+  summary, then asks the opener again. Typed call B "मुझे लोन मिलेगा क्या?" -> unclear_prompt;
+  "कौन से कागज़ चाहिए?" -> opener asked again, then keypad. No question is answered today.
+  On a REAL call the router model is missing from Groq, so speech turns fail and the call goes keypad-only.
+
+## How keys and words map today, and the mixed-input rules (2026-10-03, late)
+- Keys: language 1 hi / 2 mr / 3 en (default hi after 4 s). Box menu: digit N = Nth value in
+  vocab.json order; 0 = don't know (UNKNOWN, no strike); wrong digit = turn + strike. Live
+  occupation: 1 farmer 2 street_vendor 3 apprentice 4 entrepreneur 5 artisan 6 weaver 7 worker.
+  Live age: 1 0-13, 2 14-17, 3 18-35, 4 36-40, 5 41+. State = "Maharashtra? 1 yes 2 no".
+  income_band has no values in the live snapshot, so it is never asked.
+  Read-back: 1 right, 2 fix. Results: 1 benefit, 2 how to apply, 3 papers, 4 who can apply,
+  9 next, 0 leave. Anything-else: 1 yes, else no. # repeat (twice = slower), * next language.
+- Key beats speech (turn.py:84-88). A key stops a playing clip; speech does not (turn.py:96-114).
+- The results menu and Door A pick do NOT listen for speech on a real phone (profile readback /
+  normal, turn.py:94,117). So "questions while a scheme is read" needs an ear change -> step 7.2.
+- No digit-word map exists ("एक"/"one" are not keys).
+- BUG found and verified: match_confirm("हाँ","hi"), ("नहीं","hi"), ("हो","mr"), ("नाही","mr") all
+  return None — confirm.py lists are Roman only. Spoken yes/no in Devanagari is not understood.
+  Fix is item 2x of the 7.1 work order (not behind the switch).
+- Mixed-input rules written into the work order as section 3b (11 rules).
+
+## Owner's steer: own-language transcript + cut-ins planned from the start (2026-10-03, late) — code read by the explore agent, nothing run live
+- Owner's words in short: (i) the system should get the transcribed language, not a different
+  language; (ii) plan for the caller cutting in — just after a key, or while the line is in the
+  middle of saying something — at the beginning so the code is robust. Keep the fixed-rule
+  system; add a fixed-rule way for this too. My reading, not yet confirmed by him.
+- STT today: Sarvam saaras:v4, mode "transcribe" (not translate), language_code = picked language
+  (hi-IN/mr-IN/en-IN), ear.py:158-251. Batch, one HTTP call per utterance. Fallback Groq whisper.
+  Only `.strip()` between STT and the router (ear.py:217). Detected language is read into
+  SttResult.lang but only printed (ear.py:721); `Speech` carries text only (types.py:115-117).
+- Router prompt gap: turn prompt says nothing about language or script; values are bare English
+  ids with no hi/mr labels (prompts/turn.py:24-49) though labels exist in vocab.py:46-53. The span
+  must appear in the transcript (router.py:217). `window` and `hint` are never passed.
+- Turn-taking today (audio/turn.py): keys sit in one unbounded queue, never dropped, no stamp of
+  which prompt they were pressed at (turn.py:30, 84-88). If a key is waiting, `say()` skips the
+  next clip (phone.py:75-78) and the key answers it. So a key pressed in a gap answers a prompt
+  the caller never heard. Worst case: key during the router call -> read-back skipped -> key
+  taken as yes/no on the read-back (call.py:656-662).
+- Speech during a clip: buffered, then dropped by drain_media (turn.py:112-113). No speech cut-in.
+  Twilio media stream websocket, clear = {"event":"clear"} (twilio.py:163-168, mouth.py:69-75).
+- The engine does not know how much of a clip was heard: marks are dropped on clear, on_mark
+  returns only the time (phone.py:91-92), sections_heard is set when queued not when played
+  (call.py:1114-1120). No "cut at" field in the turn log.
+- Other faults found (not verified live): hangup goes in the key queue as "h" and can come back
+  as Digit("h") (ear.py:629-633); a stale dtmf event can return the wrong digit (ear.py:674-684);
+  up to 1 s of sound after a clear (FRAME_BYTES=8000, mouth.py:107-110); listening can start on
+  the clock guess before the clip really ends (mouth.py:86-91); hangup paths skip log.close
+  (call.py:367-369, 871-872, 1078-1080).
+- Plan told to the owner (not yet agreed, nothing written into the work order):
+  one gate in the audio layer. Each prompt gets a number; each key/speech is stamped with the
+  prompt number it came at and how much was heard. A prompt takes one answer. A key stamped for a
+  closed prompt is dropped and logged. Key beats speech even when the speech is already at the
+  router. Speech cut-in while a clip plays = step 7.2 (needs marks for "heard so far").
+  Language: no translation anywhere; router prompt names the language and shows hi/mr labels next
+  to the ids; Speech carries the detected language; mismatch is logged only.
+
+## Owner corrected my reading (2026-10-04, night of 3 Oct)
+- Language: I had it backwards. He wants the router and the answer step to work on ENGLISH text,
+  as changed by Sarvam (STT translate mode), not on the Hindi/Marathi transcript.
+  NOT tested yet: saaras:v4 with mode "translate" on our audio; how scheme names and yes/no come
+  out; the Groq fallback (whisper-large-v3-turbo may not translate); my 50 router cases were in
+  native script, so they must be re-run on English text. Devanagari confirm fix (2x) becomes a
+  fallback only.
+- Cut-ins: he wants speech cut-in (line stops, lets the caller finish, then processes), double
+  keys, key-or-speech mix — some 20-30 cases — all thought through in the plan now, even if built
+  on a later branch. Fixed rules wherever possible; AI only where rules cannot decide.
+- He reads short replies only. Keep the plan short.
+- Plan told: one gate (prompt numbers, stamps, one answer per prompt) + a case table that
+  becomes tests. AI is used for two things only: what the English words mean, and writing the answer.
+
+## Ringing the owner from the app as it is (2026-10-04) — refused by Twilio
+- `make call-me` -> HTTP 400 at place_call; the app does not print the reason (twilio.py:201).
+- Reason fetched by a scratch script: Twilio error 21215, "Account not authorized to call" the
+  +91 number: voice geo permission for India is off. Account is active, Trial, balance ~14 USD,
+  the From number is owned, the To number is a verified caller id. Only the owner can tick India
+  at console -> Voice -> Settings -> Geo permissions. I cannot.
+- Server + tunnel left running (NOCALL=1 make call-me, router model by env
+  GROQ_ROUTER_MODEL=qwen/qwen3.8-27b for this run only; no code changed).
+- Owner's final word on the plan: speech in X -> English -> processed -> back to X -> out.
+  Random key: say a "wrong key" line, same prompt. More than two presses: handle. Speech then
+  key: key wins for now. Log every event. Build, try, probe as we go. Antigravity builds,
+  Claude checks and fixes.
+
+## English in / caller's language out — live check (2026-10-04) — drafts in the session scratchpad only
+- Sarvam saaras:v4 mode "translate" on 5 fixture clips (fixtures/audio/speech/p*_hi|mr.wav, clean
+  test voices, NOT phone callers): good English, 0.56-0.94 s, same speed as "transcribe".
+  Numbers come out as words ("six lakh rupees"). language_code in the reply stays hi-IN/mr-IN.
+- English -> hi/mr text, POST https://api.sarvam.ai/translate: `sarvam-translate:v1` 6 of 6 right
+  (0.83-1.26 s). `mayura:v1` 2 of 6 wrong on money ("6,000 ... 2,000" -> Marathi "three thousand
+  two hundred"). Decision: sarvam-translate:v1 + a digits check in code after translating.
+- So a spoken answer costs about 0.9 s more than writing it straight in Hindi. Not yet timed end to end.
+- NOT tested: translate mode on real phone audio, short words like "हाँ" / "किसान", scheme names
+  said badly, Roman-Hindi mix; Door A matching from English text.
+- Work orders: PROMPT-ANTIGRAVITY-7.0b-GATE.md (new, rules G1-G11, no switch, before 7.1);
+  7.1 has new section 2j behind ENGLISH_PIPE (default false).
+- Gate decisions: one answer per prompt; all extra keys dropped until the next prompt sounds
+  (covers 2, 3 or 10 presses); 250 ms guard at prompt start; random key -> "wrong key" line + same
+  prompt, strike count as today; speech then key -> key wins (owner: "for now"); every event,
+  taken or dropped, gets a trace line. Speech cutting a clip stays in 7.2.
+
+## Step 7.0b — Gate investigation & Item 12 findings (2026-10-04)
+- Item 12 (what a caller hears today on an out-of-menu key):
+  - Box menu (call.py:438-459): increments box_strikes, logs UNCLEAR. If strikes < BOX_STRIKES_TO_KEYPAD, calls audio.repeat() (prompt repeats, no wrong-key line). At cap, falls back to UNKNOWN.
+  - Read-back / confirm profile (call.py:736-746): out-of-menu digit breaks confirm loop, increments box_strikes, logs UNCLEAR, plays audio.say(("unclear_prompt",)), and outer loop re-asks the question.
+  - Results menu (_read_back, call.py:1156-1170): digits 5-8 increment replays and replay SECTION_MENU directly (audio.say((SECTION_MENU,))). No wrong-key or unclear line played.
+  - Anything-else (call.py:997-1025): any digit other than 1 is treated as "no/decline" (is_yes = False), immediately breaking to closing_farewell and hanging up.
+- Item 13 (wrong key line):
+  - No dedicated "wrong key" / "not on list" clip exists in FIXED_LINE_IDS or pool.
+  - Reusing closest existing line: unclear_prompt ("Sorry, I did not catch that. Please say it again." / "माफ़ कीजिए, मैं समझ नहीं पाई। कृपया इसे फिर से कहें।" / "माफ करा, मला ते समजले नाही. कृपया ते पुन्हा सांगा.").
+  - Proposed text for future dedicated line:
+    - en: "That key is not on the list. Please choose from the options given."
+    - hi: "वह बटन सूची में नहीं है। कृपया दिए गए विकल्पों में से चुनें।"
+    - mr: "ते बटण यादीत नाही. कृपया दिलेल्या पर्यायांतून निवडा."
+- Invariants & constraints:
+  - call.py and sim.py must not contain Thread, asyncio, Queue, Pool.
+  - call.py import lines must not contain audio, model, pipeline.
+  - FRAME_BYTES: Mouth frames capped at 200 ms (1600 bytes at 8kHz).
+
+## Step 7.0b — Gate Implementation, Verification & Hand-off (2026-10-04)
+- Verification Results:
+  - Baseline pytest: 501 passed.
+  - Final pytest: 514 passed (13 new tests in tests/test_gate_7_0b.py), 0 failed.
+  - make sim: completes cleanly to closing_farewell, handles G6 input.
+  - make stress: 1000 callers on 11 schemes -> crashes 0, truth failures 0.
+  - py_compile: clean on turn.py, ear.py, mouth.py, phone.py, call.py, sim.py.
+- Key findings & fixes:
+  - G2 same-key repeat check (KEY_REPEAT_MS = 300) scoped to keys on the same prompt (prompt_n == _last_key_prompt_n).
+  - G5 guard window (KEY_GUARD_MS = 250) applies to new prompts following earlier prompts (prompt_n > 1). Prompt 1 (turn 0 greeting) has no prior prompt, so early DTMF is not falsely dropped by guard.
+  - Ear dtmf race eliminated: key returned directly from queue.
+  - Mouth.clear returns (cut_clip, heard_ms); results section marked heard only if played to completion (not was_cut).
+  - Trace logs all inputs with took=True/False and reasons (ok, repeat, prompt_closed, guard, not_on_menu, key_beat_speech). Call viewer displays dropped events in grey note.
+  - Invariants preserved: zero Thread/asyncio/Queue/Pool in call.py and sim.py; zero audio/model/pipeline imports in call.py.
+
+
+- 4 Oct: the waiting server + tunnel (NOCALL=1 make call-me) hit its 1-hour limit and was stopped.
+  Not restarted: `make call-me` starts both again when the owner says "call me".
+
+## Claude's review of 7.0b as built by Antigravity (2026-10-04) — read from the diff; tests run by me: 514 pass
+- BLOCKER (not caught by tests, they bypass push_key and Ear): two key queues. Turn._keys (stamped)
+  and Ear._keys (raw). Turn.push_key fills both. A key taken by the gate stays in Ear._keys and the
+  next ear.listen() gives it back again, ungated -> every key answers two prompts on a real spoken
+  call. `ear._turn_gate` was set but never used. Fix: Ear asks the gate (Ear._take_key).
+- A key stamped for an older prompt passed the gate and answered the newer prompt (the very bug
+  7.0b is for). Fix: drop when sk.prompt_n < current prompt_n (why=prompt_closed).
+- push_key cleared the clip for every key, also for keys the gate then drops (guard window) ->
+  prompt cut, key dropped, caller hears nothing. Fix: no clear inside the guard window.
+- G6 at a box question: say(unclear_prompt) then repeat() -> repeat replays unclear_prompt itself
+  (Mouth._last), so "sorry" twice. The loop top says the question again anyway. Fix: drop repeat().
+- Anything-else: `#` did repeat() and then the loop said the line again (twice); wrong keys had no cap.
+- was_cut compared the cut clip name to the scheme token: a cut during the source-frame clip counted
+  the section as heard, and last_cut was never reset. Fix: reset on play(); was_cut = any cut since.
+- Gate passed a monotonic clock value as trace `ts`. Fix: let Trace stamp wall time.
+- Not fixed, told to owner: call.py grew by a 170-line helper (_handle_digit_input) against the
+  "20 lines" rule; each key gets two trace lines (gate + engine); sim.FakeAudio has its own copy of
+  the gate rules, so G-tests on the fake do not prove the real gate; hangup at the greeting closes
+  the log with reason zero_survivors; KEY_GUARD_MS 250 is short for a slow double press (400 ms+).
+- tests/test_phone_call.py sent 13 keys in one burst at call start. It passed with Antigravity's
+  gate only because of the two-queue bug (Ear gave the raw keys back ungated). After the fix the
+  burst is rightly dropped, so the scripted caller now presses one key per prompt (waits for mark,
+  presses, waits for clear, waits for the next mark; KEY_GUARD_MS=0 in that fixture).
+- tests/test_mouth.py::test_a_key_stops_the_line_fast... is timing-tight now: 200 ms frames mean
+  150 messages for a 30 s clip in front of the clear. Failed once at 0.385 s under load, passed 5/5 alone.
+- muse-status before the call: Rs 0 / 30 today, block off.
+
+## Real call after the 7.0b review fixes (2026-10-04, call ..8c487e) — seen in logs/calls + logs/calls/trace
+- Twilio let the call through (India geo permission now on). Router model set by env to qwen for this run.
+- Owner pressed 1 (after the greeting ended) and 4 (during the opener menu), then hung up 21 s into
+  the results. Both keys taken once each. Trace: key 4 cut clip key_5 after 1165 ms. Hangup is its
+  own trace line and the log is closed (stop row written). No Digit("h").
+- NOT tried on the line: fast repeats, random key, key in a gap, speech then key, any spoken turn.
+- Seen, not from 7.0b: category=health alone -> zero survivors -> "nearest" reads naps and pm-kisan
+  (not health schemes). Corpus/planner matter; needs the owner's eye.
+- Gaps still open in 7.0b:
+  - prompt_n goes up when say() queues, not when the clip sounds. The engine queued
+    preamble+2 schemes+anything_else at once, so the hangup 7 s into the naps summary is stamped
+    "anything_else", and a key then would count as the answer to anything_else (unheard).
+  - Terminal reading logs sections ["summary"] for pm-kisan though the caller hung up before it
+    played. G11 "heard" is only done in _read_back, not in the terminal read.
+  - Each taken key has two trace lines (gate + engine).
+
+## Step 7, all of it — plan and dispatch (2026-10-04, owner: "complete the entire step 7, do not wait")
+- Scope taken as: 7.0b gaps + 7.1 (questions as text, English pipe) + 7.2 (answer aloud, voice
+  cut-in) + 7.3 (search, question at read-back, saved answers). Every part behind a switch that
+  is off by default: QA_ENABLED, ENGLISH_PIPE, QA_SPEAK, SPEECH_CUT_IN, QA_SEARCH.
+- Shared pieces done by Claude first (tunables.py switches; types.py Question,
+  Answer.also_question, Speech.lang/english) so three coder agents can build at once with
+  files kept apart: A model side, B engine side, C audio side. 7.3 follows after A and B land.
+- Work order for 7.2/7.3: PROMPT-STEP-7.2-7.3.md (rules S1-S8 for voice cut-in).
+- Earlier `make call-me` server (port 8000) is left to time out by itself.
+
+## Step 7.1 engine side (coder B)
+- call.py: `Engine._try_question` (one helper, returns True only if the answer was said), `Engine._heard_sections` (terminal "summary" heard-gap fix), `qa` dict {"n", "model", "mode", "texts"} per call. Three uses: question loop (after model.turn returns Question, before the strike; turn_n taken back, QUESTION line logged with the old turn_n), anything-else (confirm is None -> model.sort("anything_else", text)), section menu (`_read_back` got optional `qa`; model.sort("section_menu", text), scheme = the open one; same menu said again). BOTH: `also_question` keeps the Speech; tried once after the confirm accepts (box_vector[box] == proposed_val).
+- `asked` strings passed to model.sort are "anything_else" and "section_menu" (my guess: the plan only says `asked: str`). The coder of Model.sort must accept these.
+- model.turn gets `english=True, lang=inp.lang` only when inp.english is True; otherwise the call is exactly as before.
+- Which schemes: Door A name match on the caller's text (en text when english), else survivors <= QA_MAX_SCHEMES that pass Filter.speakable, else False. Any exception inside the helper -> False (a question must never kill a call).
+- Question text in the QUESTION log line has runs of 8+ digits masked.
+- Heard fix: DeliveryRecord sections now drop "summary" when audio has `heard` and `heard("scheme:<id>:summary")` is False at write time. Without `heard` nothing changes.
+- sim.py: FakeAudio.say_text; run_sim/_run_call got `real_model` (live Model instead of SimModelClient). dashboard_api: TypedCaller turns typed words into Speech at confirm/readback only when QA_ENABLED (so QA off stays the same); typed ASCII gets english=True only when ENGLISH_PIPE. TypedCalls._run passes real_model=QA_ENABLED.
+- Item 29 (Door A from English text, CURRENT snapshot, 11 schemes): match OK for "PM Kisan", "Atal Pension Yojana", "Kisan Credit Card", "PM Fasal Bima", "PMFBY", "PMMY", "PMEGP", "PM SVANidhi", "DAY NRLM", "PM Awas Yojana Gramin". NOT matched (-> downgrade_to_b): "Pradhan Mantri Awaas Yojana", "Mudra Yojana", "Agriculture Mechanization" (card says Mechanization; likely a spelling/alias gap). Not a one-line fix; not touched. The other schemes the plan hints at (Ayushman, Sukanya, Jan Dhan, Ujjwala) are not in this snapshot.
+- Tests: tests/test_qa_engine.py (15). Full suite 533 passed; make sim ends at closing_farewell; make stress crashes 0 truth failures 0.
+
+## Step 7.2 audio side (coder C)
+- A1: Mouth.play/repeat take `tag=(prompt_n, name)`; each clip schedule keeps it. `Mouth.sounding()` = tag of
+  the first clip whose mark is still pending. Turn stamps keys (StampedKey.sound_n/sound_name) and the hangup
+  with it for the TRACE only. The gate still judges a key against the newest prompt_n (the one the engine waits
+  on), so `1`/`9` during the results reading still moves the caller on. PhoneAudio.say/repeat pass the tag.
+- A2: `Mouth.clip_heard(name)` (mark came back, or end time passed and no clear before that end; clear() drops
+  only clips whose end was still ahead). `PhoneAudio.heard(token)` = all clips of the last say(token).
+- B: SarvamSTT sends mode=translate only when ENGLISH_PIPE; SttResult.english; Ear gives
+  Speech(lang, english) only when ENGLISH_PIPE is on (off: Speech(text=...) exactly as before). Groq: english False.
+- C: new haqdaar/audio/live_tts.py. FETCHES WHOLE (HTTP /text-to-speech/stream read to the end), not streamed
+  into the Mouth: Mouth computes a clip's length when queued, a growing clip breaks marks, `#` and cut stamps.
+  Answers cached as `<compute_render_key(text, lang)>.ulaw` in the pool's audio dir (written by PhoneAudio,
+  pool.py untouched). Cost: pool.get on a miss with AUDIO_TIER2 != none would try S3 once per new answer.
+  Live check (1 sentence, hi): first byte 0.55 s, end 1.13 s, 35653 bytes = 4.46 s of sound, no RIFF header,
+  starts ff ff ... (mu-law silence): raw mu-law 8 kHz. Time-out is checked between chunks; a read that stalls
+  can run up to the httpx per-read time-out (= QA_TTS_TIMEOUT_S) past it.
+- D: Ear.start_watch/watch_voice (same VAD, same thresholds; voiced time = frames from VAD start that are
+  at or above END_RMS; CUT_IN_MIN_MS of it -> cut). Turn.wait_input runs it in the "wait for the line to
+  finish" loop for spoken/confirm/readback (not turn0, not keypad_only); readback joins the spoken path only
+  when QA_ENABLED. After a cut: mouth.clear(), then ear.listen(resume=True) carries on the same utterance.
+  Trace lines: speech took False short_voice; speech took True cut_in (with cut_clip, heard_ms); speech took
+  False key_beat_speech.
+- NOT TESTED without a phone: voice over real line noise / echo (the tests push clean synthetic frames);
+  whether Twilio really sends only the caller's side while our clip plays; whether the 20-frame run is
+  enough to stop a loud line hiss from cutting a clip; the 250 ms guard measured from queue time of the newest
+  prompt (not from when its first clip sounds).
+- tests/test_mouth.py::test_a_key_stops_the_line_fast... failed once in a full run (0.2 s limit, known tight
+  test), passes alone and on re-run.
+
+## Step 7.1 model side (coder A)
+- Files: model/{router,client,confirm,answer,translate}.py, model/prompts/{kinds,turn,opener}.py, contracts/vocab.py (find_verdict), data/scheme_text.py, tools/{qa_check,model_bakeoff}.py, Makefile (qa-check, qa-router-check), tests/test_qa_model.py, tests/test_scheme_text.py.
+- Client: `call(messages, task, timeout=None, model=None)`; default model now openai/gpt-oss-120b; for openai/gpt-oss* sends reasoning_effort "low" (without it the model thinks for seconds).
+- Groq free tier is token-per-minute limited (about 8k): 30 opener calls or 15 answer calls with 3 cards back to back give 429. qa_check pauses 6 s; router check retries 429.
+- Router check live (50 cases, Model.sort): qwen 49 right, mid 0.34 s, slow 1.40 s; gpt-oss-120b 46, 0.72/1.88; gpt-oss-20b 43, 0.67/2.63. Same misses as Claude's test.
+- Old opener bake-off (30 utterances, today's prompt, paced and retried): qwen 22/30 perfect, 63/69 stamps; gpt-oss-120b 21/30, 61/69. Un-paced it is wrecked by 429 and keypad_only after 2 failures.
+- Answer check live, hi (no pipe): 5/15 answered, 10 blocked (9 model_null, 1 too_long). With ENGLISH_PIPE: 7/15 answered, 8 blocked (7 null, 1 too_long). Middle 0.7-0.9 s, slowest 1.1-1.8 s.
+- Surprise: the Hindi card holds the English gate_notes, so a Hindi answer can carry English words ("cultivable land holding"). Pipe mode avoids it.
+- Surprise: "land in father's name" first got "land must be in YOUR name" (card says family); prompt now says use the text's words, not you/your.
+- Match_confirm: Devanagari vowel signs are not \w, so the old regex cut "हाँ" apart; cleaning now drops only punctuation/symbol categories. "हो" and "ना" count only as the whole reply (Hindi common words).
+- Door A English (item 29): PM Kisan, PM Kisan Samman Nidhi, Kisan Credit Card, PM SVANidhi match at 1.0. Atal Pension Yojana, PMAY Gramin full name, PMFBY full name give the right scheme only by fuzzy score (about 0.22, no alias). "Mudra", "Mudra loan" do not match (no alias in pmmy).
+
+## Claude's review of the step 7 wave 1 hand-backs (2026-10-04) — reports read; audio cut-in/say_text code read; tests run by me: 623 pass
+- Model side live check "5 of 15 answered" reads worse than it is: 7 of the 15 cases SHOULD be
+  null (promise, own payment, scheme not in text, gold, "ignore rules", "why my age", KCC
+  interest not in text). Of the 8 answerable ones: Hindi path 5, English-pipe path 7.
+- Two real faults: (a) answers of 3+ sentences were thrown away (too_long). Now
+  answer.shorten() keeps the first two sentences, then the checks run. (b) the pipe run said
+  tenant farmers "do not meet this condition" — beyond the text. Prompt line added ("no
+  conclusion of your own about a kind of person"). No code check can catch this; owner reads
+  questions.jsonl (it has raw_answer).
+- The Hindi card carries English gate_notes ("cultivable land holding" inside a Hindi answer).
+  The English-pipe path does not have this. So for the phone test: ENGLISH_PIPE=true.
+- Groq 429 (tokens per minute) is real when calls come back to back. Given to coder D as E8.
+- Questions at the opener were not handled (model.opener path) -> coder D, E6. Mudra/Awaas
+  aliases -> E7.
+- While an answer is being written and spoken the caller hears silence (about 1-4 s). No
+  "one moment" clip exists; not rendered without the owner.
+- After the two fixes, `QA_ENABLED=true ENGLISH_PIPE=true make qa-check` (live, run by me):
+  8 answered, 7 null — all 8 answerable cases answered, all 7 must-be-null cases null.
+  Middle 0.81 s, slowest 1.64 s (answer + translate). Rented-land answer now states only the rule.
+- Rules: source-docs/DECISION-LOG.md section 7 (S7-D1..D7), status 'built, not yet ratified'; synced to the brain. sync_vault.py also flipped the 'created' date in docs/review.md and docs/today.md (a script quirk); I reverted those two files.
+
+## Step 7.3 (coder D)
+- E1 search: `haqdaar/data/scheme_search.py` `find_schemes(question, {id: card}, k)`; content words (len>=3, small stop list, field labels dropped), >=2 shared words, best first. Used in `Engine._try_question` only when no scheme is named, survivors > QA_MAX_SCHEMES and QA_SEARCH is on. The pool is the SPEAKABLE survivors, so at the opener (no gate fact known) nothing is speakable and search finds nothing; only a Door A named scheme gets an answer there. Left as the plan says.
+- E2: Door A "read" still wins first (unchanged order in `_try_question`).
+- E3: confirm read-back, `is_confirmed is None` branch: `_try_question(asked="confirm")`; True -> say the same `confirm_seq` again and `continue` (no turn, no strike, no confirm_repeats). Bounded by QA_MAX_PER_CALL.
+- E4: `haqdaar/data/answer_store.py`, file `<REPORTS_DIR>/saved_answers.jsonl`, key = snapshot_id|lang|sorted ids|question lower, punctuation stripped. Hook is in `Model.answer` (router.py): needs `self.corpus.snapshot_id` (a str; the real corpus holds the resolved id, not "CURRENT") and scheme_ids, else nothing is saved. Hit -> returns the saved text, no client call, one questions.jsonl line with `saved: true`. Saved only when `blocked is None` (after translate checks). Cache loaded once per process.
+- E6: opener, Door A downgrade branch: if QA_ENABLED, no model_ids, no seeds, and `model.sort("opener", transcript)` is QUESTION/BOTH, `is_question = True`; the existing question hook then calls `_try_question`, takes the turn back and asks the opener again. Door A read/pick paths untouched.
+- E7: aliases come from the snapshot (`aliases_en`), built by the pipeline. Fixed without a rebuild: `_EXTRA_ALIASES` in `haqdaar/engine/door_a.py` (keyed by slug), added in `DoorA._load_from_corpus`. Real snapshot now gives action=read, exact alias, for Mudra / Mudra loan / Mudra Yojana (pmmy), Pradhan Mantri Awaas Yojana and Awas Yojana Gramin (pmay-g), Agriculture Mechanization (smam), Atal Pension Yojana (apy), Pradhan Mantri Fasal Bima Yojana (pmfby). Fuzzy threshold untouched. Note: `Corpus.alias_lookup` (used by `Model.opener` fast path) does not see these extras; only DoorA does. When the snapshot is next rebuilt the pipeline should carry them; the table is harmless then (duplicates skipped).
+- E8: live `GroqModelClient.call` has NO retry and NO sleep; `GROQ_MAX_RETRIES` / `GROQ_429_*` / `GROQ_RETRY_SLEEP_S` are read only in `haqdaar/data/pipeline/p2_derive.py` (offline). A 429 gives `ModelClientResponse(is_429=True)` at once. `Model.sort` -> "OTHER", no failure count. `Model.answer` -> tries the backup model once within QA_TIMEOUT_S (no sleep), then None / "model_error"; no failure count. Nothing to fix; test added (tests/test_qa_search.py). Not asked but seen: `Model.turn` and `Model.opener` DO count a 429 as a failure (2 -> keypad-only); the 7.1 qa_check note says un-paced opener calls get wrecked by 429. Left alone.
+- Tests: tests/test_qa_search.py (new), tests/test_answer_store.py (new), 7 added in tests/test_qa_engine.py. Full suite 651 passed.
+
+## Step 7 whole: Claude's review of 7.3 + a full typed call with the real models (2026-10-04) — run by me
+- Final: 653 tests pass; make sim ends at closing_farewell; make stress crashes 0, truth failures 0.
+- A full typed call (real Groq router qwen + answer model + Sarvam translate, FakeAudio; script in
+  the session scratchpad) found what the unit tests could not:
+  1. SEAM BUG: the engine passed the scheme texts as a list, Model.answer took a string, so every
+     answer came back "model_null" in 0.0 s. Each side's own tests passed. Fixed in Model.answer
+     (joins a list).
+  2. A question naming a scheme at the opener ("how much money comes in PM Kisan") was read out
+     by Door A, not answered. Now: named scheme + more words + router says QUESTION -> answered
+     from that scheme, opener asked again. A bare name still goes to Door A.
+  3. At the results menu the question was forced onto the open scheme only, so "papers for
+     kisan credit card" asked while PM-Kisan's menu was open got no answer. Now a named scheme
+     wins everywhere, and the menu passes the open scheme first plus the other results read
+     (up to QA_MAX_SCHEMES); the prompt says "this" = the first scheme.
+- After the fixes, one typed call: 4 questions (opener, results menu x2, anything-else), all 4
+  answered in Hindi, 1.19-1.29 s each (answer + translate), numbers intact.
+- NOT proven (needs the owner's phone): QA_SPEAK sound on a real line, SPEECH_CUT_IN against
+  line noise/echo, Sarvam "translate" speech mode on phone audio, short words like "हाँ".
+- Known weak spots, left as they are:
+  - "I am a farmer" at the opener -> the real router stamps occupation=farmer, not a category,
+    and the engine says "unclear". Old behaviour, not step 7. "I need help with farming" works.
+  - An unanswered spoken question at the results menu moves on to the next scheme (old rule:
+    any non-key moves on).
+  - Two Groq 429s in a row on Model.turn/opener still push the call to keypad-only (old rule).
+    Each spoken turn is now 1-3 Groq calls, so the free tier's per-minute limit is nearer.
+  - Silence while an answer is written and spoken (about 1.2 s text + about 1.1 s speech). No
+    "one moment" clip exists.
+  - Search at the opener finds nothing: no scheme is "speakable" before any fact is known.
+  - Corpus.alias_lookup (the model's fast path) does not see the new extra aliases; Door A does.
+- Phone test command (all switches on, this run only):
+  QA_ENABLED=true ENGLISH_PIPE=true QA_SPEAK=true SPEECH_CUT_IN=true QA_SEARCH=true GROQ_ROUTER_MODEL=qwen/qwen3.8-27b make call-me
+
+## Greeting fix + Marathi paused (2026-10-04, after the owner's phone test) — done by Claude
+- Owner's complaint: greeting said Hindi, then Marathi, then the English part read all three
+  choices again. Cause: lines.yaml greeting `en` text listed all three.
+- Now: tunables.LANGS_OFFERED (default "hi,en"; env LANGS_OFFERED=hi,mr,en brings Marathi back).
+  Greeting = Hindi part ("नमस्ते। यह हकदार है। हिंदी के लिए 1 दबाएँ।") + English part
+  ("For English, press 2."). Keys from tunables.turn0_keys(): 1 Hindi, 2 English. `*` cycles
+  only offered languages. Marathi lines/clips are kept. Tests keep all three (conftest fixture).
+- MY MISTAKE: `make render YES=1` drops the `--snapshot snapshots/CURRENT` limit (Makefile:118:
+  the limit is only added when YES is not set). It started rendering every text for every
+  derived scheme. Killed after about 3 min: 143 clips, 18,955 chars sent to Sarvam TTS
+  (sarvam_tts_usage.jsonl). Not Muse. The clips are content-keyed, so they are kept and will be
+  used when those schemes go into a snapshot. Correct command: make render YES=1 SNAP=snapshots/CURRENT
+- New snapshot snap_20261003_205858 (same 11 schemes, built by a scratch script that filters to the old snapshot's ids, so the extra rendered schemes did NOT come in). CURRENT flipped. Roll back: write snap_20261001_212944 into snapshots/CURRENT.
+
+## Barge-in at any part: the sweep test + what is and is not covered (2026-10-04) — run by me
+- tests/test_barge_sweep.py: two whole calls (keys; spoken) x every position x 24 kinds of input
+  (valid/wrong key, 5 fast keys, 1-2-3 fast, #, *, 0, 9, silence x1/x3, noise, hangup, spoken
+  answer, question, question with no answer, 6 questions, "not this, tell me about X",
+  "say it again", junk words, voice cut mid-clip, speech then key, speech then hangup, yes, no)
+  x QA off/on = 1200 runs, fixed (no clock, no chance), 65 s. Rules checked on each: the call
+  ends by itself, the log is closed once, questions <= cap and each has an answer, turn numbers
+  never go back or pass the cap, no box answered twice in a pass. All pass. Plus one test that
+  two runs of the same case give the same log.
+- Final: 1859 tests pass; make sim ok; make stress N=3000 SEED=7 crashes 0, truth failures 0.
+- The sweep is at the engine. It does NOT prove timing on a real line (echo, noise, how fast
+  the clip stops). Only a phone call can.
+- Where a voice can cut in today (SPEECH_CUT_IN on): any clip the engine is waiting behind on
+  profiles spoken / confirm / readback — that covers the consent line, every question, the
+  yes/no read-back, a spoken answer, the results reading and its menu (readback, only with
+  QA_ENABLED), and "anything else". NOT: the greeting (keys only), keypad-only mode, and the
+  1-2 s while the router/answer/speech is being made (words are dropped there; a key is kept).
+- "I do not want this, tell me about X": router says QUESTION -> the named scheme wins ->
+  answered from X's text, same menu again. If the router says OTHER ("skip this") the old rule
+  applies: any non-key moves to the next scheme.
+
+## Owner's answers + system re-check (2026-10-04, later) — run by me
+- Owner: greeting stays keys-only (agreed). Busy gap (words spoken in the 1-2 s while an answer
+  is made): he is still thinking. Left as it is: words dropped, a key is kept. Do not build it
+  until he says.
+- Re-check: py_compile ok (audio, engine, model, data, server, sim, sync_vault); vault in sync
+  (66/66); CURRENT = snap_20261003_205858; Muse today Rs 0 / 30, all time Rs 12.97 / 60, open;
+  make sim ends at closing_farewell; make stress (1000, seed 1) crashes 0, truth failures 0.
+- pytest (full, run by me): 1859 passed in 102 s. PROJECT-UPDATE.md entry added.
+
+## Phone test 2 with all step 7 switches on (2026-10-04, call ..637351, 92 s) — log read by me
+- Real-call logs are in logs/calls/<CallSid>.jsonl and logs/calls/trace/<CallSid>.jsonl (NOT logs/trace/, that is sims).
+- First ring (..413ba8, 13 s) never reached /answer; cause not found. Second ring (`make call` on the running server) worked.
+- What happened: greeting 7.4 s, key 1 at 10 s. Opening (consent 8.3 + opener 6.5 + 9 x (chip + key_N) + suffix 4.6) is about 54 s; owner pressed 1 at 27 s.
+- Results: Terminals queues ALL schemes + menus in ONE say (about 200 s of sound, one prompt_n). _read_back's `ix` is not tied to what is sounding.
+- t=67.4 voice cut during pm-kisan's section_menu, words "What all is available in this scheme?" (English pipe). No questions.jsonl line -> model.sort did not say QUESTION (sort gives "OTHER" on ANY failure, silently; same words 20 s later were sorted right, so most likely a 429/time-out; NOT proven, nothing is logged).
+- BUG 1 (the "freeze"): cut-in does mouth.clear() -> the whole pre-queued results list is gone. Not-a-question -> `ix += 1; continue` says nothing. So 20 s of dead air: "Okay." (ix 2), silence (ix 3), then the question again.
+- BUG 2 (wrong scheme): by then ix=3, so the answer was written from SMAM first, though the caller had only heard PM-Kisan. Answer came 1.4 s after STT, after the hang-up.
+- BUG 3: a failed sort leaves no trace line.
+- No filler line exists (known). Owner now asks for one ("looking into it" line or music).
+- Owner (after the call): fix the first script; barge-in at any time (so: greeting and busy gap too — this replaces his earlier "greeting keys-only is fine"); fix speed and pauses; "think about it and let me know" = he wants a plan first, NOT a build.
+- Facts for the plan: TTS_PACE 0.9 (render.py:165, live_tts.py:65; pace is part of the render key, so a change = re-render of every clip); TAIL_PAD_MS 120; CUT_IN_MIN_MS 400; SILENCE_GAP_S 6; QA_TIMEOUT_S 4; key_N clips are 1.6-2.0 s each.
+- Server from the test stopped (pkill tools.run_demo). The old cloudflared (pid 63229) was there before; left alone.
+- Owner (4 Oct, after the plan): build it so that after EVERY step we check it and fix its problems. Plan cut into 9 small steps in TASK.md; nothing starts until he says "start step N".
+
+## Consent line off + the owner's steer on what the product is (2026-10-04) — done by me
+- Owner: "remove the consent line, it is useless for now". Done as a switch: tunables.CONSENT_LINE
+  (off by default; CONSENT_LINE=true plays it). call.py step 2 says it only when on. Line + clips kept.
+  Calls are still recorded in logs as before; only the spoken notice is gone. DECISION-LOG S7-D8.
+- Checks (run by me): 1859 tests pass; make sim has no consent line and ends at closing_farewell;
+  make stress crashes 0, truth failures 0.
+- Owner's steer: the product is "a person you can talk to, to know about schemes; keys work as
+  well". Simple. So the talk path is the main path and keys are the second way in. Plan re-ordered
+  in TASK.md: the opening becomes one short "what do you want to know? or press 0 for the list".

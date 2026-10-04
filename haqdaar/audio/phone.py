@@ -18,13 +18,17 @@ call is worse. Corpus.load has already refused any snapshot with a missing clip.
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
+from haqdaar.audio import live_tts
 from haqdaar.audio.lines import MENU_KEYS
 from haqdaar.audio.mouth import Clip, Mouth
 from haqdaar.audio.turn import HANGUP, Turn
 from haqdaar.contracts import tunables
-from haqdaar.contracts.types import SCHEME_CHUNKS, Digit, Hangup, Input, Lang, LangSource, Noise, Silence, Speech
+from haqdaar.contracts.types import (
+    SCHEME_CHUNKS, Digit, Hangup, Input, Lang, LangSource, Noise, Silence, Speech, compute_render_key,
+)
 
 # Which box a question token asks about, so its menu can follow it.
 MENU_BOX: dict[str, str] = {
@@ -49,6 +53,8 @@ class PhoneAudio:
         turn: Turn,
         close: Callable[[], None],
         log: Callable[[str], None] = lambda line: None,
+        trace: Optional[Any] = None,
+        speak: Optional[Callable[[str, str], Optional[bytes]]] = None,
     ) -> None:
         self.corpus = corpus
         self.pool = pool
@@ -56,15 +62,24 @@ class PhoneAudio:
         self.turn = turn
         self._close = close
         self._log = log
+        self.trace = trace
+        if trace is None and hasattr(log, "input_event"):
+            self.trace = log
+        if hasattr(self.turn, "trace") and getattr(self.turn, "trace", None) is None:
+            self.turn.trace = self.trace
+        if hasattr(self.turn, "_log"):
+            self.turn._log = self._log
+        self._speak = speak   # text, lang -> mu-law bytes or None; live Sarvam when not given
         self.language: Lang = "hi"
         self._silence = 0
+        self._token_clips: dict[str, list[str]] = {}   # token -> names of the clips it played
 
     # --- what the engine calls -----------------------------------------------------
     def select_language(self) -> tuple[Lang, LangSource]:
         self.say(("greeting_trilingual",))
         key = self.turn.wait(tunables.TURN0_GAP_S)
-        if key in TURN0_KEYS:
-            self.language = TURN0_KEYS[key]
+        if key in tunables.turn0_keys():
+            self.language = tunables.turn0_keys()[key]
             self._log(f"<- key {key}: language {self.language}")
             return self.language, "keypad"
         self.language = "hi"
@@ -72,23 +87,70 @@ class PhoneAudio:
         return self.language, "default"
 
     def say(self, sequence: tuple[str, ...]) -> None:
-        if self.turn.has_key() and not ALWAYS_SAY.intersection(sequence):
-            # The caller has already answered (barge-in): do not talk over the next step.
-            self._log(f"   skip {' '.join(sequence)} (a key is waiting)")
-            return
         clips: list[Clip] = []
         for token in sequence:
-            clips.extend(self._clips(token))
+            made = self._clips(token)
+            self._token_clips[token] = [name for name, _ in made]
+            clips.extend(made)
         if clips:
-            self.mouth.play(clips)
+            self._play(clips, sequence[0] if sequence else "")
+
+    def say_text(self, text: str) -> bool:
+        """Say a sentence made during the call (QA_SPEAK). False: nothing was said."""
+        if not tunables.QA_SPEAK or self.turn.hung_up.is_set():
+            return False
+        lang = self.language
+        text = live_tts.clean(text, lang)
+        if not text:
+            return False
+        t0 = time.monotonic()
+        key = compute_render_key(text, lang)
+        audio = self._saved_answer(key)
+        cached = audio is not None
+        if audio is None:
+            audio = (self._speak or live_tts.speak)(text, lang)
+        self._log(
+            f"-> live say answer ({len(text)} chars, {time.monotonic() - t0:.1f} s, "
+            f"{'cached' if cached else 'rendered' if audio else 'failed'})"
+        )
+        if not audio:
+            return False
+        if not cached:
+            self._save_answer(key, audio)
+        self._token_clips["answer"] = ["answer"]
+        self._play([("answer", bytes(audio))], "answer")
+        return True
+
+    def heard(self, token: str) -> bool:
+        """Did every clip of the last say() of `token` play to its end?"""
+        names = self._token_clips.get(token, [token])
+        return bool(names) and all(self.mouth.clip_heard(n) for n in names)
 
     def repeat(self) -> None:
-        self.mouth.repeat()
+        n = self.turn.start_prompt("repeat") if hasattr(self.turn, "start_prompt") else None
+        if n:
+            self.mouth.repeat(tag=(n, "repeat"))
+        else:
+            self.mouth.repeat()
 
     def clear(self) -> None:
         self.mouth.clear()
 
+    def pending_key(self) -> Optional[Digit]:
+        """Check for a pending key stamped for the open prompt (G7)."""
+        if hasattr(self.turn, "get_pending_key"):
+            return self.turn.get_pending_key()
+        return None
+
+    def was_cut(self, token: str) -> bool:
+        """Was the last thing said cut by a key before it ended (G11)? Any cut since the last
+        say() means `token` was not heard to the end."""
+        cut_clip, _ = getattr(self.mouth, "last_cut", ("", -1))
+        return cut_clip != ""
+
     def on_mark(self, mark: str) -> float:
+        if hasattr(self.mouth, "on_mark"):
+            self.mouth.on_mark(mark)
         return time.time()
 
     @property
@@ -150,6 +212,32 @@ class PhoneAudio:
                 self.pool.prefetch(keys)
         except Exception as e:
             self._log(f"!! prefetch failed: {e!r}")
+
+    def _play(self, clips: list[Clip], prompt_name: str) -> None:
+        """One prompt: the Turn counts it, the Mouth plays it tagged so a key is stamped with
+        the prompt that is sounding, not the newest one queued."""
+        n = self.turn.start_prompt(prompt_name) if hasattr(self.turn, "start_prompt") else None
+        if n:
+            self.mouth.play(clips, tag=(n, prompt_name))
+        else:
+            self.mouth.play(clips)
+
+    def _saved_answer(self, key: str) -> Optional[bytes]:
+        """A live answer said before: same text, language and voice, same sound. Free."""
+        try:
+            return bytes(self.pool.get(key))
+        except Exception:
+            return None
+
+    def _save_answer(self, key: str, audio: bytes) -> None:
+        """Keep it in the pool's folder under its render key. A failed save only costs a re-render."""
+        try:
+            path = Path(self.pool.audio_dir) / f"{key}.ulaw"
+            tmp = path.with_suffix(".tmp")
+            tmp.write_bytes(audio)
+            tmp.replace(path)
+        except Exception as e:
+            self._log(f"!! answer not saved: {e!r}")
 
     # --- tokens -> clips -----------------------------------------------------------
     def _clips(self, token: str) -> list[Clip]:

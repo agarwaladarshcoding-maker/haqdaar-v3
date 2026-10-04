@@ -133,6 +133,18 @@ def build_call(rows: list[dict[str, Any]], lookup: Lookup = lambda token, lang: 
         t = float(row.get("t") or 0.0)
         info["duration_s"] = max(info["duration_s"], t)
 
+        if row.get("took") is False:
+            ev = row.get("event", "input")
+            val = row.get("value", "")
+            why = row.get("why", "")
+            detail = f"dropped {ev}"
+            if val:
+                detail += f": {val}"
+            if why:
+                detail += f" ({why})"
+            note(t, detail)
+            continue
+
         rec = row.get("log")
         if isinstance(rec, dict):
             if "class" in rec:

@@ -281,8 +281,8 @@ async def stream_endpoint(websocket: WebSocket) -> None:
 
                 mouth = Mouth(outbox.emit, event.stream_sid, log=note)
                 ear = Ear(log=note)
-                turn = Turn(mouth, ear=ear)
-                audio = PhoneAudio(corpus, pool, mouth, turn, close=hang_up, log=note)
+                turn = Turn(mouth, ear=ear, trace=trace, log=note)
+                audio = PhoneAudio(corpus, pool, mouth, turn, close=hang_up, log=note, trace=trace)
                 number_hash = _CALLER_HASH.pop(call_id, "")
                 _CALLER_HASH_TS.pop(call_id, None)
                 say(f"start   call ..{call_id[-6:]}")

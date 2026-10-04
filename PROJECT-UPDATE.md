@@ -961,3 +961,140 @@ were never translated. That, not the gates, is what to fix next.
 **Project can now:** refuse to speak any scheme text that has a wrong number, a false promise,
 padding, the wrong script, or a missing section — per language, so a bad Hindi does not silence
 a good Marathi.
+
+## 3 Oct 2026 — plan for questions the recorded clips cannot answer (nothing built yet)
+
+**The problem.** A caller can ask "can I apply if the land is in my father's name?". Today the
+app has no answer for that. It only plays clips made ahead of time.
+
+**The plan, in four rungs, cheapest first.** (0) A word check, in a few milliseconds, to see if
+the caller asked a question. (1) If the question is about papers, how to apply, money, or who can
+apply, play the clip we already have for that scheme. (2) If not, the model picks the closest one
+from a list of ready-made questions and answers for that scheme. (3) Only if nothing fits, write
+and speak a new answer live, from the scheme's own text, and save it for next time.
+
+**Rungs 0 to 2 break no rule.** Rung 3 breaks the "never make up a sentence live" rule, so it
+sits behind a switch that is off until the owner says yes.
+
+**Waiting on the owner:** OK on the plan, OK to change that rule for rung 3, and a working Groq key.
+
+**Later the same night — plan changed after the owner's steer (still nothing built).**
+The owner wants live answers that sound like a person, and fast. New plan: when the caller is
+down to a few schemes, load all the text of those schemes into memory, so there is nothing to
+search. A small fast model writes a short spoken answer in the caller's language. The first
+sentence is spoken while the second is still being written, with a short human "one second" clip
+first. First step is to measure the speed, before building anything.
+
+**Same night — first numbers (new branch `step-7.0-live-answers`, app not changed).**
+The new Groq key works. The old model name is gone from Groq; that was the 404. The big model
+writes a short answer in about 1 second. Sarvam takes 2 to 3 seconds to speak one sentence, so
+speech is the slow part. One test answer was wrong: the card says land in the family's name, and
+the model told the caller "you cannot apply". So the model will be made to say the rule only,
+never yes or no about the caller, and code will block such lines.
+
+**Same night — the plan was stress-tested and the first work order is written.**
+I ran 41 hard cases against the real model. Three things changed in the plan. One: the system
+does not ask a model "is this a question?" any more, because that got 5 of 26 wrong; it tries
+the normal answer first and only then treats the words as a question. Two: the model must say
+the rule, never "you can" or "you cannot". Three: questions about the caller's own money or
+application get no made-up reply. Sarvam's streaming speech works with our voice and starts in
+0.3 seconds, so live speech can be fast. The work order for step 7.1 (answers as text only,
+behind a switch that is off) is `PROMPT-ANTIGRAVITY-7.1-QUESTIONS-TEXT.md`. Nothing is built yet.
+
+**NVIDIA as a backup for Groq — tested, not fast enough for a live call.** The owner gave an
+NVIDIA key. I timed 12 of its free models. Only one answered, and it took 3.5 to 21 seconds. A
+caller cannot wait that long. So on a live call the backup is a second Groq model, and after
+that the recorded line. The NVIDIA key is kept for work done ahead of time, not on calls.
+
+**The owner's idea tested: one small, well-prompted router decides what is a question.** It
+works. On 50 hard inputs the small model (qwen) got 49 right in about half a second each. The
+bigger model got 46 and was slower. So the keyword check is dropped and the work order for 7.1
+now has the router decide, with fences in code around it. I also ran today's system three
+times: it reads schemes well by keypad, but it answers no question.
+
+**Keys, words and questions — the rules are now written down.** A key always beats speech. A key
+means what the menu at that moment says. A spoken answer is read back; a key answer is taken at
+once. A question never moves the call: it is answered and the same prompt comes again. I also
+found a bug in today's app: a spoken "हाँ" or "नहीं" in Hindi script is not understood at the
+yes/no turn, only Roman "haan". The fix is in the 7.1 work order.
+
+**Two new asks from the owner: the caller's own words, and cutting in.** I checked the code for
+both. Language: the line already writes down what the caller says in their own language; it does
+not translate. But the router is not told which language it is reading, and it sees our answer
+list only as English ids. Cutting in: a key pressed in a gap is kept and used for the next
+prompt, even if the caller never heard that prompt. Speech during a clip is thrown away. The
+line also does not know how much of a clip was heard. I gave the owner a plan: one gate that
+stamps every key and every spoken turn with the prompt it belongs to. Nothing is changed yet;
+the plan waits for his yes.
+
+**The owner set me right on language.** He wants Sarvam to turn the caller's words into English,
+and the router and the answer step to work on that English. I had read it the other way. This
+is not tested yet. He also wants every way a caller can cut in (speaking over the line, double
+key presses, a key and words together) planned now, with fixed rules first and AI only where
+rules cannot decide. I gave him the short plan. Nothing is changed in the app.
+
+**Tried to ring the owner; the phone company said no.** Twilio refused the call because calls to
+India are not switched on in the account (one tick box in the Twilio console; only the owner can
+do it). The server is ready and waiting. **Two work orders are ready for Antigravity.** First
+`PROMPT-ANTIGRAVITY-7.0b-GATE.md`: fixed rules for double presses, random keys, a key in a gap,
+and a key after speech, with every event logged. Then the 7.1 work order, which now says: the
+caller's speech is turned into English, worked on in English, and the answer is turned back into
+the caller's language. I tested that on 5 saved clips: Sarvam's English is good and just as
+fast. One of Sarvam's two translators got money amounts wrong, so the work order uses the other
+one and has code check the numbers.
+
+**Step 7.0b (the key rules) is checked, fixed, and tried on a real call.** Antigravity built it
+and its tests passed, but I found faults the tests did not see. The worst: on a real line every
+key press would have been used twice, once for its own question and once for the next. Also a
+key pressed too early could cut off the next question and then be thrown away, leaving silence.
+I fixed these and added tests that go through the real key path. All 518 tests pass. Then I
+rang the owner: two keys pressed, each counted once, the hang-up was logged cleanly. He hung up
+before trying the hard cases (fast presses, wrong key, speaking then pressing), so those are
+proven only in tests, not yet on the phone. Three smaller gaps are written in the notes.
+Nothing is committed.
+
+**All of step 7 is built: a caller can now ask a question and get a spoken answer.** It is all
+behind five switches that are off, so the app behaves as before until they are turned on.
+What is new: a caller's question ("how much money comes in PM Kisan?") is spotted, answered
+in one or two short sentences from the scheme's own text, and the call goes back to where it
+was. The words go to English first, the answer is written in English, checked by code (no
+yes/no about the caller, no number that is not in the text), and turned back into Hindi or
+Marathi. On a real call the answer is spoken in the same voice as the recorded lines. The
+caller's voice can also stop a line that is playing. I ran a full typed call with the real
+models: four questions at four different points, all answered in Hindi in about 1.2 seconds
+each. 653 tests pass. **Not yet tried on a real phone**: the spoken answer and the voice
+cut-in. That is the next thing to do, with the owner on the line. Nothing is committed.
+
+**The greeting is fixed and Marathi is paused.** The owner heard the greeting say everything
+three times. The English part was reading all three choices again. Now it says hello once in
+Hindi with "press 1 for Hindi", then in English "For English, press 2", and stops: 7 seconds,
+down from 19. Marathi is kept in the system but not offered, and the star key no longer
+switches to it; one setting brings it back. **A mistake of mine:** the command that records
+new clips ran wider than I meant and recorded about 142 clips for schemes that are not in use
+yet, before I stopped it (about 19,000 characters of Sarvam speech; not Muse). The clips are
+kept and will be used when those schemes go live. **A new fixed test for cutting in:** 24
+kinds of caller action, put in at every point of two whole calls, 1,200 runs, the same every
+time. All pass. 1,859 tests pass in total. What it cannot prove is timing on a real line.
+
+**The owner's two answers, and one more check of the whole system (4 Oct, later).** The greeting
+stays keys-only; the owner agreed. Keeping words spoken in the 1 to 2 seconds while an answer is
+being made: the owner is still thinking, so it stays as it is (words dropped, a key is kept).
+Nothing new was built. Checked again: all 1,859 tests pass, one test call in the terminal ends
+the right way, 1,000 random callers give 0 crashes and 0 wrong answers, the code compiles, the
+brain is in sync, Muse spend today is ₹0. Still nothing is committed, and the new parts have
+still not been heard on a phone.
+
+**Second phone test with the new parts on (4 Oct).** The owner asked a question while the
+results were being read. The line stopped, and then nothing was said for about 20 seconds.
+Cause found in the log: when a voice stops the reading, every clip waiting to play is thrown
+away; the question was not understood the first time (most likely the model service was busy),
+so the call moved on in silence. A second fault: the call lost track of which scheme the caller
+was hearing, so the answer it did write was about the wrong scheme. The owner also asked for a
+"one moment" line, a shorter first script, voice cut-in at any time, and better speed and
+pauses. Nothing is built yet; a plan is with the owner.
+
+**The consent line is off (4 Oct).** The owner said it is not needed for now. The call no longer
+says "this call is recorded" after the language pick; that saves about 8 seconds. The line and
+its clips are kept, and one setting plays it again. Calls are still logged as before. The owner
+also set the aim in one line: a person you can talk to about schemes, with keys working as
+well. The plan is now ordered around that. All 1,859 tests pass; nothing is committed.

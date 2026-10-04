@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Sequence
 
+from haqdaar.model.prompts.kinds import KIND_RULES, TURN_REPLY, english_note
+
 
 def build_turn_prompt(
     transcript: str,
@@ -15,13 +17,37 @@ def build_turn_prompt(
     values: Sequence[str],
     window: Sequence[str] | None = None,
     ask_count: int = 0,
+    qa: bool = False,
+    english: bool = False,
+    lang: str = "",
 ) -> str:
-    """Build user prompt for question turn classification and extraction."""
+    """Build user prompt for question turn classification and extraction.
+
+    With qa False and english False the text is the same as it always was. `qa` swaps the five
+    classes for the kinds of step 7.1; `english` adds the translation note.
+    """
     window_lines = "\n".join(f"- {w}" for w in (window or []))
     if not window_lines:
         window_lines = "(none)"
 
     val_str = ", ".join(values)
+    note = english_note(lang) if english else ""
+
+    if qa:
+        return f"""The caller was asked about box: "{box}".
+Valid closed-set choices for this box: [{val_str}].
+Question rephrase count: {ask_count}.
+Recent conversation history (last 2 turns):
+{window_lines}
+
+{note}Caller utterance:
+\"\"\"{transcript}\"\"\"
+
+{KIND_RULES.format(asked=f"a question about {box}")}
+
+{TURN_REPLY}
+
+JSON Output:"""
 
     return f"""The caller was asked about box: "{box}".
 Valid closed-set choices for this box: [{val_str}].
@@ -29,7 +55,7 @@ Question rephrase count: {ask_count}.
 Recent conversation history (last 2 turns):
 {window_lines}
 
-Caller utterance:
+{note}Caller utterance:
 \"\"\"{transcript}\"\"\"
 
 Classify the utterance into exactly one of these five classes:

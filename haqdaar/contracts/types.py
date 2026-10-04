@@ -109,12 +109,20 @@ FIXED_LINE_IDS: tuple[str, ...] = (
 @dataclass(frozen=True)
 class Digit:
     digit: str
+    prompt_n: int = -1
+    cut_clip: str = ""
+    heard_ms: int = -1
 
 
 @dataclass(frozen=True)
 class Speech:
     text: str
     discarded_transcript: str | None = None
+    prompt_n: int = -1
+    cut_clip: str = ""
+    heard_ms: int = -1
+    lang: str = ""          # what the speech service heard (7.1)
+    english: bool = False   # True when `text` is an English translation of the speech (7.1)
 
 
 @dataclass(frozen=True)
@@ -167,6 +175,7 @@ class Answer:
     box: BoxId
     value: ValueCode
     span: str
+    also_question: bool = False  # the caller also asked something (7.1, kind BOTH)
 
 
 @dataclass
@@ -199,7 +208,13 @@ class Unclear:
     reason: str = "unclear"
 
 
-ModelTurnResult = Union[Answer, Clarify, Repeat, Meta, Unclear]
+@dataclass(frozen=True)
+class Question:
+    """The caller asked something (7.1). Only made when QA_ENABLED is on."""
+    pass
+
+
+ModelTurnResult = Union[Answer, Clarify, Repeat, Meta, Unclear, Question]
 # T17 §3 names this type `TurnResult`; T17 wins over any other spelling.
 TurnResult = ModelTurnResult
 

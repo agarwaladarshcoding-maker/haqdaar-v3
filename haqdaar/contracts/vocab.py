@@ -10,6 +10,7 @@ order (key 1 = first item).
 """
 from __future__ import annotations
 
+import re
 import unicodedata
 
 from haqdaar.contracts.types import ANY  # re-use the existing ANY constant
@@ -98,4 +99,37 @@ def find_forbidden(text: str, lang: str) -> str | None:
     for phrase in FORBIDDEN.get(lang, ()):
         if _fold(phrase, lang) in folded_text:
             return phrase
+    return None
+
+
+# Verdicts about the caller (G2, step 7.1): any yes/no on "you can apply", "you will get", both ways.
+# Rule statements about a group ("farmers can apply") are fine; it is "you" that is banned.
+# Patterns are written without the nukta because the text is folded first (see _fold).
+_VERDICT_SRC = {
+  "en": (r"\byou\s+(?:can|could|may|cannot|can't|can\s+not)\s+(?:not\s+)?(?:\w+\s+)?(?:apply|get|receive|claim|qualify)",
+         r"\byou(?:'re|\s+are)\s+(?:not\s+)?(?:eligible|entitled|qualified)",
+         r"\byou\s+(?:will|won't|will\s+not|do\s+not|don't)\s+(?:definitely\s+)?(?:get|receive|qualify)",
+         r"\byou\s+(?:qualify|do\s+qualify)\b"),
+  "hi": (r"आप\s+(?:(?:आवेदन|अप्लाई|अर्जी)\s+)?(?:नहीं\s+)?कर\s+सकत",
+         r"आप(?:\s+इसके\s+लिए)?\s+(?:नहीं\s+)?पात्र",
+         r"पात्र\s+हैं\s+आप",
+         r"आपको\s+(?:\S+\s+)?(?:नहीं\s+)?मिल(?:ेगा|ेगी|ेंगे|\s+जाएगा|\s+जाएगी|\s+सकत)",
+         r"आप\s+(?:नहीं\s+)?पा\s+सकत",
+         r"मिल\s+जाएगा"),
+  "mr": (r"(?:तुम्ही|आपण)\s+(?:\S+\s+)?(?:अर्ज\s+)?करू\s+शकत",
+         r"(?:तुम्ही|आपण)\s+(?:\S+\s+)?पात्र",
+         r"(?:तुम्हाला|आपल्याला)\s+(?:\S+\s+)?(?:मिळेल|मिळणार|मिळतील|मिळू\s+शकत|मिळत\s+नाही)"),
+}
+VERDICT = {lang: tuple(re.compile(_fold(p, lang)) for p in pats) for lang, pats in _VERDICT_SRC.items()}
+
+
+def find_verdict(text: str, lang: str) -> str | None:
+    """First yes/no verdict about the caller found in text, else None. English patterns always run
+    (answers mix languages); the caller's own language runs after them."""
+    for code in ("en", lang) if lang != "en" else ("en",):
+        folded_text = _fold(text, code)
+        for pattern in VERDICT.get(code, ()):
+            m = pattern.search(folded_text)
+            if m:
+                return m.group(0)
     return None

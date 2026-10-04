@@ -187,6 +187,7 @@ class FakeAudio:
         language: Lang = "hi",
         canned_inputs: Optional[list[str]] = None,
         fallback: Optional[list[str]] = None,
+        clock: Optional[Any] = None,
     ) -> None:
         self.language: Lang = language
         self.fallback: list[str] = list(fallback) if fallback else list(PERSONAS[DEFAULT_PERSONA])
@@ -196,6 +197,24 @@ class FakeAudio:
         self._canned_idx: int = 0
         self._silence_count: int = 0
         self.note: Any = lambda line: None  # the call trace, when _run_call sets one
+        self.trace: Any = None
+
+        # Gate state (Step 7.0b)
+        self.prompt_n: int = 0
+        self.prompt_open: bool = False
+        self.prompt_start_t: float = 0.0
+        self._answered_prompt_n: int = -1
+        self._last_key_digit: str = ""
+        self._last_key_t: float = -1000.0
+        self._clock: Any = clock or time.monotonic
+        self._pending_key: Optional[Digit] = None
+        self._queued_keys: list[Digit] = []
+        self._cut_tokens: set[str] = set()
+        self.last_cut: Optional[tuple[str, int]] = None
+        self.dropped_events: list[dict[str, Any]] = []
+        self.trace_events: list[dict[str, Any]] = []
+        self._scripted_cuts: dict[str, tuple[str, int]] = {}
+        self._current_prompt: str = ""
 
     def select_language(self) -> tuple[Lang, LangSource]:
         """Simulate Turn 0 trilingual language selection."""
@@ -203,30 +222,48 @@ class FakeAudio:
         print("[AUDIO PLAY] greeting_trilingual")
         self.played_lines.append("greeting_trilingual")
         self.note("-> say greeting_trilingual")
+        self.prompt_n = 1
+        self.prompt_open = True
+        self.prompt_start_t = self._clock()
+        self._current_prompt = "greeting_trilingual"
 
-        val = self._get_next_raw_input("Select language: 1=Hindi, 2=Marathi, 3=English (default 1): ")
-        self.note(f"<- key {val}: language {TURN0_LANGS.get(val, 'hi')}")
-        if val == "2":
-            self.language = "mr"
-            return "mr", "keypad"
-        elif val == "3":
-            self.language = "en"
-            return "en", "keypad"
-        else:
-            self.language = "hi"
-            return "hi", "keypad" if val == "1" else "default"
+        val = self._get_next_raw_input("Select language (key 1 is the first offered, default 1): ")
+        picked = tunables.turn0_keys().get(val)
+        self.note(f"<- key {val}: language {picked or 'hi'}")
+        self.language = picked or "hi"
+        return self.language, "keypad" if picked else "default"
 
     def say(self, sequence: tuple[str, ...]) -> None:
         """Simulate playing an audio sequence."""
         self._last_played = sequence
+        prompt_name = sequence[0] if sequence else ""
+        self._current_prompt = prompt_name
+        self.prompt_n += 1
+        self.prompt_open = True
+        self.prompt_start_t = self._clock()
         for token in sequence:
             self.played_lines.append(token)
             print(f"[AUDIO SAY] {token}")
             self.note(f"-> say {token}")
+            if token in self._scripted_cuts:
+                cut_digit, cut_ms = self._scripted_cuts[token]
+                self._cut_tokens.add(token)
+                self.last_cut = (token, cut_ms)
+                self.push_key(cut_digit, t=self.prompt_start_t + (cut_ms / 1000.0), cut_clip=token, heard_ms=cut_ms)
+                break
+
+    def say_text(self, text: str) -> bool:
+        """Show a typed-out answer (7.1). The call viewer shows unknown trace lines as plain notes."""
+        print(f"[AUDIO ANSWER] {text}")
+        self.note(f"-> answer {text}")
+        return True
 
     def repeat(self) -> None:
         """Simulate replaying the last sequence."""
         print("[AUDIO REPEAT]")
+        self.prompt_n += 1
+        self.prompt_open = True
+        self.prompt_start_t = self._clock()
         if self._last_played:
             for token in self._last_played:
                 self.played_lines.append(token)
@@ -246,9 +283,121 @@ class FakeAudio:
         """Simulate call termination."""
         print("[AUDIO HANGUP]")
 
+    def push_hangup(self) -> None:
+        """Simulate hangup event arrival."""
+        print("[AUDIO HANGUP]")
+        self.prompt_open = False
+        self._queued_keys.append(Hangup())
+
     def prefetch(self, scheme_ids: Any) -> None:
         """No-op prefetch in simulation."""
         pass
+
+    def push_key(
+        self,
+        digit: str,
+        t: Optional[float] = None,
+        cut_clip: str = "",
+        heard_ms: int = -1,
+    ) -> bool:
+        """Process an inbound DTMF key press through gate rules G1-G5, G8. Returns True if taken."""
+        if t is None:
+            t = self._clock()
+
+        # G2: Repeat same key within KEY_REPEAT_MS on same prompt
+        if (
+            self.prompt_n == getattr(self, "_last_key_prompt_n", -1)
+            and digit == self._last_key_digit
+            and (t - self._last_key_t) < (tunables.KEY_REPEAT_MS / 1000.0)
+        ):
+            self._last_key_t = t
+            self._log_event(event="key", value=digit, took=False, why="repeat", t=t, cut_clip=cut_clip, heard_ms=heard_ms)
+            return False
+
+        # G3 & G4 & G8: Prompt closed, extra keys for answered prompt, or gap
+        if not self.prompt_open or self.prompt_n <= self._answered_prompt_n:
+            self._last_key_digit = digit
+            self._last_key_prompt_n = self.prompt_n
+            self._last_key_t = t
+            self._log_event(event="key", value=digit, took=False, why="prompt_closed", t=t, cut_clip=cut_clip, heard_ms=heard_ms)
+            return False
+
+        # G5: Guard window (first KEY_GUARD_MS of prompt)
+        if self.prompt_start_t > 0.0 and (t - self.prompt_start_t) < (tunables.KEY_GUARD_MS / 1000.0):
+            self._last_key_digit = digit
+            self._last_key_prompt_n = self.prompt_n
+            self._last_key_t = t
+            self._log_event(event="key", value=digit, took=False, why="guard", t=t, cut_clip=cut_clip, heard_ms=heard_ms)
+            return False
+
+        # Key passed gate!
+        self._last_key_digit = digit
+        self._last_key_prompt_n = self.prompt_n
+        self._last_key_t = t
+        self._answered_prompt_n = self.prompt_n
+        self.prompt_open = False
+        k = Digit(digit=digit, prompt_n=self.prompt_n, cut_clip=cut_clip, heard_ms=heard_ms)
+        self._queued_keys.append(k)
+        self._log_event(event="key", value=digit, took=True, why="ok", t=t, cut_clip=cut_clip, heard_ms=heard_ms)
+        return True
+
+    def _log_event(
+        self,
+        event: str,
+        value: str,
+        took: bool,
+        why: str,
+        t: float,
+        cut_clip: str = "",
+        heard_ms: int = -1,
+    ) -> None:
+        rec = {
+            "ts": t,
+            "prompt_n": self.prompt_n,
+            "prompt": getattr(self, "_current_prompt", ""),
+            "event": event,
+            "value": value,
+            "took": took,
+            "why": why,
+            "cut_clip": cut_clip,
+            "heard_ms": heard_ms,
+        }
+        self.trace_events.append(rec)
+        if not took:
+            self.dropped_events.append(rec)
+        if self.trace is not None and hasattr(self.trace, "input_event"):
+            self.trace.input_event(
+                prompt_n=self.prompt_n,
+                prompt=getattr(self, "_current_prompt", ""),
+                event=event,
+                value=value,
+                took=took,
+                why=why,
+                cut_clip=cut_clip,
+                heard_ms=heard_ms,
+                ts=t,
+            )
+
+    def pending_key(self) -> Optional[Digit]:
+        """Return pending key if one arrived for the open prompt (G7)."""
+        if self._pending_key is not None:
+            k = self._pending_key
+            self._pending_key = None
+            return k
+        if self._queued_keys:
+            return self._queued_keys.pop(0)
+        return None
+
+    def was_cut(self, token: str) -> bool:
+        if token in self._cut_tokens:
+            return True
+        if self.last_cut and (self.last_cut[0] == token or token in self.last_cut[0] or self.last_cut[0] in token):
+            return True
+        return False
+
+    def script_cut(self, clip: str, key: str, ms: int = 150) -> None:
+        """Script a barge-in key that cuts a specific clip after ms milliseconds."""
+        self._scripted_cuts[clip] = (key, ms)
 
     def next_input(self, profile: str = "normal") -> Digit | Noise | Silence | Hangup | Speech:
         """The next input, noted in the call trace in the same words the phone server uses."""
@@ -267,29 +416,77 @@ class FakeAudio:
 
     def _next_input(self, profile: str = "normal") -> Digit | Noise | Silence | Hangup | Speech:
         """Get next input from user, canned sequence, or non-interactive fallback."""
-        if profile == "spoken":
-            if self.canned_inputs and self._canned_idx < len(self.canned_inputs):
-                cand = self.canned_inputs[self._canned_idx].strip()
-                if cand.lower().startswith(("say:", "speech:")):
-                    self._canned_idx += 1
-                    txt = cand.split(":", 1)[1].strip()
-                    print(f"[AUDIO STT (spoken)] Canned speech: {txt}")
-                    return Speech(text=txt)
-                elif cand.lower() in ("s", "silence"):
-                    self._canned_idx += 1
-                    self._silence_count += 1
-                    return Silence(n=self._silence_count)
-                elif cand.lower() in ("n", "noise"):
-                    self._canned_idx += 1
-                    self._silence_count = 0
-                    return Noise()
-                elif cand.lower() in ("h", "hangup"):
-                    self._canned_idx += 1
-                    return Hangup()
-                elif cand.lower().startswith(("key:", "dtmf:")):
-                    self._canned_idx += 1
-                    return Digit(digit=cand.split(":", 1)[1].strip())
+        if self._queued_keys:
+            return self._queued_keys.pop(0)
 
+        while self.canned_inputs and self._canned_idx < len(self.canned_inputs):
+            cand = self.canned_inputs[self._canned_idx].strip()
+            self._canned_idx += 1
+
+            if cand.lower().startswith("gap_key:"):
+                key_digit = cand.split(":", 1)[1].strip()
+                prev_open = self.prompt_open
+                self.prompt_open = False
+                self.push_key(key_digit)
+                self.prompt_open = prev_open
+                continue
+
+            elif cand.lower().startswith("fast_keys:"):
+                keys_list = [k.strip() for k in cand.split(":", 1)[1].split(",")]
+                now = self._clock() + 0.3
+                for i, k in enumerate(keys_list):
+                    self.push_key(k, t=now + (i * 0.05))
+                if self._queued_keys:
+                    return self._queued_keys.pop(0)
+                continue
+
+            elif cand.lower().startswith("key_after_speech:"):
+                parts = cand.split(":", 1)[1].split(",", 1)
+                txt = parts[0].strip()
+                key = parts[1].strip() if len(parts) > 1 else "1"
+                self._pending_key = Digit(digit=key, prompt_n=self.prompt_n)
+                return Speech(text=txt, prompt_n=self.prompt_n)
+
+            elif cand.lower().startswith("cut_clip:"):
+                parts = cand.split(":", 1)[1].split(",", 1)
+                clip = parts[0].strip()
+                key = parts[1].strip() if len(parts) > 1 else "1"
+                self.script_cut(clip, key)
+                continue
+
+            elif cand.lower().startswith(("say:", "speech:")):
+                txt = cand.split(":", 1)[1].strip()
+                print(f"[AUDIO STT ({profile})] Canned speech: {txt}")
+                return Speech(text=txt, prompt_n=self.prompt_n)
+
+            elif cand.lower() in ("s", "silence"):
+                self._silence_count += 1
+                return Silence(n=self._silence_count)
+
+            elif cand.lower() in ("n", "noise"):
+                self._silence_count = 0
+                return Noise()
+
+            elif cand.lower() in ("h", "hangup"):
+                return Hangup()
+
+            elif cand.lower().startswith(("key:", "dtmf:")):
+                digit = cand.split(":", 1)[1].strip()
+                t = max(self._clock(), self.prompt_start_t + 0.3)
+                if self.push_key(digit, t=t):
+                    return self._queued_keys.pop(0)
+                continue
+
+            elif cand in ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "#"):
+                t = max(self._clock(), self.prompt_start_t + 0.3)
+                if self.push_key(cand, t=t):
+                    return self._queued_keys.pop(0)
+                continue
+
+            else:
+                return Speech(text=cand, prompt_n=self.prompt_n)
+
+        if profile == "spoken":
             if sys.stdin.isatty() and not self.canned_inputs:
                 prompt_text = f"[VOICE ({profile})] Speak / type answer (or s=silence, n=noise, h=hangup, or digit): "
                 val = input(prompt_text).strip()
@@ -302,19 +499,20 @@ class FakeAudio:
                 elif val.lower() in ("h", "hangup"):
                     return Hangup()
                 elif val.isdigit() and len(val) == 1:
-                    return Digit(digit=val)
+                    t = max(self._clock(), self.prompt_start_t + 0.3)
+                    if self.push_key(val, t=t):
+                        return self._queued_keys.pop(0)
                 elif val:
-                    return Speech(text=val)
+                    return Speech(text=val, prompt_n=self.prompt_n)
 
             # Simulated speech at the seam for non-interactive / canned keys:
-            # Keypad keys in canned_inputs (like '1' for confirm) belong to the subsequent confirm turn.
             simulated_speech = {
                 "mr": "मला कृषी योजना हवी आहे",
                 "hi": "मुझे कृषि योजना चाहिए",
                 "en": "I am looking for agriculture schemes",
             }.get(self.language, "I am looking for agriculture schemes")
             print(f"[AUDIO STT (spoken)] Simulated speech: {simulated_speech}")
-            return Speech(text=simulated_speech)
+            return Speech(text=simulated_speech, prompt_n=self.prompt_n)
 
         prompt_text = f"[KEYPAD ({profile})] Enter digit (0-9, *, #, s=silence, n=noise, h=hangup): "
         val = self._get_next_raw_input(prompt_text).lower()
@@ -330,7 +528,11 @@ class FakeAudio:
         else:
             self._silence_count = 0
             digit_char = val if val in ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "#") else "1"
-            return Digit(digit=digit_char)
+            t = max(self._clock(), self.prompt_start_t + 0.3)
+            self.push_key(digit_char, t=t)
+            if self._queued_keys:
+                return self._queued_keys.pop(0)
+            return Digit(digit=digit_char, prompt_n=self.prompt_n)
 
     def _get_next_raw_input(self, prompt: str) -> str:
         """Read input string from canned list or interactive terminal."""
@@ -367,6 +569,7 @@ def run_sim(
     model: Optional[Any] = None,
     spoken: bool = True,
     audio: Optional["FakeAudio"] = None,
+    real_model: bool = False,
 ) -> Path:
     """Run full simulation against fixtures/ and return path to log file.
 
@@ -375,7 +578,7 @@ def run_sim(
     """
     if snapshot is not None:
         corpus = Corpus.load(Path(snapshot).name)
-        return _run_call(corpus, corpus.snapshot_id, canned_inputs, call_id, logs_dir, persona, model=model, spoken=spoken, audio=audio)
+        return _run_call(corpus, corpus.snapshot_id, canned_inputs, call_id, logs_dir, persona, model=model, spoken=spoken, audio=audio, real_model=real_model)
 
     root_dir = Path(__file__).resolve().parent.parent
     fixtures_dir = root_dir / "fixtures"
@@ -410,7 +613,7 @@ def run_sim(
                 render_stubs=True,
             )
             corpus = Corpus.load(snap_id)
-            return _run_call(corpus, snap_id, canned_inputs, call_id, logs_dir, persona, model=model, spoken=spoken, audio=audio)
+            return _run_call(corpus, snap_id, canned_inputs, call_id, logs_dir, persona, model=model, spoken=spoken, audio=audio, real_model=real_model)
         finally:
             tunables.SNAPSHOTS_DIR = orig_snap_dir
             tunables.AUDIO_DIR = orig_audio_dir
@@ -426,6 +629,7 @@ def _run_call(
     model: Optional[Any] = None,
     spoken: bool = True,
     audio: Optional["FakeAudio"] = None,
+    real_model: bool = False,
 ) -> Path:
     """One call on a loaded corpus. Returns the log path."""
     c_id = call_id or f"sim_{int(time.time())}"
@@ -449,7 +653,8 @@ def _run_call(
     print("==================================================")
 
     if model is None and spoken:
-        client = SimModelClient(corpus)
+        # real_model: the typed test call with QA_ENABLED on, which needs the live Model.
+        client = None if real_model else SimModelClient(corpus)
         model = Model(corpus=corpus, client=client)
 
     Engine.run_call(

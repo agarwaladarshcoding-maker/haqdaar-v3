@@ -153,6 +153,7 @@ class SttResult:
     success: bool = True
     error: str | None = None
     latency_s: float = 0.0
+    english: bool = False   # True when `transcript` is an English translation (ENGLISH_PIPE)
 
 
 class SarvamSTT:
@@ -194,7 +195,7 @@ class SarvamSTT:
         }
         data: dict[str, str] = {
             "model": self.model,
-            "mode": "transcribe",
+            "mode": "translate" if tunables.ENGLISH_PIPE else "transcribe",
         }
         lang_code = SARVAM_LANG.get(lang.lower(), "")
         if lang_code:
@@ -222,6 +223,7 @@ class SarvamSTT:
                     provider="sarvam",
                     success=True,
                     latency_s=latency,
+                    english=tunables.ENGLISH_PIPE,
                 )
             return SttResult(
                 transcript="",
@@ -566,6 +568,8 @@ class Ear:
         self.stt_failed: bool = False
         self.failures: int = 0
         self._needs_stale_drain: bool = False
+        self._turn_gate: Optional[Any] = None   # set by Turn: the one place keys are judged
+        self._voiced_ms: int = 0                # voice heard so far while a clip plays (cut-in)
 
     @property
     def keypad_only(self) -> bool:
@@ -594,6 +598,46 @@ class Ear:
             self._events.put_nowait(ev)
         return drained
 
+    def start_watch(self) -> None:
+        """Begin listening for the caller's voice over a playing clip."""
+        self.vad.reset()
+        self._voiced_ms = 0
+
+    def watch_voice(self, in_guard: bool = False) -> str:
+        """Feed the audio that arrived so far to the voice detector while a clip plays.
+
+        Returns "cut" once the caller has voiced CUT_IN_MIN_MS (same detector, same thresholds as
+        listen), "short" when a shorter burst ended (a cough, "hm"), else "". Frames that arrive
+        inside the guard window of a new prompt are thrown away. After "cut" the frames not yet
+        read stay queued for listen(resume=True).
+        """
+        kept: list[tuple[str, Any]] = []
+        result = ""
+        while result != "cut":
+            try:
+                ev = self._events.get_nowait()
+            except queue.Empty:
+                break
+            if ev[0] != "media":
+                kept.append(ev)
+                continue
+            pcm = ev[1]
+            if in_guard:
+                self.start_watch()
+                continue
+            ended = self.vad.feed_frame(pcm)
+            if self.vad.started and frame_rms(pcm) >= self.vad.end_rms:
+                self._voiced_ms += FRAME_MS
+            if self._voiced_ms >= tunables.CUT_IN_MIN_MS:
+                result = "cut"
+            elif ended:
+                if self._voiced_ms > 0:
+                    result = "short"
+                self.start_watch()
+        for ev in kept:
+            self._events.put_nowait(ev)
+        return result
+
     # --- socket loop methods (thread-safe, O(1), non-blocking) --------------------
     def push_media(self, payload: bytes, is_ulaw: bool = True) -> None:
         """Called by socket loop on MediaEvent (e.g. 20 ms 160-byte mu-law)."""
@@ -602,7 +646,8 @@ class Ear:
 
     def push_dtmf(self, digit: str) -> None:
         """Called by socket loop on DtmfEvent."""
-        self._keys.put_nowait(digit)
+        if self._turn_gate is None:
+            self._keys.put_nowait(digit)
         self._events.put_nowait(("dtmf", digit))
 
     def push_hangup(self) -> None:
@@ -614,43 +659,58 @@ class Ear:
     def has_key(self) -> bool:
         return not self._keys.empty()
 
+    def _take_key(self) -> Optional[Digit]:
+        """The next key that counts. With a gate (Turn), the gate decides; else our own queue."""
+        if self._turn_gate is not None:
+            return self._turn_gate.get_valid_key(block=False)
+        try:
+            return Digit(digit=self._keys.get_nowait())
+        except queue.Empty:
+            return None
+
     def listen(
         self,
         timeout: float = 6.0,
         lang: str = "",
         hint: str = "",
         drain_stale: bool = False,
+        resume: bool = False,
     ) -> Input:
         """Wait for input on the line: key, speech, noise, silence, or hangup.
 
-        A keypress always wins over speech.
+        A keypress always wins over speech. `resume` carries on with the voice watch_voice() has
+        already started to hear (cut-in), instead of starting a fresh utterance.
         """
         # 1. Immediate key check (barge-in or pre-queued key)
-        if not self._keys.empty():
-            key = self._keys.get_nowait()
-            self.silence_count = 0
-            self._log(f"<- key {key} (pre-queued)")
-            return Digit(digit=key)
-
         if self.hung_up:
             return Hangup()
 
+        taken = self._take_key()
+        if taken is not None:
+            self.silence_count = 0
+            self._log(f"<- key {taken.digit} (pre-queued)")
+            return taken
+
         # Drain stale media packets queued before listen() started / during previous STT (TOP-10 #7)
-        if drain_stale or self._needs_stale_drain:
+        if (drain_stale or self._needs_stale_drain) and not resume:
             self.drain_media()
             self._needs_stale_drain = False
 
-        self.vad.reset()
+        if not resume:
+            self.vad.reset()
         self.stt.reset_circuit()
         deadline = time.monotonic() + timeout
 
         while True:
+            if self.hung_up:
+                return Hangup()
+
             # If key arrived, it wins immediately
-            if not self._keys.empty():
-                key = self._keys.get_nowait()
+            taken = self._take_key()
+            if taken is not None:
                 self.silence_count = 0
-                self._log(f"<- key {key} (interrupted silence/listening)")
-                return Digit(digit=key)
+                self._log(f"<- key {taken.digit} (interrupted silence/listening)")
+                return taken
 
             now = time.monotonic()
             if not self.vad.started and now >= deadline:
@@ -673,15 +733,12 @@ class Ear:
 
             if kind == "dtmf":
                 # Key must be present in _keys; if empty, it was already consumed
-                if self._keys.empty():
-                    continue
-                try:
-                    self._keys.get_nowait()
-                except queue.Empty:
-                    continue
+                taken = self._take_key()
+                if taken is None:
+                    continue  # already taken, or dropped by the gate: keep listening
                 self.silence_count = 0
-                self._log(f"<- key {val} (won over speech)")
-                return Digit(digit=str(val))
+                self._log(f"<- key {taken.digit} (won over speech)")
+                return taken
 
             if kind == "hangup":
                 self.hung_up = True
@@ -698,11 +755,13 @@ class Ear:
         speech_pcm = self.vad.get_speech_pcm()
 
         # Keycheck again before calling STT
-        if not self._keys.empty():
-            key = self._keys.get_nowait()
+        if self.hung_up:
+            return Hangup()
+        taken = self._take_key()
+        if taken is not None:
             self.silence_count = 0
-            self._log(f"<- key {key} (won over post-utterance)")
-            return Digit(digit=key)
+            self._log(f"<- key {taken.digit} (won over post-utterance)")
+            return taken
 
         # Call STT (timeout handled internally, never raises)
         t0 = time.monotonic()
@@ -710,15 +769,19 @@ class Ear:
         self._needs_stale_drain = True
 
         # Check if key arrived during STT
-        if not self._keys.empty():
-            key = self._keys.get_nowait()
+        if self.hung_up:
+            return Hangup()
+        taken = self._take_key()
+        if taken is not None:
             self.silence_count = 0
             self.last_discarded_transcript = stt_res.transcript
-            self._log(f"<- key {key} (won over completed STT)")
-            return Digit(digit=key)
+            self._log(f"<- key {taken.digit} (won over completed STT)")
+            return taken
 
         if stt_res.success and stt_res.transcript:
             self._log(f'<- speech "{stt_res.transcript}" ({stt_res.lang}, stt {stt_res.latency_s:.2f}s)')
+            if tunables.ENGLISH_PIPE:
+                return Speech(text=stt_res.transcript, lang=stt_res.lang, english=stt_res.english)
             return Speech(text=stt_res.transcript)
 
         # Speech started but yielded no valid transcript or failed/timed out: NOISE

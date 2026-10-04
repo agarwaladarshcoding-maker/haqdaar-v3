@@ -156,7 +156,7 @@ def test_a_sim_call_shows_on_the_page(tmp_path, capsys):
     call = client.get("/api/calls/sim_view").json()
     first = call["items"][0]
     assert first["who"] == "ai" and first["parts"][0]["token"] == "greeting_trilingual"
-    assert "Haqdaar" in first["parts"][0]["text"]  # fixed lines resolve with no snapshot on disk
+    assert "हकदार" in first["parts"][0]["text"]  # fixed lines resolve with no snapshot on disk
     assert call["items"][1]["text"] == "pressed 2" and call["items"][1]["lang"] == "mr"
     # Every LOG record after the open line is in the trace, in order.
     log_rows = _rows(tmp_path / "sim_view.jsonl")[1:]

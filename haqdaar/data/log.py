@@ -135,6 +135,7 @@ class Log:
                 "candidate_count",
                 "silence_n",
                 "invalid",
+                "answer",
             ):
                 if raw.get(k) is not None:
                     data[k] = raw[k]

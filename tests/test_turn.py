@@ -48,11 +48,13 @@ def test_a_key_during_a_line_stops_it_and_is_kept():
     assert time.monotonic() - t0 < 0.1
 
 
-def test_keys_pressed_fast_all_arrive_in_order():
+def test_keys_pressed_fast_first_taken_rest_dropped():
     _, turn, _ = _pair()
-    for k in "1*9#":
-        turn.push_key(k)
-    assert [turn.wait(1.0) for _ in range(4)] == list("1*9#")
+    turn.push_key("1")
+    turn.push_key("2")
+    turn.push_key("3")
+    assert turn.wait(1.0) == "1"
+    assert turn.wait(0.1) is None
 
 
 def test_hangup_wakes_a_waiting_engine():

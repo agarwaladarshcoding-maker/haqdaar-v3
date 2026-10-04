@@ -25,6 +25,7 @@ from haqdaar.audio.telephony import build_clear, build_mark, build_media
 from haqdaar.contracts import tunables
 
 Clip = tuple[str, bytes]  # (name for the log and the mark, 8 kHz mu-law audio)
+Tag = tuple[int, str]     # (prompt_n, prompt name) the clips belong to, for the trace stamp
 
 
 class Mouth:
@@ -42,20 +43,25 @@ class Mouth:
         self._lock = threading.Lock()
         self._seq = 0
         self._pending: set[str] = set()   # marks sent, not yet played back
+        self._clip_schedules: list[dict[str, Any]] = []
+        self._ends: dict[str, float] = {}  # clip name -> when its latest run should end (heard() asks)
+        self._marked: set[str] = set()     # clip names whose mark came back
         self._play_until = 0.0            # when the buffered audio should end
         self._last: list[Clip] = []
         self._repeats = 0                 # `#` presses in a row
         self._cleared = 0                 # bumps on every clear(); a send in flight stops
+        self.last_cut: tuple[str, int] = ("", -1)
 
     # --- engine thread -------------------------------------------------------------
-    def play(self, clips: list[Clip]) -> None:
+    def play(self, clips: list[Clip], tag: Optional[Tag] = None) -> None:
         """Queue a sequence of clips. It becomes what `#` repeats."""
         with self._lock:
             self._last = list(clips)
             self._repeats = 0
-        self._send(clips)
+            self.last_cut = ("", -1)
+        self._send(clips, tag)
 
-    def repeat(self) -> None:
+    def repeat(self, tag: Optional[Tag] = None) -> None:
         """`#`: say the last sequence again. A second `#` in a row says it slower (D13)."""
         with self._lock:
             self._repeats += 1
@@ -63,53 +69,119 @@ class Mouth:
             clips = list(self._last)
         if slow:
             clips = [(name, stretch(audio, tunables.SLOW_PACE)) for name, audio in clips]
-        self._send(clips)
+        self._send(clips, tag)
 
     # --- either thread -------------------------------------------------------------
-    def clear(self) -> None:
-        """Stop talking now. Never waits: safe from the socket loop."""
+    def clear(self) -> tuple[str, int]:
+        """Stop talking now. Never waits: safe from the socket loop.
+
+        Returns (cut_clip, heard_ms) for the clip sounding when cleared.
+        """
         with self._lock:
+            now = self._clock()
+            cut_clip = ""
+            heard_ms = -1
+            for cs in self._clip_schedules:
+                if cs["mark"] in self._pending:
+                    cut_clip = cs["name"]
+                    if now < cs["start"]:
+                        heard_ms = 0
+                    else:
+                        heard_ms = max(0, min(int((now - cs["start"]) * 1000), cs["dur_ms"]))
+                    break
+            for cs in self._clip_schedules:
+                if cs["mark"] in self._pending and cs["end"] > now:
+                    self._ends.pop(cs["name"], None)  # cut before its end: not heard
             self._pending.clear()
-            self._play_until = self._clock()
+            self._clip_schedules.clear()
+            self._play_until = now
             self._cleared += 1
+            self.last_cut = (cut_clip, heard_ms)
         self._emit(build_clear(self._sid))
+        return (cut_clip, heard_ms)
 
     def on_mark(self, name: str) -> None:
         """The line played up to this mark."""
         with self._lock:
             self._pending.discard(name)
+            idx = -1
+            for i, cs in enumerate(self._clip_schedules):
+                if cs["mark"] == name:
+                    idx = i
+                    break
+            if idx >= 0:
+                self._marked.add(self._clip_schedules[idx]["name"])
+                self._clip_schedules = self._clip_schedules[idx + 1:]
+
+    def sounding(self) -> Optional[Tag]:
+        """The (prompt_n, name) of the clip that is sounding now, if it was queued with a tag.
+
+        The engine queues several prompts at once, so the newest prompt_n is not the one the
+        caller is hearing. A key or a hangup is stamped with this one in the trace.
+        """
+        with self._lock:
+            for cs in self._clip_schedules:
+                if cs["mark"] in self._pending:
+                    return cs["tag"]
+        return None
+
+    def clip_heard(self, name: str) -> bool:
+        """Did a clip of this name play to its end: its mark came back, or its time ran out
+        with no clear in between."""
+        with self._lock:
+            if name in self._marked:
+                return True
+            end = self._ends.get(name)
+            return end is not None and self._clock() >= end
 
     @property
     def playing(self) -> bool:
         return self.remaining() > 0
 
     def remaining(self) -> float:
-        """Seconds of audio still to play. 0 once every mark has come back."""
+        """Seconds of audio still to play. 0 once every mark has come back, with clock guess as timeout."""
         with self._lock:
             if not self._pending:
                 return 0.0
-            return max(self._play_until - self._clock(), 0.0)
+            now = self._clock()
+            if now > self._play_until + 1.0:
+                return 0.0
+            return max(self._play_until - now, 0.05)
 
     # -------------------------------------------------------------------------------
-    def _send(self, clips: list[Clip]) -> None:
-        frame = tunables.FRAME_BYTES
+    def _send(self, clips: list[Clip], tag: Optional[Tag] = None) -> None:
+        frame = min(tunables.FRAME_BYTES, int(0.200 * tunables.SAMPLE_RATE))
         with self._lock:
             generation = self._cleared
         for name, audio in clips:
             with self._lock:
                 if self._cleared != generation:
                     return  # a key stopped this sequence: send none of the rest
+                now = self._clock()
+                start_t = max(now, self._play_until)
+                dur_s = len(audio) / tunables.SAMPLE_RATE
+                dur_ms = int(dur_s * 1000)
+                end_t = start_t + dur_s
+                self._play_until = end_t
                 self._seq += 1
                 mark = f"{self._seq}:{name}"
                 self._pending.add(mark)
-                now = self._clock()
-                self._play_until = max(now, self._play_until) + len(audio) / tunables.SAMPLE_RATE
+                self._ends[name] = end_t
+                self._marked.discard(name)
+                self._clip_schedules.append({
+                    "mark": mark,
+                    "name": name,
+                    "start": start_t,
+                    "end": end_t,
+                    "dur_ms": dur_ms,
+                    "tag": tag,
+                })
             for i in range(0, len(audio), frame):
                 if self._cleared != generation:
                     return
                 self._emit(build_media(self._sid, audio[i:i + frame]))
             self._emit(build_mark(self._sid, mark))
-            self._log(f"-> say {name} ({len(audio) / tunables.SAMPLE_RATE:.1f} s)")
+            self._log(f"-> say {name} ({dur_s:.1f} s)")
 
 
 class Outbox:

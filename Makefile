@@ -148,3 +148,12 @@ model-bakeoff:
 door-a-check:
 	$(PYTHON) -m tools.door_a_check $(ARGS)
 
+
+# Step 7.1: live check of the answer step, 15 questions (Groq; with ENGLISH_PIPE=true also a little Sarvam)
+# QA_ENABLED=true make qa-check ; QA_ENABLED=true ENGLISH_PIPE=true make qa-check
+qa-check:
+	$(PYTHON) -m tools.qa_check $(ARGS)
+
+# Step 7.1: live check of the router's sorting rules, 50 cases, right/wrong per model (Groq)
+qa-router-check:
+	$(PYTHON) -m tools.model_bakeoff --router-check $(ARGS)

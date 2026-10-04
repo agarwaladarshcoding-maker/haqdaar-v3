@@ -29,6 +29,7 @@ def phone(tmp_path, monkeypatch):
         "SILENCE_GAP_S": 0.2,
         "TURN0_GAP_S": 0.2,
         "HANGUP_WAIT_S": 1.0,
+        "KEY_GUARD_MS": 0,  # the scripted caller presses the moment a prompt starts
     }.items():
         monkeypatch.setattr(tunables, name, value)
     build_snapshot(
@@ -51,9 +52,21 @@ def _call(keys: list[str], number: str = "+919800000000") -> list[dict]:
             "start": {"streamSid": "MZ1", "callSid": "CA42", "accountSid": "AC1",
                       "tracks": ["inbound"], "mediaFormat": {}, "customParameters": {}},
         }))
-        for k in keys:
-            ws.send_text(json.dumps({"event": "dtmf", "streamSid": "MZ1", "dtmf": {"digit": k}}))
+
+        def read_until(event: str) -> None:
+            while True:
+                got.append(ws.receive_json())
+                if got[-1].get("event") == event:
+                    return
+
+        # Step 7.0b: one prompt takes one key. So the caller waits for a prompt to sound,
+        # presses, waits for the line to stop (clear), then waits for the next prompt.
         try:
+            read_until("mark")
+            for k in keys:
+                ws.send_text(json.dumps({"event": "dtmf", "streamSid": "MZ1", "dtmf": {"digit": k}}))
+                read_until("clear")
+                read_until("mark")
             while True:
                 got.append(ws.receive_json())
         except WebSocketDisconnect:

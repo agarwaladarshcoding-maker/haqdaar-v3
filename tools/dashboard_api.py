@@ -287,7 +287,11 @@ class TypedCaller(FakeAudio):
         self._silence_count = 0
         if typed in KEYS:
             return Digit(digit=typed)
-        if profile == "spoken":
+        # With QA on, words typed at a yes/no or a menu are heard too, so a question can be typed there.
+        if profile == "spoken" or (tunables.QA_ENABLED and profile in ("confirm", "readback")):
+            # Typed ASCII counts as already English; the real speech service would have translated it.
+            if tunables.ENGLISH_PIPE and typed.isascii():
+                return Speech(text=typed, lang="en", english=True)
             return Speech(text=typed)
         return Noise()  # words when only a key will do: the engine hears a sound it cannot use
 
@@ -320,7 +324,8 @@ class TypedCalls:
 
     def _run(self, key: str, caller: TypedCaller) -> None:
         try:
-            run_sim(call_id=key, logs_dir=self._logs_dir, snapshot=self._snapshot, audio=caller)
+            run_sim(call_id=key, logs_dir=self._logs_dir, snapshot=self._snapshot, audio=caller,
+                    real_model=tunables.QA_ENABLED)
         except Exception as e:  # shown on the page; a test call must never take the door down
             self.error = f"The test call stopped: {e!r}"
 

@@ -58,8 +58,8 @@ class GroqModelClient:
             api_key = os.environ.get("GROQ_API_KEY", "")
         self.api_key = api_key
 
-        # Prefer llama-3.3-70b-versatile or llama-3.1-8b-instant for fast low-latency JSON
-        default_model = os.environ.get("GROQ_ROUTER_MODEL", os.environ.get("GROQ_MODEL", "llama-3.3-70b-versatile"))
+        # llama-3.3-70b-versatile is gone from Groq (404, 4 Oct); gpt-oss-120b is the fallback.
+        default_model = os.environ.get("GROQ_ROUTER_MODEL", os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b"))
         self.model = model or default_model
 
         self.timeout = float(timeout) if timeout is not None else tunables.MODEL_TIMEOUT_S
@@ -76,12 +76,13 @@ class GroqModelClient:
         prompt_tokens: int,
         completion_tokens: int,
         error: str | None = None,
+        model: Optional[str] = None,
     ) -> None:
         """Append usage record to reports ledger without letting write failures interrupt."""
         entry = {
             "ts": datetime.now(timezone.utc).isoformat(),
             "task": task,
-            "model": self.model,
+            "model": model or self.model,
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
             "error": error,
@@ -97,8 +98,15 @@ class GroqModelClient:
         self,
         messages: list[dict[str, str]],
         task: str = "model_router",
+        timeout: Optional[float] = None,
+        model: Optional[str] = None,
     ) -> ModelClientResponse:
-        """Call Groq API with JSON mode and timeout. Never raises."""
+        """Call Groq API with JSON mode and timeout. Never raises.
+
+        `timeout` and `model` override this client's own for this one call (the answer step uses
+        a longer timeout and a backup model); left out, nothing changes.
+        """
+        model = model or self.model
         if not self.api_key:
             return ModelClientResponse(
                 success=False,
@@ -113,15 +121,18 @@ class GroqModelClient:
             "User-Agent": "haqdaar/0.1",
         }
         payload = {
-            "model": self.model,
+            "model": model,
             "messages": messages,
             "temperature": 0,
             "response_format": {"type": "json_object"},
         }
+        if model.startswith("openai/gpt-oss"):
+            # Reasoning models think for seconds by default; low keeps a router call near 1 s.
+            payload["reasoning_effort"] = "low"
 
         t0 = time.monotonic()
         try:
-            with httpx.Client(timeout=self.timeout) as client:
+            with httpx.Client(timeout=timeout if timeout is not None else self.timeout) as client:
                 resp = client.post(self.endpoint, headers=headers, json=payload)
             latency = time.monotonic() - t0
 
@@ -130,7 +141,7 @@ class GroqModelClient:
                 usage = body.get("usage", {})
                 p_tok = usage.get("prompt_tokens", 0)
                 c_tok = usage.get("completion_tokens", 0)
-                self._write_ledger(task, p_tok, c_tok)
+                self._write_ledger(task, p_tok, c_tok, model=model)
 
                 choices = body.get("choices", [])
                 if not choices:
@@ -162,7 +173,7 @@ class GroqModelClient:
                     )
 
             if resp.status_code == 429:
-                self._write_ledger(task, 0, 0, error="http_429")
+                self._write_ledger(task, 0, 0, error="http_429", model=model)
                 return ModelClientResponse(
                     success=False,
                     data=None,
@@ -172,7 +183,7 @@ class GroqModelClient:
                 )
 
             err_tag = f"http_{resp.status_code}"
-            self._write_ledger(task, 0, 0, error=err_tag)
+            self._write_ledger(task, 0, 0, error=err_tag, model=model)
             return ModelClientResponse(
                 success=False,
                 data=None,
@@ -182,7 +193,7 @@ class GroqModelClient:
 
         except httpx.TimeoutException:
             latency = time.monotonic() - t0
-            self._write_ledger(task, 0, 0, error="timeout")
+            self._write_ledger(task, 0, 0, error="timeout", model=model)
             return ModelClientResponse(
                 success=False,
                 data=None,
@@ -193,7 +204,7 @@ class GroqModelClient:
         except Exception as e:
             latency = time.monotonic() - t0
             err_msg = f"{type(e).__name__}: {e}"
-            self._write_ledger(task, 0, 0, error=err_msg)
+            self._write_ledger(task, 0, 0, error=err_msg, model=model)
             return ModelClientResponse(
                 success=False,
                 data=None,

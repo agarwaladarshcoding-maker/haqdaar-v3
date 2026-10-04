@@ -30,7 +30,7 @@ lines:
     pinned: true
     hi: "नमस्ते। यह हकदार है। हिंदी के लिए 1 दबाएँ।"
     mr: "नमस्कार. हे हकदार आहे. मराठीसाठी 2 दाबा."
-    en: "Namaste. This is Haqdaar. For Hindi press 1. For Marathi press 2. For English press 3."
+    en: "For English, press 2."
 
   consent_notice:
     en: "This call is recorded. We keep it to make this service better. Stay on the line to go ahead."

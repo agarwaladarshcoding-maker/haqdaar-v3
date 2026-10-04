@@ -21,6 +21,7 @@ TurnClass = Literal[
     "NOISE",
     "SILENCE",
     "PROPOSAL",
+    "QUESTION",
 ]
 
 TURN_CLASSES: tuple[TurnClass, ...] = (
@@ -32,6 +33,7 @@ TURN_CLASSES: tuple[TurnClass, ...] = (
     "NOISE",
     "SILENCE",
     "PROPOSAL",
+    "QUESTION",
 )
 
 # UNKNOWN Sources (T16 §2, T11)
@@ -90,6 +92,7 @@ class TurnLogRecord:
     candidate_count: Optional[int] = None
     silence_n: Optional[int] = None
     invalid: Optional[bool] = None
+    answer: Optional[str] = None  # QUESTION lines: the answer text the caller was given (7.1)
 
 
 @dataclass(frozen=True)

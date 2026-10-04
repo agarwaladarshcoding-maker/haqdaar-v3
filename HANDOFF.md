@@ -94,6 +94,16 @@ API: `tests/conftest.py` blocks Muse, and each test fakes its client.
     6 warmup items fixed. Bake-off `--live` blocked: Groq key lacks
     `llama-3.3-70b-versatile` (404, 0 tokens) — owner key fix + rerun.
 
+**Step 7 — caller questions and live answers (built 4 Oct 2026, NOT committed, NOT yet tried on a phone).**
+Branch `step-7.0-live-answers`. Five switches, all off by default: `QA_ENABLED` (answer a
+question), `ENGLISH_PIPE` (speech -> English -> work -> caller's language), `QA_SPEAK` (say the
+answer aloud), `SPEECH_CUT_IN` (voice stops a clip), `QA_SEARCH` (search + saved answers).
+The key gate (one prompt, one answer) has no switch. Work orders: `PROMPT-ANTIGRAVITY-7.0b-GATE.md`,
+`PROMPT-ANTIGRAVITY-7.1-QUESTIONS-TEXT.md`, `PROMPT-STEP-7.2-7.3.md`. Rules: `source-docs/DECISION-LOG.md` §7
+(built, not yet ratified). Checks: `make qa-router-check`, `QA_ENABLED=true ENGLISH_PIPE=true make qa-check`.
+Phone test: `QA_ENABLED=true ENGLISH_PIPE=true QA_SPEAK=true SPEECH_CUT_IN=true QA_SEARCH=true GROQ_ROUTER_MODEL=qwen/qwen3.8-27b make call-me`.
+Open points are at the end of `.agent/NOTES.md`.
+
 ## 4 · What is left, in order
 
 Phase 3 + Phase 4 code is DONE and merged (steps A–D). What remains:
