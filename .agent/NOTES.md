@@ -497,3 +497,11 @@ Facts from the run (snapshot CURRENT, 17 schemes; kinds: farming 4, business_loa
 - Keys path state = locals in run_call (box_vector etc.); talk state = _Talk (self.bv same dict shape, asked, free_q...). Not shared. Both end the call via hangup + log.close (talk._end :900) -> handoff must return before _end.
 - Key 6: not in turn0_keys() (hi,en = 1,2; LANGS_OFFERED default "hi,en"); at greeting = wrong key; in talk loop = "keys are off" (talk.py:975); turn._talk_ignores (:143) drops all keys but 9.
 - 3.5 hook: talk.py _decide ~:726-736, :754; TALK_MAX_QUESTIONS cut at _state :232 comes first. Order: 3.1 audio.mode, shared bv + handoff, 3.2, 3.3, 3.5, 3.4, 3.6.
+
+## 6 Oct: owner asks for a "merge phase 4" plan to hand to Muse (photo by SMS, with an internet question)
+- Owner's ask (voice): new branch for Phase 4; caller presses 1 = has internet, 0 = none. On 1: SMS link -> page -> photos saved on this laptop -> Muse reads -> result kept in its own part -> call ENDS -> line calls back with the full context of the first call and talks on. On 0: unclear ("our software part"); asked the owner.
+- Found: no branch is named "keypad sms upload". Photo work is already in v5-clean (haqdaar/photo/cases.py, in_call.py, reader.py; tools/photo_desk.py; PLAN 4b). step-4.1-photo-desk (bd721c4) and phase1-merge (e8fa9f2) are joined already.
+- New against what is built: (1) the internet question, (2) the call ends after the link (today the talk goes on), (3) the call-back placed by itself (PLAN 4b says LEFT), (4) the first call's talk carried into the call-back.
+- Clash to mind: keys 1 and 2 at the greeting pick the language today (turn0_keys, hi,en = 1,2). An internet question on 1/0 can not sit at the greeting as it is.
+- Not started: no branch made, no prompt file written. Waiting for the owner's yes on the plan. Then write .agent/PROMPT-muse-phase4.md.
+- origin/v5-clean = 8041e3b, local = ec6f7cb: TASK item F (push) still open.

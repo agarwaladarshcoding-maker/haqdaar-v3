@@ -1855,3 +1855,7 @@ headphones, or the microphone hears the agent's own voice.
 - Fixed: "same reply twice" was never caught in Hindi/Marathi when English is in the middle.
 - Not built, on purpose: the full stop of step 2.2. A cough would lose the sentences not yet queued. The Mac call will show if the lag matters.
 - Full tests: 3,117 passed.
+
+## 6 Oct: plan for the photo phase (Phase 4), to hand to Muse
+- The owner asked for a plan: the caller says by key if the phone has internet; with internet, a link by SMS, photos, the call ends, and the line calls back with the answer and the first call in mind.
+- Found: most of the photo path is in the code already. Four things are new. Nothing is built yet; the plan waits for the owner's yes.
