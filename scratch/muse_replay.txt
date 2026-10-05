@@ -1,9 +1,0 @@
-
-== 5 Oct 11:12 (CA7863...c18fba) farmer
-      (too many requests for muse:muse-spark-1.3-contributor: waiting 25 s)
-      (too many requests for muse:muse-spark-1.3-contributor: waiting 25 s)
-      (too many requests for muse:muse-spark-1.3-contributor: waiting 25 s)
-CALLER: मेरे को फार्मर स्कीम्स के बारे में जानना है।
-   -> answer: "मुझे इसकी पक्की जानकारी नहीं है। कृपया दूसरे शब्दों में फिर से पूछिए।"
-      in talk: -  told: -
-      (too many requests for muse:muse-spark-1.3-contributor: waiting 25 s)

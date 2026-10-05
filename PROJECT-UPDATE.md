@@ -19,7 +19,7 @@ Each entry says: what was added, what was changed, and what the project can do a
 - Pick the next question that cuts the list down fastest (Step 4), drop schemes that don't fit (Step 3),
   and choose how to end the call (Step 5).
 - Read results one scheme at a time: plays each scheme, its menu, waits for keypad or spoken questions, and answers 'this scheme' questions from the scheme currently sounding (Step 7.2).
-- `pytest -q` → **2,292 passed** (step 7.9 line).
+- `pytest -q` → **2,267 passed**.
 - Ring your phone into the real backend in one command: `make call-me`.
 - Back up all the scheme data: `make backup`. The text part is also saved in git.
 
@@ -78,7 +78,6 @@ Each entry says: what was added, what was changed, and what the project can do a
 | `haqdaar/server.py` | FastAPI app exposing `/health`, `/answer` (TwiML Stream XML), `/stream` (audio WS). |
 | `tools/tone.py` | 8 kHz μ-law 440 Hz 1-second pure tone generator (no WAV/RIFF headers). |
 | `tools/run_demo.py` | `make call-me`: tunnel + server + rings your phone, in one command. |
-| `tools/barge_eval.py` | `make barge-eval`: runs the real call 62,000 times on a made-up clock, with the caller cutting in at every clip and moment (keys, speech, coughs, "hmm", noisy rooms, echo, hang-up), and writes a scorecard to `scratch/barge-eval/`. `--show` prints one call as a timeline. |
 | `tools/listen.py` | Plays saved clips on the Mac, with their words printed first. `make listen L=mr N=5`. |
 | `tools/cards_sheet.py` | Generates 20-card audit sheet and sample. `make cards-sheet`. |
 | `tools/ear_check.py` | Verifies speech to text across 3 sentences × en/hi/mr. `make ear-check`. |
@@ -100,67 +99,99 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
-### 4 Oct (night) — Step 7.9: cut-ins tried at every place and moment, six faults fixed
+### 5 Oct 2026 — Talks more like a real call; work is committed; a prompt for the rest is ready
+- **Your call was good.** Two things you asked for are built.
+- **"One moment".** It is said when the line has been checking for about 2 s, and again every 4 s while it still checks.
+- **How the call goes now.** It names one or two schemes and asks which one. You ask one thing, it tells that
+  and offers the other parts (papers, how to apply). You say "details" / "विस्तार से", it tells the whole scheme
+  (what it gives, who it is for, papers, how to apply) and asks what more you want. You say "yes", it gives the
+  part it offered, not everything again.
+- **Saved.** Two commits on `step-7.13-talk` in `~/code/haqdaar-v2-7.3`: `26a9828` and `d53b483`. Not pushed.
+- **For the rest.** `PROMPT-STEP-7.14-TALK-REST.md`: paste it into a new chat to do stage times and speed,
+  real cut-in (Silero + the strict gate), the stress run, and the write-up.
+- **Checks.** pytest 2373 passed + the 1 old failure; stress clean.
 
-**Why.** The owner asked: try the whole call with the caller cutting in at different places, times and
-ways, hold it against how the good voice-calling systems behave, and fix what we can.
+### 5 Oct 2026 — The six open points from the test calls are fixed (not committed; waits for your phone)
+- **Faster, and "one moment" is rare now.** The fastest model goes first (about 0.5 s). Live voice is at pace 1.0.
+  The line waits 600 ms of quiet, not 800, to know you stopped. Later sentences are made while the first is said.
+  On the test calls the answer starts about 2 to 3 s after you stop. "One moment" was heard once in 7 calls.
+- **Another topic** ("what is the weather") now gets: "I can only help with government schemes."
+- **No "man or woman?"** when only a few schemes are left; it shows the schemes.
+- **Same need said twice** no longer gets the same sentences back.
+- **Talking over it** was tested: it finishes its reply and does not lose the thread. It does not stop for you yet
+  (real cut-in is step B5, not built).
+- **"1.3 लाख"** is now said, not refused.
+- **Checks.** pytest 2372 passed + the 1 old failure; stress clean; cut-in check same as before.
 
-**Added.**
-- `tools/barge_eval.py` + `make barge-eval`. It runs the **real** call code (engine, mouth, ear, turn)
-  on a made-up clock, so nothing waits for real time. Only the edges are fake: the phone line,
-  speech-to-text, the model. The plain call is run once, every clip it played becomes a place, and
-  the caller then does one thing at one moment inside that clip. 62,082 calls in about 2 minutes,
-  the same result every run. `make barge-eval ARGS="--show keys:voice_qa --at 14:600 --kind cough_long"`
-  prints one such call line by line.
-- What the caller does: 8 kinds of key press, clear speech (an answer, a question, "yes", "say that
-  again"), a short cough, a long cough, two coughs, "hmm", a soft far voice, speech then a key, two
-  cut-ins in a row, a sentence with a breath in it, 8 seconds of talk, hang-up. Also rooms with
-  background sound, the agent's own echo, and speech-to-text being down.
-- `tests/test_barge_eval.py`: 17 tests, 7 seconds.
+### 5 Oct 2026 — Your phone check failed; cause found, fixed, and tested with a caller that needs no phone
+- **What you heard.** You said "farmer schemes" and it asked "farming or business?". You said "farming" and it
+  asked the same thing again, and read out code names (farming, business_loans).
+- **Why.** The model did not write down "farming" from your words, twice. The fixed picker then kept asking for it.
+- **Fixed.**
+  - Clear words (खेती, किसान, फार्मर, लोन, पेंशन, घर ...) are now read by fixed code, before the model.
+  - The same question is never asked more than twice.
+  - Code names, letters of other languages and very long sentences are refused and tried again.
+  - "1.2 लाख" is now read as 1,20,000 by the number check (it was refused before and you would get "not sure").
+  - The scheme you are talking about is always given to the model in full (it had said "no information on papers").
+  - Side talk ("अरे रमेश, चाय ला दो", "वहाँ मत रखो") is ignored better. Replies are shorter.
+- **Added.** `tools/talk_probe.py`: a caller with no phone. It uses the Mac's own Hindi and English voice and
+  talks to the real server: real ear, real speech-to-text, real search, real model, real voice.
+  Five scripts: your call, a vague caller, side talk, an English street vendor, a silent caller. 11 calls run.
+- **Checks.** pytest 2369 passed + the 1 old failure; stress 1000 callers, 0 crashes, 0 truth failures.
+- **What it can do now.** Your exact call now gets farming schemes at once, then PM Kisan money, papers, repeat, goodbye.
+- **Not fixed yet.** "One moment" on every turn; the answer starts 3 to 6 s after you stop (B4 cuts this);
+  a question on another topic gets silence. Not committed.
 
-**Faults it found, now fixed.**
-- **A key pressed twice fast wiped a whole scheme.** The first press was dropped (too early), the
-  second cut everything waiting to be said and was then dropped as well. The caller sat in 13 seconds
-  of silence. This one hit keypad callers today. Now a key that will be dropped does not cut.
-- **`#` and `*` said the question twice in a row** (after `*`, once in the old language). Also live
-  today. Now once.
-- **Any key during the goodbye chopped it.** Now nothing can cut the goodbye.
-- **A cough or "hmm" over a clip lost the clip** and, at a question, cost the caller a turn. Now the
-  agent stops, sees there were no words, and says the cut clip again from its start. No turn spent,
-  no "I did not get that". At most twice per wait.
-- **Two short coughs added up to a cut.** Now they do not.
-- **The agent took 440 ms to stop when spoken over.** Now 280 ms (good systems: 200 to 300).
-  This is the setting `CUT_IN_MIN_MS`, 400 -> 240. It is safe to lower because a wrong stop now
-  costs nothing (the clip is said again).
+### 5 Oct 2026 (night of 4 Oct) — TALK BUILD: B0 to B3 done. You can now talk to it. Waits for your phone check.
+Folder `~/code/haqdaar-v2-7.3`, branch `step-7.13-talk`. Not committed (B2 + B3), not pushed.
 
-**Found, not fixed (needs the phone and the owner's ear).**
-- Reply after the caller stops talking: about 1.6 s to the first sound. 0.8 s of that is our own
-  wait for end-of-speech.
-- Talk longer than 7 seconds is cut in two; the second half comes in as a new input or is lost.
-- A room with steady background sound: end of speech is never seen, replies take 6 s. A loud room
-  makes the agent stop itself.
-- Echo of the agent's own voice (a caller on speakerphone) makes it stop itself. The quicker stop
-  makes this a little worse: 16 to 31 self-stops a call, was about 10.
-- After a hang-up during "one moment" the engine still sends two clips.
-- Voice cut-in is still off by default (`SPEECH_CUT_IN`), and in scheme read-back it also needs
-  `QA_ENABLED`. Everything about speech above only shows on the phone with those on.
+**Added**
+- T2 (the one call log) is committed: `2af3644` on `step-7.12-log`.
+- **Search over all schemes** (`haqdaar/data/scheme_index.py`). Two searches, best score wins: by meaning
+  (a free model that runs on this Mac and knows Hindi and English) and by name. No database. On 30 test
+  sentences in Hindi and English the right scheme is in the top 3 for 28. A search takes 2 to 4 ms.
+- **The fixed question picker on the search results** (`haqdaar/engine/talk_pick.py`). Search gives the 10
+  nearest schemes, the filter drops the ones that do not fit, the same picker as the keys path names the ONE
+  thing to ask next. The model does not choose the question (your change C1).
+- **The talk loop** (`haqdaar/engine/talk.py`, prompt in `haqdaar/prompts/talk.py`). Switch: `TALK_ONLY=true`.
+  After the language key: a short hello, then you talk. Each turn: your words -> search -> filter + picker ->
+  ONE model call -> facts checked -> truth checks -> live voice -> the log.
+  The model can: answer, ask (only the picker's question), show schemes, say it again, say goodbye, or stay
+  silent when the words were not for it (side talk).
+- New rows in the call log: what the caller said (`heard`) and what the model chose (`act`, with the time in ms).
 
-**At this point.** `pytest` 2,292 passed + the 1 known side-folder failure. Stress 1000 callers:
-0 crashes, 0 truth failures. Not yet heard on a real phone. Branch `step-7.9-barge-eval`, not merged.
+**Changed**
+- A failed speech-to-text call no longer makes a TALK call "keys only" (it would go deaf).
+- The truth check takes a length limit: talk replies may be up to 4 sentences / 80 words (your change C5).
+- `TALK_ONLY=true` turns live voice on by itself (no need for `QA_SPEAK=true`).
+- With the flag off the keys call is the same as before.
 
+**Checks I ran**: pytest 2362 passed + the 1 old door_a failure; `make stress` 1000 callers, 0 crashes,
+0 truth failures; `make barge-eval` 65,622 scenarios, same known failing checks; py_compile ok; vault in sync.
+Two scripted calls through the REAL model and REAL search (no phone, no voice): Hindi vague caller
+(asked the kind of help -> farming -> schemes -> "PM Kisan gives how much" -> papers -> say again -> side talk
+ignored -> goodbye) and English street vendor (found PM SVANidhi, told how to apply). Both read right.
 
-### 4 Oct (evening) — Steps 7.3 to 7.7a built: talk first, never a silent default, one moment, voice any time, tighter clips
-- **Where.** Branch `step-7.8-sweep`, folder `~/code/haqdaar-v2-7.3`. Not on main. Not tried on a phone yet.
-- **7.3 Talk first.** After the language is picked the call says one short line: "What do you want to know? Say it, or press 0 for the list." The nine-choice list plays only on key 0 or after two misses. Keys 1 to 9 still work at once.
-- **7.3 Silence, everywhere.** Every place the call waits now goes through one helper. If nothing is heard it says "I did not get your reply", asks the same thing again, and waits. The third silent wait in a row says goodbye and hangs up. Silence at the language prompt no longer picks Hindi; the greeting just plays again.
-- **Changed on purpose.** Staying quiet inside a scheme used to move on to the next scheme. Now it asks again. One silence at "anything else" used to end the call. Now it asks again.
-- **7.1 fixes from the review.** A failed "speak the answer" no longer pays for a second model call. Raw error text no longer goes into the question log. 64 empty test cases removed, and that test now fails if it checks nothing.
-- **7.4 One moment.** When your words are taken as a question the call says "one moment" once, and stops it just before the answer.
-- **7.5 Voice at any time.** With `SPEECH_CUT_IN=true`: your voice stops the greeting and saying "Hindi" or "English" picks the language. If you speak again while it is still thinking, the old words are dropped and only the newest are answered.
-- **7.6 Tighter clips.** When a clip is loaded, quiet at its start and end is cut to 120 ms. 630 of 1,030 clips get shorter. Nothing on disk changes.
-- **7.7a Speed samples.** `make pace-samples` writes the same three lines slower, as now, and faster, in three languages, for the owner to pick.
-- **Not done.** Three new lines have words but no recorded voice: the opening line, the no-reply line, "one moment". On a real call they are silent until rendered, and a render needs the owner's yes. No phone call yet. The full re-record at a new speed waits for the owner's pick.
-- **Checks.** pytest 2,275 passed (one test fails only in side folders, it passes in the main folder); `make stress` 1,000 callers, 0 crashes, 0 truth failures; keypad `make sim` reads four schemes one by one to the end.
+**What it can do now**: hold a back-and-forth talk about schemes in Hindi or English, by voice, strict turns
+(it does not listen while it talks).
+
+**Things you should know**
+- Groq gives each model only 8,000 tokens a minute. One turn is about 1,900. So the loop moves to the next
+  model when one says "too many" (gpt-oss-120b -> gpt-oss-20b -> qwen3.8-27b). About 12 turns a minute in all.
+  Also 1,000 requests a day per model.
+- "One moment" is said on almost every turn today, because the model takes 1 to 2.5 s. Setting:
+  `TALK_ONE_MOMENT_S` (0.6 now).
+- The picker stops asking at 4 schemes left (its own old setting), not 3.
+- A question on another topic ("what is the weather") gets silence, not "I only help with schemes".
+- Not done yet (B4 to B6): pace 1.0, sentence-by-sentence speed work, stage times, cut-in with the strict
+  gate, Silero, the 200-call stress.
+
+### 4 Oct (late night) — Side talk: what can fix it, and the "keys off first" idea (nothing built)
+- **Why.** In the two real calls, voices near the phone kept cutting the agent. The owner asked for a library that fixes this, and asked if we should drop keys for now and build the talk + scheme search first.
+- **Found.** No library fully fixes side talk on a phone line. Krisp BVC is made for it but is paid. Silero VAD is free and tells a voice from a noise, but not the caller from another person. The biggest win is free: the agent does not listen while it talks.
+- **Decided by the owner.** Plan v4 "TALK BUILD" in `.agent/TASK.md`, to be built tonight in a new chat: keys off but the language pick (Hindi and English); the fixed question picker chooses what to ask a vague caller, the model only words it; only free tools for anything new; vector search + name search over all schemes; one model call per turn; voice pace 1.0; cut-in with a strict gate; stress tests. Keys come back at the hackathon.
+- **Written down on purpose.** A paid tool (Krisp BVC) could fix side talk better. We have no money for it, so it is not done. Side talk is handled by turn rules for now.
+- **What the project can do.** Same as before. No code changed in this chat.
 
 ### 4 Oct — Step 7.2: One scheme at a time (results read one by one)
 - **Why.** In phone test 2, all matching schemes and section menus were dumped into a single audio queue at once (~200 seconds of audio). When a caller interrupted during a scheme's menu, clearing the audio queue lost all subsequent schemes and caused "this scheme" questions to be answered against whatever scheme the loop index drifted to, rather than the scheme the caller actually heard.
@@ -1175,3 +1206,295 @@ says "this call is recorded" after the language pick; that saves about 8 seconds
 its clips are kept, and one setting plays it again. Calls are still logged as before. The owner
 also set the aim in one line: a person you can talk to about schemes, with keys working as
 well. The plan is now ordered around that. All 1,859 tests pass; nothing is committed.
+
+**Third phone test: a long quiet after "press 1" (4 Oct, late night).** The owner pressed 1 for
+Hindi and then heard nothing for about 18 seconds. Cause found in the log: three new lines
+("what do you want to know", "I did not get your reply", "one moment") were written but their
+sound was never made, so the call had nothing to play and just waited. When a sound file is
+missing the call does not fall back to anything; it stays quiet. The owner asked for a plain
+map of the system first, then the fix. The map is given; nothing is changed yet.
+
+**The quiet is fixed; a simpler plan is on the table (4 Oct, late night).** If a line has no
+sound, the call now says an older line that has one, so it can not go quiet again; the server
+also names such lines when it starts. All 2,293 tests pass (one old known failure stays). Not
+committed, not yet heard on the phone. Checked the owner's point about old clips: all scheme
+clips are already made and nothing needs to be paid for them; only the three new lines were
+never made (9 small clips). The owner put forward a simpler design: keys follow a fixed path,
+and for speech the model reads a running log of the call plus a search over the schemes. Most
+of the parts are there already; a plan in six small steps and a few questions are with the owner.
+
+**The missing sounds are made; the live set is now 17 schemes (4 Oct, late night).** The owner
+said yes to the nine clips and to a new snapshot. Both are done. The new snapshot needed six
+more very small clips (new age groups), so those were made too: 15 clips, 460 characters in
+all. Every line now has sound in all three languages. All 2,293 tests pass. The owner also set
+the frame: this is a hackathon proof of concept, the model works in English, no work on "model
+is down", one ordered log that the model reads, a small fast model, and work done side by side
+for speed. Next: hear the fix on the phone, then build that path step by step.
+
+**The plan is agreed; building starts in a new chat (4 Oct, late night).** No code was written
+in this last part. The plan in short: keys keep their fixed path. For speech, one small fast
+model works in English and reads one ordered log of the whole call, so it can talk like a person
+who learns about the caller turn by turn. If the caller is unclear it asks a clarifying
+question; after two or three tries it reads the key list. If the line is fully quiet it says
+"we are waiting for your reply" after about 30 seconds and hangs up about 30 seconds later;
+noise on the line does not count as quiet. Speed work comes last, after each stage is timed.
+The steps are in `.agent/TASK.md`.
+
+**Saved, and the first build step is written out (4 Oct, late night).** The pause fix and the
+17-scheme snapshot are committed (step 7.10). The next step, T1, is the silence and unclear
+rules; its work order is in `.agent/TASK.md`. It starts in a new chat. The owner will try the
+whole system on the phone after each step before the next one starts.
+
+**T1 built: the silence and unclear rules (4 Oct, night). Not committed, waiting for the phone check.**
+Folder `~/code/haqdaar-v2-7.3`, branch `step-7.11-silence`. No money was spent.
+- *Added.* If the line is fully quiet, after about 30 seconds the agent says "we are waiting
+  for your reply" and asks again. After about 30 seconds more it says goodbye and hangs up. It
+  is the same at every stage of the call. At the language pick it plays the greeting again, as
+  no language is known yet. Three settings: `SILENCE_REMIND_S` (30), `SILENCE_HANGUP_S` (60),
+  `UNCLEAR_TRIES` (3).
+- *Changed.* The old rule was three short waits of 6 seconds. Unclear words now get three tries
+  (it was two) at the opener and at each question, then the key list. A good key, a good answer
+  or an answered question starts the count again. Quiet no longer counts as an unclear try.
+- *Not done yet.* The new line has no voice clip. Until the words are agreed it plays the old
+  "I did not get your reply" clip in its place. A burst of noise is not counted as quiet, but a
+  low steady hum, or any sound while the agent waits for a key only, still is.
+- *Checks.* pytest 2,318 passed and the 1 known side-folder failure; stress 1,000 callers, 0
+  crashes, 0 truth failures; barge-eval 62,082 cases, the same checks pass and fail as before.
+
+**T1 fixed after the phone check and saved (4 Oct, night).** Commit `4b7ef6f`, branch
+`step-7.11-silence`, folder `~/code/haqdaar-v2-7.3`. No money was spent.
+- *Changed.* Only a key or real words now count as a reply. A cough or room sound with no words
+  is dropped: it does not start the wait again, and it is not a wrong try at the language pick.
+  So no reply twice in a row ends the call at every stage, noise or not.
+- *It can now:* remind at about 30 seconds of no reply and hang up at about 60; give three tries
+  for unclear words, then the key list.
+- *Still open:* the "waiting for your reply" clip (words not agreed yet, an old clip plays in its
+  place). Next is T2, the call log; its work order is in `.agent/TASK.md`.
+- *Checks.* pytest 2,324 passed and the 1 known side-folder failure; stress 1,000 callers, 0
+  crashes, 0 truth failures; barge-eval 62,082 cases, same passes and fails as before.
+
+**T1 finished: the owner's two asks (4 Oct, night).** Commit `a2d9320`, branch `step-7.11-silence`,
+folder `~/code/haqdaar-v2-7.3`. Spend: 3 Sarvam requests, 102 characters.
+- *Changed.* "We are waiting for your reply" now has its own clip in Hindi, Marathi and English
+  (the owner said yes to the words). New snapshot `snap_20261004_161538`: 17 schemes, 582 clips.
+  A caller who stays quiet at the opener now hears the reminder and then the key list once; a
+  second quiet wait ends the call. Wrong keys stay at three tries (the owner agreed).
+- *Checks.* pytest 2,325 passed and the 1 known side-folder failure; stress 1,000 callers, 0
+  crashes, 0 truth failures; barge-eval 65,622 cases, same passes and fails as before.
+
+**T2 built, NOT saved yet: the call log a model can read (4 Oct, night).** Branch `step-7.12-log`,
+same folder, uncommitted. It waits for the owner's phone check. No money was spent.
+- *Changed.* The call log (`logs/calls/<id>.jsonl`) now also holds, in call order: what each key
+  meant ("pressed 3 = age 18-35"), what the agent said as text (caller's language and English),
+  where a cut-in cut the agent (which clip, how many milliseconds in), and each answer the truth
+  checks blocked, with the rule. Nothing the caller hears has changed.
+- *It can now:* print a call as short English lines with `make log-text ID=<call id>`. This is
+  the text the model will read in T4. The model does not read it yet.
+- *New files.* `haqdaar/data/log_text.py` (clip name to words, and log to short text),
+  `tools/log_text.py` (the command), `tests/test_log_text.py` (11 tests).
+- *Known gaps.* The greeting on a real call is said by the phone part, not the engine, so it may
+  not show as an "agent said" line. A live answer has no English copy. A cut-in gives time, not
+  the exact word. False cut-ins stay only in the trace. Caller words are not put into English.
+- *Checks.* pytest 2,336 passed and the 1 known side-folder failure; stress 1,000 callers, 0
+  crashes, 0 truth failures; barge-eval 65,622 cases, scorecard the same as before.
+
+**Step 7.14, B4: stage times and a faster first word (5 Oct).** Branch
+`step-7.14-talk-rest`, folder `~/code/haqdaar-v2-7.3`. The owner's phone check is still owed. No new tool. Spend: a few Sarvam test sentences and three no-phone test calls.
+- *Changed 1: times in the log.* Each talk turn's `act` row now also holds, in milliseconds: the
+  end wait, speech-to-text, search, the model, the first voice, and the whole wait from the
+  caller's last word. `make log-text ID=<call id>` shows them as one `TIMES` line per turn. The
+  copy of the log the model reads has no times in it. Old logs still read fine.
+- *Changed 2: the voice plays as it arrives.* Before, a new sentence was made whole and then
+  played. Now its first sound goes out as soon as Sarvam sends it, and the next sentences are
+  made at the same time. Switch: `LIVE_TTS_STREAM` (on in a talk call; `LIVE_TTS_STREAM=false`
+  puts it back as it was). The keys call is not touched.
+- *Numbers (no-phone caller).* Before: end wait 600, speech-to-text 380-700, search 50-80, model
+  670-970, first voice 840-1370 for a new sentence; 2.0 to 2.8 s from the caller's last word.
+  After: first voice 410-430 for a new sentence (two turns measured). So about half a second to
+  one second less on a turn with a new sentence.
+- *Sarvam ran out of credit in the middle (error 402).* The owner gave a new key the same day;
+  it is in `.env` and works. The "after" calls were then run in full: the answer starts 1.2 to
+  2.1 s after the caller's last word (worst 2.3), where it was 2.0 to 2.8 s. Saved as commit
+  `42ec2a6` on `step-7.14-talk-rest`, pushed.
+- *Seen, not changed.* The talk prompt is about 3,000 tokens (not 2,000), so the fastest model
+  takes only two turns a minute and the third turn goes to a slower one. A true reply is
+  sometimes refused by the old word list ("you will get" in "you will get an OTP"); the second
+  try costs about one second. Both are for B6 (the 40-question score).
+- *Checks.* pytest 2,378 passed and the 1 known side-folder failure; stress 1,000 callers, 0
+  crashes, 0 truth failures; barge-eval 65,622 cases, the report is the same as before the
+  change, line by line; all changed files compile; vault in sync.
+
+## 5 Oct — all branches pushed to GitHub
+- *Before.* Nothing from step 6 (dashboard) or step 7 (talk) was on GitHub.
+- *Now.* Every branch is on GitHub (`haqdaar-v3`), each at the same commit as on this Mac.
+  Checked against GitHub's own list. `step-1.9` was skipped: GitHub already has a newer one.
+- *Not pushed.* Work that is not committed yet: the step 7.14 speed work in
+  `~/code/haqdaar-v2-7.3` (times in the log, voice played as it arrives). It waits for the
+  phone check and the word "commit".
+- *Branch for the dashboard team:* `step-7.13-talk` (commit `d53b483`). It is the last one
+  checked on the phone. It has the dashboard folder (Home + Live call page) and the new call log.
+- *Note.* This network blocks GitHub on port 22. The push went over port 443.
+
+**Step 7.14, B5 to B7: cut-in, stress, write-up (5 Oct).** Branch `step-7.15-cut-in` (off
+`step-7.14-talk-rest`), folder `~/code/haqdaar-v2-7.3`. Commits `6d1d463` (cut-in) and `540ae07`
+(stress tools), both pushed. Keys were not touched. The phone check is the owner's.
+- *It can now: be cut in on.* With `CUT_IN_GATE=true` the agent listens while it talks. 600 ms of
+  a real voice makes it stop. Then: two or more real words are the caller's turn. Fewer ("hmm",
+  "ok ok"), or words the model says were not for it (someone talking in the room), and the agent
+  says the cut sentence again from its start and goes on. No "sorry". With the flag off (the
+  default) it is strict turns, just as before.
+- *A noise is not a voice.* New free voice check (Silero, one 2 MB file in the repo, no new
+  package, runs on this Mac). A hiss, a tone, claps and a hum at full loudness: the old loudness
+  check called all four a voice, the new one none. It is used only when the gate is on.
+- *Tried with the no-phone caller, gate on.* "Wait, tell me about pension" over the reply: it
+  stopped and answered about pension 1.6 s later. "Yes yes, ok ok" over the reply: it stopped and
+  went on from the cut sentence 1.4 s later. "Ramesh, bring the tea" over the reply: the same,
+  1.1 s later. Two seconds of loud hiss over the reply: it went on talking.
+- *Stress, no money: 2,552 scripted talk calls* (`make talk-eval`, about one second). Side talk, a
+  real cut-in, "hmm", "ok ok", a noise, a long noise, a key and a hang-up, each put in at every
+  place the agent speaks, with the gate off and on. Rules: the call always ends; never more than
+  2.5 s of dead air; never the same line twice in a row; never a restart; never a spoken reply to
+  side talk. Broken: 0.
+- *Replay of the two real calls of 4 Oct* (their words; no sound was kept). The call that was
+  all side talk: the agent said nothing, three times. The other: it asked what help is needed.
+  No "sorry", no restart in either.
+- *The 40 real questions were stopped after 4.* Reason, new and important: Groq's free tier has
+  a limit of 200,000 tokens A DAY for each model. One talk turn is about 3,000 tokens, so one
+  model gives about 65 turns a day, about 10 calls. The night's test calls used up the fastest
+  model's day. The call still works: it moves to the next model, which is slower. What the 4
+  questions gave: fastest model 3 of 3 right at about 0.5 s; the two others 3 of 4 right at about
+  0.6 to 1.3 s. The model order stays. The full run is ready for another day: `make talk-questions`.
+- *Fixed on the way.* "How much does PM Kisan give" was sometimes answered "I am not sure". The
+  old word list holds "आपको ज़रूर" and found it inside "आपको ज़रूरी कागज़" (needed papers), so a
+  true reply was refused twice. The second try is now told which words to avoid. The list itself
+  is not changed (it is a truth guard).
+- *Limits to know.* Words said in the first one to two seconds of a reply are not heard. A real
+  voice near the phone still stops the agent for two to three seconds before it goes on. On
+  speakerphone the agent may hear itself (no echo handling). The weakest of the three models
+  writes broken Hindi.
+- *How to run the demo call.* Strict turns: `cd ~/code/haqdaar-v2-7.3 && TALK_ONLY=true make call-me`.
+  With cut-in: `CUT_IN_GATE=true TALK_ONLY=true make call-me`. Read the call after:
+  `make log-text ID=<call id>` (it shows the times of each turn).
+- *What is left for keys (the owner's part).* In a talk call a key after the language pick does
+  nothing but stop the reply that is playing, and the log says "keys are off". To bring keys
+  back: decide what each key means in a talk call (0 the list, # say it again, a number for a
+  choice), hand a key to the same turn as spoken words, and do not let a key cut a reply unless
+  it is a known key. The keys-only call (`TALK_ONLY` off) is untouched and still passes all its
+  tests.
+- *Checks.* pytest 2,388 passed and the 1 known side-folder failure; stress 1,000 callers, 0
+  crashes, 0 truth failures; barge-eval 65,622 cases, the report the same as before, line by
+  line; talk-eval 2,552 calls, 0 rules broken; all changed files compile; vault in sync.
+
+## 5 Oct, about noon: after the owner's good call (replies off the point, sound cut)
+- *What the call showed.* Call ...c18fba worked end to end. Two things were off. The line "one
+  moment" was said three times and each time the answer chopped it after half a second. And the
+  replies were sometimes off the point: one sentence was said twice word for word, "tell me more"
+  gave everything at once, and right after telling the papers and how to apply it asked "shall I
+  tell you the papers, or how to apply?".
+- *Sound fix.* "One moment" is never chopped now: the answer waits behind it. It is also said
+  later (1.6 s, was 1.0 s), so a usual turn has no "one moment" at all; only a slow turn does.
+- *The tunnel is not the cause.* All the sound of a sentence is sent ahead at once and the phone
+  company holds it, so a slow tunnel can not chop a sentence. Cloudflare can not be used in the
+  hall (it needs a port the hall blocks). On a phone hotspot `make call-me` picks Cloudflare by itself.
+- *Relevance fix.* On each turn the model now first writes what the caller wants, and it is told
+  which scheme the talk is about and which parts of it were told (what it gives, who it is for,
+  papers, how to apply) and which were not. It offers only the parts not told. "Tell me more"
+  gives only the new parts.
+- *Tested.* All tests pass (2,389 and the 1 known side-folder one). 2,552 scripted talk calls: no
+  rule broken. With the real model, 9 turns: no sentence said twice, "more" gave only the new
+  part, the offers were right.
+- *Warning for the demo.* Both good models are at their limit of tokens for the day (200,000
+  each). My 9 test turns used about 30,000 of the second model's, and a check of mine wasted
+  6,000 more. Until the use of last night rolls off, a call can fall to the weak model (broken
+  Hindi) or say "I am not sure". The ways out: the paid Groq tier, a second key, or few calls.
+- *Run.* `cd ~/code/haqdaar-v2-7.3 && TALK_ONLY=true make call-me`. With cut-in:
+  `CUT_IN_GATE=true TALK_ONLY=true make call-me`. Commit 8b20892, pushed.
+
+## 5 Oct, about 12:45: second Groq key, Muse as a spare, two more fixes
+- *Second Groq key.* It is in the settings file. When the first key is refused for its limit, the
+  same question goes out again on the second key. It is a separate account, so the fast model
+  answers again. This takes away the demo risk of this morning.
+- *Muse.* It is wired in and its money guard is kept. But it is slow on this job: 8.6 seconds a
+  turn at its lowest effort, 16.8 at "low" (Groq takes 0.6 to 0.9). So it is not in front and not
+  on by default. It can be switched in as a last resort with one setting. If Muse has a smaller
+  model, tell me its name and I will time it. Note: on this path the caller's words go to Muse.
+- *Two more causes of replies off the point, found by the test calls and fixed.* (1) After the
+  talk moved to one pension scheme, "how much money?" was answered about another one. Now such a
+  reply is sent back once. (2) Right replies that ended with "shall I tell you the needed papers?"
+  were thrown away and the caller heard "I am not sure": an old word check took "needed" for
+  "you will surely get". Fixed for talk calls; a real promise is still refused.
+- *Tested.* All tests pass (2,394 and the 1 known side-folder one). 2,552 scripted talk calls: no
+  rule broken. Two test calls of 5 turns each on the real fast model: every reply on the point.
+
+## 5 Oct, about 13:00: the call that "went dead" after the greeting
+- *What happened.* Call ...e0b2b5: the greeting played, then nothing for 14 seconds, then it was
+  stopped by hand. The phone company's own record says the call was never dropped: it stayed open
+  until the stop. No key press reached the server.
+- *The cause found.* At the greeting a talk call listened for a KEY only, and waited 30 seconds
+  before saying anything. So a caller who says "Hindi", or just starts to talk, hears a dead line.
+- *Fix.* At the greeting you can now say the language ("Hindi", "English") or press the key.
+  Tested with a no-phone call that says "हिंदी": it went on in Hindi 0.7 seconds later.
+- *So the next time can be proved.* The call log now says when the first sound from the phone
+  came in, any gap of over a second in it, and at the end how much sound and how many keys came
+  in and how many clips were played out. A real network fault will show there.
+
+## 5 Oct, about 13:15: the call that kept saying the greeting again
+- *What happened.* Call ...50a7a2: the greeting was said three times in 39 seconds and the talk
+  never started. Key 1 was pressed and nothing came of it. "Hello" and a full Hindi question
+  both got the greeting again.
+- *Cause 1, proved from the call's own record.* A small sound with no words came just after the
+  greeting. The code took that as "this question is over" and shut the door on keys. Key 1 came
+  0.6 seconds later and was thrown away. This came in with the fix of 13:00 (voice at the
+  greeting). The throw-away is written only in the detailed record, not in the log on screen.
+- *Cause 2.* By voice, only the bare words "Hindi" or "English" pick a language. Any other
+  sentence, even one in clear Hindi, counts as a miss and the whole greeting is said again. The
+  speech service already knows the sentence is Hindi; that is not used.
+- *Cause 3.* What the caller asks at the greeting is thrown away, so it has to be asked again.
+- *Against the simple plan.* Search, the call log, the model and the question picker are all
+  built. This call never reached them. The part that failed is the old keys gate at the greeting,
+  which is not in the simple plan.
+- *Not changed yet.* This was a look only; no code was changed. The small fix is ready to do:
+  keep keys open after a stray sound, and let any real words at the greeting start the talk.
+
+## 5 Oct, about 14:00: the owner's flow drawing, made into three full charts
+- *What was asked.* The owner drew his own call flow and asked for three things: finish it
+  (close the loops, add edge cases, keep his boxes where they are), a second chart with the
+  cut-in, and a third with the keys as well. Then run the tests and say plainly how things stand.
+- *What was made.* Three Excalidraw files in the folder `flow/`, with a plain picture of each:
+  `1-talk-flow`, `2-talk-flow-barge-in`, `3-talk-flow-with-keys`. Black boxes are the owner's own.
+  Orange is what was added. Blue is the cut-in. Green is the keys. Red is where the call ends.
+- *Loops that are now closed.* After the caller hears a reply the line goes back to listening.
+  Search results go back to the model. A reply that fails the truth check goes back to the model
+  once. Quiet at the greeting and quiet in the talk both end: once a reminder, the second time
+  goodbye. Side talk gets no reply and the line keeps listening.
+- *How the built system differs from the drawing.* The greeting is still "press 1, press 2" in
+  two languages, with no key 6. The language is fixed for the whole call; what Sarvam hears is
+  not used. The search runs on every turn by code, not when the model asks, and it does not
+  cover papers or how to apply. The model writes Hindi itself; there is no English-then-translate
+  step. Keys and talk can not be mixed inside one call. The log, the keyword bits, the quiet
+  rule, the truth check and the cut-in gate are built.
+- *Checks.* The charts are drawn by a small script that also checks them: no box on a box, no
+  line through a box, every box has a way in and a way out, every path can reach an end. All
+  pass. They were not opened in Excalidraw itself. Code tests: 2,394 pass and the one known
+  failure; 2,552 scripted talk calls with no rule broken. No app code was changed.
+
+## 5 Oct, about 15:00: everything pushed, a clean branch, and a new plan
+- *Everything is saved.* All loose work in every folder was committed and pushed to GitHub:
+  the half-done keys edits and patch scripts of the main folder, the pace samples, the scratch
+  probes. Two test-result files of 70 MB each were left out; the test writes them again.
+- *A clean branch.* The new branch is `v5-clean`, in the main folder `~/code/haqdaar-v2`. It is
+  the working code of today with the old paper taken out: 25 prompt files, five old plans, the
+  audit, the scratch and work folders, and the dashboard. All of it is still in git on the old
+  branches. The design vault (`haqdaar-v2-brain`) was kept; the owner decides.
+- *The fallback.* The folder `~/code/haqdaar-v2-7.3` was not touched. A call can still be made
+  from it as before.
+- *A new plan.* `PLAN.md` has three phases, one for each flow chart: talk, then cut-in, then
+  keys. It says what is built and what is not, the steps, the checks and the risks.
+- *Clarifying questions first.* This was looked into. The rule that picks the question is
+  already a fixed one (minimax: the question whose worst answer leaves the fewest schemes), with
+  no model in it. But a second rule says "ask nothing when 4 or fewer schemes are left", and no
+  kind of need has more than 4 schemes. So today a caller who says "my crops died" gets a list
+  of schemes and no question. The fix is step 1.3 of the plan. It is not built yet.
+- *The charts* now show this: the question is picked by fixed code from the keyword bits, and a
+  situation gets up to 3 questions before any scheme is shown.
+- *No app code was changed.* Only files were removed and papers written.
