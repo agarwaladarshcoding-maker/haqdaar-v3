@@ -243,6 +243,9 @@ it does today). The run is in NOTES. These are added to 1.3; nothing above is ta
   owner's word.
 
 ### 1.8 Follow-up talk, like a person (added 5 Oct evening; done before 1.7 closes the phase)
+PART A DONE 5 Oct ~22:30 (848715e): what was named, going back, side by side, "will I get it", say it
+another way (not the slower voice), hold on, "can you hear me". PART B LEFT: slower voice, two halves,
+trust lines, what the line can not do, distress, off topic three times, "thanks" is not goodbye.
 After the first answer a real caller does not ask clean questions. Each line below is a group in
 `fixtures/talk_human.json`. Fixed code does what it can; the model does the wording.
 - **What was named, kept by code.** A list of the schemes named in the last reply, in order, and
@@ -413,6 +416,13 @@ Workers: Claude and Antigravity. The file sets do not cross.
 7. Owner: 2.0, cut-in on the Mac with headphones; Claude fixes what the trace shows (2.2-2.5).
 8. 1.7 close of Phase 1: all checks, five phone calls, push.
 9. Phase 3 keys (3.1-3.6). Then the reader plug is filled when the team has its model (4.4).
+
+Added 5 Oct ~22:30 (owner): the photo link opens by ngrok; no other phones. The call keeps the list of
+languages the caller spoke (up to 4) and gives it to the photo case; the page shows its help in all of
+them (`.agent/PROMPT-antigravity-photo-3.md`, with the faults of the page's review). 4.1 is committed
+on Antigravity's branch (5fe23ab), not joined. The old-age pension (`nsap-ignoaps`) is ready in
+`data_cache/derived` and waits for its sound clips (paid; the owner's yes). A second Antigravity may
+take the translate guard (`.agent/PROMPT-antigravity-translate-3.md`).
 
 ## 5. Risks, and what guards each
 - **Groq day limit** (200,000 tokens a model, about 65 turns): real-model test runs stay small

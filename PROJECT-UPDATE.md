@@ -1731,3 +1731,35 @@ headphones, or the microphone hears the agent's own voice.
   I commit, join the search, do cut-in on the Mac with you, then the code in the call and the
   call-back, then one whole run. Of the keys phase only key 9 (the photo code) fits.
 - *Not saved to git yet:* the Mac call tool and its screen, the recording tool, the plan.
+
+## 5 Oct, about 22:30: follow-up talk (first half), the photo page read, plans for two Antigravity workers
+
+**Added**
+- Follow-up talk, the half that fixed code can do (step 1.8 part A). The talk now keeps a list of the
+  schemes it named. "The second one", "the first one" and "the one before" move the talk to that scheme.
+  "Any other?" gives only schemes not yet named, and says so when none are left. "Which gives more?"
+  compares only the two last named. "Will I get it?" asks the one thing the scheme depends on, with no
+  promise. "I did not understand" gets a shorter, simpler reply. "How much did you say?" gives only the
+  sentence with the number. "Hold on" gets "take your time" and up to two minutes of quiet. "Hello, can
+  you hear me?" in the middle of a call gets "yes" and the last question again.
+- Two prompts for Antigravity: `.agent/PROMPT-antigravity-photo-3.md` (the photo page's faults, and the
+  page in every language the caller spoke) and `.agent/PROMPT-antigravity-translate-3.md` (the translate
+  guard; not needed for the demo).
+
+**Changed**
+- One bug in the new code was found on reading and fixed: a caller who named two needs in one turn
+  could break the follow-up note.
+
+**Found, not changed**
+- Antigravity's photo page, desk and Muse reader are committed on their own branch and their 48 tests
+  pass. A read of the code found faults that would hurt a demo (a slow read freezes the page, a photo
+  can be sent twice, the "sent" screen shows on a failed send). Nobody has opened the page on a phone.
+- The old-age pension scheme is already written in three languages. It is not live only because its
+  sound clips are not made, which is a paid step. It waits for the owner's yes.
+
+**What the project can do now**
+- A talk call handles the common follow-up remarks above. Checked by tests only: 2,822 passed in the
+  side folder (1 known failure from that folder's data), talk check 8,766 calls with 0 rules broken.
+  No real model and no Mac call has run on this code yet.
+- Left of step 1.8: slower voice, trust lines ("is it free?", "are you a person?"), stopping a caller
+  who reads out an Aadhaar or OTP number, distress, three off-topic turns, "thanks" is not goodbye.

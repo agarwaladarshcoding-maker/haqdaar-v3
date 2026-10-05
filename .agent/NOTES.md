@@ -321,3 +321,77 @@ Facts from the run (snapshot CURRENT, 17 schemes; kinds: farming 4, business_loa
 - Real index in the main folder: loads in 1.5 s, search 6-8 ms. "which papers for PM Kisan" -> pm-kisan papers first. "my crops died" -> pmfby first.
 - DATA GAP: the snapshot has 17 schemes and NO old-age pension (no IGNOAPS). Pensions held: ignwps (widow), igndps (disability), apy, nps-tsep. So a 70-year-old who is not a widow has no fitting pension scheme; the right reply is to say so.
 - Antigravity committed 4.1 = 9677ae0 on step-4.1-photo-desk at 20:20 (8 files, tools/photo_desk.py 1012 lines). Quick grep only, not a full read: viewport tag yes, buttons 54-56 px, font 15-19 px; BUT the page script uses arrow functions, async, const, fetch (old phones fail), no noscript, no Gujarati / Tamil, no Muse reader. All of it is in PROMPT-antigravity-photo-2.md. Not merged into v5-clean.
+
+## Turn 25 (Antigravity, 5 Oct ~21:10): Step 4.1 prompt additions (Muse reader + mobile-friendly to all)
+- Implemented in `~/code/haqdaar-v2-photo`, branch `step-4.1-photo-desk`:
+  - `haqdaar/photo/reader.py`:
+    - `READERS = {"stand-in": _stand_in, "http": _http, "muse": _muse}`
+    - `PHOTO_READER` defaults to "auto" (calls `dotenv.load_dotenv()` inside `read()`, picks "muse" if `MUSE_API_KEY` set, else "stand-in").
+    - `_muse` checks money guard first (`muse_talk._refused(ledger)`), returns "stand-in (Muse is closed for today)" with no call made.
+    - Sends at most first 4 photos with detected mime types (`image/jpeg`, `image/png`, `image/webp`).
+    - After status 200, writes ledger with task "photo".
+    - Corrects Muse types: `wrong: false` -> `""`, `sure: true` -> `1.0`, etc.; empty/missing shows counts as reader failure.
+    - Sanitizes output with dose guard and 400-char truncation.
+  - `tools/photo_desk.py`:
+    - Viewport `<meta name="viewport" content="width=device-width, initial-scale=1">` and `<meta charset="utf-8">` first in head.
+    - `<html lang="{case.lang}">`, single column, widths in %, pictures `max-width: 100%`, box-sizing border-box.
+    - Font size >= 18px, system fonts only (`font-family: system-ui, sans-serif`), strong contrast dark text on white, no `:hover` rules.
+    - 3 buttons full width, >= 56px high, >= 12px apart.
+    - Delete button 'x' is >= 44px square.
+    - Added Gujarati ("ફોટો લો", "ફોટો પસંદ કરો", "મોકલો", "મોકલાઈ ગયું, તમને કૉલ આવશે") and Tamil ("புகைப்படம் எடு", "புகைப்படங்களைத் தேர்ந்தெடு", "அனுப்பு", "அனுப்பப்பட்டது, உங்களுக்கு அழைப்பு வரும்") labels and code comments.
+    - Small notice text under send button in page's languages: "The photos are read by a computer and by a helper. / फोटो कंप्यूटर और एक सहायक देखेंगे। / फोटो संगणक आणि एक मदतनीस पाहतील।".
+    - Script runs on old browsers: `var` and `function` only; no arrow functions, async/await, let/const, optional chaining, template literals, or fetch; uses `XMLHttpRequest`.
+    - `canvas.toBlob` fallback to `canvas.toDataURL` -> `dataURLToBlob`. Drawing failure fallback sends file if <= 5MB.
+    - Send button disabled while sending; network error preserves photos and displays retry notice.
+    - `<noscript>` line in 3 languages.
+    - Page sizes: ~13.9 - 14.5 KB (< 20 KB).
+    - Desk page on port 8003 has viewport tag and flexible wrap layout for narrow laptop/mobile windows.
+- Tests in `~/code/haqdaar-v2-photo`:
+  - `tests/test_photo_cases.py`: 12 passed
+  - `tests/test_photo_reader.py`: 20 passed (includes good answer, wrong types, guard refusal with no post call, 500, bad JSON, timeout, >4 photos, ledger writing, auto mode with/without key)
+  - `tests/test_photo_desk.py`: 16 passed (includes viewport tag, banned script tokens check, <20KB, Gujarati/Tamil labels order, noscript tag)
+  - All 48 tests pass in 0.52s.
+- Manual verification:
+  - Started `tools.photo_desk` server (`0.0.0.0:8002` and `127.0.0.1:8003`).
+  - Created test case `a654zzsym5` via `POST /new`.
+  - Sent 2 photos via `POST /p/a654zzsym5/photo` and triggered `POST /p/a654zzsym5/done`.
+  - Checked desk page on port 8003: case transitioned `waiting` -> `photo` -> `read`, showed 2 photo thumbnails, finding, say text, and action buttons.
+  - Terminated server daemon clean.
+
+
+## Turn 27 (5 Oct ~21:30): owner's answers; old-age pension map
+- Owner: the SMS came on his phone. Photo link = ngrok. No other phones. Old-age pension: add it. "Go on" with my next step (1.8). Easy steps go to Antigravity (he can run two).
+- Photo folder at 21:25: 9677ae0 + LOOSE edits (reader.py 21:06, tools/photo_desk.py 21:11, two tests). Antigravity has not committed the add-on.
+- OLD-AGE PENSION MAP (explore agent, read only, nothing run):
+  - The card is ALREADY made: slug `nsap-ignoaps` in data_cache/derived/cards.jsonl (pension, gender ANY, age min 60, gate note "below poverty line"). It is not in the snapshot only because p6_snapshot defaults to --only-with-audio and its 18 clips are not rendered.
+  - Talk speaks by the live voice (audio.say_text), so a talk call needs no clips. But Corpus.load (haqdaar/data/corpus.py:90-170) raises when a manifest render_key has no audio file. So `p6_snapshot --all-schemes` may make a snapshot the server can not load: NOT tried. Keys mode needs the paid render (make render YES=1 SNAP=...).
+  - New snapshot = `make snapshot` (p6): new folder, new bits + masks.bin, flips snapshots/CURRENT. Chunk index re-embeds by itself (local model, free, cache keyed by snapshot id).
+  - Tests that may break at 18 schemes: range(17) loops in tests/test_clarify_picker.py:28 and tests/test_talk_human_code.py:93; 30-set floors in tests/test_chunk_search.py:243 (>= 28) and tests/test_scheme_index.py:63 (>= 27); alias clash checks (test_scheme_names, Door A).
+  - No BPL box in the seven boxes; BPL is a gate note in the text only. So the model must ask or say it as a condition (the L1 prompt rule).
+- Two Sonnet agents (photo review, 1.8 coder) died at once on a network fault (self-signed certificate on the API link). Started again.
+- PHOTO REVIEW (Sonnet agent, 21:40; photo folder now clean at 5fe23ab = Antigravity's add-on commit). Ran: 48 photo tests pass, py_compile ok, page rendered + posted by TestClient. NOT run: real servers, a browser, a phone. Page 14.3-14.5 KB, no ES6, 5 languages, viewport, noscript, buttons >= 56 px, text >= 18 px. Number never in page / link / log; token 10 chars from `secrets`; desk on 127.0.0.1; 5 MB -> 413; not a picture -> 400. Muse reader: money guard first (reader.py:165), ledger on 200, types fixed, never raises, 4 photos at most. Touches only haqdaar/photo/*, tools/photo_desk.py, 3 tests, Makefile: merge clash unlikely (no trial merge done).
+  Faults, worst first (tools/photo_desk.py unless said):
+  F1 /done runs the reader inside the async handler (~535, ~79): a 30 s Muse read blocks the whole photo port. -> thread.
+  F2 a second /done while reading spends Muse twice. -> a "reading" mark first.
+  F3 sendOnePhoto (~497) calls back from onreadystatechange (status 0) AND onerror: retries run twice. -> a `called` flag.
+  F4 "sent" screen shows even when /done failed (~540). -> only on 200.
+  F5 thumbnails use aspect-ratio (~140): squares vanish on old Android. -> fixed height.
+  F6 no createObjectURL and no FileReader -> script throws (~490); canvas.getContext null not checked.
+  F7 drop_photos never called: a link opened again hits "six at most".
+  F8 sweep never called: photos stay on disk past 24 h.
+  F9 10 wrong tokens = 60 s block for every visitor behind a tunnel (ngrok makes all visitors one address). Matters now that the owner chose ngrok.
+  F10 call_back does not call mark_called (number stays in case.json): for whoever wires 4.3 (me).
+  F11 dose guard does not run on `search`; misses mg / gm / tablet. F12 desk has no Host / Origin check. F13 raw-file fallback sends big photos to Muse. F14 token regex `$` takes a trailing newline.
+- Fix prompt for Antigravity: .agent/PROMPT-antigravity-photo-3.md (F1-F9, F11, F12, F14).
+- Owner ~21:45: keep every language spoken in the call in a list; the photo page shows its help in all of them (3-4 at most). Page side is Part A of .agent/PROMPT-antigravity-photo-3.md (case `langs`, 1-4 codes). Call side is mine, with 4.2.
+- Second Antigravity prompt: .agent/PROMPT-antigravity-translate-3.md (translate guard fix pass, own worktree ~/code/haqdaar-v2-translate, branch step-1.4c-guard; only middle.py + its tests + a 100-line fixture). Not needed for the demo.
+- OLD-AGE PENSION, looked at the data myself: data_cache/derived/schemes.jsonl holds 27 ready schemes; the snapshot holds 17. `nsap-ignoaps` is one of the 10 that wait only for sound clips (text in en / hi / mr is machine-made, verified_by null, like the rest; fetched 30 Sep; Rs 200 a month to 79, Rs 500 after; 60+, below poverty line). So adding it = render its 18 clips (PAID Sarvam, small) + `make snapshot`. Open: the render reads a snapshot, and `p6 --all-schemes` would take in all 10 and flip CURRENT to a snapshot the server may not load. Needs a careful map before any run, and the owner's yes for the paid render. NOT started.
+- STEP 1.8 PART A BUILT (Sonnet coder, ~/code/haqdaar-v2-merge, 22:10; not committed when written). New haqdaar/engine/talk_follow.py (word lists hi / mr / en, pure) + tests/test_step18_followup.py (53). Changed: engine/talk.py, engine/talk_pick.py (needs_ask), prompts/talk.py (FOLLOW notes, HOLD, HEAR), data/scheme_index.py (named_in), contracts/tunables.py (TALK_HOLD_S 120), tools/talk_eval.py (f_hold, f_hear, f_follow: 8,766 calls now, was 6,840).
+  - talk.py keeps last_named / all_named (schemes a reply named, by scheme_index.named_in on the reply text). "second one" / "the one before" / "first one" move the focus by code; "any other" = only schemes not named (note says so when none left); side by side = the two last named pinned, a third is sent back once; "will I get it" = talk_pick.needs_ask on the scheme in talk; `simpler` = a note to the model; "how much did you say" = by code, the sentences of the last reply that hold a digit (no model call), else a note; hold = fixed line, no model call, quiet rule waits TALK_HOLD_S; "hello? can you hear me" mid-call = fixed line + the last question, no model call. hold / hear lines do not overwrite last_say.
+  - Prompt SYSTEM 8748 -> 8823 chars (+13 words): the extras ride in the per-turn NOTE. test_clarify_wire caps the prompt near 1660 words.
+  - MY READ of the diff, two fixes: (1) BUG: the coder's new list `extra` in _decide was overwritten by the old `for extra in cats[1:]` loop (two needs in one turn) -> the note got a string spread letter by letter, or .append crashed. Renamed to `follow`. No test covers that path yet. (2) the hold now ends when the caller speaks again (hold_until = 0). Also: English "first" / "second" alone no longer move the talk ("first one", "the first", "the second" do); "दूसरे शब्दों" = simpler, not "the second".
+  - Limits: hold is code only (the model is not told of it); hold needs <= 5 words, hear <= 8; named_in matches names in the reply text, overlapping names can both match; "any other" draws on the search pool of 12 parts; "how much" by code works only when the reply wrote digits; Marathi words and the mr fixed lines are the coder's, not checked by a speaker; no real-model run.
+  - LEFT of 1.8 (part B): slower voice, a sentence in two halves, trust lines (free? government? a person?), Aadhaar / OTP stop, "what the line can not do", distress, off topic three times, "thanks" is not goodbye.
+- DONE 5 Oct ~22:30: phase1-merge 848715e (1.8 part A + my two fixes + one more test, 54 in the file). Side folder: full pytest 2822 passed, 1 failed (the known door_a); talk-eval 8,766 calls 0 broken. v5-clean could not fast-forward (it has the notes commit ca0d813), so a plain merge = b0c52d5. Main folder: py_compile ok; 9 touched test files pass (count line cut off in my view; door_a passes here). stress and barge-eval NOT run. No real-model run, no Mac call on this code.
+- Slip of mine: a `git stash` of talk.py in the side folder while the full run was going; popped back at once, file checked (the 5 follow.append lines are there), new test file re-run 54 passed.
+- .agent/TASK.md and the PROMPT files are git-ignored (only NOTES.md is tracked), so the Antigravity prompts live on this laptop only.
