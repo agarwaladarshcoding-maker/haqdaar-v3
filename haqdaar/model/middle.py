@@ -22,6 +22,7 @@ import time
 from dataclasses import dataclass
 from typing import Iterator, Optional, Sequence
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor
 
 from haqdaar.model.translate import TARGET_CODES, AnswerTranslator
 
@@ -383,7 +384,7 @@ def _timeout() -> float:
 
 def _reply_timeout() -> float:
     try:
-        return float(os.environ.get("MIDDLE_REPLY_TIMEOUT_S", "4.0"))
+        return float(os.environ.get("MIDDLE_REPLY_TIMEOUT_S", "6.0"))
     except ValueError:
         return 4.0
 
@@ -414,20 +415,14 @@ def reply_in(reply_en: str, lang: str) -> Iterator[Out]:
 
     total_timeout = _reply_timeout()
     total_start = time.monotonic()
+    sents = split_sentences(reply_en)
 
-    for sent in split_sentences(reply_en):
+    def one(sent: str) -> Out:
         start = time.monotonic()
-        elapsed_total = time.monotonic() - total_start
-        if elapsed_total >= total_timeout:
-            # Over whole-reply time limit: refused, return English sentence
-            yield Out(text=sent, ok=False, ms=int((time.monotonic() - start) * 1000))
-            continue
-
         text, ok = sent, False
         try:
             for _ in range(2):
-                elapsed_total = time.monotonic() - total_start
-                if elapsed_total >= total_timeout:
+                if time.monotonic() - total_start >= total_timeout:
                     break
                 got = None
                 try:
@@ -440,5 +435,17 @@ def reply_in(reply_en: str, lang: str) -> Iterator[Out]:
                     break
         except Exception:
             text, ok = sent, False
+        return Out(text=text if ok else sent, ok=ok, ms=int((time.monotonic() - start) * 1000))
 
-        yield Out(text=text if ok else sent, ok=ok, ms=int((time.monotonic() - start) * 1000))
+    # All sentences are sent to Sarvam at once (one after another, a 4-sentence reply ran out of its
+    # time limit and the last sentences were said in English: Mac call, 6 Oct). Out comes in order.
+    pool = ThreadPoolExecutor(max_workers=max(1, min(len(sents), 6)))
+    try:
+        futures = [pool.submit(one, sent) for sent in sents]
+        for sent, fut in zip(sents, futures):
+            try:
+                yield fut.result(timeout=max(0.1, total_timeout + _timeout() - (time.monotonic() - total_start)))
+            except Exception:
+                yield Out(text=sent, ok=False, ms=0)
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)

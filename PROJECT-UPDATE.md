@@ -1859,3 +1859,5 @@ headphones, or the microphone hears the agent's own voice.
 ## 6 Oct: plan for the photo phase (Phase 4), to hand to Muse
 - The owner asked for a plan: the caller says by key if the phone has internet; with internet, a link by SMS, photos, the call ends, and the line calls back with the answer and the first call in mind.
 - Found: most of the photo path is in the code already. Four things are new. Nothing is built yet; the plan waits for the owner's yes.
+- Later the same night: the owner set it straight. No internet question. The link goes out and the line hangs up; the photo comes by the web page, or by the keypad SMS app when there is no data; after that both go the same way.
+- The team mate's branch `keypad-sms-uploader` was found on GitHub. The plan for Muse is in `.agent/PROMPT-muse-phase4.md` (7 steps). Branch `merge-phase-4` is made. Nothing is built.
