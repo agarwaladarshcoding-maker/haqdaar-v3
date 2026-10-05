@@ -15,7 +15,7 @@ import threading
 import time
 from typing import Any, Optional
 
-from haqdaar.contracts import tunables
+from haqdaar.contracts import tunables, vocab
 from haqdaar.contracts.log_schema import (
     STOP_LE_4_SURVIVORS,
     STOP_NO_SPLIT,
@@ -178,14 +178,14 @@ class _Talk:
         finally:
             self.stage[stage] = self.stage.get(stage, 0.0) + time.monotonic() - t0
 
-    def _decide(self, words: str) -> tuple[str, str]:
+    def _decide(self, words: str, cut: bool = False) -> tuple[str, str]:
         """(action, say). At most two model calls: the second only after a refused first reply."""
         # The clear words first, by fixed code (a real call showed the model can miss "farmer schemes").
         _take_facts(talk_words.spot(words, self.corpus), self.bv, self.corpus, self.log, self.turn_n)
         ids = self._timed("search", self._found)
         boxes = {b: self.corpus.values(b) for b in SEVEN_BOXES}
         text = log_text.log_text(_rows(self.log), tunables.TALK_LOG_CHARS)
-        note = ""
+        note = prompt.CUT_NOTE if cut else ""
         wrong_ask = False                           # the last try asked a box the picker did not name
         nar, cards = self._state(ids)
         for _try in (0, 1):
@@ -238,6 +238,8 @@ class _Talk:
                 self.log.write({"ev": "blocked", "rule": rule, "question": mask_digits(words), "text": say})
                 note = (f'Your reply "{say}" was refused by the "{rule}" check. Say it another way, '
                         "shorter and only with what is written in SCHEMES.")
+                if rule == "forbidden":             # name the words, or the second try uses them again
+                    note += f' Do not use the words "{vocab.find_forbidden(say, self.lang)}" or words that start with them.'
                 continue
             scheme = str(data.get("scheme") or "").strip()
             if scheme in ids:
@@ -274,7 +276,8 @@ class _Talk:
             else:
                 self.audio.say_text(sentence)
 
-    def _turn(self, words: str, end_ms: int = -1, stt_ms: int = -1) -> str:
+    def _turn(self, words: str, end_ms: int = -1, stt_ms: int = -1, cut: bool = False) -> str:
+        """`cut`: the caller said these words while the agent was talking, and it stopped (B5)."""
         self.turn_n += 1
         self.stage = {}
         self.heard.append(words)
@@ -306,7 +309,7 @@ class _Talk:
 
         threading.Thread(target=filler, daemon=True).start()
         try:
-            action, say = self._decide(words)
+            action, say = self._decide(words, cut)
             back[0] = time.monotonic()
             row: dict[str, Any] = {
                 "ev": "act", "action": action, "scheme": self.focus, "ms": int((back[0] - t0) * 1000),
@@ -325,6 +328,9 @@ class _Talk:
                 self.log.write(dict(row))
                 row.clear()
 
+            if cut and action == "not_for_me" and hasattr(self.audio, "say_cut_again"):
+                stop_filler()                       # not for the agent: it goes on from the cut sentence
+                row["again"] = bool(self.audio.say_cut_again()) or None
             if action == "repeat":
                 say = self.last_say
             if say:
@@ -368,7 +374,7 @@ class _Talk:
                 continue
             if not isinstance(inp, Speech) or not inp.text.strip():
                 continue                        # noise: say nothing, keep listening
-            if self._turn(inp.text.strip(), inp.end_ms, inp.stt_ms) == "goodbye":
+            if self._turn(inp.text.strip(), inp.end_ms, inp.stt_ms, bool(inp.cut_clip)) == "goodbye":
                 return self._end(farewell=True)
 
 

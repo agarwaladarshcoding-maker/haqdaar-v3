@@ -374,3 +374,34 @@ def test_stage_times_are_on_the_act_row_and_only_in_the_text_when_asked(call, co
     assert text.count("TIMES (ms)") == 2 and "AGENT said its last reply again\n  TIMES" in text
     old = [{k: v for k, v in r.items() if not k.endswith("_ms")} for r in rows]
     assert "TIMES" not in log_text.log_text(old, times=True)        # an old log: no line, no error
+
+
+class CutAudio(Audio):
+    def __init__(self, inputs):
+        super().__init__(inputs)
+        self.again = 0
+
+    def say_cut_again(self):
+        self.again += 1
+        return True
+
+
+def test_words_that_cut_the_agent_but_were_not_for_it_make_it_go_on_from_the_cut_sentence(corpus, tmp_path, monkeypatch):
+    monkeypatch.setattr(tunables, "TALK_ONLY", True)
+    monkeypatch.setattr(scheme_index, "get", lambda snapshot_id="CURRENT": Index())
+    audio = CutAudio([Speech("what is PM Kisan"),
+                      Speech("yes yes ok fine", cut_clip="answer", heard_ms=900),
+                      Speech("wait, how do I apply", cut_clip="answer", heard_ms=400)])
+    client = Client([_say("It is a scheme for farmer families."), {"action": "not_for_me", "say": ""},
+                     _say("To apply, go to the CSC centre.")], 0.0)
+    log = Log.open("talk_cut", corpus.snapshot_id, logs_dir=str(tmp_path))
+    Engine.run_call(audio, SimpleNamespace(client=client, keypad_only=False), corpus, log)
+    rows = log_text.read_rows(log.path)
+    assert not [r for r in rows if r.get("invalid")]
+    assert audio.again == 1                                     # only for the not_for_me cut
+    assert audio.answers == ["It is a scheme for farmer families.", "To apply, go to the CSC centre."]
+    assert "WHILE you were still talking" not in client.calls[0]
+    assert "WHILE you were still talking" in client.calls[1] and "WHILE you were still talking" in client.calls[2]
+    acts = [r for r in rows if r.get("ev") == "act"]
+    assert [bool(r.get("again")) for r in acts] == [False, True, False]
+    assert "went on from the sentence that was cut" in log_text.log_text(rows)

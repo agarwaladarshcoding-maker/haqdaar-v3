@@ -160,8 +160,17 @@ class Mouth:
         """Say again what the last clear() cut off, from the start of the cut clip. For a cut
         that turned out to be nothing (a cough, "hmm"): the caller loses no words. False when
         there is nothing to say again."""
+        return self.say_again(self.take_cut())
+
+    def take_cut(self) -> list[tuple[str, bytes, Optional[Tag]]]:
+        """What the last clear() cut off, taken out of the Mouth (the next play() would forget it)."""
         with self._lock:
             clips, self._resume = self._resume, []
+        return clips
+
+    def say_again(self, clips: list[tuple[str, bytes, Optional[Tag]]]) -> bool:
+        """Say clips from take_cut(), each from its start. False when there are none."""
+        with self._lock:
             self.last_cut = ("", -1)
         for name, audio, tag in clips:
             self._send([(name, audio)], tag)

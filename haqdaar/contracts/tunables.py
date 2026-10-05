@@ -52,6 +52,13 @@ QA_TRANSLATE_TIMEOUT_S: float = float(os.environ.get("QA_TRANSLATE_TIMEOUT_S", 3
 QA_TTS_TIMEOUT_S: float = float(os.environ.get("QA_TTS_TIMEOUT_S", 4.0))
 CUT_IN_MIN_MS: int = int(os.environ.get("CUT_IN_MIN_MS", 240))   # voice this long stops the clip
 CUT_IN_GAP_MS: int = int(os.environ.get("CUT_IN_GAP_MS", 200))   # quiet this long ends a short burst (two coughs do not add up)
+# 7.14 (B5) cut-in with a strict gate, in a talk call. Off: strict turns (the agent does not listen while it talks).
+CUT_IN_GATE: bool = _on("CUT_IN_GATE")
+CUT_IN_GATE_MS: int = int(os.environ.get("CUT_IN_GATE_MS", 600))       # real voice this long pauses the agent
+CUT_IN_GATE_GAP_MS: int = int(os.environ.get("CUT_IN_GATE_GAP_MS", 300))   # quiet this long ends a burst of voice
+CUT_IN_GATE_WORDS: int = int(os.environ.get("CUT_IN_GATE_WORDS", 2))   # real words that make it the caller's turn
+SILERO_ON: float = float(os.environ.get("SILERO_ON", 0.5))             # Silero's "this is a voice" score to start
+SILERO_OFF: float = float(os.environ.get("SILERO_OFF", 0.35))          # and to stay one
 CUT_IN_FALSE_MAX: int = int(os.environ.get("CUT_IN_FALSE_MAX", 2))   # a cut with no words: the clip is said again, this often per wait
 # The "this call is recorded" line after the language pick. Off (owner, 4 Oct 2026: not needed
 # for now). The line and its clips stay; CONSENT_LINE=true plays it again.

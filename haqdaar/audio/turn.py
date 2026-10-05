@@ -57,6 +57,12 @@ FILLER_WORDS: frozenset[str] = FILLER_SOUNDS | frozenset({
 })
 
 
+def real_words(text: str) -> int:
+    """How many of the words are more than a listening sound ("hmm", "ok", "अच्छा")."""
+    words = (w.strip(" .,!?।…\"'-").lower() for w in text.split())
+    return len([w for w in words if w and w not in FILLER_WORDS])
+
+
 class Turn:
     def __init__(
         self,
@@ -379,9 +385,11 @@ class Turn:
         spoken = ("spoken", "turn0", "confirm", "greeting") + (("readback",) if tunables.QA_ENABLED else ())
         if profile in spoken and self.ear is not None and not self.keypad_only:
             # The caller's voice may stop a playing clip (S1-S7). Never on turn0 (S5).
+            # 7.14 (B5) the strict gate of a talk call: more voice is needed to pause the agent,
+            # and fewer than CUT_IN_GATE_WORDS real words means it says the cut sentence again.
+            gate = tunables.CUT_IN_GATE and tunables.TALK_ONLY and profile == "spoken"
             cut_in = (
-                tunables.SPEECH_CUT_IN
-                and profile != "turn0"
+                ((tunables.SPEECH_CUT_IN and profile != "turn0") or gate)
                 and hasattr(self.ear, "watch_voice")
             )
             if cut_in:
@@ -400,7 +408,8 @@ class Turn:
                         in_guard = self.prompt_start_t > 0 and (
                             self._clock() - self.prompt_start_t < tunables.KEY_GUARD_MS / 1000.0
                         )
-                        heard = self.ear.watch_voice(in_guard)
+                        heard = (self.ear.watch_voice(in_guard, tunables.CUT_IN_GATE_MS, tunables.CUT_IN_GATE_GAP_MS)
+                                 if gate else self.ear.watch_voice(in_guard))
                         if heard == "short":
                             self._log_event(event="speech", value="", took=False, why="short_voice")
                         elif heard == "cut":
@@ -427,13 +436,19 @@ class Turn:
                     inp = self.ear.listen(timeout=gap_s, lang=lang, hint=hint)
                 # A cut that was no input (a cough, "hmm"): say the cut clips again and wait on,
                 # as if nothing happened. No turn, no strike, no words lost.
+                if gate:
+                    nothing = isinstance(inp, Noise) or (
+                        isinstance(inp, Speech) and real_words(inp.text) < tunables.CUT_IN_GATE_WORDS)
+                else:
+                    nothing = false_cuts < tunables.CUT_IN_FALSE_MAX and self._false_cut(inp, profile)
                 if (
                     cut is not None and cut[0]
-                    and false_cuts < tunables.CUT_IN_FALSE_MAX
-                    and self._false_cut(inp, profile)
+                    and nothing
                     and getattr(self._mouth, "resume", lambda: False)()
                 ):
                     false_cuts += 1
+                    if gate and false_cuts >= tunables.CUT_IN_FALSE_MAX:
+                        cut_in = False      # a noisy place: the rest of this reply is said with strict turns
                     self._log_event(
                         event="speech", value=getattr(inp, "text", ""), took=False, why="false_cut",
                         cut_clip=cut[0], heard_ms=cut[1],

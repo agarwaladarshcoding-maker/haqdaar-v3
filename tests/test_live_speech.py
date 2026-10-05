@@ -554,3 +554,120 @@ def test_s14_stream_gives_the_pieces_and_speak_is_their_join(monkeypatch):
     bad.status_code = 500
     monkeypatch.setattr(live_tts.httpx, "stream", lambda *a, **k: bad)
     assert live_tts.speak("hello", "en") is None
+
+
+# --- 7.14 (B5): cut-in with a strict gate in a talk call -----------------------------------
+
+
+def _gate_line(monkeypatch, words: str, false_max: int = 2) -> Line:
+    monkeypatch.setattr(tunables, "SPEECH_CUT_IN", False)
+    monkeypatch.setattr(tunables, "CUT_IN_GATE", True)
+    monkeypatch.setattr(tunables, "TALK_ONLY", True)
+    monkeypatch.setattr(tunables, "QA_SPEAK", True)
+    monkeypatch.setattr(tunables, "LIVE_TTS_STREAM", False)
+    monkeypatch.setattr(tunables, "CUT_IN_FALSE_MAX", false_max)
+    line = Line(stt=FakeSTT(SttResult(transcript=words, lang="hi-IN")), pool=_NoPool(),
+                speak=lambda t, l: b"\x55" * 40000)
+    assert line.phone.say_text("First sentence of the reply.") and line.phone.say_text("Second sentence.")
+    return line
+
+
+def _clears(line: Line) -> int:
+    return len([m for m in line.sent if m.get("event") == "clear"])
+
+
+def test_g1_real_words_counts_only_words_that_are_more_than_a_listening_sound():
+    from haqdaar.audio.turn import real_words
+
+    assert real_words("हम्म, अच्छा।") == 0 and real_words("ok ok") == 0 and real_words("") == 0
+    assert real_words("हम्म रुको") == 1
+    assert real_words("रुको रुको, एक मिनट") == 4 and real_words("Wait, stop.") == 2
+
+
+def test_g2_half_a_second_of_voice_does_not_pause_the_agent(monkeypatch):
+    line = _gate_line(monkeypatch, "ruko ek minute")
+    _later(0.05, line.voice, 25, 45)                  # 500 ms: under the 600 ms gate
+    _later(0.4, line.marks_back)
+    got = line.phone.next_input("spoken")
+    assert not isinstance(got, Speech) and _clears(line) == 0 and _said(line) == ["answer", "answer"]
+
+
+def test_g3_a_cut_with_under_two_real_words_says_the_cut_sentence_again_and_the_rest(monkeypatch):
+    line = _gate_line(monkeypatch, "हम्म, अच्छा।")
+    _later(0.05, line.voice, 40, 45)                  # 800 ms of voice
+    _later(0.5, line.marks_back)
+    got = line.phone.next_input("spoken")
+    assert isinstance(got, Silence)                   # no turn was made of it
+    assert _clears(line) == 1 and _said(line) == ["answer"] * 4
+    assert (False, "false_cut") in line.trace.why("speech")
+    assert line.phone.say_cut_again() is False        # nothing is kept aside
+
+
+def test_g4_two_real_words_are_the_callers_turn_and_the_cut_reply_can_be_said_again(monkeypatch):
+    line = _gate_line(monkeypatch, "ruko ek minute")
+    _later(0.05, line.voice, 40, 45)
+    got = line.phone.next_input("spoken")
+    assert isinstance(got, Speech) and got.text == "ruko ek minute" and got.cut_clip == "answer"
+    assert _clears(line) == 1 and line.mouth.playing is False
+    line.phone.say(("one_moment",))                   # the Mouth forgets its own copy here
+    assert line.phone.say_cut_again() is True
+    assert _said(line)[-2:] == ["answer", "answer"] and line.phone.say_cut_again() is False
+
+
+def test_g5_after_the_cap_the_rest_of_the_reply_is_said_with_strict_turns(monkeypatch):
+    line = _gate_line(monkeypatch, "hmm", false_max=1)
+    _later(0.05, line.voice, 40, 45)                  # cut 1: said again, then no more cuts
+    _later(0.45, line.voice, 40, 45)
+    _later(0.9, line.marks_back)
+    got = line.phone.next_input("spoken")
+    assert not isinstance(got, Speech) or got.cut_clip == ""
+    assert _clears(line) == 1 and _said(line) == ["answer"] * 4
+
+
+def test_g6_off_the_agent_does_not_listen_while_it_talks(monkeypatch):
+    line = _gate_line(monkeypatch, "ruko ek minute")
+    monkeypatch.setattr(tunables, "CUT_IN_GATE", False)
+    _later(0.05, line.voice, 40, 45)
+    _later(0.4, line.marks_back)
+    line.phone.next_input("spoken")
+    assert _clears(line) == 0 and _said(line) == ["answer", "answer"]
+
+
+def test_g7_silero_calls_a_voice_a_voice_and_a_noise_a_noise(tmp_path):
+    import math
+    import random
+    import shutil
+    import struct
+    import subprocess
+
+    from haqdaar.audio.ear import EnergyVAD
+    from haqdaar.audio.silero import make
+
+    vad = make()
+    assert vad is not None
+
+    def voiced_ms(v, pcm: bytes) -> int:
+        v.reset()
+        n = 0
+        for i in range(0, len(pcm) - 319, 320):
+            v.feed_frame(pcm[i:i + 320])
+            n += v.last_level >= v.end_rms
+        return n * 20
+
+    rnd = random.Random(1)
+    size = 16000
+    noises = {
+        "hiss": [int(rnd.gauss(0, 3000)) for _ in range(size)],
+        "tone": [int(4000 * math.sin(2 * math.pi * 440 * i / 8000)) for i in range(size)],
+        "claps": [int(rnd.gauss(0, 9000)) if i % 4000 < 400 else 0 for i in range(size)],
+    }
+    for name, samples in noises.items():
+        pcm = struct.pack(f"<{size}h", *[max(-32000, min(32000, s)) for s in samples])
+        assert voiced_ms(EnergyVAD(), pcm) >= 200, name      # the loudness check takes it for a voice
+        assert voiced_ms(vad, pcm) == 0 and not vad.started, name
+    if not (shutil.which("say") and shutil.which("afconvert")):
+        pytest.skip("no Mac voice to test with")
+    aiff, wav = tmp_path / "a.aiff", tmp_path / "a.wav"
+    subprocess.run(["say", "-o", str(aiff), "wait wait, one minute please"], check=True)
+    subprocess.run(["afconvert", "-f", "WAVE", "-d", "LEI16@8000", "-c", "1", str(aiff), str(wav)], check=True)
+    assert voiced_ms(vad, wav.read_bytes()[44:]) >= 600 and vad.started

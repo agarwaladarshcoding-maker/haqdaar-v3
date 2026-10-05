@@ -18,6 +18,8 @@ import asyncio
 import audioop
 import base64
 import json
+import random
+import struct
 import subprocess
 import tempfile
 import time
@@ -27,6 +29,7 @@ from pathlib import Path
 import websockets
 
 FRAME = 160                      # 20 ms at 8 kHz
+DURING_S = 2.5                   # how far into the agent's reply a "during:" or "noise:" step starts
 QUIET = b"\xff" * FRAME          # mu-law silence
 VOICES = {"hi": "Lekha", "en": "Rishi"}
 
@@ -49,6 +52,15 @@ SCRIPTS: dict[str, tuple[str, list[str]]] = {
     "details": ("hi", ["key:1", "say:मुझे खेती के लिए योजना चाहिए", "say:पीएम किसान के बारे में बताइए",
                        "say:इसके बारे में पूरी जानकारी विस्तार से बताइए", "say:हाँ बताइए", "say:धन्यवाद, अलविदा"]),
     "quiet": ("hi", ["key:1", "quiet:70"]),
+    # 7.14 (B5), run the server with CUT_IN_GATE=true: the caller stops the agent with real words;
+    # then only listening words over the agent (it must go on from the cut sentence)
+    "cutin": ("hi", ["key:1", "say:मुझे खेती के लिए योजना चाहिए", "during:रुकिए रुकिए, मुझे पेंशन के बारे में बताइए",
+                     "say:पीएम किसान में कितना पैसा मिलता है", "during:हाँ हाँ, ठीक है ठीक है",
+                     "say:धन्यवाद, अलविदा"]),
+    # someone talks to another person over the agent, then a loud noise that is not a voice
+    "sidetalk_during": ("hi", ["key:1", "say:मुझे खेती के लिए योजना चाहिए", "during:अरे रमेश, चाय ला दो ज़रा जल्दी",
+                               "say:पीएम किसान के बारे में बताइए", "noise:2.0",
+                               "say:धन्यवाद, अलविदा"]),
 }
 
 
@@ -68,6 +80,7 @@ def voice(text: str, lang: str, gain: float = 1.0) -> bytes:
 class Probe:
     def __init__(self, ws, call_id: str) -> None:
         self.ws, self.call_id = ws, call_id
+        self.clears = 0
         self.t0 = time.monotonic()
         self.out: list[bytes] = []          # caller frames waiting to go out
         self.play: list[object] = []        # agent audio being "played": bytes left, or a mark name
@@ -128,6 +141,8 @@ class Probe:
                     self.play.append(msg["mark"]["name"])
                 elif msg.get("event") == "clear":
                     self.play.clear()
+                    self.clears += 1
+                    self.note("   (the agent stopped talking)")
         except Exception:
             pass
         self.closed = True
@@ -189,14 +204,26 @@ async def run(script: str, url: str) -> str:
                 await p.send({"event": "dtmf", "streamSid": "MZprobe", "dtmf": {"track": "inbound_track", "digit": arg}})
             elif kind == "say":
                 await p.say(arg, lang)
-            elif kind == "during":          # start talking 1.2 s into the agent's reply
+            elif kind in ("during", "noise"):   # start DURING_S into the agent's reply
                 end = p.now() + 15
                 while not p.closed and not p.talking() and p.now() < end:
                     await asyncio.sleep(0.02)
-                await asyncio.sleep(1.2)
+                await asyncio.sleep(DURING_S)
                 left = sum(x[0] for x in p.play if not isinstance(x, str)) / 8000
                 p.note(f"   (agent is talking: {p.talking()}, {left:.1f} s of its reply still to play)")
-                await p.say(arg, lang, wait=False)
+                if kind == "during":
+                    await p.say(arg, lang, wait=False)
+                else:                           # a loud hiss: loud, but not a voice
+                    rnd = random.Random(1)
+                    count = int(float(arg) * 8000)
+                    hiss = audioop.lin2ulaw(struct.pack(f"<{count}h", *[max(-32000, min(32000, int(rnd.gauss(0, 3000)))) for _ in range(count)]), 2)
+                    cleared = p.clears
+                    p.note(f"NOISE: {arg} s of loud hiss")
+                    p.out += [hiss[i:i + FRAME].ljust(FRAME, b"\xff") for i in range(0, len(hiss), FRAME)]
+                    while p.out and not p.closed:
+                        await asyncio.sleep(0.02)
+                    await asyncio.sleep(1.0)
+                    p.note(f"   the agent {'STOPPED for the noise' if p.clears > cleared else 'went on talking'}")
             elif kind == "over":
                 await asyncio.sleep(1.5)
                 await p.say(arg, lang, wait=False)

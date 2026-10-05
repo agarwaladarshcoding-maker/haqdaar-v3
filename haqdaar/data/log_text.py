@@ -132,6 +132,8 @@ def _line(row: dict[str, Any], answer_said: bool, times: bool = False) -> Option
         line = None
         if row.get("action") == "not_for_me":
             line = "AGENT said nothing (the words were not for the agent)"
+            if row.get("again"):
+                line = "AGENT took the words as not for it and went on from the sentence that was cut"
         if row.get("action") == "repeat":
             line = "AGENT said its last reply again"
         if times:

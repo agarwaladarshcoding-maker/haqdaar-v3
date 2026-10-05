@@ -115,6 +115,12 @@ QUESTION = {
                         "mr": "तुम्ही कोणत्या प्रवर्गात आहात: सर्वसाधारण, ओबीसी, एससी की एसटी?"},
 }
 
+# 7.14 (B5): added to the prompt of a turn whose words were said while the agent was still talking.
+CUT_NOTE = ('The caller said the newest words WHILE you were still talking, and you stopped. If they are only '
+            'listening words ("yes", "ok", "hmm", "right"), or talk to someone else, or not clearly meant for you, '
+            'the action is "not_for_me": you will then go on from the sentence that was cut. If the caller asks '
+            'you to wait or stop, or asks or tells you something, answer that.')
+
 OTHER_TOPIC = {
     "en": "I can only help with government schemes. Tell me what help you need.",
     "hi": "मैं सिर्फ़ सरकारी योजनाओं के बारे में बता सकती हूँ। बताइए, आपको किस बात में मदद चाहिए।",

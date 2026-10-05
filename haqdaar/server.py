@@ -208,6 +208,10 @@ def _corpus_and_pool() -> tuple[Any, Any]:
 
             index = scheme_index.get(corpus.snapshot_id)
             say(f"search  {len(index.ids)} schemes" + ("" if index._vectors is not None else " (names only: no model)"))
+            if tunables.CUT_IN_GATE:
+                from haqdaar.audio import silero
+
+                say("cut-in  gate on, " + ("Silero voice check" if silero.make() else "LOUDNESS check (Silero did not load)"))
         from haqdaar.contracts.types import FIXED_LINE_IDS
 
         for line_id in FIXED_LINE_IDS:
@@ -292,7 +296,12 @@ async def stream_endpoint(websocket: WebSocket) -> None:
                     trace(line)
 
                 mouth = Mouth(outbox.emit, event.stream_sid, log=note)
-                ear = Ear(log=note)
+                vad = None
+                if tunables.CUT_IN_GATE and tunables.TALK_ONLY:     # 7.14: a noise is not a voice
+                    from haqdaar.audio import silero
+
+                    vad = silero.make(log=note)
+                ear = Ear(log=note, vad=vad)
                 turn = Turn(mouth, ear=ear, trace=trace, log=note)
                 audio = PhoneAudio(corpus, pool, mouth, turn, close=hang_up, log=note, trace=trace)
                 number_hash = _CALLER_HASH.pop(call_id, "")

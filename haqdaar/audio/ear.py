@@ -497,13 +497,18 @@ class EnergyVAD:
         self.peak_rms: int = 0
         self.frames: list[bytes] = []
         self._pre: list[bytes] = []
+        self.last_level: int = 0
+
+    def level(self, pcm_frame: bytes) -> int:
+        """How loud this frame is. A voice detector (silero.py) gives 0 for a frame that is no voice."""
+        return frame_rms(pcm_frame)
 
     def feed_frame(self, pcm_frame: bytes) -> bool:
         """Feed one 20 ms linear PCM frame (320 bytes).
 
         Returns True when utterance boundary (endpoint) is reached, False otherwise.
         """
-        level = frame_rms(pcm_frame)
+        level = self.last_level = self.level(pcm_frame)
         self.peak_rms = max(self.peak_rms, level)
 
         if not self.started:
@@ -605,7 +610,7 @@ class Ear:
         self._voiced_ms = 0
         self._quiet_ms = 0
 
-    def watch_voice(self, in_guard: bool = False) -> str:
+    def watch_voice(self, in_guard: bool = False, min_ms: int = 0, gap_ms: int = 0) -> str:
         """Feed the audio that arrived so far to the voice detector while a clip plays.
 
         Returns "cut" once the caller has voiced CUT_IN_MIN_MS (same detector, same thresholds as
@@ -628,14 +633,14 @@ class Ear:
                 self.start_watch()
                 continue
             ended = self.vad.feed_frame(pcm)
-            if self.vad.started and frame_rms(pcm) >= self.vad.end_rms:
+            if self.vad.started and getattr(self.vad, "last_level", frame_rms(pcm)) >= self.vad.end_rms:
                 self._voiced_ms += FRAME_MS
                 self._quiet_ms = 0
             elif self.vad.started:
                 self._quiet_ms += FRAME_MS
                 # The burst is over: a second cough must not add to the first one.
-                ended = ended or self._quiet_ms >= tunables.CUT_IN_GAP_MS
-            if self._voiced_ms >= tunables.CUT_IN_MIN_MS:
+                ended = ended or self._quiet_ms >= (gap_ms or tunables.CUT_IN_GAP_MS)
+            if self._voiced_ms >= (min_ms or tunables.CUT_IN_MIN_MS):
                 result = "cut"
             elif ended:
                 if self._voiced_ms > 0:

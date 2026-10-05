@@ -85,6 +85,7 @@ class PhoneAudio:
         if hasattr(self.mouth, "no_cut"):
             self.mouth.no_cut = ALWAYS_SAY   # a key during the goodbye does not chop it
         self._newer: Optional[Input] = None   # 7.5: words the caller said while the engine was busy
+        self._cut: list[Any] = []             # 7.14: the clips a cut-in turn cut off (say_cut_again)
 
     # --- what the engine calls -----------------------------------------------------
     def select_language(self) -> tuple[Lang, LangSource] | Input:
@@ -305,7 +306,18 @@ class PhoneAudio:
                 self._log("<- newer words while busy")
         return self._newer is not None
 
+    def say_cut_again(self) -> bool:
+        """7.14 (B5): the words that cut the agent were not for it. Say the cut sentence again from
+        its start, and what was to come after it. False: nothing was cut."""
+        clips, self._cut = self._cut, []
+        if not clips or self.turn.hung_up.is_set():
+            return False
+        self.stop_filler()
+        self._log(f"-> saying the cut reply again ({len(clips)} clips)")
+        return self.mouth.say_again(clips)
+
     def next_input(self, profile: str = "normal") -> Input:
+        self._cut = []
         if self._newer is not None:
             inp, self._newer = self._newer, None
             if not self.turn.hung_up.is_set():
@@ -317,6 +329,8 @@ class PhoneAudio:
                 return inp
         if hasattr(self.turn, "wait_input"):
             inp = self._wait_words(profile=profile, lang=self.language)
+            if tunables.CUT_IN_GATE and isinstance(inp, Speech) and inp.cut_clip and hasattr(self.mouth, "take_cut"):
+                self._cut = self.mouth.take_cut()   # kept aside: "one moment" would make the Mouth forget it
             if isinstance(inp, Silence):
                 self._silence += 1
                 inp = Silence(n=self._silence)
