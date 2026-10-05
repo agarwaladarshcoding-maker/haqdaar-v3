@@ -2,7 +2,7 @@
 
 Starts two FastAPI apps:
 - photo app on 0.0.0.0:PHOTO_PORT (default 8002): public photo upload page & endpoints.
-- desk app on 127.0.0.1:DESK_PORT (default 8003): laptop-only helper dashboard.
+- desk app on 127.0.0.1:DESK_PORT (default 8003): laptop-only helper dashboard (Pass 4 keyboard-driven).
 """
 from __future__ import annotations
 
@@ -27,6 +27,17 @@ from haqdaar.photo import cases, reader
 PHOTO_PORT = int(os.getenv("PHOTO_PORT", "8002"))
 DESK_PORT = int(os.getenv("DESK_PORT", "8003"))
 
+# --- Photo auto mode (Pass 4) ---
+_PHOTO_AUTO_RUNTIME: bool = os.getenv("PHOTO_AUTO", "true").lower() in ("true", "1", "yes", "on")
+
+
+def _is_photo_auto() -> bool:
+    env_val = os.getenv("PHOTO_AUTO")
+    if env_val is not None:
+        return env_val.strip().lower() in ("true", "1", "yes", "on")
+    return _PHOTO_AUTO_RUNTIME
+
+
 # --- Background sweep loop ---
 def _start_sweep_loop():
     try:
@@ -44,6 +55,7 @@ def _start_sweep_loop():
 
     t = threading.Thread(target=_loop, daemon=True)
     t.start()
+
 
 _start_sweep_loop()
 
@@ -103,48 +115,82 @@ def _log_state(token: str, state: str) -> None:
     print(f"[{t_str}] token:{t3}*** state:{state}", flush=True)
 
 
+SCHEME_HELP_TEMPLATES = {
+    "hi": "एक योजना जो मदद कर सकती है वह है {scheme_name}।",
+    "mr": "मदत करू शकणारी एक योजना म्हणजे {scheme_name}.",
+    "gu": "એક યોજના જે મદદ કરી શકે છે તે છે {scheme_name}.",
+    "ta": "உதவக்கூடிய ஒரு திட்டம் {scheme_name}.",
+    "en": "A scheme that may help is {scheme_name}.",
+}
+
+STAND_IN_SAY = {
+    "hi": "फोटो मिल गए हैं। सहायक इन्हें देखेंगे।",
+    "mr": "फोटो मिळाले आहेत. मदतनीस ते पाहतील.",
+    "gu": "ફોટા મળ્યા છે. સહાયક તેને જોશે.",
+    "ta": "புகைப்படங்கள் வந்துள்ளன. உதவியாளர் பார்ப்பார்.",
+    "en": "Photos arrived. A helper will look at them.",
+}
+
+
 def _process_done(token: str) -> None:
-    case = cases.get(token)
-    if not case or not case.photos:
-        return
+    try:
+        case = cases.get(token)
+        if not case or not case.photos:
+            return
 
-    photo_list: list[bytes] = []
-    for i in range(len(case.photos)):
-        try:
-            data, _ = cases.photo_bytes(token, i)
-            photo_list.append(data)
-        except Exception:
-            pass
+        photo_list: list[bytes] = []
+        for i in range(len(case.photos)):
+            try:
+                data, _ = cases.photo_bytes(token, i)
+                photo_list.append(data)
+            except Exception:
+                pass
 
-    finding = reader.read(photo_list, lang=case.lang)
-    search_term = finding.get("search", "")
-    scheme_id, scheme_name = pick_scheme(search_term)
+        lang = case.lang
+        finding = reader.read(photo_list, lang=lang)
+        search_term = finding.get("search", "")
+        scheme_id, scheme_name = pick_scheme(search_term)
 
-    by = finding.get("by", "")
-    if by == "stand-in" or by.startswith("stand-in"):
-        say = "We got your photos. A helper will look at them."
-    else:
-        shows = finding.get("shows", "").strip()
-        wrong = finding.get("wrong", "").strip()
-        parts = ["We looked at your photos."]
-        if shows:
-            parts.append(shows if shows.endswith((".", "!", "?", "।", "\n")) else shows + ".")
-        if wrong:
-            parts.append(wrong if wrong.endswith((".", "!", "?", "।", "\n")) else wrong + ".")
-        if scheme_name:
-            parts.append(f"A scheme that may help is {scheme_name}.")
-        parts.append("You can ask me about it now.")
-        say = " ".join(parts)
+        by = str(finding.get("by", ""))
+        if by.startswith("stand-in"):
+            say = STAND_IN_SAY.get(lang, STAND_IN_SAY["en"])
+        else:
+            shows = str(finding.get("shows", "")).strip()
+            wrong = str(finding.get("wrong", "")).strip()
+            parts = []
+            if shows:
+                s = shows
+                if not s.endswith((".", "!", "?", "।")):
+                    s += "।" if lang in ("hi", "mr") else "."
+                parts.append(s)
+            if wrong:
+                w = wrong
+                if not w.endswith((".", "!", "?", "।")):
+                    w += "।" if lang in ("hi", "mr") else "."
+                parts.append(w)
+            if scheme_name:
+                tpl = SCHEME_HELP_TEMPLATES.get(lang, SCHEME_HELP_TEMPLATES["en"])
+                parts.append(tpl.format(scheme_name=scheme_name))
 
-    cases.set_finding(token, finding, scheme_id, say)
-    _log_state(token, "read")
+            say = " ".join(parts).strip()
+            if not say:
+                say = STAND_IN_SAY.get(lang, STAND_IN_SAY["en"])
+
+        cases.set_finding(token, finding, scheme_id, say)
+        _log_state(token, "read")
+
+        if _is_photo_auto():
+            c_approved = cases.approve(token, say)
+            call_back(c_approved)
+            _log_state(token, "approved")
+    except Exception:
+        pass
 
 
 # ==============================================================================
 # 1. PHOTO APP (port 8002, 0.0.0.0)
 # ==============================================================================
 photo_app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-
 
 STEPS_PHRASES = {
     "step1": {
@@ -250,7 +296,6 @@ NOTICE_PHRASES = {
     "gu": "ફોટો કમ્પ્યુટર અને એક સહાયક જોશે.",
     "ta": "புகைப்படங்களை ஒரு கணினியும் ஒரு உதவியாளரும் பார்ப்பார்கள்.",
 }
-
 
 PHOTO_HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="__LANG__">
@@ -859,16 +904,16 @@ def _render_photo_page(case: cases.Case) -> str:
     else:
         phone_header = ""
 
-    take_btn = _stack_text(PHRASES["take"], langs, "20px", "16px")
-    pick_btn = _stack_text(PHRASES["pick"], langs, "20px", "16px")
-    send_btn = _stack_text(PHRASES["send"], langs, "22px", "17px")
-    photos_label = _stack_text(PHRASES["photos"], langs, "18px", "14px")
-    limit_err = _stack_text(PHRASES["limit_err"], langs, "16px", "14px")
-    notice = _stack_text(NOTICE_PHRASES, langs, "16px", "14px")
-    done_msg = _stack_text(PHRASES["done_msg"], langs, "22px", "18px")
-    network_err = _stack_text(PHRASES["network_err"], langs, "16px", "14px")
-    cannot_send = _stack_text(PHRASES["cannot_send"], langs, "16px", "14px")
-    not_sent = _stack_text(PHRASES["not_sent"], langs, "16px", "14px")
+    take_btn = _stack_text(PHRASES["take"], langs)
+    pick_btn = _stack_text(PHRASES["pick"], langs)
+    send_btn = _stack_text(PHRASES["send"], langs)
+    photos_label = _stack_text(PHRASES["photos"], langs)
+    limit_err = _stack_text(PHRASES["limit_err"], langs)
+    notice = _stack_text(NOTICE_PHRASES, langs)
+    done_msg = _stack_text(PHRASES["done_msg"], langs)
+    network_err = _stack_text(PHRASES["network_err"], langs)
+    cannot_send = _stack_text(PHRASES["cannot_send"], langs)
+    not_sent = _stack_text(PHRASES["not_sent"], langs)
     steps_html = _render_steps_box(langs)
 
     html_out = PHOTO_HTML_TEMPLATE
@@ -902,7 +947,6 @@ async def get_photo_page(token: str, request: Request):
         err_page = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Not Found</title></head><body style='font-family:sans-serif;padding:2rem;text-align:center;'><h2>this link is no longer good / यह लिंक अब काम नहीं करता / ही लिंक आता चालत नाही</h2></body></html>"
         return HTMLResponse(content=err_page, status_code=404, headers={"Cache-Control": "no-store"})
 
-    # If reopening a case that is not yet sent (waiting or photo state), drop old photos
     if case.state in ("waiting", "photo") and case.photos:
         case = cases.drop_photos(token)
 
@@ -966,7 +1010,7 @@ async def post_done(token: str, request: Request):
 
 
 # ==============================================================================
-# 2. DESK APP (port 8003, 127.0.0.1 only)
+# 2. DESK APP (port 8003, 127.0.0.1 only, Pass 4 Keyboard-driven)
 # ==============================================================================
 desk_app = FastAPI()
 
@@ -1005,215 +1049,665 @@ def _format_age(made_ts: float) -> str:
     return f"{hours}h ago"
 
 
+def _case_step(state: str) -> str:
+    if state == "waiting":
+        return "link sent"
+    elif state == "photo":
+        return "photo came"
+    elif state == "reading":
+        return "being read"
+    elif state in ("read", "approved"):
+        return "answer ready"
+    elif state == "called":
+        return "called back"
+    return "link sent"
+
+
+def _case_to_dict(c: cases.Case) -> dict[str, Any]:
+    raw_tail = cases.number_tail(c)
+    last2 = raw_tail[-2:] if len(raw_tail) >= 2 else raw_tail
+    by = str(c.finding.get("by", ""))
+    is_stand_in = by.startswith("stand-in")
+
+    return {
+        "token": c.token,
+        "tail": last2,
+        "step": _case_step(c.state),
+        "state": c.state,
+        "time": time.strftime("%H:%M", time.localtime(c.made)),
+        "age": _format_age(c.made),
+        "langs": c.langs or [c.lang],
+        "shows": str(c.finding.get("shows", "")),
+        "wrong": str(c.finding.get("wrong", "")),
+        "scheme": c.scheme,
+        "say": c.say,
+        "photos": [f"/photo/{c.token}/{i}" for i in range(len(c.photos))],
+        "is_stand_in": is_stand_in,
+    }
+
+
 DESK_HTML_TEMPLATE = """<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Haqdaar Photo Desk</title>
+<title>Haqdaar Helper Desk</title>
 <style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background: #f1f5f9;
-  color: #1e293b;
-  margin: 0;
-  padding: 24px;
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1.4;
+  padding: 16px;
+  max-width: 700px;
+  margin: 0 auto;
 }
-.top-bar {
+.header-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
-  background: #fff;
-  padding: 16px 20px;
+  font-size: 20px;
+  font-weight: bold;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 2px solid #0f172a;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  flex-wrap: wrap;
-  gap: 12px;
+  margin-bottom: 16px;
 }
-h1 { margin: 0; font-size: 22px; }
-.new-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.lang-check { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
-.btn {
-  padding: 8px 16px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  background: #fff;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-}
-.btn:hover { background: #f8fafc; }
-.btn-new { background: #2563eb; color: #fff; border-color: #2563eb; }
-.btn-new:hover { background: #1d4ed8; }
-.btn-save { background: #e2e8f0; }
-.btn-call { background: #16a34a; color: #fff; border-color: #16a34a; }
-.btn-call:hover { background: #15803d; }
 .case-card {
-  background: #fff;
+  background: #ffffff;
+  border: 2px solid #0f172a;
   border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  padding: 16px;
+  margin-bottom: 16px;
 }
-.case-header {
+.steps-row {
   display: flex;
-  justify-content: space-between;
-  margin-bottom: 12px;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 18px;
+  font-weight: 500;
+  margin-bottom: 14px;
 }
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
+.step-item {
+  padding: 3px 8px;
   border-radius: 4px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  margin-right: 8px;
+  border: 1px solid transparent;
 }
-.state-waiting { background: #fef3c7; color: #b45309; }
-.state-photo { background: #e0e7ff; color: #4338ca; }
-.state-reading { background: #f3e8ff; color: #7e22ce; }
-.state-read { background: #dbeafe; color: #1d4ed8; }
-.state-approved { background: #dcfce7; color: #15803d; }
-.state-called { background: #f1f5f9; color: #64748b; }
-.case-number { font-weight: 600; }
-.case-age { color: #64748b; font-size: 13px; }
-.case-link { color: #2563eb; text-decoration: none; font-size: 13px; }
-.case-link:hover { text-decoration: underline; }
+.step-item.active {
+  background-color: #004488;
+  color: #ffffff;
+  font-weight: bold;
+  border-color: #002244;
+}
+.step-arrow { color: #64748b; font-weight: bold; }
 .photos-row {
   display: flex;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
 }
 .desk-thumb {
-  height: 90px;
-  width: 90px;
+  width: 96px;
+  height: 96px;
+  min-width: 96px;
+  min-height: 96px;
   object-fit: cover;
   border-radius: 6px;
-  border: 1px solid #cbd5e1;
+  border: 2px solid #0f172a;
+  cursor: pointer;
 }
-.stand-in-box {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+.field-line {
+  font-size: 18px;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.stand-in-line {
+  font-size: 16px;
   color: #b91c1c;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 12px;
+  font-weight: bold;
+  margin-bottom: 8px;
 }
-.meta-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  font-size: 14px;
-  margin-bottom: 12px;
+.textarea-label {
+  font-size: 18px;
+  font-weight: bold;
+  display: block;
+  margin-top: 10px;
+  margin-bottom: 4px;
 }
-.say-box { margin-bottom: 12px; }
-.say-box textarea {
+textarea {
   width: 100%;
-  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 18px;
+  line-height: 1.4;
+  padding: 10px;
+  border: 2px solid #0f172a;
+  border-radius: 6px;
+  margin-bottom: 14px;
+  resize: vertical;
+}
+textarea:focus {
+  outline: 3px solid #004488;
+  outline-offset: 1px;
+}
+.actions-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+button {
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: bold;
+  padding: 10px 14px;
+  min-height: 48px;
+  border: 2px solid #0f172a;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #0f172a;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+button:hover { background: #e2e8f0; }
+button:focus { outline: 3px solid #004488; outline-offset: 2px; }
+.btn-primary { background: #004488; color: #ffffff; border-color: #002244; }
+.btn-primary:hover { background: #003366; }
+.btn-warn { background: #fef08a; color: #854d0e; }
+.btn-warn:hover { background: #fde047; }
+.other-section {
+  background: #ffffff;
+  border: 2px solid #0f172a;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.other-title { font-weight: bold; font-size: 18px; margin-bottom: 10px; }
+.other-item {
+  display: flex;
+  justify-content: space-between;
   padding: 8px 10px;
   border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  font-family: inherit;
-  font-size: 14px;
-  margin-top: 4px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 6px;
+  cursor: pointer;
+  font-size: 18px;
 }
-.action-row { display: flex; gap: 10px; }
-.dim { color: #94a3b8; }
+.other-item:hover { background: #f1f5f9; }
+.other-item.selected {
+  background: #e0f2fe;
+  border-color: #0284c7;
+  font-weight: bold;
+}
+.status-msg-bar {
+  min-height: 28px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #004488;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+.key-bar {
+  background: #0f172a;
+  color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 16px;
+  line-height: 1.4;
+  margin-top: 8px;
+}
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  cursor: pointer;
+}
+.modal-overlay img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border: 3px solid #ffffff;
+  border-radius: 8px;
+}
 </style>
 </head>
 <body>
-<div class="top-bar">
-  <h1>Photo Desk (Helper)</h1>
-  <div class="new-form">
-    <label class="lang-check"><input type="checkbox" id="chk-hi" checked> hi</label>
-    <label class="lang-check"><input type="checkbox" id="chk-mr"> mr</label>
-    <label class="lang-check"><input type="checkbox" id="chk-en"> en</label>
-    <label class="lang-check"><input type="checkbox" id="chk-gu"> gu</label>
-    <label class="lang-check"><input type="checkbox" id="chk-ta"> ta</label>
-    <button type="button" onclick="createTestCase()" class="btn btn-new">+ New Test Case</button>
+
+<div class="header-bar">
+  <div id="top-auto-line">Auto: __AUTO_STATE__</div>
+  <div id="top-waiting-line">__WAITING_COUNT__ cases waiting</div>
+</div>
+
+<main id="active-case-container">
+  <div class="case-card" id="active-card">
+    <div class="steps-row" id="steps-bar">
+      <span class="step-item" id="stp-0">link sent</span> <span class="step-arrow">&gt;</span>
+      <span class="step-item" id="stp-1">photo came</span> <span class="step-arrow">&gt;</span>
+      <span class="step-item" id="stp-2">being read</span> <span class="step-arrow">&gt;</span>
+      <span class="step-item" id="stp-3">answer ready</span> <span class="step-arrow">&gt;</span>
+      <span class="step-item" id="stp-4">called back</span>
+    </div>
+
+    <div class="photos-row" id="active-photos"></div>
+
+    <div class="stand-in-line" id="stand-in-line" style="display:none;">
+      read by a stand-in, not by Muse
+    </div>
+
+    <div class="field-line" id="shows-line"><strong>Saw:</strong> <span id="shows-text">-</span></div>
+    <div class="field-line" id="scheme-line"><strong>Scheme:</strong> <span id="scheme-text">-</span></div>
+
+    <label for="say-box" class="textarea-label">Text to say:</label>
+    <textarea id="say-box" rows="3"></textarea>
+
+    <div class="actions-row">
+      <button type="button" id="btn-call" class="btn-primary" onclick="actionCallback()">Call back (Enter)</button>
+      <button type="button" id="btn-edit" onclick="actionEdit()">Edit text (E)</button>
+      <button type="button" id="btn-bad" class="btn-warn" onclick="actionNotClear()">Not clear (B)</button>
+      <button type="button" id="btn-new" onclick="actionNew()">New test case (N)</button>
+      <button type="button" id="btn-auto" onclick="actionToggleAuto()">Auto on / off (A)</button>
+    </div>
+  </div>
+</main>
+
+<div class="other-section">
+  <div class="other-title">Other cases</div>
+  <div id="other-cases-list">
+    <div style="color:#64748b; font-size:18px;">No other cases</div>
   </div>
 </div>
 
-<div id="cases-container">
-  __BODY_CARDS__
+<div class="status-msg-bar" id="status-line"></div>
+
+<div class="key-bar" id="key-bar">
+  Keys: [↑/↓ or K/J: Move] [Enter: Call back] [E: Edit text] [Esc: Leave & save] [B: Not clear] [1-6: Big photo] [N: New case] [A: Auto on/off] [?: Help]
+</div>
+
+<div class="modal-overlay" id="photo-modal" onclick="closeModal()">
+  <img id="modal-img" src="" alt="Big Photo">
 </div>
 
 <script>
-async function createTestCase() {
-  const langs = [];
-  ['hi', 'mr', 'en', 'gu', 'ta'].forEach(l => {
-    const el = document.getElementById('chk-' + l);
-    if (el && el.checked) langs.push(l);
-  });
-  if (langs.length === 0) langs.push('hi');
+var casesList = [];
+var selectedToken = null;
+var isEditing = false;
+var autoMode = __INITIAL_AUTO__;
+var statusTimer = null;
+var isModalOpen = false;
 
-  try {
-    const res = await fetch('/new', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ langs: langs })
-    });
-    const d = await res.json();
-    if (d.ok) {
-      window.open(d.link, '_blank');
-      setTimeout(() => location.reload(), 500);
+var sayBox = document.getElementById("say-box");
+var statusLine = document.getElementById("status-line");
+var keyBar = document.getElementById("key-bar");
+var photoModal = document.getElementById("photo-modal");
+var modalImg = document.getElementById("modal-img");
+
+sayBox.addEventListener("focus", function() { isEditing = true; });
+sayBox.addEventListener("blur", function() { isEditing = false; });
+
+function setStatusMsg(msg) {
+  statusLine.textContent = msg;
+  if (statusTimer) clearTimeout(statusTimer);
+  statusTimer = setTimeout(function() {
+    statusLine.textContent = "";
+  }, 4000);
+}
+
+function showBigPhoto(url) {
+  modalImg.src = url;
+  photoModal.style.display = "flex";
+  isModalOpen = true;
+}
+
+function closeModal() {
+  photoModal.style.display = "none";
+  modalImg.src = "";
+  isModalOpen = false;
+}
+
+function markStep(stepName) {
+  var names = ["link sent", "photo came", "being read", "answer ready", "called back"];
+  for (var i = 0; i < 5; i++) {
+    var el = document.getElementById("stp-" + i);
+    if (el) {
+      if (names[i] === stepName) {
+        el.className = "step-item active";
+      } else {
+        el.className = "step-item";
+      }
     }
-  } catch(e) {
-    alert('Failed to create test case: ' + e);
   }
 }
 
-async function saveText(token) {
-  const txt = document.getElementById('say-' + token).value;
-  try {
-    const res = await fetch('/save/' + token, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: txt
-    });
-    if (res.ok) {
-      alert('Saved text for ' + token);
-      location.reload();
-    } else {
-      const d = await res.json().catch(() => ({}));
-      alert('Could not save: ' + (d.detail || res.statusText));
-    }
-  } catch(e) {
-    alert('Error saving text: ' + e);
+function renderUI() {
+  document.getElementById("top-auto-line").textContent = "Auto: " + (autoMode ? "on" : "off");
+  var waitingCount = 0;
+  for (var i = 0; i < casesList.length; i++) {
+    if (casesList[i].state !== "called") waitingCount++;
   }
-}
+  document.getElementById("top-waiting-line").textContent = waitingCount + " cases wait";
 
-async function callBack(token) {
-  const txt = document.getElementById('say-' + token).value;
-  try {
-    const res = await fetch('/approve/' + token, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: txt
-    });
-    if (res.ok) {
-      alert('Approved and queued call back for ' + token);
-      location.reload();
-    } else {
-      const d = await res.json().catch(() => ({}));
-      alert('Could not approve: ' + (d.detail || res.statusText));
-    }
-  } catch(e) {
-    alert('Error approving call back: ' + e);
-  }
-}
-
-setInterval(() => {
-  const active = document.activeElement;
-  if (active && active.tagName === 'TEXTAREA') {
+  if (casesList.length === 0) {
+    document.getElementById("active-card").style.display = "none";
+    document.getElementById("other-cases-list").innerHTML = "<div style='color:#64748b;'>No open cases</div>";
     return;
   }
-  location.reload();
-}, 5000);
+  document.getElementById("active-card").style.display = "block";
+
+  var activeCase = null;
+  for (var i = 0; i < casesList.length; i++) {
+    if (casesList[i].token === selectedToken) {
+      activeCase = casesList[i];
+      break;
+    }
+  }
+  if (!activeCase && casesList.length > 0) {
+    activeCase = casesList[0];
+    selectedToken = activeCase.token;
+  }
+
+  // Active case fields
+  markStep(activeCase.step);
+
+  var standInEl = document.getElementById("stand-in-line");
+  if (activeCase.is_stand_in) {
+    standInEl.style.display = "block";
+  } else {
+    standInEl.style.display = "none";
+  }
+
+  document.getElementById("shows-text").textContent = activeCase.shows || "-";
+  document.getElementById("scheme-text").textContent = activeCase.scheme || "-";
+
+  // Text box: do not overwrite if user is typing in it
+  if (!isEditing && document.activeElement !== sayBox) {
+    if (sayBox.dataset.token !== activeCase.token || sayBox.value !== activeCase.say) {
+      sayBox.value = activeCase.say || "";
+      sayBox.dataset.token = activeCase.token;
+    }
+  }
+
+  // Photos
+  var photosRow = document.getElementById("active-photos");
+  photosRow.innerHTML = "";
+  if (activeCase.photos && activeCase.photos.length > 0) {
+    for (var p = 0; p < activeCase.photos.length; p++) {
+      (function(idx) {
+        var imgUrl = activeCase.photos[idx];
+        var img = document.createElement("img");
+        img.src = imgUrl;
+        img.className = "desk-thumb";
+        img.alt = "Photo " + (idx + 1);
+        img.onclick = function() { showBigPhoto(imgUrl); };
+        photosRow.appendChild(img);
+      })(p);
+    }
+  } else {
+    photosRow.innerHTML = "<div style='color:#64748b; font-size:18px;'>No photos yet</div>";
+  }
+
+  // Other cases list (at most 10)
+  var otherContainer = document.getElementById("other-cases-list");
+  otherContainer.innerHTML = "";
+  var count = 0;
+  for (var i = 0; i < casesList.length; i++) {
+    var c = casesList[i];
+    if (c.token === activeCase.token) continue;
+    if (count >= 10) break;
+    count++;
+
+    (function(item) {
+      var row = document.createElement("div");
+      row.className = "other-item";
+      var tailStr = item.tail ? ".." + item.tail : "no num";
+      var langsStr = (item.langs || []).join(", ");
+      row.innerHTML = "<span>" + item.time + " (" + item.age + ") | " + tailStr + "</span><span>" + item.step + " | " + langsStr + "</span>";
+      row.onclick = function() {
+        selectedToken = item.token;
+        renderUI();
+      };
+      otherContainer.appendChild(row);
+    })(c);
+  }
+  if (count === 0) {
+    otherContainer.innerHTML = "<div style='color:#64748b; font-size:18px;'>No other cases</div>";
+  }
+}
+
+async function fetchCases() {
+  try {
+    var res = await fetch("/cases");
+    if (res.ok) {
+      var autoHdr = res.headers.get("X-Photo-Auto");
+      if (autoHdr) autoMode = (autoHdr === "on");
+      var data = await res.json();
+      casesList = data || [];
+      if (!selectedToken && casesList.length > 0) {
+        selectedToken = casesList[0].token;
+      }
+      renderUI();
+    }
+  } catch(e) {}
+}
+
+async function actionCallback() {
+  if (!selectedToken) {
+    setStatusMsg("no case selected");
+    return;
+  }
+  var txt = sayBox.value;
+  try {
+    var res = await fetch("/approve/" + selectedToken, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: txt
+    });
+    if (res.ok) {
+      setStatusMsg("call back is set");
+      fetchCases();
+    } else {
+      var d = await res.json().catch(function() { return {}; });
+      setStatusMsg("could not: " + (d.detail || res.statusText));
+    }
+  } catch(err) {
+    setStatusMsg("could not: " + err.message);
+  }
+}
+
+async function actionSave() {
+  if (!selectedToken) return;
+  var txt = sayBox.value;
+  try {
+    var res = await fetch("/save/" + selectedToken, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: txt
+    });
+    if (res.ok) {
+      setStatusMsg("saved");
+      fetchCases();
+    } else {
+      var d = await res.json().catch(function() { return {}; });
+      setStatusMsg("could not: " + (d.detail || res.statusText));
+    }
+  } catch(err) {
+    setStatusMsg("could not: " + err.message);
+  }
+}
+
+async function actionNotClear() {
+  if (!selectedToken) {
+    setStatusMsg("no case selected");
+    return;
+  }
+  try {
+    var res = await fetch("/not-clear/" + selectedToken, { method: "POST" });
+    if (res.ok) {
+      setStatusMsg("call back is set (not clear)");
+      fetchCases();
+    } else {
+      var d = await res.json().catch(function() { return {}; });
+      setStatusMsg("could not: " + (d.detail || res.statusText));
+    }
+  } catch(err) {
+    setStatusMsg("could not: " + err.message);
+  }
+}
+
+async function actionNew() {
+  try {
+    var res = await fetch("/new", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ langs: ["hi"] })
+    });
+    if (res.ok) {
+      var d = await res.json();
+      selectedToken = d.token;
+      setStatusMsg("new case created");
+      fetchCases();
+    } else {
+      setStatusMsg("could not create case");
+    }
+  } catch(err) {
+    setStatusMsg("could not: " + err.message);
+  }
+}
+
+async function actionToggleAuto() {
+  try {
+    var res = await fetch("/toggle-auto", { method: "POST" });
+    if (res.ok) {
+      var d = await res.json();
+      autoMode = d.auto;
+      setStatusMsg("Auto: " + (autoMode ? "on" : "off"));
+      renderUI();
+    }
+  } catch(err) {
+    setStatusMsg("could not toggle auto");
+  }
+}
+
+function actionEdit() {
+  sayBox.focus();
+}
+
+function moveCase(delta) {
+  if (casesList.length <= 1) return;
+  var idx = -1;
+  for (var i = 0; i < casesList.length; i++) {
+    if (casesList[i].token === selectedToken) {
+      idx = i;
+      break;
+    }
+  }
+  if (idx === -1) idx = 0;
+  var nextIdx = idx + delta;
+  if (nextIdx < 0) nextIdx = casesList.length - 1;
+  if (nextIdx >= casesList.length) nextIdx = 0;
+  selectedToken = casesList[nextIdx].token;
+  renderUI();
+}
+
+window.addEventListener("keydown", function(e) {
+  if (isModalOpen) {
+    closeModal();
+    e.preventDefault();
+    return;
+  }
+
+  // Inside text box: Esc leaves and saves
+  if (document.activeElement === sayBox) {
+    if (e.key === "Escape") {
+      sayBox.blur();
+      actionSave();
+      e.preventDefault();
+    }
+    return;
+  }
+
+  var code = e.code || "";
+  var key = e.key || "";
+
+  if (key === "ArrowUp" || key === "k" || key === "K") {
+    e.preventDefault();
+    moveCase(-1);
+    return;
+  }
+  if (key === "ArrowDown" || key === "j" || key === "J") {
+    e.preventDefault();
+    moveCase(1);
+    return;
+  }
+  if (key === "Enter") {
+    e.preventDefault();
+    actionCallback();
+    return;
+  }
+  if (key === "e" || key === "E") {
+    e.preventDefault();
+    actionEdit();
+    return;
+  }
+  if (key === "b" || key === "B") {
+    e.preventDefault();
+    actionNotClear();
+    return;
+  }
+  if (key === "n" || key === "N") {
+    e.preventDefault();
+    actionNew();
+    return;
+  }
+  if (key === "a" || key === "A") {
+    e.preventDefault();
+    actionToggleAuto();
+    return;
+  }
+  if (key === "?") {
+    e.preventDefault();
+    keyBar.style.display = keyBar.style.display === "none" ? "block" : "none";
+    return;
+  }
+
+  // 1 to 6 (including numpad)
+  var numMatch = key.match(/^[1-6]$/);
+  if (!numMatch && code.startsWith("Numpad") && code.length === 7) {
+    var numChar = code.charAt(6);
+    if (numChar >= "1" && numChar <= "6") {
+      numMatch = [numChar];
+    }
+  }
+  if (numMatch) {
+    e.preventDefault();
+    var pIdx = parseInt(numMatch[0], 10) - 1;
+    var activeCase = null;
+    for (var i = 0; i < casesList.length; i++) {
+      if (casesList[i].token === selectedToken) {
+        activeCase = casesList[i];
+        break;
+      }
+    }
+    if (activeCase && activeCase.photos && activeCase.photos[pIdx]) {
+      showBigPhoto(activeCase.photos[pIdx]);
+    } else {
+      setStatusMsg("no photo " + (pIdx + 1));
+    }
+    return;
+  }
+});
+
+fetchCases();
+setInterval(fetchCases, 3000);
 </script>
 </body>
 </html>"""
@@ -1222,79 +1716,38 @@ setInterval(() => {
 @desk_app.get("/", response_class=HTMLResponse)
 async def get_desk_home():
     open_list = cases.open_cases()
+    waiting_count = sum(1 for c in open_list if c.state != "called")
+    auto_str = "on" if _is_photo_auto() else "off"
 
-    cases_html_parts: list[str] = []
-    for c in open_list:
-        tail = cases.number_tail(c)
-        number_label = f"number: ...{html.escape(tail)}" if tail else "number: none (Mac call)"
-        case_link = cases.link(c)
-        age_str = _format_age(c.made)
-        langs_str = ", ".join(c.langs) if c.langs else c.lang
-
-        photos_html = ""
-        for idx in range(len(c.photos)):
-            p_tok = html.escape(c.token)
-            photos_html += f'<a href="/photo/{p_tok}/{idx}" target="_blank"><img src="/photo/{p_tok}/{idx}" alt="Photo {idx + 1}" class="desk-thumb"></a> '
-
-        by = c.finding.get("by", "")
-        stand_in_banner = ""
-        if by == "stand-in" or "stand-in" in by:
-            stand_in_banner = '<div class="stand-in-box">no reader set, write the answer yourself</div>'
-
-        shows = html.escape(str(c.finding.get("shows", "")))
-        wrong = html.escape(str(c.finding.get("wrong", "")))
-        sure = html.escape(str(c.finding.get("sure", 0.0)))
-        by_esc = html.escape(str(by))
-        scheme_esc = html.escape(str(c.scheme))
-        say_esc = html.escape(str(c.say))
-        c_tok = html.escape(c.token)
-        c_state = html.escape(c.state)
-        c_link = html.escape(case_link)
-
-        card_html = f"""
-        <div class="case-card" id="card-{c_tok}">
-          <div class="case-header">
-            <div>
-              <span class="badge state-{c_state}">{c_state}</span>
-              <span class="case-number">{number_label}</span>
-              <span class="case-age">({age_str})</span>
-              <span style="margin-left:8px;font-size:13px;font-weight:600;color:#475569;">langs: {html.escape(langs_str)}</span>
-            </div>
-            <div>
-              <a href="{c_link}" target="_blank" class="case-link">{c_link}</a>
-            </div>
-          </div>
-
-          <div class="photos-row">
-            {photos_html if photos_html else '<span class="dim">No photos uploaded yet</span>'}
-          </div>
-
-          {stand_in_banner}
-
-          <div class="meta-grid">
-            <div><strong>Shows:</strong> {shows or '<span class="dim">-</span>'}</div>
-            <div><strong>Wrong:</strong> {wrong or '<span class="dim">-</span>'}</div>
-            <div><strong>Sure:</strong> {sure} | <strong>By:</strong> {by_esc or '<span class="dim">-</span>'}</div>
-            <div><strong>Scheme:</strong> {scheme_esc or '<span class="dim">None</span>'}</div>
-          </div>
-
-          <div class="say-box">
-            <label for="say-{c_tok}"><strong>Call-back Say:</strong></label>
-            <textarea id="say-{c_tok}" rows="2">{say_esc}</textarea>
-          </div>
-
-          <div class="action-row">
-            <button type="button" onclick="saveText('{c_tok}')" class="btn btn-save">Save text</button>
-            <button type="button" onclick="callBack('{c_tok}')" class="btn btn-call">Call back</button>
-          </div>
-        </div>
-        """
-        cases_html_parts.append(card_html)
-
-    body_cards = "\n".join(cases_html_parts) if cases_html_parts else "<div class='dim' style='padding:20px;'>No open cases</div>"
-
-    html_content = DESK_HTML_TEMPLATE.replace("__BODY_CARDS__", body_cards)
+    html_content = DESK_HTML_TEMPLATE
+    html_content = html_content.replace("__AUTO_STATE__", auto_str)
+    html_content = html_content.replace("__WAITING_COUNT__", str(waiting_count))
+    html_content = html_content.replace("__INITIAL_AUTO__", "true" if _is_photo_auto() else "false")
     return HTMLResponse(content=html_content, status_code=200)
+
+
+@desk_app.get("/cases")
+async def get_desk_cases():
+    open_list = cases.open_cases()
+    result = [_case_to_dict(c) for c in open_list]
+    headers = {
+        "Cache-Control": "no-store",
+        "X-Photo-Auto": "on" if _is_photo_auto() else "off",
+    }
+    return JSONResponse(status_code=200, content=result, headers=headers)
+
+
+@desk_app.get("/status")
+async def get_desk_status():
+    return JSONResponse(status_code=200, content={"auto": _is_photo_auto()})
+
+
+@desk_app.post("/toggle-auto")
+async def post_toggle_auto():
+    global _PHOTO_AUTO_RUNTIME
+    _PHOTO_AUTO_RUNTIME = not _is_photo_auto()
+    os.environ["PHOTO_AUTO"] = "true" if _PHOTO_AUTO_RUNTIME else "false"
+    return JSONResponse(status_code=200, content={"ok": True, "auto": _PHOTO_AUTO_RUNTIME})
 
 
 @desk_app.get("/photo/{token}/{n}")
@@ -1331,6 +1784,19 @@ async def post_desk_save(token: str, request: Request):
         case = cases.approve(token, body_text)
         _log_state(token, case.state)
         return JSONResponse(status_code=200, content={"ok": True, "state": case.state})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@desk_app.post("/not-clear/{token}")
+async def post_desk_not_clear(token: str):
+    if not token or not cases.TOKEN_RE.match(token):
+        raise HTTPException(status_code=404, detail="Case not found")
+    try:
+        case = cases.mark_not_clear(token)
+        call_back(case)
+        _log_state(token, case.state)
+        return JSONResponse(status_code=200, content={"ok": True, "state": case.state, "wrong": case.finding.get("wrong")})
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

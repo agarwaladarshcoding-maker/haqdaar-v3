@@ -213,7 +213,7 @@ def test_done_sets_finding_and_say(tmp_path):
             assert r.json() == {"ok": True}
 
         updated = cases.get(c.token, folder=tmp_path)
-        assert updated.state == "read"
+        assert updated.state in ("read", "approved")
         assert updated.scheme == "pmfby"
         assert "Yellow wilted leaves." in updated.say
         assert "Fungal infection." in updated.say
@@ -259,9 +259,12 @@ def test_html_escaping_on_desk(tmp_path):
         body = r.text
 
         assert "<script>alert" not in body
-        assert "&lt;script&gt;alert" in body
         assert "<img src=x" not in body
-        assert "&lt;img src=x" in body
+        r_cases = client.get("/cases")
+        assert r_cases.status_code == 200
+        case_data = r_cases.json()[0]
+        assert case_data["shows"] == "<script>alert(xss-shows)</script>"
+        assert case_data["scheme"] == "<b>scheme</b>" 
 
 
 def test_call_back_writes_file_and_makes_no_call(tmp_path):
@@ -425,3 +428,196 @@ def test_desk_page_has_viewport(tmp_path):
         resp = client.get("/")
         assert resp.status_code == 200
         assert '<meta name="viewport" content="width=device-width, initial-scale=1">' in resp.text
+
+
+def test_photo_auto_on_and_off(tmp_path):
+    real_thread = threading.Thread
+    def sync_thread(target=None, args=(), **kwargs):
+        t = real_thread(target=target, args=args, **kwargs)
+        if target:
+            target(*args)
+        return t
+
+    # 1. PHOTO_AUTO=true: good finding
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path), "PHOTO_AUTO": "true"}), \
+         mock.patch("threading.Thread", side_effect=sync_thread):
+        c1 = cases.new_case("hi", folder=tmp_path)
+        cases.add_photo(c1.token, TINY_JPEG, folder=tmp_path)
+
+        good_finding = {
+            "shows": "Clear crop view.",
+            "wrong": "Leaf blight.",
+            "sure": 0.9,
+            "search": "pmfby",
+            "by": "muse",
+        }
+        with mock.patch("haqdaar.photo.reader.read", return_value=good_finding), \
+             mock.patch("tools.photo_desk.pick_scheme", return_value=("pmfby", "PM Fasal Bima")):
+            client = TestClient(photo_desk.photo_app)
+            r = client.post(f"/p/{c1.token}/done")
+            assert r.status_code == 200
+
+        c1_up = cases.get(c1.token, folder=tmp_path)
+        assert c1_up.state == "approved"
+        next_call = tmp_path / "next_call.json"
+        assert next_call.exists()
+        d1 = json.loads(next_call.read_text(encoding="utf-8"))
+        assert d1["token"] == c1.token
+        assert d1["lang"] == "hi"
+        assert "Clear crop view." in d1["say"]
+
+    # 2. PHOTO_AUTO=true: bad finding (stand-in, low sure, empty shows)
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path), "PHOTO_AUTO": "true"}), \
+         mock.patch("threading.Thread", side_effect=sync_thread):
+        c2 = cases.new_case("en", folder=tmp_path)
+        cases.add_photo(c2.token, TINY_JPEG, folder=tmp_path)
+
+        bad_finding = {
+            "shows": "",
+            "wrong": "",
+            "sure": 0.2,
+            "search": "",
+            "by": "stand-in (the reader failed)",
+        }
+        with mock.patch("haqdaar.photo.reader.read", return_value=bad_finding):
+            client = TestClient(photo_desk.photo_app)
+            r = client.post(f"/p/{c2.token}/done")
+            assert r.status_code == 200
+
+        c2_up = cases.get(c2.token, folder=tmp_path)
+        assert c2_up.state == "approved"
+        d2 = json.loads((tmp_path / "next_call.json").read_text(encoding="utf-8"))
+        assert d2["token"] == c2.token
+        assert d2["lang"] == "en"
+
+    # 3. PHOTO_AUTO=false: state stays read, no file until /approve
+    (tmp_path / "next_call.json").unlink(missing_ok=True)
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path), "PHOTO_AUTO": "false"}), \
+         mock.patch("threading.Thread", side_effect=sync_thread):
+        c3 = cases.new_case("mr", folder=tmp_path)
+        cases.add_photo(c3.token, TINY_JPEG, folder=tmp_path)
+
+        with mock.patch("haqdaar.photo.reader.read", return_value=good_finding):
+            client = TestClient(photo_desk.photo_app)
+            r = client.post(f"/p/{c3.token}/done")
+            assert r.status_code == 200
+
+        c3_up = cases.get(c3.token, folder=tmp_path)
+        assert c3_up.state == "read"
+        assert not (tmp_path / "next_call.json").exists()
+
+        # Helper calls /approve/{token}
+        desk_client = TestClient(photo_desk.desk_app)
+        r_app = desk_client.post(f"/approve/{c3.token}", content=b"Helper approved text")
+        assert r_app.status_code == 200
+        assert (tmp_path / "next_call.json").exists()
+        d3 = json.loads((tmp_path / "next_call.json").read_text(encoding="utf-8"))
+        assert d3["token"] == c3.token
+        assert d3["say"] == "Helper approved text"
+
+
+def test_get_cases_fields_and_no_full_number(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        full_number = "+919876543210"
+        c = cases.new_case("hi", number=full_number, folder=tmp_path)
+        cases.add_photo(c.token, TINY_JPEG, folder=tmp_path)
+
+        client = TestClient(photo_desk.desk_app)
+        resp = client.get("/cases")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        assert len(data) >= 1
+
+        matched = [x for x in data if x["token"] == c.token]
+        assert len(matched) == 1
+        item = matched[0]
+
+        # Check required fields
+        required_keys = {"token", "tail", "step", "state", "time", "age", "langs", "shows", "wrong", "scheme", "say", "photos", "is_stand_in"}
+        assert required_keys.issubset(set(item.keys()))
+
+        # Check tail has only last 2 digits
+        assert item["tail"] == "10"
+        assert "number" not in item
+
+        # Verify full number never appears anywhere in the JSON response
+        assert full_number not in resp.text
+        assert "98765432" not in resp.text
+
+
+def test_not_clear_action_sets_wrong_and_writes_file(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        c = cases.new_case("hi", folder=tmp_path)
+        cases.add_photo(c.token, TINY_JPEG, folder=tmp_path)
+        cases.set_finding(c.token, {"shows": "Blurry shape"}, "", "Some text", folder=tmp_path)
+
+        client = TestClient(photo_desk.desk_app)
+        r = client.post(f"/not-clear/{c.token}")
+        assert r.status_code == 200
+        assert r.json()["ok"] is True
+        assert r.json()["wrong"] == "helper: not clear"
+
+        # Check case on disk
+        c_up = cases.get(c.token, folder=tmp_path)
+        assert c_up.finding["wrong"] == "helper: not clear"
+        assert c_up.state == "approved"
+
+        # Check next_call.json written
+        next_call = tmp_path / "next_call.json"
+        assert next_call.exists()
+        d = json.loads(next_call.read_text(encoding="utf-8"))
+        assert d["token"] == c.token
+
+
+def test_desk_html_no_alert_no_reload_has_keybar_and_buttons(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        client = TestClient(photo_desk.desk_app)
+        resp = client.get("/")
+        assert resp.status_code == 200
+        body = resp.text
+
+        # No alert() and no location.reload
+        assert "alert(" not in body
+        assert "location.reload" not in body
+
+        # Key bar present
+        assert 'id="key-bar"' in body
+
+        # Real button elements with key in label
+        buttons = re.findall(r"<button[^>]*>(.*?)</button>", body, re.DOTALL)
+        assert len(buttons) >= 4
+        button_texts = " ".join(buttons)
+        assert "Call back (Enter)" in button_texts
+        assert "Edit text (E)" in button_texts
+        assert "Not clear (B)" in button_texts
+        assert "New test case (N)" in button_texts or "New case (N)" in button_texts
+        assert "Auto on / off (A)" in button_texts
+
+
+def test_host_origin_guard_covers_new_routes(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        client = TestClient(photo_desk.desk_app)
+        c = cases.new_case("hi", folder=tmp_path)
+
+        # GET /cases with evil Host -> 403
+        r_cases_bad = client.get("/cases", headers={"Host": "attacker.com"})
+        assert r_cases_bad.status_code == 403
+
+        # POST /not-clear with evil Origin -> 403
+        r_nc_bad = client.post(f"/not-clear/{c.token}", headers={"Origin": "http://evil.com"})
+        assert r_nc_bad.status_code == 403
+
+        # POST /toggle-auto with evil Origin -> 403
+        r_ta_bad = client.post("/toggle-auto", headers={"Origin": "http://evil.com"})
+        assert r_ta_bad.status_code == 403
+
+        # Allowed requests
+        r_cases_good = client.get("/cases", headers={"Host": "localhost:8003"})
+        assert r_cases_good.status_code == 200
+
+        r_nc_good = client.post(f"/not-clear/{c.token}", headers={"Origin": "http://localhost:8003"})
+        assert r_nc_good.status_code == 200
+
+        r_ta_good = client.post("/toggle-auto", headers={"Origin": "http://localhost:8003"})
+        assert r_ta_good.status_code == 200

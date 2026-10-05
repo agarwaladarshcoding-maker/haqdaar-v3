@@ -393,3 +393,17 @@ def sweep(folder: Path | str | None = None, now: float | None = None) -> int:
                 shutil.rmtree(entry, ignore_errors=True)
                 deleted += 1
     return deleted
+
+
+def mark_not_clear(token: str, folder: Path | str | None = None) -> Case:
+    case = _get_raw(token, folder=folder)
+    if not token or not TOKEN_RE.match(token):
+        raise ValueError("case not found")
+    if case is None:
+        raise ValueError("case not found")
+    if not isinstance(case.finding, dict):
+        case.finding = {}
+    case.finding["wrong"] = "helper: not clear"
+    case.state = "approved"
+    _save(case, folder)
+    return case
