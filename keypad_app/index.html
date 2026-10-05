@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Haqdaar Kisan Photo</title>
+<link rel="manifest" href="manifest.json">
+<style>
+:root{--ch:#1b222a;--bd:#33404c;--lcd:#8ca886;--fg:#122013;--dim:#779273;--btn:#2b3640;--bfg:#e0e6ed;--act:#465766;--gold:#e59410}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#0d1117;color:#e0e6ed;font-family:monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:4px;user-select:none}
+.chassis{width:280px;background:linear-gradient(180deg,#28333e,#151b22);border-radius:26px 26px 32px 32px;padding:8px 8px 12px;border:3px solid var(--bd);box-shadow:0 12px 30px rgba(0,0,0,0.85);display:flex;flex-direction:column;align-items:center}
+.ear{width:46px;height:4px;background:#090d11;border-radius:3px;margin-bottom:4px}
+.brand{font-size:9px;font-weight:700;letter-spacing:2px;color:#788b9c;margin-bottom:4px;text-transform:uppercase}
+.bezel{background:#080c0f;padding:4px;border-radius:8px;border:2px solid #182027;position:relative}
+.screen{width:240px;height:320px;background:var(--lcd);color:var(--fg);font-family:monospace;font-size:11px;font-weight:700;display:flex;flex-direction:column;position:relative;overflow:hidden;border:1px solid var(--dim)}
+.s-bar{height:18px;border-bottom:1px solid var(--fg);display:flex;justify-content:space-between;align-items:center;padding:0 4px;font-size:9px}
+.t-bar{text-align:center;background:var(--fg);color:var(--lcd);padding:3px;font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.s-body{flex:1;padding:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;overflow:hidden;position:relative}
+.cam-icon{width:64px;height:46px;border:3px solid var(--fg);border-radius:8px;margin:8px auto;position:relative;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.04)}
+.cam-icon::before{content:'';width:16px;height:6px;background:var(--fg);position:absolute;top:-8px;left:14px;border-radius:2px 2px 0 0}
+.cam-lens{width:22px;height:22px;border:3px solid var(--fg);border-radius:50%}
+.big-title{font-size:14px;font-weight:900;line-height:1.2;margin:4px 0}
+.sub-title{font-size:11px;color:var(--fg);opacity:0.9;margin-bottom:8px}
+.action-box{background:var(--fg);color:var(--lcd);padding:9px 6px;border-radius:6px;width:100%;font-size:12px;font-weight:900;letter-spacing:0.5px;margin-top:8px;cursor:pointer;animation:pulse 1.6s infinite ease-in-out}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.82}}
+.thumb-wrap{position:relative;margin:2px auto}
+.thumb{width:128px;height:94px;object-fit:cover;border:2px solid var(--fg);image-rendering:pixelated;margin:0 auto;display:block;filter:grayscale(100%) contrast(135%)}
+.pager{font-size:9px;font-weight:900;margin-top:3px;letter-spacing:1px;cursor:pointer}
+.opt-list{width:100%;display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.opt-row{background:rgba(0,0,0,0.07);border:1.5px solid var(--fg);border-radius:4px;padding:4px 6px;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.opt-row:active,.opt-row.sel{background:var(--fg);color:var(--lcd)}
+.opt-pri{background:var(--fg);color:var(--lcd);box-shadow:0 1px 3px rgba(0,0,0,0.25)}
+.opt-key{font-size:11px;font-weight:900;margin-right:4px}
+.opt-txt{flex:1;text-align:left;font-size:10px}
+.opt-hi{font-size:9px;opacity:0.9;margin-left:4px}
+.prog-wrap{width:100%;margin:10px 0 6px}
+.ascii-bar{font-size:12px;font-weight:900;letter-spacing:1px;margin:8px 0 4px}
+.prog-outer{width:100%;height:14px;border:2px solid var(--fg);border-radius:3px;background:rgba(0,0,0,0.06);overflow:hidden;padding:1px;margin-top:4px}
+.prog-fill{height:100%;background:var(--fg);width:0%;transition:width .2s}
+.done-icon{font-size:38px;line-height:1;margin-bottom:6px;font-weight:900}
+.reassure{font-size:10px;line-height:1.4;margin:8px 0;background:rgba(0,0,0,0.06);padding:6px;border-radius:4px}
+.sk-bar{height:18px;border-top:1px solid var(--fg);display:flex;justify-content:space-between;align-items:center;padding:0 6px;font-size:9px}
+.pad{width:100%;margin-top:6px;display:flex;flex-direction:column;gap:4px}
+.nav{display:flex;justify-content:space-between;align-items:center}
+.s-btn,.k-btn,.d-b{cursor:pointer;font-family:inherit}
+.s-btn{width:56px;height:28px;background:var(--btn);color:var(--bfg);border:1px solid var(--bd);border-radius:6px;font-size:9px;font-weight:bold}
+.s-btn:active,.s-btn.on{background:var(--act)}
+.dpad{width:82px;height:60px;display:grid;grid-template-columns:25px 30px 25px;grid-template-rows:18px 22px 18px;background:#12171c;border-radius:8px;border:1px solid #28333e;padding:1px}
+.d-b{background:#232d36;color:#94a6b8;border:none;font-size:9px;display:flex;justify-content:center;align-items:center}
+.d-b:active,.d-b.on{background:var(--gold);color:#000}
+.du{grid-column:2;grid-row:1;border-radius:4px 4px 0 0}
+.dd{grid-column:2;grid-row:3;border-radius:0 0 4px 4px}
+.dl{grid-column:1;grid-row:2;border-radius:4px 0 0 4px}
+.dr{grid-column:3;grid-row:2;border-radius:0 4px 4px 0}
+.dok{grid-column:2;grid-row:2;background:var(--gold);color:#111;font-weight:900;font-size:11px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.k-btn{height:33px;background:var(--btn);border:1px solid var(--bd);border-radius:6px;color:var(--bfg);display:flex;flex-direction:column;justify-content:center;align-items:center}
+.k-btn:active,.k-btn.on{background:var(--act);color:#fff}
+.d1{font-size:13px;font-weight:900;line-height:1}
+.d2{font-size:7px;color:#8897a4}
+.hint{margin-top:6px;font-size:9px;color:#6b7884;text-align:center}
+#cam,#cnv{display:none}
+</style>
+</head>
+<body>
+<div class="chassis">
+  <div class="ear"></div>
+  <div class="brand">HAQDAAR KISAN 240x320</div>
+  <div class="bezel">
+    <div class="screen" id="sc">
+      <div class="s-bar"><span>|||| GSM</span><span id="clk">12:00</span><span>[===]</span></div>
+      <div class="t-bar" id="tb">HAQDAAR PHOTO</div>
+      <div class="s-body" id="sb"></div>
+      <div class="sk-bar"><span id="skl">CAPTURE</span><span id="skr"></span></div>
+    </div>
+  </div>
+  <div class="pad">
+    <div class="nav">
+      <button class="s-btn" id="b-skl">Capture</button>
+      <div class="dpad">
+        <button class="d-b du" id="b-u">&#9650;</button>
+        <button class="d-b dl" id="b-l">&#9664;</button>
+        <button class="d-b dok" id="b-ok">OK</button>
+        <button class="d-b dr" id="b-r">&#9654;</button>
+        <button class="d-b dd" id="b-d">&#9660;</button>
+      </div>
+      <button class="s-btn" id="b-skr" style="opacity:0.5;"></button>
+    </div>
+    <div class="grid">
+      <button class="k-btn" id="k1"><span class="d1">1</span><span class="d2">+ADD</span></button>
+      <button class="k-btn" id="k2"><span class="d1">2</span><span class="d2">&#8629; SEND</span></button>
+      <button class="k-btn" id="k3"><span class="d1">3</span><span class="d2">&#10006; DEL</span></button>
+      <button class="k-btn" id="k4"><span class="d1">4</span><span class="d2">GHI</span></button>
+      <button class="k-btn" id="k5"><span class="d1">5</span><span class="d2">TAKE</span></button>
+      <button class="k-btn" id="k6"><span class="d1">6</span><span class="d2">MNO</span></button>
+      <button class="k-btn" id="k7"><span class="d1">7</span><span class="d2">PQRS</span></button>
+      <button class="k-btn" id="k8"><span class="d1">8</span><span class="d2">TUV</span></button>
+      <button class="k-btn" id="k9"><span class="d1">9</span><span class="d2">WXYZ</span></button>
+      <button class="k-btn" id="ks"><span class="d1">*</span><span class="d2">BACK</span></button>
+      <button class="k-btn" id="k0"><span class="d1">0</span><span class="d2">OPER</span></button>
+      <button class="k-btn" id="kh"><span class="d1">#</span><span class="d2">SEND</span></button>
+    </div>
+  </div>
+</div>
+<div class="hint">Keypad Driven | Tap Screen or Keypad Buttons</div>
+<input type="file" id="cam" accept="image/*" capture="environment">
+<canvas id="cnv"></canvas>
+<script>
+(function(){
+  var actx=null;
+  function $(i){return document.getElementById(i);}
+  function beep(f,d){
+    f=f||800;d=d||0.035;
+    try{
+      if(!actx)actx=new(window.AudioContext||window.webkitAudioContext)();
+      if(actx.state==='suspended')actx.resume();
+      var o=actx.createOscillator(),g=actx.createGain();
+      o.type='triangle';o.frequency.setValueAtTime(f,actx.currentTime);
+      g.gain.setValueAtTime(0.06,actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001,actx.currentTime+d);
+      o.connect(g);g.connect(actx.destination);
+      o.start();o.stop(actx.currentTime+d);
+    }catch(e){}
+  }
+  var S={state:'IDLE',gw:localStorage.getItem('hq_gw')||'+919876543210',photos:[],previewIdx:0,curChunk:0,allChunks:[],timer:null};
+  function crc8(b){var c=0;for(var i=0;i<b.length;i++){c^=b[i];for(var j=0;j<8;j++)c=(c&0x80)?((c<<1)^7):(c<<1);c&=0xff;}return c;}
+  function b64(b){var s='';for(var i=0;i<b.byteLength;i++)s+=String.fromCharCode(b[i]);return window.btoa(s);}
+
+  function getAsciiBar(pct){
+    var total=10,filled=Math.round((pct/100)*total);
+    var s='';for(var i=0;i<filled;i++)s+=(i===filled-1&&filled<total)?'>':'=';
+    while(s.length<total)s+=' ';
+    return '['+s+'] '+pct+'%';
+  }
+
+  function render(){
+    var b=$('sb'),t=$('tb'),l=$('skl'),r=$('skr'),bl=$('b-skl'),br=$('b-skr');
+    if(S.state==='IDLE'){
+      t.innerText='HAQDAAR KISAN';l.innerText='CAPTURE';r.innerText='';bl.innerText='Capture';br.innerText='';
+      b.innerHTML='<div class="cam-icon"><div class="cam-lens"></div></div><div class="big-title">CAPTURE PHOTO</div><div class="sub-title">फोटो खींचें</div><div class="action-box" id="act-c">📸 CAPTURE PHOTO [OK]</div><div style="font-size:9px;margin-top:16px;opacity:0.85;">Press [OK] or [5] to shoot</div>';
+      var ac=$('act-c');if(ac)ac.onclick=function(){startCapture();};
+    }else if(S.state==='PROCESSING'){
+      t.innerText='PROCESSING';l.innerText='WAIT';r.innerText='';bl.innerText='Wait';br.innerText='';
+      b.innerHTML='<div class="big-title" style="margin-top:20px;">PROCESSING PHOTO...</div><div class="sub-title">तैयार हो रहा है...</div><div style="font-size:10px;margin-top:10px;">Please wait</div>';
+    }else if(S.state==='REVIEW'){
+      var curPhoto=S.photos[S.previewIdx],tot=S.photos.length;
+      t.innerText='REVIEW PHOTO';l.innerText='SEND [2]';r.innerText='DEL [3]';bl.innerText='Send [2]';br.innerText='Del [3]';
+      var pgr=tot>1?'<div class="pager" id="pg-nav">◄ PHOTO '+(S.previewIdx+1)+' OF '+tot+' ►</div>':'<div class="pager">PHOTO 1 OF 1</div>';
+      b.innerHTML='<div class="thumb-wrap"><img class="thumb" src="'+curPhoto.url+'" alt="Photo Preview">'+pgr+'</div><div class="opt-list"><div class="opt-row" id="opt-add"><span class="opt-key">[1]</span><span class="opt-txt">➕ ADD MORE</span><span class="opt-hi">और जोड़ें</span></div><div class="opt-row opt-pri" id="opt-send"><span class="opt-key">[2]</span><span class="opt-txt">📤 SEND NOW</span><span class="opt-hi">भेजें</span></div><div class="opt-row" id="opt-del"><span class="opt-key">[3]</span><span class="opt-txt">🗑️ DELETE</span><span class="opt-hi">हटाएं</span></div></div>';
+      var ba=$('opt-add'),bs=$('opt-send'),bd=$('opt-del'),pn=$('pg-nav');
+      if(ba)ba.onclick=function(){actionAddMore();};if(bs)bs.onclick=function(){actionSend();};if(bd)bd.onclick=function(){actionDelete();};if(pn)pn.onclick=function(){cyclePhoto(1);};
+    }else if(S.state==='SENDING'){
+      t.innerText='SENDING';l.innerText='';r.innerText='';bl.innerText='';br.innerText='';
+      var total=S.allChunks.length,idx=S.curChunk+1,pct=total>0?Math.round((idx/total)*100):0,cnt=S.photos.length;
+      var barStr=getAsciiBar(pct);
+      b.innerHTML='<div class="big-title" style="margin-top:10px;">SENDING...</div><div class="sub-title">फोटो भेजी जा रही है...</div>'+(cnt>1?'<div style="font-size:11px;font-weight:900;margin-bottom:4px;">('+cnt+' Photos)</div>':'')+'<div class="prog-wrap"><div class="ascii-bar">'+barStr+'</div><div class="prog-outer"><div class="prog-fill" style="width:'+pct+'%"></div></div></div>';
+    }else if(S.state==='SENT'){
+      t.innerText='CONFIRMATION';l.innerText='NEW [OK]';r.innerText='';bl.innerText='New [OK]';br.innerText='';
+      b.innerHTML='<div class="done-icon">&#10004;</div><div class="big-title">SENT SUCCESSFULLY!</div><div class="sub-title">सफलतापूर्वक भेज दिया गया</div><div class="reassure">Doctor / Expert will call or reply shortly.</div><div class="action-box" id="act-n">Press [OK] for New Photo</div>';
+      var an=$('act-n');if(an)an.onclick=function(){resetToIdle();};
+    }
+  }
+
+  function startCapture(){
+    beep(1200);var inp=$('cam');inp.value='';
+    inp.onchange=function(e){var f=e.target.files&&e.target.files[0];if(f)processPhoto(f);};
+    try{inp.click();}catch(e){makeSynthetic();}
+    setTimeout(function(){if(S.state==='IDLE'&&S.photos.length===0)makeSynthetic();},900);
+  }
+
+  function makeSynthetic(){
+    var c=$('cnv');c.width=320;c.height=240;var x=c.getContext('2d');
+    x.fillStyle='#1e3b18';x.fillRect(0,0,320,240);
+    x.fillStyle='#528533';x.beginPath();x.ellipse(160,120,110,55,Math.PI/4,0,Math.PI*2);x.fill();
+    x.fillStyle='#b8992a';x.beginPath();x.arc(140,110,16,0,Math.PI*2);x.arc(185,128,12,0,Math.PI*2);x.fill();
+    c.toBlob(function(b){processPhoto(b);},'image/jpeg',0.85);
+  }
+
+  function processPhoto(blob){
+    S.state='PROCESSING';render();beep(950);
+    var img=new Image();
+    img.onload=function(){
+      var c=$('cnv');c.width=160;c.height=120;
+      var x=c.getContext('2d');x.drawImage(img,0,0,160,120);
+      c.toBlob(function(cb){
+        var r=new FileReader();
+        r.onloadend=function(){
+          S.photos.push({blob:cb,url:URL.createObjectURL(cb),ca:new Uint8Array(r.result)});
+          S.previewIdx=S.photos.length-1;S.state='REVIEW';render();beep(1100,0.04);
+        };
+        r.readAsArrayBuffer(cb);
+      },'image/jpeg',0.32);
+    };
+    img.src=URL.createObjectURL(blob);
+  }
+
+  function actionAddMore(){
+    if(S.photos.length>=5){beep(400,0.1);return;}
+    beep(1000);var inp=$('cam');inp.value='';
+    inp.onchange=function(e){var f=e.target.files&&e.target.files[0];if(f)processPhoto(f);};
+    try{inp.click();}catch(e){makeSynthetic();}
+    setTimeout(function(){if(S.state==='REVIEW'&&S.photos.length<2)makeSynthetic();},900);
+  }
+
+  function actionDelete(){
+    beep(500,0.05);if(S.photos.length===0)return;
+    S.photos.splice(S.previewIdx,1);
+    if(S.photos.length===0){resetToIdle();}else{S.previewIdx=Math.max(0,S.previewIdx-1);render();}
+  }
+
+  function cyclePhoto(dir){
+    if(S.photos.length<=1)return;
+    beep(800,0.02);S.previewIdx=(S.previewIdx+dir+S.photos.length)%S.photos.length;render();
+  }
+
+  function actionSend(){
+    if(S.photos.length===0)return;
+    beep(1200,0.06);
+    S.allChunks=[];var sz=96;
+    for(var p=0;p<S.photos.length;p++){
+      var b=S.photos[p].ca,pid=Math.floor(Math.random()*65535),cnt=Math.ceil(b.length/sz);
+      for(var i=0;i<cnt;i++){
+        var s=i*sz,e=Math.min(b.length,s+sz),sl=b.slice(s,e);
+        var c=crc8(sl),payload=b64(sl),ih=pid.toString(16).padStart(4,'0'),ch=c.toString(16).padStart(2,'0');
+        S.allChunks.push('H:'+ih+':'+(i+1)+'/'+cnt+':'+payload+':'+ch);
+      }
+    }
+    S.curChunk=0;S.state='SENDING';render();sendNextChunk();
+  }
+
+  function sendNextChunk(){
+    if(S.curChunk>=S.allChunks.length){
+      beep(1500,0.12);S.state='SENT';render();return;
+    }
+    beep(1100,0.03);
+    var body=S.allChunks[S.curChunk],uri='sms:'+S.gw+'?body='+encodeURIComponent(body);
+    var a=document.createElement('a');a.href=uri;a.target='_blank';
+    document.body.appendChild(a);try{a.click();}catch(e){}document.body.removeChild(a);
+    render();
+    if(S.timer)clearTimeout(S.timer);
+    S.timer=setTimeout(function(){if(S.state==='SENDING'){S.curChunk++;sendNextChunk();}},1400);
+  }
+
+  function resetToIdle(){
+    if(S.timer)clearTimeout(S.timer);
+    S.photos=[];S.previewIdx=0;S.allChunks=[];S.curChunk=0;S.state='IDLE';render();
+  }
+
+  function handleKey(k){
+    beep(700,0.03);
+    var km={'1':'k1','2':'k2','3':'k3','4':'k4','5':'k5','6':'k6','7':'k7','8':'k8','9':'k9','*':'ks','0':'k0','#':'kh','ArrowUp':'b-u','ArrowDown':'b-d','ArrowLeft':'b-l','ArrowRight':'b-r','Enter':'b-ok','SoftLeft':'b-skl','SoftRight':'b-skr'};
+    var id=km[k];if(id){var el=$(id);if(el){el.classList.add('on');setTimeout(function(){el.classList.remove('on');},120);}}
+    if(S.state==='IDLE'){
+      if(k==='Enter'||k==='SoftLeft'||k==='5'||k==='ArrowUp'||k==='ArrowDown'){startCapture();}
+    }else if(S.state==='REVIEW'){
+      if(k==='1'){actionAddMore();}
+      else if(k==='2'||k==='Enter'||k==='SoftLeft'||k==='#'){actionSend();}
+      else if(k==='3'||k==='SoftRight'||k==='*'||k==='Backspace'){actionDelete();}
+      else if(k==='ArrowLeft'){cyclePhoto(-1);}
+      else if(k==='ArrowRight'){cyclePhoto(1);}
+    }else if(S.state==='SENDING'){
+      if(k==='SoftRight'||k==='*'||k==='Backspace'||k==='Escape'){if(S.timer)clearTimeout(S.timer);S.state='REVIEW';render();}
+    }else if(S.state==='SENT'){
+      if(k==='Enter'||k==='SoftLeft'||k==='5'||k==='1'||k==='2'||k==='#'){resetToIdle();}
+    }
+  }
+
+  window.addEventListener('keydown',function(e){
+    var k=e.key,c=e.code;
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Enter',' '].indexOf(k)>-1)e.preventDefault();
+    if(c==='Digit1'||c==='Numpad1')k='1';
+    else if(c==='Digit2'||c==='Numpad2')k='2';
+    else if(c==='Digit3'||c==='Numpad3')k='3';
+    else if(c==='Digit5'||c==='Numpad5')k='5';
+    else if(c==='Enter'||c==='NumpadEnter')k='Enter';
+    else if(k==='F1'||c==='SoftLeft')k='SoftLeft';
+    else if(k==='F2'||c==='SoftRight')k='SoftRight';
+    handleKey(k);
+  });
+
+  var binds=[
+    {id:'b-skl',k:'SoftLeft'},{id:'b-skr',k:'SoftRight'},
+    {id:'b-u',k:'ArrowUp'},{id:'b-d',k:'ArrowDown'},{id:'b-l',k:'ArrowLeft'},{id:'b-r',k:'ArrowRight'},{id:'b-ok',k:'Enter'},
+    {id:'k1',k:'1'},{id:'k2',k:'2'},{id:'k3',k:'3'},{id:'k4',k:'4'},{id:'k5',k:'5'},{id:'k6',k:'6'},
+    {id:'k7',k:'7'},{id:'k8',k:'8'},{id:'k9',k:'9'},{id:'ks',k:'*'},{id:'k0',k:'0'},{id:'kh',k:'#'}
+  ];
+  binds.forEach(function(b){var el=$(b.id);if(el)el.addEventListener('click',function(e){e.preventDefault();handleKey(b.k);});});
+
+  function updClock(){
+    var d=new Date(),h=String(d.getHours()).padStart(2,'0'),m=String(d.getMinutes()).padStart(2,'0'),el=$('clk');
+    if(el)el.innerText=h+':'+m;
+  }
+  setInterval(updClock,30000);updClock();
+  if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');
+  render();
+})();
+</script>
+</body>
+</html>

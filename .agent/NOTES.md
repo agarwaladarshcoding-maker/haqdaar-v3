@@ -2243,3 +2243,56 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Not done, needs the owner: timings on a real call (no real call log exists yet).
 - No code-only phase is left in PLAN-V2 §3: 2.7/3.5/3.7/4.2/4.3/4.5/5.3 drills/Phase 6 all need
   a phone, ears, a decision or a key. 5.4 dropped for now (owner, 2 Oct).
+
+## 5 Oct 2026 — Keypad Offline/SMS Photo System (branch `keypad-sms-uploader`)
+- Base: `main` (`806299b`, v5 merge).
+- Independent subsystem for offline keypad/feature phones:
+  - Form factor: 128x160 to 240x320 px screen budget. High contrast, large bitmap-style typography.
+  - Pure keypad navigation: 0-9 numeric shortcuts, *, #, D-pad, Softkeys. Dual mode: hardware physical keys + on-screen keypad overlay so smartphone testers are forced to use the keypad.
+  - Zero-internet photo pipeline:
+    - Capture via HTML5 input / camera API.
+    - Offline canvas downscaling (160x120 or 240x180 px) + quality compression (target 5-10 KB JPEG).
+    - Chunking into ~130B binary SMS segments or ~136-char Base64 text SMS.
+    - Framing: `[Magic: 1B 'H'][MsgID: 2B][Seq: 1B][Total: 1B][CRC8: 1B][Payload]`.
+  - Backend reassembly server (`keypad_app/server/reassembler.py`): tracks out-of-order chunks, deduplicates, detects missing segments, outputs ACK/resend requests, reassembles JPEG.
+  - Prompts file: `PROMPTS-KEYPAD-SMS.md` structuring multi-step agent prompts for Claude/Antigravity/Muse.
+
+## 5 Oct 2026 — Keypad Client Size & Interface Optimization (<20 KB)
+- Screen container: Exact 240×320 (QVGA) monochrome/LCD retro viewport.
+- LCD palette: classic monochrome greenish LCD (`#8ba888` bg, `#142214` pixels, high-contrast monospace system typography).
+- Input binding specifications:
+  - [1] Capture, [2] Compress, [3] Slice to SMS, [4] Dispatch, [5] Inbound ACK, [6] Gateway Config, [0] Info.
+  - D-Pad: Up/Down for menu cycling, Center/OK for Select, Softkeys for Options/Back.
+  - Symbols: [*] for Back/Clear, [#] for SMS Action/Submit.
+- Touch screen prevention: Screen container absorbs touch/clicks and flashes "USE KEYPAD BELOW", directing user to physical phone chassis rendered below.
+- Size budget: < 20 KB self-contained single-file HTML (inline CSS + JS), zero external CDNs, zero network fonts. File size verified: 19,915 bytes (~19.45 KB).
+- Added `make keypad-ui` target in `Makefile` to serve `keypad_app/` locally at port 8080.
+- Keypad SMS protocol test suite (`tests/test_keypad_sms_reassembly.py`): 7/7 passed.
+- Server launched as background daemon on port 8080 (`http://localhost:8080`) and opened in browser.
+- Redesigned UX for 1-step zero-friction rural/illiterate workflow:
+  - Screen 1 (READY): Big pixel camera icon, "TAKE CROP PHOTO" (फसल की फोटो खींचें), pulsing "PRESS [OK] OR [5]".
+  - Screen 2 (PROCESSING): Automatic background canvas shrink & slice (no technical options or menus).
+  - Screen 3 (SENDING): Real-time progress bar "SENDING SMS... 3 OF 8 (38%)" with automatic interval queuing.
+  - Screen 4 (SENT): Big checkmark "&#10004; PHOTO SENT!", informs user expert will call/reply shortly, press [OK] for new photo.
+  - Footprint reduced to 18,615 bytes (18.18 KB).
+
+## 6 Oct 2026 — Minimalist 1-Button Capture, Multi-Photo Preview (Add/Send/Delete) & Clean Send UI
+- Designed and added `PROMPT 5` in `PROMPTS-KEYPAD-SMS.md`:
+  - Outlines low-literacy, zero-cognitive-overload UI flow:
+    1. Idle State: strictly 1 button ("Capture Photo" / "📸 CAPTURE PHOTO [OK]").
+    2. Review State: Immediate photo preview, pagination indicator (`◄ PHOTO 1 OF X ►`), and 3 clear options:
+       - [1] ➕ ADD MORE (or keypad 1)
+       - [2] 📤 SEND NOW (or keypad 2 / OK / # / SoftLeft)
+       - [3] 🗑️ DELETE (or keypad 3 / * / SoftRight)
+    3. Sending State: Clean progress bar and percentage without raw hex chunks (`H:1a2b:...`), CRC, or heavy telemetry (`SENDING... [====>    ] 50%` + subtext `फोटो भेजी जा रही है...`).
+    4. Sent State: Clean checkmark (`✔`), "SENT SUCCESSFULLY!" without confusing logs, and action prompt "Press [OK] for New Photo" resetting to Screen 1.
+- Implemented and refined `keypad_app/index.html`:
+  - Screen 1: strictly 1 action, Soft Left = CAPTURE, Soft Right = empty, no secondary buttons, camera with `capture="environment"`.
+  - Screen 2: Photo preview, multi-photo pagination counter (`◄ PHOTO X OF Y ►`) with D-pad Left/Right navigation, and 3 clear options. Smooth transition back to Screen 1 if all photos are deleted.
+  - Screen 3: Animated ASCII + graphical progress bar (`[====>    ] 50%`), subtext in Hindi, photo count indicator, silent background SMS slicing.
+  - Screen 4: High-contrast `✔`, "Doctor / Expert will call or reply shortly", "Press [OK] for New Photo" resetting to Screen 1.
+  - Dual-mode input: complete hardware keyboard listener (`Digit1`, `Digit2`, `Digit3`, `Digit5`, `Enter`, `SoftLeft`, `SoftRight`, `ArrowLeft`, `ArrowRight`, `*`, `#`) plus clickable screen options and on-screen keypad.
+  - File size strictly under 20 KB: 18,946 bytes (~18.5 KB, zero external dependencies).
+  - Test verification: `py -3.12 -m pytest tests/test_keypad_sms_reassembly.py` passed (7/7 passed in 0.16s), HTTP 200 OK verified on `http://127.0.0.1:8080/index.html`.
+
+
