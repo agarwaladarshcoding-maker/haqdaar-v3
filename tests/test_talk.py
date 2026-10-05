@@ -268,9 +268,11 @@ def test_clear_words_fill_the_box_by_fixed_code_not_by_the_model(call):
 
 
 def test_a_box_asked_twice_with_no_answer_is_not_asked_again(call):
+    # 1.3a: "I do not know" sets UNKNOWN at once (see test_talk_phrases); the
+    # twice-asked path is for vague turns that answer nothing.
     ask = {"action": "ask", "say": "What kind of help do you need?", "ask_box": "category", "facts": {}}
     again = {"action": "ask", "say": "Which kind of help is it?", "ask_box": "category", "facts": {}}
-    _, client, _ = call([Speech("hmm something"), Speech("I do not know really"), Speech("whatever is there"),
+    _, client, _ = call([Speech("hmm something"), Speech("err, something"), Speech("whatever is there"),
                          Speech("ok")], [ask, again, {"action": "not_for_me"}, {"action": "not_for_me"}])
     assert "NEXT QUESTION: category" in client.calls[1]
     assert "category = UNKNOWN" in client.calls[3] and "NEXT QUESTION: category" not in client.calls[3]

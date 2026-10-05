@@ -25,7 +25,7 @@ from haqdaar.contracts.log_schema import (
 from haqdaar.contracts.types import SEVEN_BOXES, UNASKED, UNKNOWN, Digit, Hangup, Silence, Speech
 from haqdaar.data import log_text, scheme_index
 from haqdaar.data.scheme_text import SchemeText
-from haqdaar.engine import talk_pick, talk_words
+from haqdaar.engine import talk_pick, talk_words, words_no_answer, words_tell_me
 from haqdaar.engine.filter import Filter
 from haqdaar.model.answer import check_answer, mask_digits
 from haqdaar.prompts import talk as prompt
@@ -144,12 +144,15 @@ class _Talk:
         self.last_action = ""
         self.left: tuple[str, ...] = ()
         self.asked: dict[str, int] = {}  # box -> how often we asked it
+        self.just_tell = False  # 1.3a: the caller said "just tell me"; no more questions this call
         self.turn_n = 0
 
     # --- the fixed part: search -> filter -> picker ---
     def _state(self, ids: list[str]) -> tuple[talk_pick.Narrow, list[tuple[str, str, str]]]:
         nar = talk_pick.narrow(ids, self.bv, self.corpus)
-        show = list(nar.left[:SHOW_K]) or ids[:SHOW_K]
+        if self.just_tell:                       # 1.3a: asking stopped; the 2 best left are shown
+            nar = talk_pick.Narrow(nar.left, None)
+        show = list(nar.left[:2] if self.just_tell else nar.left[:SHOW_K]) or ids[:SHOW_K]
         if self.focus:                       # the scheme the talk is about goes first, in full
             show = ([self.focus] + [s for s in show if s != self.focus])[:SHOW_K]
         cards = []
@@ -193,6 +196,12 @@ class _Talk:
         note = prompt.CUT_NOTE if cut else ""
         wrong_ask = False                           # the last try asked a box the picker did not name
         nar, cards = self._state(ids)
+        if words_tell_me.is_just_tell_me(words):  # 1.3a: no more questions for the rest of the call
+            self.just_tell = True
+            nar, cards = self._state(ids)
+        if words_no_answer.no_answer(words) and nar.ask and self.bv.get(nar.ask) == UNASKED:
+            self.bv[nar.ask] = UNKNOWN            # 1.3a: not known at once, never asked again
+            nar, cards = self._state(ids)
         for _try in (0, 1):
             known = {b: v for b, v in self.bv.items() if v != UNASKED}
             data = self._timed("model", _call, self.model, prompt.build(
