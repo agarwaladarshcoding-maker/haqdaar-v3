@@ -170,3 +170,12 @@ qa-router-check:
 # ARGS="--show keys:voice_qa --at 14:600 --kind cough_long" prints one call.
 barge-eval:
 	$(PYTHON) -m tools.barge_eval $(ARGS)
+
+# Step 7.14 (B6): scripted TALK calls on the same rig (no network, no money): side talk, cut-in, "hmm",
+# noise, a key, a hang-up at every place the agent speaks, with the cut-in gate off and on.
+talk-eval:
+	$(PYTHON) -m tools.talk_eval $(ARGS)
+
+# Step 7.14 (B6): 40 real questions through the real model, per model in TALK_MODELS (Groq only; ~25 min).
+talk-questions:
+	$(PYTHON) -m tools.talk_questions --questions $(ARGS)
