@@ -102,7 +102,9 @@ def narrow(scheme_ids: Sequence[str], box_vector: Mapping[str, Any], corpus: Any
     left = tuple(sub.scheme_id(n) for n in surv)
     if len(left) <= TALK_STOP_SCHEMES:
         return Narrow(left, None)
-    action = planner.next_action(box_vector, sub, stop_survivors=TALK_STOP_SCHEMES)
+    action = planner.next_action(
+        box_vector, sub, stop_survivors=TALK_STOP_SCHEMES, tie_break="easy_first"
+    )
     if not isinstance(action, Ask):
         return Narrow(left, None)
     rest = [

@@ -114,8 +114,18 @@ def test_speaking_rule_exception_prevents_le_4_stop(corpus):
     act = next_action(bv, corpus)
     assert isinstance(act, Ask)
     assert act.box in HARD_BOXES
-    # 1.3a tie rule: worst scores tie at 0, averages are state 3.0, gender 2.0,
-    # social_category 1.75, so social_category asks first (was "state" on snapshot order).
+    # In minimax score + snapshot order, state wins
+    assert act.box == "state"
+
+
+def test_tie_break_easy_first_is_the_talk_pickers_rule(corpus):
+    """tie_break="easy_first" (talk only, PLAN 1.3): worst scores tie at 0,
+    averages are state 3.0, gender 2.0, social_category 1.75, so
+    social_category asks first. The default keeps snapshot order (state)."""
+    bv = {"category": "farming"}
+    assert len(Filter.survivors(bv, corpus)) == 4
+    act = next_action(bv, corpus, tie_break="easy_first")
+    assert isinstance(act, Ask)
     assert act.box == "social_category"
 
 
@@ -431,8 +441,7 @@ def test_out_of_set_answer_reask(corpus):
     """
     # "KARNATAKA" is not in corpus.values("state") for the fixture (MAHARASHTRA, OTHER):
     # the closed state set is binary now (D6), and any other state name is out-of-set.
-    # gender + social_category are answered so state is the only qualifying hard box.
-    bv = {"category": "farming", "state": "KARNATAKA", "gender": "female", "social_category": "SC"}
+    bv = {"category": "farming", "state": "KARNATAKA"}
     # Survivors are not narrowed by state=KARNATAKA (filter appends no mask -> 4 survivors)
     survs = Filter.survivors(bv, corpus)
     assert len(survs) == 4
@@ -449,9 +458,7 @@ def test_out_of_set_answer_reask(corpus):
     act_valid = next_action(bv_valid, corpus)
     assert isinstance(act_valid, Ask)
     assert act_valid.box != "state"
-    # 1.3a tie rule: gender and social_category tie at worst 0, social_category
-    # leaves fewer on average, so it asks first (was "gender" on snapshot order).
-    assert act_valid.box == "social_category"
+    assert act_valid.box == "gender"
 
 
 def test_planner_class_interface(corpus):
