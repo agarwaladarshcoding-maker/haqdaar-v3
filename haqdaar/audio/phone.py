@@ -189,7 +189,7 @@ class PhoneAudio:
         self._token_clips["answer"] = ["answer"]
         if on_first:
             on_first()
-        self.stop_filler()  # after the render, so the filler covers the wait and the answer never queues behind it
+        self.stop_filler()  # after the render, so the filler covers the wait
         self._play([("answer", bytes(audio))], "answer")
         return True
 
@@ -251,14 +251,9 @@ class PhoneAudio:
             self._log(f"!! warm failed: {e!r}")
 
     def stop_filler(self) -> None:
-        """7.4: cut "one_moment" if it is still sounding. Never waits. Not a caller cut, so
-        was_cut() must not see it."""
-        if not self._filler:
-            return
+        """The answer is ready. A "one_moment" that is still sounding is NOT cut: the answer is
+        queued behind it (a line chopped mid-word was heard as broken sound on a real call)."""
         self._filler = False
-        if self.mouth.remaining() > 0:
-            self.mouth.clear()
-            self.mouth.last_cut = ("", -1)
 
     def heard(self, token: str) -> bool:
         """Did every clip of the last say() of `token` play to its end?"""

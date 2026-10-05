@@ -92,6 +92,14 @@ REPLAYS: dict[str, list[str]] = {
         "एम 47 है।",
     ],
     "4 Oct 22:41 (CA3685...b38c3e)": ["हम्म, ठीक है।", "नहीं, कहीं से नहीं।", "हाँ बोलिए।"],
+    # 5 Oct 11:12: the reply said a told sentence again, and offered parts it had just told.
+    "5 Oct 11:12 (CA7863...c18fba) farmer": [
+        "मेरे को फार्मर स्कीम्स के बारे में जानना है।", "पहले वाले के बारे में।", "नहीं।",
+        "मैं इस स्कीम के बारे में और जानना चाहता हूँ।", "इस स्कीम के बेनिफिट्स क्या-क्या हैं?",
+    ],
+    "made up: vendor": ["मुझे ठेले के लिए लोन चाहिए।", "हाँ।", "कौन से कागज़ लगेंगे?", "और बताइए।"],
+    "made up: jump": ["पेंशन की कोई योजना है क्या?", "दूसरी वाली।", "कितना पैसा मिलता है?",
+                      "अच्छा, पीएम किसान में कितना मिलता है?", "ठीक है, धन्यवाद।"],
 }
 
 
@@ -198,10 +206,12 @@ def summary(out: dict[str, Any]) -> list[str]:
     return lines
 
 
-def replay(corpus: Any, real_client: Any) -> list[dict[str, Any]]:
+def replay(corpus: Any, real_client: Any, only: str = "") -> list[dict[str, Any]]:
     logs = tempfile.mkdtemp(prefix="talk_replay_")
     found = []
     for n, (name, turns) in enumerate(REPLAYS.items()):
+        if only and only not in name:
+            continue
         t, audio, log = _talk(corpus, Client(real_client), "hi", logs, f"replay{n}")
         print(f"\n== {name}")
         for words in turns:
@@ -209,6 +219,7 @@ def replay(corpus: Any, real_client: Any) -> list[dict[str, Any]]:
             action = t._turn(words)
             said = " ".join(audio.answers[before:])
             print(f"CALLER: {words}\n   -> {action}" + (f': "{said}"' if said else " (nothing said)"), flush=True)
+            print(f"      in talk: {t.focus or '-'}  told: {', '.join(sorted(t.told.get(t.focus, ()))) or '-'}", flush=True)
             found.append(dict(call=name, words=words, action=action, say=said))
             time.sleep(GAP_S / 2)
         hello = prompt.HELLO["hi"]
@@ -223,6 +234,7 @@ def main() -> int:
     ap.add_argument("--replay", action="store_true")
     ap.add_argument("--limit", type=int, default=0, help="only the first N questions")
     ap.add_argument("--models", default=tunables.TALK_MODELS)
+    ap.add_argument("--only", default="", help="with --replay: only the calls with this in their name")
     args = ap.parse_args()
     from haqdaar.model.router import Model
 
@@ -231,7 +243,7 @@ def main() -> int:
     real = Model(corpus=corpus).client
     report: dict[str, Any] = {}
     if args.replay:
-        report["replay"] = replay(corpus, real)
+        report["replay"] = replay(corpus, real, args.only)
     if args.questions:
         models = [m.strip() for m in args.models.split(",") if m.strip()]
         out = questions(corpus, real, models, args.limit)

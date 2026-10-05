@@ -30,9 +30,11 @@ QA_SPEAK: bool = _on("QA_SPEAK") or TALK_ONLY   # 7.2 say the answer aloud on a 
 SPEECH_CUT_IN: bool = _on("SPEECH_CUT_IN")      # 7.2 the caller's voice stops a playing clip
 QA_SEARCH: bool = _on("QA_SEARCH")              # 7.3 find the scheme by search when too many are left
 TALK_TIMEOUT_S: float = float(os.environ.get("TALK_TIMEOUT_S", 6.0))        # one model call of a talk turn
-# "One moment" while the line is checking. The words reach the engine about 1 s after the caller stops, so 1.0 here
-# is about 2 s of quiet for the caller. If still nothing is said, it is said again every TALK_ONE_MOMENT_AGAIN_S.
-TALK_ONE_MOMENT_S: float = float(os.environ.get("TALK_ONE_MOMENT_S", 1.0))
+# "One moment" while the line is checking. The words reach the engine about 1 s after the caller stops, so 1.6 here
+# is about 2.7 s of quiet for the caller. A usual reply sounds before that, so the line is said only on a slow turn,
+# and then it is said whole: the answer waits behind it (it was cut mid-word on the 5 Oct call at 1.0).
+# If still nothing is said, it is said again every TALK_ONE_MOMENT_AGAIN_S.
+TALK_ONE_MOMENT_S: float = float(os.environ.get("TALK_ONE_MOMENT_S", 1.6))
 TALK_ONE_MOMENT_AGAIN_S: float = float(os.environ.get("TALK_ONE_MOMENT_AGAIN_S", 4.0))
 TALK_MAX_SENTENCES: int = int(os.environ.get("TALK_MAX_SENTENCES", 7))      # full details of a scheme + one closing question
 TALK_MAX_WORDS: int = int(os.environ.get("TALK_MAX_WORDS", 110))

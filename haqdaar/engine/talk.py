@@ -138,6 +138,7 @@ class _Talk:
         self.heard: list[str] = []      # the caller's turns, oldest first
         self.last_say = ""
         self.focus = ""                 # the scheme the talk is about now
+        self.told: dict[str, set[str]] = {}  # scheme -> the parts of it already said (prompt.PARTS)
         self.left: tuple[str, ...] = ()
         self.asked: dict[str, int] = {}  # box -> how often we asked it
         self.turn_n = 0
@@ -191,7 +192,8 @@ class _Talk:
         for _try in (0, 1):
             known = {b: v for b, v in self.bv.items() if v != UNASKED}
             data = self._timed("model", _call, self.model, prompt.build(
-                self.lang, text, known, boxes, nar.ask, nar.order, cards, words, note))
+                self.lang, text, known, boxes, nar.ask, nar.order, cards, words, note,
+                self.focus, sorted(self.told.get(self.focus, ()))))
             wrong_ask = False
             if data is None:
                 break
@@ -244,6 +246,9 @@ class _Talk:
             scheme = str(data.get("scheme") or "").strip()
             if scheme in ids:
                 self.focus = scheme
+            parts = data.get("parts")
+            if self.focus and action in ("answer", "show_scheme") and isinstance(parts, list):
+                self.told.setdefault(self.focus, set()).update(p for p in parts if p in prompt.PARTS)
             if action == "ask" and ask_box:
                 self.asked[ask_box] = self.asked.get(ask_box, 0) + 1
             return action, say

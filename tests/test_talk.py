@@ -405,3 +405,15 @@ def test_words_that_cut_the_agent_but_were_not_for_it_make_it_go_on_from_the_cut
     acts = [r for r in rows if r.get("ev") == "act"]
     assert [bool(r.get("again")) for r in acts] == [False, True, False]
     assert "went on from the sentence that was cut" in log_text.log_text(rows)
+
+
+def test_the_prompt_names_the_scheme_in_talk_and_the_parts_already_told(call, corpus):
+    first = f"PM Kisan gives {_number(corpus, 'pm-kisan')} rupees a year."
+    _, client, _ = call(
+        [Speech("what is PM Kisan"), Speech("tell me more"), Speech("ok")],
+        [_say(first, scheme="pm-kisan", parts=["gives", "made_up"]),
+         _say("You need an Aadhaar card.", scheme="pm-kisan", parts=["papers"]),
+         _say("Anything else?")])
+    assert "SCHEME IN TALK: none yet" in client.calls[0]     # the test's search finds no scheme by name
+    assert "TOLD: gives. NOT TOLD YET: who, papers, apply." in client.calls[1]
+    assert "TOLD: gives, papers. NOT TOLD YET: who, apply." in client.calls[2]

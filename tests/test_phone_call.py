@@ -199,7 +199,7 @@ def test_a_line_with_no_sound_is_said_with_its_stand_in():
     assert [name for name, _ in phone_audio._clips("unclear_prompt")] == ["unclear_prompt"]
 
 
-def test_stop_filler_cuts_only_a_sounding_filler_and_is_not_a_caller_cut():
+def test_stop_filler_never_cuts_a_sounding_filler():
     from haqdaar.audio.phone import PhoneAudio
 
     class FakeMouth:
@@ -222,13 +222,6 @@ def test_stop_filler_cuts_only_a_sounding_filler_and_is_not_a_caller_cut():
     assert audio.mouth.cleared == 0
 
     audio._filler = True
-    audio.stop_filler()
-    assert audio.mouth.cleared == 1 and not audio._filler
+    audio.stop_filler()  # still sounding: it is left to finish, the answer queues behind it
+    assert audio.mouth.cleared == 0 and not audio._filler
     assert audio.mouth.last_cut == ("", -1)  # was_cut() stays false
-    audio.stop_filler()
-    assert audio.mouth.cleared == 1
-
-    audio._filler = True
-    audio.mouth.left = 0.0  # already played or cut by the caller: nothing to clear
-    audio.stop_filler()
-    assert audio.mouth.cleared == 1 and not audio._filler
