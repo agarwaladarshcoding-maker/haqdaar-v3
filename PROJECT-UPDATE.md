@@ -1622,3 +1622,9 @@ What the caller hears in a normal call is the same as before.
   sentence, and gets an answer to that sentence.
 - *Side folders, to merge later.* 1.3a (Muse) and 1.5a (Antigravity) started before 1.0. They are
   merged into this branch after the phone check of 1.1, 1.3a first.
+
+**5 Oct, 4:25 pm — the call that cut after the Twilio message.** I read Twilio's own record of
+that call. It lasted 13 seconds and Twilio never reached our app. That is Twilio's trial rule:
+after its message you must press any key, or it hangs up. Our code was not at fault, so there is
+nothing to fix in the app. Step 1.1 part A (the greeting door: any first words start the talk,
+a key after a noise is taken) is now committed and pushed so it cannot be lost.
