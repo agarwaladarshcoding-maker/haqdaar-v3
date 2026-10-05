@@ -53,7 +53,8 @@ TALK_MODELS: str = os.environ.get("TALK_MODELS", "qwen/qwen3.8-27b,openai/gpt-os
 # refused). Too slow for the front of the chain; it is not in the default chain. It needs its own, longer timeout.
 TALK_MUSE_EFFORT: str = os.environ.get("TALK_MUSE_EFFORT", "minimal")
 TALK_MUSE_TIMEOUT_S: float = float(os.environ.get("TALK_MUSE_TIMEOUT_S", 12.0))
-TALK_END_WAIT_MS: int = int(os.environ.get("TALK_END_WAIT_MS", 600))        # quiet that ends the caller's turn in a talk call (keys call: 800)
+TALK_HOLD_S: float = float(os.environ.get("TALK_HOLD_S", 120.0))   # 1.8: "hold on": the quiet rule does not start for this long
+TALK_END_WAIT_MS: int =int(os.environ.get("TALK_END_WAIT_MS", 600))        # quiet that ends the caller's turn in a talk call (keys call: 800)
 QA_MAX_PER_CALL: int = int(os.environ.get("QA_MAX_PER_CALL", 5))
 QA_MAX_SCHEMES: int = int(os.environ.get("QA_MAX_SCHEMES", 4))
 QA_TIMEOUT_S: float = float(os.environ.get("QA_TIMEOUT_S", 4.0))

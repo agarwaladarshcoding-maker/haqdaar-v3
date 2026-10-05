@@ -191,6 +191,24 @@ class SchemeIndex:
             out.append(1.0 if hit else 0.0)
         return out
 
+    def named_in(self, text: str, among: Optional[Any] = None) -> list[str]:
+        """1.8: the schemes whose name stands in the text, in the order they are said (what a reply
+        named). Same name rule as the name search. `among`: look only at these scheme ids."""
+        qtoks = _norm(text).split()
+        found: list[tuple[int, str]] = []
+        for sid, names in zip(self.ids, self._names):
+            if among is not None and sid not in among:
+                continue
+            places = []
+            for name in names:
+                ntoks = name.split()
+                if ntoks and _contains(qtoks, ntoks) and (
+                        not scheme_names.needs_marker(name) or _marked_beside(qtoks, ntoks)):
+                    places.append(next(i for i in range(len(qtoks)) if qtoks[i:i + len(ntoks)] == ntoks))
+            if places:
+                found.append((min(places), sid))
+        return [sid for _at, sid in sorted(found)]
+
     def _vector_scores(self, text: str) -> list[float]:
         if self._vectors is None or self._embed is None:
             return [0.0] * len(self.ids)

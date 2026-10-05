@@ -67,6 +67,13 @@ SCRIPTS: dict[str, list[Any]] = {
                    ("say", "ok", 0.8), BYE],
     "q_two": [("say", "खेती और घर दोनों के लिए कुछ है क्या", 2.0), ("say", "ok", 0.8), BYE],
     "q_newneed": [("say", "मुझे पेंशन चाहिए", 1.2), ("say", "मुझे लोन चाहिए", 1.2), BYE],
+    # 1.8: follow-up talk by fixed code (hold on, can you hear me, pointing back, say it another way).
+    "f_hold": [("say", "i need a scheme for farming", 1.8), ("say", "hold on one minute", 1.2), "s", "s",
+               ("say", "ok go on", 0.8), BYE],
+    "f_hear": [("say", "i need a scheme for farming", 1.8), ("say", "hello can you hear me", 1.4), BYE],
+    "f_follow": [("say", "i need a scheme for farming", 1.8), ("say", "the second one", 1.0),
+                 ("say", "i did not understand", 1.2), ("say", "how much did you say", 1.4),
+                 ("say", "any other", 1.0), BYE],
     "q_three": [("say", "hmm", 0.6), ("say", "hmm", 0.6), ("say", "hmm", 0.6),
                 ("say", "ok", 0.8), BYE],
 }
@@ -221,7 +228,7 @@ def run_call(script: str, gate: bool, inject: Optional[Callable[[be.World, be.Ca
 
 # --- the rules -------------------------------------------------------------------------
 
-SPOKEN = ("answer", "ask", "show_scheme", "other_topic", "repeat")
+SPOKEN = ("answer", "ask", "show_scheme", "other_topic", "repeat", "hold", "hear", "simpler")
 
 
 def check(res: be.Result) -> list[str]:

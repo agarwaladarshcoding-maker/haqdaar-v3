@@ -13,7 +13,7 @@ from haqdaar.contracts import vocab
 
 LANG_NAMES = {"hi": "Hindi", "mr": "Marathi", "en": "English"}
 
-ACTIONS = ("answer", "ask", "show_scheme", "repeat", "goodbye", "not_for_me", "other_topic")
+ACTIONS = ("answer", "ask", "show_scheme", "repeat", "goodbye", "not_for_me", "other_topic", "simpler", "hold")
 # The parts of a scheme a reply can tell. The code keeps which ones were told, per scheme, and
 # shows it to the model (TOLD / NOT TOLD YET), so the closing offer never offers a told part.
 PARTS = ("gives", "who", "papers", "apply")
@@ -51,6 +51,7 @@ and the newest words do not fit the talk, use this, not (b). Use (b) only when t
 what they need. A question put to you about another topic is NOT this: use "other_topic".
 - "other_topic": the caller asked YOU something that is not about government schemes (the weather, cricket, \
 news, the time, who you are voting for). Leave "say" empty; a fixed line is said.
+- "simpler": the caller did not understand. Say it again in simpler words.
 
 facts: what the caller told you about themselves in the NEWEST CALLER WORDS only. Never guess. Keys are box \
 names from BOXES, values must be one of that box's allowed values, written exactly. For "age" give the age in \
@@ -164,6 +165,34 @@ OTHER_TOPIC = {
     "en": "I can only help with government schemes. Tell me what help you need.",
     "hi": "मैं सिर्फ़ सरकारी योजनाओं के बारे में बता सकती हूँ। बताइए, आपको किस बात में मदद चाहिए।",
     "mr": "मी फक्त सरकारी योजनांबद्दल सांगू शकते. तुम्हाला कशात मदत हवी आहे ते सांगा.",
+}
+
+# 1.8: fixed words said by code, by the live voice like the lines above (no pre-rendered clip).
+HOLD = {
+    "en": "Sure, take your time. I am here.",
+    "hi": "जी, आप आराम से लीजिए। मैं यहीं हूँ।",
+    "mr": "हो, तुम्ही निवांत घ्या. मी इथेच आहे.",
+}
+HEAR = {
+    "en": "Yes, I can hear you.",
+    "hi": "जी, मुझे आपकी आवाज़ आ रही है।",
+    "mr": "हो, मला तुमचा आवाज ऐकू येत आहे.",
+}
+
+# 1.8: a line added to the NOTE of the one turn that needs it (never to the fixed prompt).
+FOLLOW = {
+    "move": "The caller means [{sid}], a scheme you named before. Answer about it.",
+    "other": "The caller wants a scheme not named yet. Name only: {left}. Do not name a scheme from before.",
+    "other_none": "Every scheme found was already named. Say so plainly in one sentence, then ask if they want "
+                  "any of them told again. Do not name one as new.",
+    "side": "The caller compares [{a}] and [{b}]. One sentence for each, with the number from SCHEMES. Never say "
+            "which one is better for the caller.",
+    "will_ask": "The caller asks if they will get [{sid}]. Promise nothing. Say in one sentence who it is for, "
+                "then ask NEXT QUESTION.",
+    "will_known": "The caller asks if they will get [{sid}]. Promise nothing. Say \"it is for (who it is for); you "
+                  "told me (what the caller said)\" in two short sentences.",
+    "simpler": 'The caller did not understand. Use action "simpler": your last point in simpler, shorter words.',
+    "how_much": "The caller asks how much you said. Say only the sentence with the number, nothing else.",
 }
 
 NOT_SURE = {
