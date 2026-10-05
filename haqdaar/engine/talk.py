@@ -52,6 +52,8 @@ _SENTENCE_GAP = re.compile(r"(?<=[.!?।])\s+")
 _SHORT_PIECE = 12        # "Rs." and such are not a sentence of their own
 CAP_MARGIN_S = 60        # 1.6: goodbye this long before CALL_CEILING_S (the server's clock starts at the greeting)
 VOICE_FAILS_HANGUP = 2   # 1.6: this many replies in a row with no voice -> goodbye
+NATIVE = ("hi", "mr", "en")   # the talk's prompt, checks and fixed lines are written in these; any other
+                              # Sarvam language is worked in English and translated (1.4)
 
 
 _BIG = {"हज़ार": 1_000, "हजार": 1_000, "thousand": 1_000, "लाख": 100_000, "lakh": 100_000, "lakhs": 100_000,
@@ -326,6 +328,31 @@ class _Talk:
         if self.lang not in self.langs_spoken and len(self.langs_spoken) < 4:
             self.langs_spoken.append(self.lang)
 
+    def _work(self) -> str:
+        """1.4: the language the model reads, writes and is checked in. English when the pipe is on
+        (D1), and always for a language the talk has no words of its own in."""
+        return "en" if self.lang != "en" and (tunables.ENGLISH_PIPE or self.lang not in NATIVE) else self.lang
+
+    def _to_caller(self, text: str) -> str:
+        """1.4: English -> the caller's language, sentence by sentence. A sentence the translate step
+        could not make, or made with a changed number or scheme name, stays English: a true sentence
+        in English is better than a wrong one or dead air. Never raises."""
+        if not text or self.lang == "en":
+            return text
+        t0 = time.monotonic()
+        try:
+            outs = list(middle.reply_in(text, self.lang))
+        except Exception:
+            outs = []
+        finally:
+            self.stage["translate"] = self.stage.get("translate", 0.0) + time.monotonic() - t0
+        if not outs or (len(outs) == 1 and not outs[0].ok and outs[0].text == "not supported"):
+            return text
+        if not all(o.ok for o in outs):
+            self.log.write({"ev": "blocked", "rule": "translate", "question": "",
+                            "text": f"{sum(not o.ok for o in outs)} of {len(outs)} sentences kept in English"})
+        return " ".join(o.text for o in outs)
+
     def _photo_row(self, what: str, res: Optional[dict[str, Any]] = None) -> None:
         """One row, never the number."""
         res = res or {}
@@ -545,13 +572,14 @@ class _Talk:
         if recap:                                   # 1.8 (B): the answer comes after the details are said back, once
             keep.append(prompt.FOLLOW["recap"].format(facts=", ".join(said_back)))
             note = " ".join([note, keep[-1]]).strip()
+        work = self._work()                         # 1.4: "en" when the model works in English
         for _try in (0, 1):
             if _try and keep:                       # a refused reply is tried again with the same asks
                 note = " ".join([note, *keep]).strip()
             known = {b: v for b, v in self.bv.items() if v != UNASKED}
             self._sent_ids = [sid for sid, _m, _t in cards]
             data = self._timed("model", _call, self.model, prompt.build(
-                self.lang, text, known, boxes, nar.ask, nar.order, cards, words, note,
+                work, text, known, boxes, nar.ask, nar.order, cards, words, note,
                 self.focus, sorted(self.told.get(self.focus, ()))))
             wrong_ask = False
             if data is None:
@@ -636,9 +664,9 @@ class _Talk:
             checked = _plain_numbers(say)
             rule = "empty"
             for _ in range(6 if say else 0):
-                rule = check_answer(checked, self.lang, _plain_numbers(proof),
+                rule = check_answer(checked, work, _plain_numbers(proof),
                                     tunables.TALK_MAX_SENTENCES, tunables.TALK_MAX_WORDS)
-                hit = vocab.find_forbidden(checked, self.lang) if rule == "forbidden" else ""
+                hit = vocab.find_forbidden(checked, work) if rule == "forbidden" else ""
                 # The word list is matched as plain letters: "आपको ज़रूर" (a promise) is found inside
                 # "आपको ज़रूरी कागज़" (the papers needed). A hit that is only the start of a longer
                 # Hindi word is not the forbidden words; the rest of the checks still run.
@@ -657,14 +685,14 @@ class _Talk:
                 rule = "script"
             codes = {str(v).lower() for vals in boxes.values() for v in vals if str(v).isalpha()}
             if not rule and (_CODE_NAME.search(say) or (
-                    self.lang != "en" and codes & set(re.findall(r"[a-z]+", say.lower())))):
+                    work != "en" and codes & set(re.findall(r"[a-z]+", say.lower())))):
                 rule = "code_name"
             if rule:
                 self.log.write({"ev": "blocked", "rule": rule, "question": mask_digits(words), "text": say})
                 note = (f'Your reply "{say}" was refused by the "{rule}" check. Say it another way, '
                         "shorter and only with what is written in SCHEMES.")
                 if rule == "forbidden":             # name the words, or the second try uses them again
-                    note += f' Do not use the words "{vocab.find_forbidden(say, self.lang)}" or words that start with them.'
+                    note += f' Do not use the words "{vocab.find_forbidden(say, work)}" or words that start with them.'
                 continue
             scheme = str(data.get("scheme") or "").strip()
             # The talk was about one scheme and the caller named no other: an answer about another
@@ -705,6 +733,8 @@ class _Talk:
                     self._will_used = True
             else:
                 self.last_asked = ""
+            if work != self.lang and self.lang in NATIVE:   # 1.4: the checked English reply, in the caller's
+                say = self._to_caller(say)                  # language; the fixed lines added below are theirs
             if action in ("answer", "show_scheme") and self.more_needs and say:
                 extra = self.more_needs.pop(0)      # 1.3b (P2.3): "you also asked about a house"
                 say = say + " " + prompt.ALSO_ASKED.get(
@@ -721,7 +751,8 @@ class _Talk:
         if wrong_ask and nar.ask:                   # C1: the picker's question, in fixed words
             self.asked[nar.ask] = self.asked.get(nar.ask, 0) + 1
             self.last_asked = nar.ask
-            return "ask", prompt.QUESTION.get(nar.ask, {}).get(self.lang) or prompt.NOT_SURE[self.lang]
+            ask = prompt.QUESTION.get(nar.ask, {})
+            return "ask", ask.get(self.lang) or ask.get("en") or prompt.NOT_SURE.get(self.lang, prompt.NOT_SURE["en"])
         self.last_asked = ""
         return "answer", prompt.NOT_SURE.get(self.lang, prompt.NOT_SURE["en"])
 
@@ -731,6 +762,8 @@ class _Talk:
         False: the voice gave no sound for any sentence, even on a second try (1.6)."""
         if not hasattr(self.audio, "say_text"):
             return True
+        if self.lang not in NATIVE:             # 1.4: the talk's words for this caller are all English
+            say = self._to_caller(say)
         parts = _sentences(say)
         ear_on = getattr(self.audio, "ear_on", None)
         if ear_on and tunables.CUT_IN_GATE:    # 2.2: listen from the first sound, not once the whole reply is queued
@@ -818,6 +851,8 @@ class _Talk:
                 "end_ms": end_ms if end_ms >= 0 else None, "stt_ms": stt_ms if stt_ms >= 0 else None,
                 "search_ms": int(self.stage.get("search", 0.0) * 1000),
                 "model_ms": int(self.stage.get("model", 0.0) * 1000)}
+            if self.stage.get("translate"):
+                row["translate_ms"] = int(self.stage["translate"] * 1000)
             if self._recap:
                 row["recap"] = True
             if self._distress and action in ("answer", "ask", "show_scheme"):

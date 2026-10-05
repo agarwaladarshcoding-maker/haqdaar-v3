@@ -1,6 +1,6 @@
 """haqdaar/model/translate.py
 
-English -> Hindi/Marathi for an answer text (step 7.1, ENGLISH_PIPE). Sarvam translate with
+English -> the caller's language (any Sarvam language but English) for an answer text (step 7.1, ENGLISH_PIPE). Sarvam translate with
 sarvam-translate:v1: on 4 Oct it got all 6 money and age sentences right, while mayura:v1 turned
 "6,000" into "three thousand two hundred". Do not switch to mayura. Never raises.
 """
@@ -13,8 +13,9 @@ from dotenv import load_dotenv
 
 from haqdaar import net
 from haqdaar.contracts import tunables
+from haqdaar.contracts.types import SARVAM_CODES
 
-TARGET_CODES = {"hi": "hi-IN", "mr": "mr-IN", "gu": "gu-IN", "ta": "ta-IN"}
+TARGET_CODES = {lang: code for lang, code in SARVAM_CODES.items() if lang != "en"}
 
 
 class AnswerTranslator:

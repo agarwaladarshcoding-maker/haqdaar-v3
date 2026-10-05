@@ -24,8 +24,11 @@ def _on(name: str) -> bool:
 
 
 QA_ENABLED: bool = _on("QA_ENABLED")            # 7.1 answer a caller's question (text)
-ENGLISH_PIPE: bool = _on("ENGLISH_PIPE")        # 7.1 speech -> English -> work -> caller's language
 TALK_ONLY: bool = _on("TALK_ONLY")              # 7.13 talk like a person: after the language pick, no keys
+# 7.1 / 1.4: speech -> English -> work -> caller's language. On by default in a talk call (owner, D1: ONE path
+# for every language, Hindi and English too). ENGLISH_PIPE=false brings back the direct way for Hindi, Marathi
+# and English; a caller in any other Sarvam language always goes through English (the talk is written in those three).
+ENGLISH_PIPE: bool = os.environ.get("ENGLISH_PIPE", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
 QA_SPEAK: bool = _on("QA_SPEAK") or TALK_ONLY   # 7.2 say the answer aloud on a real call (live speech)
 SPEECH_CUT_IN: bool = _on("SPEECH_CUT_IN")      # 7.2 the caller's voice stops a playing clip
 QA_SEARCH: bool = _on("QA_SEARCH")              # 7.3 find the scheme by search when too many are left
@@ -189,7 +192,16 @@ GREETING_LINES: tuple[tuple[str, str], ...] = (
     ("mr-IN", "हक्कदार मध्ये आपले स्वागत आहे. तुमच्या भाषेत बोला."),
     ("gu-IN", "હકદારમાં સ્વાગત છે. તમારી ભાષામાં બોલો."),
     ("ta-IN", "ஹக்தார் வரவேற்கிறது. உங்கள் மொழியில் பேசுங்கள்."),
-)
+) + ((
+    # The other six Sarvam languages, the short line only. Off by default: eleven lines are about 25 s.
+    # A caller who speaks one of them is still heard and answered in it. Draft words: a speaker checks them.
+    ("bn-IN", "হকদারে স্বাগতম। আপনার ভাষায় বলুন।"),
+    ("kn-IN", "ಹಕ್ದಾರ್‌ಗೆ ಸ್ವಾಗತ. ನಿಮ್ಮ ಭಾಷೆಯಲ್ಲಿ ಮಾತನಾಡಿ."),
+    ("ml-IN", "ഹഖ്ദാറിലേക്ക് സ്വാഗതം. നിങ്ങളുടെ ഭാഷയിൽ സംസാരിക്കൂ."),
+    ("od-IN", "ହକଦାରକୁ ସ୍ୱାଗତ। ଆପଣଙ୍କ ଭାଷାରେ କୁହନ୍ତୁ।"),
+    ("pa-IN", "ਹੱਕਦਾਰ ਵਿੱਚ ਜੀ ਆਇਆਂ ਨੂੰ। ਆਪਣੀ ਭਾਸ਼ਾ ਵਿੱਚ ਬੋਲੋ।"),
+    ("te-IN", "హక్దార్‌కు స్వాగతం. మీ భాషలో మాట్లాడండి."),
+) if _on("GREETING_ALL_LANGS") else ())
 TTS_WORKERS: int = int(os.environ.get("TTS_WORKERS", 3))
 TTS_TIMEOUT_S: float = float(os.environ.get("TTS_TIMEOUT_S", 60))
 TTS_MAX_ATTEMPTS: int = int(os.environ.get("TTS_MAX_ATTEMPTS", 5))

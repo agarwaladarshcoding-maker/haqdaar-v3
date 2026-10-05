@@ -88,15 +88,17 @@ def test_a_full_english_question_starts_the_talk_in_english():
 
 def test_a_marathi_question_is_marathi_and_an_unknown_code_is_hindi():
     assert _greeting("मला पेन्शन हवी आहे", "mr-IN")[1] == ("mr", "voice")
-    line, got = _greeting("mane yojana joiye", "gu-IN")
-    assert got == ("hi", "voice") and line.phone.first_words == "mane yojana joiye"
+    line, got = _greeting("mane yojana joiye", "gu-IN")     # every Sarvam language is now kept (1.4)
+    assert got == ("gu", "voice") and line.phone.first_words == "mane yojana joiye"
+    line, got = _greeting("mane yojana joiye", "xx-IN")
+    assert got == ("hi", "voice")
     line, got = _greeting("mane yojana joiye", "")
     assert got == ("hi", "voice")
 
 
 def test_the_language_code_maps_to_the_three_languages_the_code_knows():
     assert [language_from_code(c) for c in ("hi-IN", "mr-IN", "en-IN", "EN", "ta-IN", "unknown", "")] == [
-        "hi", "mr", "en", "en", "hi", "hi", "hi"]
+        "hi", "mr", "en", "en", "ta", "hi", "hi"]     # every Sarvam language is kept (1.4); others are Hindi
 
 
 def test_without_a_talk_call_words_that_name_no_language_still_ask_again(monkeypatch):

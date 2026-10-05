@@ -27,9 +27,11 @@ def test_short_turn_or_unknown_language_keeps_the_last_one(monkeypatch):
     monkeypatch.setattr(tunables, "LANG_EACH_TURN", True)
     phone = _phone("mr")
     phone._follow_language(Speech(text="yes ok", lang="en-IN"))                       # under 3 real words
-    phone._follow_language(Speech(text="મને ખેડૂત યોજના જોઈએ છે", lang="gu-IN"))      # no Gujarati voice yet
     phone._follow_language(Speech(text="मला शेतकरी योजना हवी आहे", lang=""))          # no code came back
+    phone._follow_language(Speech(text="मला शेतकरी योजना हवी आहे", lang="xx-IN"))     # not a Sarvam language
     assert phone.language == "mr"
+    phone._follow_language(Speech(text="મને ખેડૂત યોજના જોઈએ છે", lang="gu-IN"))      # 1.4: every Sarvam language is followed
+    assert phone.language == "gu"
 
 
 def test_switch_off_keeps_the_picked_language(monkeypatch):
