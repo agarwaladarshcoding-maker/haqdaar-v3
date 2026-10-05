@@ -21,7 +21,8 @@ WORDS: dict[str, dict[str, tuple[str, ...]]] = {
                            "loans", "business", "shop"),
         "jobs_skills": ("नौकरी", "नोकरी", "रोज़गार", "रोजगार", "जॉब", "ट्रेनिंग", "प्रशिक्षण", "job", "jobs", "employment",
                         "training", "skill", "skills"),
-        "health": ("इलाज", "अस्पताल", "बीमारी", "दवा", "हेल्थ", "स्वास्थ्य", "health", "hospital", "treatment"),
+        "health": ("इलाज", "अस्पताल", "बीमारी", "बीमार", "दवा", "हेल्थ", "स्वास्थ्य", "health", "hospital", "treatment",
+                   "sick"),
         "housing": ("मकान", "आवास", "घर", "घर बना", "पक्का घर", "house", "housing", "home"),
         "pension": ("पेंशन", "पेन्शन", "बुढ़ापा", "बुढ़ापे", "pension", "old age"),
         "education": ("पढ़ाई", "छात्रवृत्ति", "स्कॉलरशिप", "शिक्षा", "education", "scholarship", "study"),
@@ -38,7 +39,13 @@ WORDS: dict[str, dict[str, tuple[str, ...]]] = {
                    "labourers", "labor", "worker", "workers", "daily wage"),
     },
     "gender": {
-        "female": ("महिला", "औरत", "विधवा", "गर्भवती", "woman", "widow", "female", "pregnant"),
+        # 1.3a: mother/daughter/wife/sister words name a female beneficiary
+        # ("मेरी माँ के लिए पेंशन"). The male side is deliberately NOT mirrored:
+        # "my husband/father" usually narrates the household (a widow's own
+        # pension), it must not wipe her female away.
+        "female": ("महिला", "औरत", "विधवा", "गर्भवती", "माँ", "मां", "बेटी", "पत्नी", "बहन",
+                   "मुलगी", "बहीण", "बायको",
+                   "woman", "widow", "female", "pregnant", "mother", "daughter", "wife", "sister", "mom"),
         "male": ("पुरुष", "आदमी", "male"),
     },
 }
@@ -165,28 +172,29 @@ def spot_all(text: str, corpus: Any) -> dict[str, list[str]]:
                  if v in allowed and any(_clean_occurrences(w, text) for w in words)]
         if named:
             out[box] = named
-    return out
+    # Another person's work is not the caller's: it is not "named" at all.
+    return _person_filter(text, out)
 
 
 def spot(text: str, corpus: Any) -> dict[str, str]:
     """Box values the caller's words name outright. Two values of one box named -> that box is left out."""
-    out: dict[str, str] = {}
-    for box, values in spot_all(text, corpus).items():
-        if len(values) != 1:
-            continue
-        out[box] = values[0]
-    # Another person's work is not the caller's occupation (checked per clause).
-    return _person_filter(text, out)
+    return {box: values[0] for box, values in spot_all(text, corpus).items() if len(values) == 1}
 
 
-def _person_filter(text: str, out: dict[str, str]) -> dict[str, str]:
+def _person_filter(text: str, out: dict[str, list[str]]) -> dict[str, list[str]]:
     """Another person's work is not the caller's: the occupation counts only
     when its word is said plain in a clause with no other person in it."""
-    if "occupation" not in out:
-        return out
-    for word in WORDS["occupation"][out["occupation"]]:
-        for clause in _clean_occurrences(word, text):
-            if not any(t in OTHER_PEOPLE for t in _toks(clause)):
-                return out
-    del out["occupation"]
+    named = out.get("occupation", [])
+    for value in list(named):
+        self_said = any(
+            not any(t in OTHER_PEOPLE for t in _toks(clause))
+            for word in WORDS["occupation"][value]
+            for clause in _clean_occurrences(word, text)
+        )
+        if not self_said:
+            named = [v for v in named if v != value]
+    if named:
+        out["occupation"] = named
+    else:
+        out.pop("occupation", None)
     return out
