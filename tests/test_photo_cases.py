@@ -217,3 +217,34 @@ def test_sweep(tmp_path):
     assert deleted == 1
     assert not (tmp_path / c_old.token).exists()
     assert (tmp_path / c_new.token).exists()
+
+
+def test_langs_rules(tmp_path):
+    # order preserved, duplicates removed, unknown dropped, max 4
+    c = cases.new_case("hi", langs=["mr", "hi", "mr", "xyz", "gu", "ta", "en"], folder=tmp_path)
+    assert c.langs == ["mr", "hi", "gu", "ta"]
+    assert c.lang == "mr"
+
+    # empty langs becomes ["hi"]
+    c2 = cases.new_case("hi", langs=[], folder=tmp_path)
+    assert c2.langs == ["hi"]
+    assert c2.lang == "hi"
+
+    # old single lang works
+    c3 = cases.new_case("ta", folder=tmp_path)
+    assert c3.langs == ["ta"]
+    assert c3.lang == "ta"
+
+    # token regex rejects trailing newline
+    assert not cases.TOKEN_RE.match(c.token + "\n")
+
+
+def test_mark_reading(tmp_path):
+    c = cases.new_case("hi", folder=tmp_path)
+    c = cases.add_photo(c.token, TINY_JPEG, folder=tmp_path)
+    assert c.state == "photo"
+
+    c = cases.mark_reading(c.token, folder=tmp_path)
+    assert c.state == "reading"
+    fetched = cases.get(c.token, folder=tmp_path)
+    assert fetched.state == "reading"
