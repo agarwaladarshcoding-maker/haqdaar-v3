@@ -90,7 +90,7 @@ def test_speak_marks_the_first_sound_only_with_the_gate_on(monkeypatch, gate):
     order: list[str] = []
     audio = SimpleNamespace(say_text=lambda s, on_first=None: order.append("say") or True,
                             ear_on=lambda: order.append("ear_on"))
-    t = SimpleNamespace(audio=audio)
+    t = SimpleNamespace(audio=audio, lang="en")
     assert talk_mod._Talk._speak(t, "One. Two.", lambda: order.append("first"))
     assert order == (["ear_on", "first", "say"] if gate else ["first", "say"])
 

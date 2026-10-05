@@ -1842,3 +1842,9 @@ headphones, or the microphone hears the agent's own voice.
 - A talk call runs with cut-in off (as before) and with cut-in on. Full tests in the main folder: 3,080
   passed, 0 failed. Scripted checks: no new red row. No real call has been made with cut-in on, and no
   real call on any of tonight's code.
+
+**6 Oct, morning: Phase 1 and Phase 2 closed as far as tests go**
+- English in the middle is wired for all 11 Sarvam languages (talk calls). If a translate fails, the sentence is said in English. Checked with fakes only: no real Sarvam call was made, so hearing, translating and speaking in the 8 new languages are not checked.
+- Cut-in 2.2 is partly built: with the gate on, the ear listens from the first sound of a reply. The voice still stops only after the whole reply is queued (about 0.8 s lag in scripted calls).
+- The flaky photo desk test and the false dead-air report are fixed (both were faults of the test and the measure, not of the call).
+- Full tests: 3,106 passed, 0 failed. Talk-eval on 4 scripts: 0 broken. No real call yet on any of this.
