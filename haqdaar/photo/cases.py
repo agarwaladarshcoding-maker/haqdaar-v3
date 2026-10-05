@@ -21,7 +21,26 @@ MAX_PHOTOS = 6
 MAX_BYTES = 5 * 1024 * 1024
 TTL_SECONDS = 24 * 3600
 TOKEN_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
-TOKEN_RE = re.compile(r"^[a-z2-9]{10}$")
+TOKEN_RE = re.compile(r"\A[a-z2-9]{10}\Z")
+VALID_LANGS = ("hi", "mr", "en", "gu", "ta")
+
+
+def _clean_langs(langs: Optional[list[str] | tuple[str, ...]] = None, lang: Optional[str] = None) -> list[str]:
+    res: list[str] = []
+    if langs is not None:
+        for l in langs:
+            l_str = str(l).strip().lower()
+            if l_str in VALID_LANGS and l_str not in res:
+                res.append(l_str)
+                if len(res) >= 4:
+                    break
+    elif lang is not None:
+        l_str = str(lang).strip().lower()
+        if l_str in VALID_LANGS:
+            res.append(l_str)
+    if not res:
+        res = ["hi"]
+    return res
 
 
 @dataclass
@@ -30,11 +49,12 @@ class Case:
     lang: str            # "hi", "mr", "en", "gu", "ta"
     number: str          # the caller's phone number, "" when not known (a Mac call)
     made: float          # unix time
-    state: str           # "waiting" -> "photo" -> "read" -> "approved" -> "called"
+    state: str           # "waiting" -> "photo" -> "reading" -> "read" -> "approved" -> "called"
     photos: list[str] = field(default_factory=list)    # file names of the photos, in the order they came
     finding: dict = field(default_factory=dict)        # what reader.read gave, {} until read
     scheme: str = ""     # scheme id picked by the search, "" until set
     say: str = ""        # the text that will be said on the call-back, "" until set
+    langs: list[str] = field(default_factory=list)
 
 
 def _base_dir(folder: Path | str | None = None) -> Path:
@@ -89,9 +109,14 @@ def _save(case: Case, folder: Path | str | None = None) -> None:
 
 
 def _load_case_dict(d: dict[str, Any]) -> Case:
+    raw_langs = d.get("langs")
+    if raw_langs and isinstance(raw_langs, list):
+        cleaned = _clean_langs(raw_langs)
+    else:
+        cleaned = _clean_langs(None, lang=str(d.get("lang", "hi")))
     return Case(
         token=str(d.get("token", "")),
-        lang=str(d.get("lang", "en")),
+        lang=cleaned[0],
         number=str(d.get("number", "")),
         made=float(d.get("made", 0.0)),
         state=str(d.get("state", "waiting")),
@@ -99,10 +124,19 @@ def _load_case_dict(d: dict[str, Any]) -> Case:
         finding=dict(d.get("finding", {})),
         scheme=str(d.get("scheme", "")),
         say=str(d.get("say", "")),
+        langs=cleaned,
     )
 
 
-def new_case(lang: str, number: str = "", folder: Path | str | None = None, now: float | None = None) -> Case:
+def new_case(
+    lang: str = "hi",
+    number: str = "",
+    folder: Path | str | None = None,
+    now: float | None = None,
+    langs: list[str] | tuple[str, ...] | None = None,
+) -> Case:
+    cleaned = _clean_langs(langs=langs, lang=lang if langs is None else None)
+    primary_lang = cleaned[0]
     base = _base_dir(folder)
     base.mkdir(parents=True, exist_ok=True)
     for _ in range(100):
@@ -116,7 +150,7 @@ def new_case(lang: str, number: str = "", folder: Path | str | None = None, now:
     made_time = float(now if now is not None else time.time())
     case = Case(
         token=token,
-        lang=lang,
+        lang=primary_lang,
         number=str(number),
         made=made_time,
         state="waiting",
@@ -124,7 +158,19 @@ def new_case(lang: str, number: str = "", folder: Path | str | None = None, now:
         finding={},
         scheme="",
         say="",
+        langs=cleaned,
     )
+    _save(case, folder)
+    return case
+
+
+def mark_reading(token: str, folder: Path | str | None = None) -> Case:
+    case = _get_raw(token, folder=folder)
+    if not token or not TOKEN_RE.match(token):
+        raise ValueError("case not found")
+    if case is None:
+        raise ValueError("case not found")
+    case.state = "reading"
     _save(case, folder)
     return case
 
@@ -347,3 +393,17 @@ def sweep(folder: Path | str | None = None, now: float | None = None) -> int:
                 shutil.rmtree(entry, ignore_errors=True)
                 deleted += 1
     return deleted
+
+
+def mark_not_clear(token: str, folder: Path | str | None = None) -> Case:
+    case = _get_raw(token, folder=folder)
+    if not token or not TOKEN_RE.match(token):
+        raise ValueError("case not found")
+    if case is None:
+        raise ValueError("case not found")
+    if not isinstance(case.finding, dict):
+        case.finding = {}
+    case.finding["wrong"] = "helper: not clear"
+    case.state = "approved"
+    _save(case, folder)
+    return case

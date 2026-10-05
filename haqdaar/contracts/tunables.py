@@ -62,8 +62,9 @@ TALK_END_WAIT_MS: int =int(os.environ.get("TALK_END_WAIT_MS", 600))        # qui
 PHOTO_IN_CALL: bool = os.environ.get("PHOTO_IN_CALL", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
 PHOTO_PENDING_S: float = float(os.environ.get("PHOTO_PENDING_S", 1800.0))   # a call-back waiting longer than this is dropped
 PHOTO_SURE_MIN: float = float(os.environ.get("PHOTO_SURE_MIN", 0.4))        # the reader was less sure than this: a bad photo
-# The desk writes the call-back text in English: it goes through the translate step (1.4) for another language.
-PHOTO_BACK_TRANSLATE: bool = os.environ.get("PHOTO_BACK_TRANSLATE", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
+# The desk now writes the call-back text in the case's own language (pass 4), so this is off. On: an English
+# text goes through the translate step (1.4) for a caller of another language.
+PHOTO_BACK_TRANSLATE: bool = os.environ.get("PHOTO_BACK_TRANSLATE", "false").strip().lower() in ("1", "true", "yes", "on")
 QA_MAX_PER_CALL: int = int(os.environ.get("QA_MAX_PER_CALL", 5))
 QA_MAX_SCHEMES: int = int(os.environ.get("QA_MAX_SCHEMES", 4))
 QA_TIMEOUT_S: float = float(os.environ.get("QA_TIMEOUT_S", 4.0))

@@ -35,7 +35,7 @@ from haqdaar.data.pipeline import muse
 from haqdaar.model import muse_talk
 
 DOSE_PATTERN = re.compile(
-    r"(?i)(?: \d+(?:\.\d+)?|\d+)\s*(?:ml|l|g|kg|grams?|litres?|liters?|मिली|लीटर|ग्राम|किलो)(?=[^\wऀ-ॿ]|$)",
+    r"(?i)(?:(?:\b\d+(?:\.\d+)?|\d+)\s*(?:ml|l|g|gm|kg|mg|grams?|litres?|liters?|मिली|लीटर|ग्राम|किलो|गोली|गोलियां|गोलियाँ|tablets?)(?=[^\wऀ-ॿ]|$)|(?:\btablets?\b|\bगोली\b|\bगोलियां\b|\bगोलियाँ\b))",
     re.UNICODE,
 )
 
@@ -79,6 +79,7 @@ def _sanitize_output(data: dict[str, Any], by_name: str) -> dict[str, Any]:
 
     shows = _cut_dose_sentences(shows)
     wrong = _cut_dose_sentences(wrong)
+    search = _cut_dose_sentences(search)
 
     shows = shows[:400]
     wrong = wrong[:400]

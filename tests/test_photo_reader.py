@@ -395,3 +395,26 @@ def test_auto_mode_without_key(monkeypatch, tmp_path):
     assert mock_post.call_count == 0
     assert res["by"] == "stand-in"
     assert res["shows"] == "Photos came. No reader is set yet."
+
+
+def test_dose_guard_search_and_units():
+    mock_resp = mock.Mock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "shows": "Take 10 mg medicine. Crop is yellow.",
+        "wrong": "Use 2 gm powder and 1 tablet. Root rot.",
+        "sure": 0.8,
+        "search": "crop loss. take 1 गोली tablet 500mg.",
+    }
+
+    with mock.patch.dict(os.environ, {"PHOTO_READER": "http", "PHOTO_READER_URL": "http://localhost:9999/predict"}), \
+         mock.patch("httpx.post", return_value=mock_resp):
+        res = reader.read([b"img"])
+        assert "10 mg" not in res["shows"]
+        assert "Crop is yellow." in res["shows"]
+        assert "2 gm" not in res["wrong"]
+        assert "tablet" not in res["wrong"]
+        assert "Root rot." in res["wrong"]
+        assert "गोली" not in res["search"]
+        assert "tablet" not in res["search"]
+        assert "crop loss." in res["search"]
