@@ -9,6 +9,7 @@ Pure: no model, no I/O.
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from haqdaar.data import scheme_names
@@ -21,18 +22,24 @@ SITUATION = "situation"
 # Words that make a turn a straight question (Hindi, Marathi, English).
 # Plain auxiliaries ("is", "hai") are NOT here: "my husband was a farmer"
 # is a situation, not a question.
+# 1.3b: Marathi "का" (why) is NOT here either: inside a Hindi sentence it is
+# "of" ("मेरे पति का देहांत हो गया"). It only asks sentence-final ("येणार का").
 QUESTION_WORDS: tuple[str, ...] = (
     "क्या", "कैसे", "कितना", "कितनी", "कितने", "कब", "कहाँ", "कहां", "कौन", "क्यों", "किस",
-    "काय", "कसे", "किती", "कधी", "कुठे", "कोण", "का",
+    "काय", "कसे", "किती", "कधी", "कुठे", "कोण",
     "what", "how", "how much", "how many", "when", "where", "which", "who", "why",
 )
+_TOK = re.compile(r"[a-z']+|[\u0900-\u097f]+")
 
 def is_question(text: str) -> bool:
     """A straight question: a question mark, or a question word naming nothing else."""
     lowered = " " + str(text).lower() + " "
     if "?" in lowered:
         return True
-    return any(scheme_names.contains_word(lowered, w) for w in QUESTION_WORDS)
+    if any(scheme_names.contains_word(lowered, w) for w in QUESTION_WORDS):
+        return True
+    toks = _TOK.findall(lowered)
+    return bool(toks) and toks[-1].rstrip("।?!") == "का"
 
 
 def kind(text: str, index: Any) -> str:

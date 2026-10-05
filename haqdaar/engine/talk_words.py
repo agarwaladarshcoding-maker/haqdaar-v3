@@ -54,7 +54,9 @@ _ASCII = re.compile(r"^[a-z' ]+$")
 
 # 1.3a: a word with one of these right by it is unset. The Hindi ones usually
 # come after the word ("किसान नहीं"), the English ones before ("not a farmer").
-NEGATORS = frozenset({"नहीं", "नही", "न", "मत", "not", "no", "don't", "dont"})
+# 1.3b: Latin "nahi / nahin / mat" count too ("main kisan nahi hoon").
+NEGATORS = frozenset({"नहीं", "नही", "न", "मत", "not", "no", "don't", "dont",
+                      "nahi", "nahin", "mat"})
 # Tokens that may sit between the negator and the word without breaking it.
 _FILLERS = frozenset({"a", "an", "the", "to", "एक", "ही", "भी"})
 # "I do not want a loan": the negator scopes over what comes after want/need.
@@ -62,6 +64,17 @@ _WANT_VERBS = frozenset({"want", "wants", "wanna", "need", "needs"})
 # A clause ends here; negation and "who said it" never cross it.
 _CLAUSES = re.compile(r"[।?!;,]+")
 _TOK = re.compile(r"[a-z']+|[\u0900-\u097f]+")
+# 1.3b: a new self part starts here. What comes before one of these is said
+# about someone else ("my wife died I am a farmer"; "भाई मैं किसान हूँ").
+# "मेरी / my" is NOT one: "मेरी माँ के लिए" is said about her, plainly.
+_SELF_START = frozenset({"मैं", "मै", "मी", "main", "mein", "i", "i'm", "im"})
+# 1.3b: "I have no X" is a need, not a no ("मेरे पास नौकरी नहीं है",
+# "मुझे लोन नहीं मिला"). Only "I am not X" / "I do not want X" takes X away.
+_HAVE = frozenset({"पास", "have", "has", "had"})
+_GOT = frozenset({"मिला", "मिली", "मिले", "get", "got"})
+# 1.3b: words said FOR someone ("मेरी माँ के लिए", "for my mother") keep that
+# person's gender and work; plain narration about them does not.
+_FOR = frozenset({"लिए", "हेतु", "वास्ते", "for", "साठी"})
 
 # Bare "घर" is two things: "a house" (a housing need) and "at home" (a place).
 # With a locative right after it ("घर में कोई कमाने वाला नहीं") it is the
@@ -102,9 +115,17 @@ def _toks(clause: str) -> list[str]:
     return _TOK.findall(clause)
 
 
-def _occurrences(word: str, toks: list[str]) -> list[int]:
+# The tail a Devanagari token may add to a whole word ("महिलाओं" is still
+# महिला, "किसानों" still किसान): vowel signs and the anusvara only. A tail
+# with a consonant in it ("मांगना" after "मां") is another word.
+_TAIL = re.compile(r"^[\u0900-\u0903\u093e-\u094c]*$")
+
+
+def _occurrences(word: str, toks: list[str], whole: bool = False) -> list[int]:
     """Token places where the word starts. A Devanagari token may carry an
-    ending ("किसानों" still names किसान); an ASCII token must match exactly."""
+    ending ("किसानों" still names किसान); an ASCII token must match exactly.
+    With `whole` (gender words) the ending must be vowel signs only, so "मां"
+    is not found inside "मांगना"."""
     parts = _TOK.findall(word.lower())
     if not parts:
         return []
@@ -117,6 +138,10 @@ def _occurrences(word: str, toks: list[str]) -> list[int]:
                 if tok != part:
                     ok = False
                     break
+            elif whole and k == len(parts) - 1 and not (
+                    tok == part or (tok.startswith(part) and bool(_TAIL.match(tok[len(part):])))):
+                ok = False
+                break
             elif part not in tok:
                 ok = False
                 break
@@ -125,11 +150,20 @@ def _occurrences(word: str, toks: list[str]) -> list[int]:
     return out
 
 
+# Every token of every word form, for the "नहीं belongs to the word before
+# it" rule in _negated_at.
+_VOCAB_TOKENS = frozenset(
+    t for forms in WORDS.values() for words in forms.values() for word in words
+    for t in _TOK.findall(word.lower()))
+
+
 def _negated_at(toks: list[str], at: int, span: int) -> bool:
     """A negator right by the word at `at` (length `span` tokens)."""
     for i in range(max(0, at - 2), min(len(toks), at + span + 2)):
         if i in range(at, at + span) or toks[i] not in NEGATORS:
             continue
+        if i < at and i > 0 and toks[i - 1] in _VOCAB_TOKENS:
+            continue  # 1.3b: "किसान नहीं मज़दूर": the नहीं unsets किसान, not मज़दूर
         between = toks[i + 1:at] if i < at else toks[at + span:i]
         if all(t in _FILLERS for t in between):
             return True
@@ -137,7 +171,7 @@ def _negated_at(toks: list[str], at: int, span: int) -> bool:
         if tok in _WANT_VERBS and any(
                 toks[j] in NEGATORS for j in range(max(0, i - 1), i)):
             for k in range(i + 1, min(len(toks), i + 4)):
-                if toks[k] in ("a", "the"):
+                if toks[k] in ("a", "the", "any"):
                     continue
                 if k == at:
                     return True
@@ -145,21 +179,87 @@ def _negated_at(toks: list[str], at: int, span: int) -> bool:
     return False
 
 
-def _clean_occurrences(word: str, text: str) -> list[str]:
-    """The clauses where the word is said plain: not negated there."""
+def _lacked_at(toks: list[str], at: int, span: int) -> bool:
+    """1.3b: the negated word is a need, not a no. "मेरे पास नौकरी नहीं है",
+    "I have no job" (have + no by it), "मुझे लोन नहीं मिला" (no + got)."""
+    lo, hi = max(0, at - 2), min(len(toks), at + span + 2)
+    for i in range(lo, hi):
+        if i in range(at, at + span):
+            continue
+        tok = toks[i]
+        if tok in _HAVE:
+            if tok == "पास" or (i < at and at - i <= 3 and any(
+                    t in NEGATORS for t in toks[i + 1:at])):
+                return True
+        if tok in _GOT and any(
+                toks[n] in NEGATORS for n in range(max(0, i - 1), min(len(toks), i + 2))
+                if n != i):
+            return True
+    return False
+
+
+def _self_parts(toks: list[str]) -> list[list[str]]:
+    """1.3b: split the tokens before every "I" word. The first part is said
+    about someone else; the rest is the caller's own."""
+    out = [[], ]
+    for tok in toks:
+        if tok in _SELF_START and out[-1]:
+            out.append([])
+        out[-1].append(tok)
+    return [p for p in out if p]
+
+
+def _value_clauses(forms: tuple[str, ...], text: str, whole: bool = False) -> list[list[str]]:
+    """Token parts where any form is said plain: kept, not negated (a lack is
+    not a no), and no short form hiding inside a negated longer one ("vendor"
+    inside "not a street vendor")."""
     lowered = " " + str(text).lower() + " "
-    if not _has(lowered, word):
+    if not any(_has(lowered, word) for word in forms):
         return []
     out = []
     for clause in _CLAUSES.split(lowered):
-        toks = _toks(clause)
-        if not toks:
-            continue
-        for at in _occurrences(word, toks):
-            if _kept(word, toks, at) and not _negated_at(toks, at, len(_TOK.findall(word.lower()))):
-                out.append(clause)
+        for toks in _self_parts(_toks(clause)):
+            if not toks:
+                continue
+            long_negated: set[int] = set()
+            for form in sorted(forms, key=lambda f: -len(_TOK.findall(f.lower()))):
+                parts = _TOK.findall(form.lower())
+                if not parts:
+                    continue
+                for at in _occurrences(form, toks, whole):
+                    span = len(parts)
+                    neg = _negated_at(toks, at, span) and not _lacked_at(toks, at, span)
+                    if neg:
+                        if span > 1:
+                            long_negated.update(range(at, at + span))
+                    elif _kept(form, toks, at) and not (span == 1 and at in long_negated):
+                        out.append(toks)
+                        break
+                else:
+                    continue
                 break
     return out
+
+
+def _clean_occurrences(word: str, text: str) -> list[str]:
+    """The clauses where the word is said plain: not negated there."""
+    return [" ".join(toks) for toks in _value_clauses((word,), text)]
+
+
+def _ordered(text: str, box: str, values: list[str]) -> list[str]:
+    """1.3b: the named values first-named first ("खेती और घर": farming, then
+    housing). The talk takes the first and keeps the rest for later."""
+    toks = _toks(" " + str(text).lower() + " ")
+    whole = box == "gender"
+
+    def _pos(value: str) -> int:
+        best = len(toks)
+        for word in WORDS[box][value]:
+            for at in _occurrences(word, toks, whole):
+                best = min(best, at)
+        return best
+
+    return sorted(values, key=_pos)
 
 
 def spot_all(text: str, corpus: Any) -> dict[str, list[str]]:
@@ -169,10 +269,10 @@ def spot_all(text: str, corpus: Any) -> dict[str, list[str]]:
     for box, values in WORDS.items():
         allowed = corpus.values(box)
         named = [v for v, words in values.items()
-                 if v in allowed and any(_clean_occurrences(w, text) for w in words)]
+                 if v in allowed and _value_clauses(words, text, whole=box == "gender")]
         if named:
-            out[box] = named
-    # Another person's work is not the caller's: it is not "named" at all.
+            out[box] = _ordered(text, box, named)
+    # Another person's words are not the caller's: they are not "named" at all.
     return _person_filter(text, out)
 
 
@@ -182,19 +282,34 @@ def spot(text: str, corpus: Any) -> dict[str, str]:
 
 
 def _person_filter(text: str, out: dict[str, list[str]]) -> dict[str, list[str]]:
-    """Another person's work is not the caller's: the occupation counts only
-    when its word is said plain in a clause with no other person in it."""
-    named = out.get("occupation", [])
-    for value in list(named):
-        self_said = any(
-            not any(t in OTHER_PEOPLE for t in _toks(clause))
-            for word in WORDS["occupation"][value]
-            for clause in _clean_occurrences(word, text)
-        )
-        if not self_said:
-            named = [v for v in named if v != value]
-    if named:
-        out["occupation"] = named
-    else:
-        out.pop("occupation", None)
+    """1.3b: another person's gender and work are not the caller's. Each stays
+    only when said plain in a part with no other person in it, or said FOR
+    them ("मेरी माँ के लिए पेंशन", "for my mother")."""
+    for box in ("occupation", "gender"):
+        named = out.get(box, [])
+        for value in list(named):
+            self_said = any(
+                not any(t in OTHER_PEOPLE for t in toks) or any(t in _FOR for t in toks)
+                for toks in _value_clauses(WORDS[box][value], text, whole=box == "gender")
+            )
+            if not self_said:
+                named = [v for v in named if v != value]
+        if named:
+            out[box] = named
+        else:
+            out.pop(box, None)
     return out
+
+
+# Marathi "Xसाठी" (for X) is one token: the person word carries the साठी tail.
+_SAATHI_PEOPLE = ("आई", "वडील", "भाऊ", "बहीण", "मुलगा", "मुलगी", "नवरा", "बायको")
+
+
+def new_person(text: str) -> bool:
+    """1.3b: the help is for someone else now ("for my mother",
+    "मेरी माँ के लिए", "माझ्या आईसाठी"). The talk then asks about them."""
+    lowered = " " + str(text).lower() + " "
+    if not any(_has(lowered, w) for w in _FOR):
+        return False
+    toks = _toks(lowered)
+    return any(t in OTHER_PEOPLE or any(p in t for p in _SAATHI_PEOPLE) for t in toks)

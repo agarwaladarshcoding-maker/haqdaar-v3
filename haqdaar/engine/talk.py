@@ -25,7 +25,7 @@ from haqdaar.contracts.log_schema import (
 from haqdaar.contracts.types import SEVEN_BOXES, UNASKED, UNKNOWN, Digit, Hangup, Silence, Speech
 from haqdaar.data import log_text, scheme_index
 from haqdaar.data.scheme_text import SchemeText
-from haqdaar.engine import talk_pick, talk_words, words_no_answer, words_tell_me
+from haqdaar.engine import talk_kind, talk_pick, talk_words, words_no_answer, words_tell_me
 from haqdaar.engine.filter import Filter
 from haqdaar.model.answer import check_answer, mask_digits
 from haqdaar.prompts import talk as prompt
@@ -78,6 +78,17 @@ def _age_band(value: str, corpus: Any) -> Optional[str]:
         except ValueError:
             continue
     return None
+
+
+def _counts_as_asked(ask_box: str, filled: set[str]) -> bool:
+    """1.3b (A): every question the line asks counts, except when the turn
+    answered another box (asked age, told the state: the age ask is free)."""
+    return not any(box != ask_box for box in filled)
+
+
+# "will I get it" after "just tell me": one question may come back (1.8 owns
+# the full word list; this is only the crack in the just-tell door).
+_WILL_RESULT = ("मिलेगा क्या", "मिलेगी क्या", "milega", "milegi", "will i get", "will i receive")
 
 
 def _take_facts(facts: Any, bv: dict[str, Any], corpus: Any, log: Any, turn_n: int) -> set[str]:
@@ -145,13 +156,37 @@ class _Talk:
         self.left: tuple[str, ...] = ()
         self.asked: dict[str, int] = {}  # box -> how often we asked it
         self.just_tell = False  # 1.3a: the caller said "just tell me"; no more questions this call
+        self.last_asked = ""    # 1.3b (C): the box the line's last act asked about
+        self.turn_kind = ""     # 1.3b (P2.1): talk_kind of this turn
+        self.more_needs: list[str] = []  # 1.3b (P2.3): other named needs, kept for later
+        self.free_q = 0         # 1.3b (P3.2): the model's own questions this call (at most 1)
+        self._new_need = False  # 1.3b (P2.4): the newest words name another need
+        self._will_now = False  # 1.3b (P3.4): "will I get it" after just-tell: one question back
+        self._will_used = False
         self.turn_n = 0
 
     # --- the fixed part: search -> filter -> picker ---
+    def _help_kinds(self) -> list[str]:
+        """The kinds of help the line holds (for the not-held reply): every
+        need with at least one scheme left."""
+        kinds = []
+        for cat in self.corpus.values("category"):
+            try:
+                left = Filter.survivors({"category": cat}, self.corpus)
+            except Exception:
+                left = []
+            if left:
+                kinds.append(cat)
+        return kinds
+
     def _state(self, ids: list[str]) -> tuple[talk_pick.Narrow, list[tuple[str, str, str]]]:
         nar = talk_pick.narrow(ids, self.bv, self.corpus)
-        if self.just_tell:                       # 1.3a: asking stopped; the 2 best left are shown
+        if self.just_tell and not self._will_now:  # 1.3a: asking stopped; the 2 best left are shown
             nar = talk_pick.Narrow(nar.left, None)
+        if self.turn_kind == talk_kind.HELD_SCHEME and nar.ask:
+            nar = talk_pick.Narrow(nar.left, None)  # 1.3b: a scheme we hold: answer first
+        elif self.turn_kind == talk_kind.QUESTION and self.focus and nar.ask:
+            nar = talk_pick.Narrow(nar.left, None)  # 1.3b: a question on the scheme in talk
         if sum(self.asked.values()) >= tunables.TALK_MAX_QUESTIONS:   # 1.3a: at most 3 questions
             nar = talk_pick.Narrow(nar.left, None)
         show = list(nar.left[:2] if self.just_tell else nar.left[:SHOW_K]) or ids[:SHOW_K]
@@ -172,7 +207,13 @@ class _Talk:
         self.named = bool(named and named[0].by == "name")
         if self.named:                       # the caller said a scheme's name: the talk is about it now
             self.focus = named[0].scheme_id
-        ranked = [h.scheme_id for h in self.index.search(" ".join(self.heard[-3:]), len(self.index.ids) or SEARCH_K)]
+        if self._new_need:                   # 1.3b (P2.4): the new words only; the old talk is dropped
+            if not self.named:
+                self.focus = ""
+            text = self.heard[-1]
+        else:
+            text = " ".join(self.heard[-3:])
+        ranked = [h.scheme_id for h in self.index.search(text, len(self.index.ids) or SEARCH_K)]
         ids = ranked[:SEARCH_K]
         category = self.bv.get("category")
         if category in self.corpus.values("category"):
@@ -191,18 +232,46 @@ class _Talk:
     def _decide(self, words: str, cut: bool = False) -> tuple[str, str]:
         """(action, say). At most two model calls: the second only after a refused first reply."""
         # The clear words first, by fixed code (a real call showed the model can miss "farmer schemes").
-        _take_facts(talk_words.spot(words, self.corpus), self.bv, self.corpus, self.log, self.turn_n)
+        known0 = {b: v for b, v in self.bv.items() if v != UNASKED}
+        cat0 = self.bv.get("category")
+        if talk_words.new_person(words):            # 1.3b (P2.6): help for another person now;
+            for box in ("age", "gender", "occupation"):  # age, gender and work are theirs, not ours
+                self.bv[box] = UNASKED
+                self.asked.pop(box, None)
+        spot_filled = _take_facts(talk_words.spot(words, self.corpus), self.bv, self.corpus,
+                                  self.log, self.turn_n)
+        self._new_need = False
+        cats = talk_words.spot_all(words, self.corpus).get("category", [])
+        if cats and cats[0] != cat0:  # 1.3b (P2.3): take the first named need
+            if cat0 in self.corpus.values("category"):
+                self._new_need = True               # 1.3b (P2.4)
+            if self.bv.get("category") != cats[0]:
+                self.bv["category"] = cats[0]
+                self.log.write(TurnLogRecord(turn_n=self.turn_n, turn_class="ANSWER",
+                                             box="category", value=cats[0]))
+        for extra in cats[1:]:                      # keep the other, come back to it once
+            if extra != self.bv.get("category") and extra not in self.more_needs \
+                    and len(self.more_needs) < 2:
+                self.more_needs.append(extra)
+        padded = " " + str(words).lower() + " "
+        self._will_now = bool(self.just_tell and not self._will_used and any(
+            w in padded for w in _WILL_RESULT))
         ids = self._timed("search", self._found)
+        self.turn_kind = talk_kind.kind(words, self.index)  # 1.3b (P2.1): on every turn
         boxes = {b: self.corpus.values(b) for b in SEVEN_BOXES}
         text = log_text.log_text(_rows(self.log), tunables.TALK_LOG_CHARS)
         note = prompt.CUT_NOTE if cut else ""
         wrong_ask = False                           # the last try asked a box the picker did not name
         nar, cards = self._state(ids)
+        if self.turn_kind == talk_kind.NOT_HELD_SCHEME:  # 1.3b (P2.2): fixed words, no questions
+            self.last_asked = ""
+            return "answer", prompt.not_held_say(self.lang, self._help_kinds())
         if words_tell_me.is_just_tell_me(words):  # 1.3a: no more questions for the rest of the call
             self.just_tell = True
             nar, cards = self._state(ids)
-        if words_no_answer.no_answer(words) and nar.ask and self.bv.get(nar.ask) == UNASKED:
-            self.bv[nar.ask] = UNKNOWN            # 1.3a: not known at once, never asked again
+        if (words_no_answer.no_answer(words) and nar.ask and nar.ask == self.last_asked
+                and self.bv.get(nar.ask) == UNASKED):
+            self.bv[nar.ask] = UNKNOWN            # 1.3b (C): only the box just asked about
             nar, cards = self._state(ids)
         for _try in (0, 1):
             known = {b: v for b, v in self.bv.items() if v != UNASKED}
@@ -218,21 +287,44 @@ class _Talk:
                 note = "action must be one of: " + ", ".join(prompt.ACTIONS)
                 continue
             filled = _take_facts(data.get("facts"), self.bv, self.corpus, self.log, self.turn_n)
+            for box in data.get("not") or []:       # 1.3b (P3.3): the model takes facts away
+                if box in SEVEN_BOXES and self.bv.get(box) != UNASKED:
+                    self.bv[box] = UNASKED
+            if data.get("just_tell"):               # 1.3b (P3.3): no more questions this call
+                self.just_tell = True
             for box, n in self.asked.items():      # asked twice, still no answer: stop asking it
                 if n >= ASK_TRIES and self.bv.get(box) == UNASKED:
                     self.bv[box] = UNKNOWN
             ids = self._timed("search", self._found)
+            changed = set(spot_filled) | set(filled)
+            if any(b in known0 and known0[b] != UNKNOWN for b in changed):
+                category = self.bv.get("category")  # 1.3b (P2.5): a corrected fact builds
+                if category in self.corpus.values("category"):  # the list again from the need
+                    kind = {self.corpus.scheme_id(ix)
+                            for ix in Filter.survivors({"category": category}, self.corpus)}
+                    ranked = [h.scheme_id for h in self.index.search(
+                        " ".join(self.heard[-3:]), len(self.index.ids) or SEARCH_K)]
+                    ids = [s for s in self.index.ids if s in kind]
+                    ids += [s for s in ranked if s not in kind]
             nar, cards = self._state(ids)          # the facts may have changed the picker's answer
             self.left = nar.left
             if action in ("not_for_me", "repeat", "goodbye"):
+                if action != "repeat":
+                    self.last_asked = ""
                 return action, ""               # goodbye: the farewell clip is the only thing said
             if action == "other_topic":         # fixed words; the model does not write this one
+                self.last_asked = ""
                 return action, prompt.OTHER_TOPIC.get(self.lang, prompt.OTHER_TOPIC["en"])
             ask_box = str(data.get("ask_box") or "").strip()
             if action == "ask" and ask_box and ask_box != nar.ask:
                 wrong_ask = True
                 note = (f'Ask about "{nar.ask}", not "{ask_box}".' if nar.ask else
                         "No question about the caller is left. Do not ask one: show the schemes or answer.")
+                continue
+            if action == "ask" and not ask_box and self.free_q >= 1:
+                wrong_ask = True                # 1.3b (P3.2): one free question a call, no more
+                note = ("You already asked your own question once this call. "
+                        "Do not ask another: show the schemes or answer.")
                 continue
             proof = "\n\n".join(c for _s, _m, c in cards) + "\n" + " ".join(
                 str(v) for vals in boxes.values() for v in vals)
@@ -284,15 +376,30 @@ class _Talk:
             if self.focus and action in ("answer", "show_scheme") and isinstance(parts, list):
                 self.told.setdefault(self.focus, set()).update(p for p in parts if p in prompt.PARTS)
             if action == "ask" and ask_box:
-                # 1.3a: an answer to another question does not count this one
-                # as asked (asked age, told the state: the age ask is free).
-                answered_it = ask_box in filled or self.bv.get(ask_box) != UNASKED
-                if answered_it or not filled:
+                # 1.3b (A): every question asked counts, except when the turn
+                # answered another box (the age ask is free).
+                if _counts_as_asked(ask_box, filled):
                     self.asked[ask_box] = self.asked.get(ask_box, 0) + 1
+                self.last_asked = ask_box
+                if self._will_now:
+                    self._will_used = True
+            elif action == "ask":                    # 1.3b (P3.2): the model's own question
+                self.free_q += 1
+                self.last_asked = ""
+                if self._will_now:
+                    self._will_used = True
+            else:
+                self.last_asked = ""
+            if action in ("answer", "show_scheme") and self.more_needs and say:
+                extra = self.more_needs.pop(0)      # 1.3b (P2.3): "you also asked about a house"
+                say = say + " " + prompt.ALSO_ASKED.get(
+                    self.lang, prompt.ALSO_ASKED["en"]).format(kind=prompt.kind_say(extra, self.lang))
             return action, say
         if wrong_ask and nar.ask:                   # C1: the picker's question, in fixed words
             self.asked[nar.ask] = self.asked.get(nar.ask, 0) + 1
+            self.last_asked = nar.ask
             return "ask", prompt.QUESTION.get(nar.ask, {}).get(self.lang) or prompt.NOT_SURE[self.lang]
+        self.last_asked = ""
         return "answer", prompt.NOT_SURE.get(self.lang, prompt.NOT_SURE["en"])
 
     # --- the mouth ---

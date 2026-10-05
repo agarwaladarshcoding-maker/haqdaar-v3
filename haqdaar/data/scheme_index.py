@@ -21,8 +21,6 @@ from haqdaar.data import scheme_names
 
 EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 CACHE_DIR = Path("data_cache") / "scheme_index"
-NAME_MIN = 88.0          # a name match below this (0-100) does not count
-SHORT_NAME = 5           # a name shorter than this must match a whole word
 TEXT_LANGS = ("en", "hi")
 TEXT_FIELDS = ("summary", "who_can_apply", "benefit_text")
 
@@ -40,6 +38,12 @@ class Hit:
 
 def _norm(text: str) -> str:
     return " ".join(_PUNCT.sub(" ", str(text).lower()).split())
+
+
+def _contains(hay: list[str], needle: list[str]) -> bool:
+    """The needle's whole words standing in a row in the haystack."""
+    return bool(needle) and any(
+        hay[i:i + len(needle)] == needle for i in range(len(hay) - len(needle) + 1))
 
 
 def _rows(snapshot_id: str) -> tuple[str, list[dict[str, Any]]]:
@@ -156,22 +160,24 @@ class SchemeIndex:
         return cls(snapshot_id, ids, names, vectors, owner_arr, embed)
 
     def _name_scores(self, text: str) -> list[float]:
-        from rapidfuzz import fuzz
-
-        query = _norm(text)
-        words = set(query.split())
+        # 1.3b: a name counts only when its whole words stand in the caller's
+        # words ("समुद्र" is not "मुद्रा"; `\b` misses Hindi vowel-sign tails,
+        # so words are split on spaces and punctuation instead). A short name
+        # that is also a common word ("मुद्रा", "आजीविका") needs योजना / लोन /
+        # scheme / loan next to it. A short name is the whole name people say,
+        # never one common word of it.
+        qtoks = _norm(text).split()
+        marked = scheme_names.has_marker(qtoks)
         out: list[float] = []
         for names in self._names:
-            best = 0.0
+            hit = False
             for name in names:
-                if len(name) < SHORT_NAME:
-                    score = 100.0 if name in words else 0.0
-                elif len(name) <= len(query):
-                    score = fuzz.partial_ratio(name, query)   # the name inside the sentence
-                else:
-                    score = fuzz.ratio(name, query)           # the sentence is the name
-                best = max(best, score)
-            out.append(best / 100.0 if best >= NAME_MIN else 0.0)
+                ntoks = name.split()
+                if ntoks and _contains(qtoks, ntoks) and not (
+                        scheme_names.needs_marker(name) and not marked):
+                    hit = True
+                    break
+            out.append(1.0 if hit else 0.0)
         return out
 
     def _vector_scores(self, text: str) -> list[float]:

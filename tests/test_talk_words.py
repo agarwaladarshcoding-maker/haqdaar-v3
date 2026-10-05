@@ -51,3 +51,51 @@ def test_spot_all_names_every_value_for_two_needs():
     assert set(all_named.get("category", ())) == {"farming", "housing"}
     # spot itself still fills a box only when exactly one value is named.
     assert "category" not in talk_words.spot("खेती और घर दोनों के लिए कुछ है क्या", corpus)
+
+
+# --- step 1.3b: "not" that hides a need vs "not" that takes away ---------------
+
+
+def test_have_no_x_is_a_need_for_x():
+    """"I have no X" / "X नहीं है" / "X नहीं मिला" names the need (D)."""
+    corpus = _corpus()
+    assert talk_words.spot("मेरे पास नौकरी नहीं है", corpus) == {"category": "jobs_skills"}
+    assert talk_words.spot("I have no job", corpus) == {"category": "jobs_skills"}
+    assert talk_words.spot("मेरे पास घर नहीं है", corpus) == {"category": "housing"}
+    assert talk_words.spot("मुझे लोन नहीं मिला", corpus) == {"category": "business_loans"}
+    assert talk_words.spot("I did not get any loan", corpus) == {"category": "business_loans"}
+
+
+def test_am_not_x_takes_x_away():
+    """Only "I am not X" / "I do not want X" unsets (E)."""
+    corpus = _corpus()
+    assert talk_words.spot("I am not a street vendor", corpus) == {}
+    assert talk_words.spot("I don't want any loan", corpus) == {}
+    assert talk_words.spot("main kisan nahi hoon", corpus) == {}
+    assert talk_words.spot("main kisan nahin hoon", corpus) == {}
+    assert talk_words.spot("मुझे लोन मत दो", corpus) == {}
+    # A no-comma contrast keeps the affirmed work.
+    assert talk_words.spot("मैं किसान नहीं मज़दूर हूँ", corpus) == {"occupation": "worker"}
+
+
+def test_gender_needs_whole_words_about_the_caller():
+    """F: "मां" inside "मांगना" is not female; a wife's death is not hers."""
+    corpus = _corpus()
+    assert talk_words.spot("मुझे लोन मांगना है", corpus) == {"category": "business_loans"}
+    assert talk_words.spot("my wife died I am a farmer", corpus) == {
+        "category": "farming", "occupation": "farmer"}
+    # A mother named as the one helped keeps her female.
+    assert talk_words.spot("मेरी माँ के लिए पेंशन चाहिए", corpus) == {
+        "category": "pension", "gender": "female"}
+
+
+def test_caller_work_next_to_other_person_words():
+    """G: no comma, or a "brother" call-out, keeps the caller's own work."""
+    corpus = _corpus()
+    assert talk_words.spot("मेरा बेटा पढ़ता है मैं मजदूरी करती हूँ", corpus) == {
+        "occupation": "worker"}
+    assert talk_words.spot("भाई मैं किसान हूँ", corpus) == {
+        "category": "farming", "occupation": "farmer"}
+    # The old comma cases still hold.
+    assert "occupation" not in talk_words.spot("my husband was a farmer", corpus)
+    assert "occupation" not in talk_words.spot("मेरे पति किसान थे", corpus)

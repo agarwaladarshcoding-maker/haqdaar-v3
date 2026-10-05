@@ -128,6 +128,67 @@ def test_answer_to_the_asked_box_counts(corpus, tmp_path):
     assert t.asked == {"occupation": 1}
 
 
+def test_question_count_rule(corpus, tmp_path):
+    """1.3b (A): every question the line asks counts, except when the turn
+    answered another box (asked age, told the state: the age ask is free)."""
+    from haqdaar.engine.talk import _counts_as_asked
+    assert _counts_as_asked("occupation", set())
+    assert _counts_as_asked("occupation", {"occupation"})
+    assert not _counts_as_asked("age", {"state"})
+    assert not _counts_as_asked("age", {"age", "state"})
+
+
+def test_three_unanswered_questions_then_schemes(corpus, tmp_path):
+    """1.3b (A): three turns with no usable answer use up the questions;
+    then the line shows schemes and asks nothing."""
+    from types import SimpleNamespace
+    from haqdaar.data.log import Log
+    from haqdaar.engine.talk import _Talk
+    log = Log.open("threeq", corpus.snapshot_id, logs_dir=str(tmp_path))
+    t = _Talk(SimpleNamespace(), None, corpus, log, "en", Index())
+    t.stage = {}
+    for _ in range(3):
+        nar, _cards = t._state(t._found() or Index().ids)
+        t.heard = ["hmm"]
+        assert nar.ask is not None
+        wrong = "gender" if nar.ask != "gender" else "age"
+        t.model = SimpleNamespace(client=_Client([
+            {"action": "ask", "say": "What kind of help do you need?",
+             "ask_box": wrong, "facts": {}, "scheme": ""},
+            {"action": "ask", "say": "What kind of help do you need?",
+             "ask_box": wrong, "facts": {}, "scheme": ""}]))
+        t._decide("hmm")
+    assert sum(t.asked.values()) == 3
+    assert t._state(t._found() or Index().ids)[0].ask is None
+
+
+def test_dont_know_first_turn_sets_nothing(corpus, tmp_path):
+    """1.3b (C): "I don't know which scheme is for me" on turn 1 is no answer
+    to nothing: no box is set to not known."""
+    t = _decide(corpus, tmp_path, "dontknowfirst", "I don't know which scheme is for me",
+                {"action": "not_for_me", "say": "", "facts": {}, "scheme": ""})
+    assert t.bv["category"] == UNASKED
+
+
+def test_dont_know_after_a_question_sets_unknown(corpus, tmp_path):
+    """1.3b (C): "do not know" sets the box the line just asked about."""
+    from types import SimpleNamespace
+    from haqdaar.data.log import Log
+    from haqdaar.engine.talk import _Talk
+    log = Log.open("dontknowask", corpus.snapshot_id, logs_dir=str(tmp_path))
+    t = _Talk(SimpleNamespace(), None, corpus, log, "en", Index())
+    t.stage = {}
+    t.heard = ["I need some scheme"]
+    t.model = SimpleNamespace(client=_Client([
+        {"action": "ask", "say": "What kind of help do you need?",
+         "ask_box": "category", "facts": {}, "scheme": ""}]))
+    t._decide("I need some scheme")
+    t.heard = ["I do not know"]
+    t.model = SimpleNamespace(client=_Client([{"action": "not_for_me"}]))
+    t._decide("I do not know")
+    assert t.bv["category"] == UNKNOWN
+
+
 # --- (f) minimax on a made-up set of 100 schemes -------------------------------
 
 class FakeCorpus:

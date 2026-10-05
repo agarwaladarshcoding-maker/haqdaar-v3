@@ -100,6 +100,16 @@ def test_dont_know_english():
     assert words_no_answer.no_answer("I am thirty") == ""
 
 
+def test_plain_tell_me_about_x_is_not_just_tell_me():
+    """1.3b (B): "tell me about X" names a topic; it must not stop the questions."""
+    assert not words_tell_me.is_just_tell_me("मुझे किसान योजना बता दो")
+    assert not words_tell_me.is_just_tell_me("शेतकरी योजना सांगा")
+    assert not words_tell_me.is_just_tell_me("I have no questions")
+    # Bare "tell me (any scheme)" still stops them.
+    assert words_tell_me.is_just_tell_me("कोई भी योजना बता दो")
+    assert words_tell_me.is_just_tell_me("नहीं नहीं, बस योजना बता दो")
+
+
 def test_wont_say_hindi_marathi_english():
     assert words_no_answer.no_answer("मैं नहीं बताऊंगा") == "wont_say"
     assert words_no_answer.no_answer("मत पूछो") == "wont_say"
