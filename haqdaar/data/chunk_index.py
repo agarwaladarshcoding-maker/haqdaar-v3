@@ -29,6 +29,7 @@ import logging
 from pathlib import Path
 import re
 from typing import Any, Callable, Mapping, Optional, Sequence
+import unicodedata
 
 from haqdaar.contracts import tunables
 
@@ -64,35 +65,91 @@ PART_SPECS: list[tuple[str, str, str, str]] = [
 PART_KEYWORDS: dict[str, set[str]] = {
     "papers needed": {
         "paper", "papers", "document", "documents", "proof", "proofs",
-        "कागज", "कागजात", "दस्तावेज", "प्रमाण",
+        "bring", "what to bring", "what should i bring", "ask for", "records", "certificates",
+        "कागज", "कागजात", "दस्तावेज", "प्रमाण", "लाना", "क्या लाना होगा", "क्या लाना है",
+        "कागदपत्रे", "कागदपत्र", "दाखला", "पुरावा", "काय आणावे लागेल",
     },
     "how to apply": {
-        "apply", "applying", "application", "process", "procedure", "portal",
-        "register", "registration", "आवेदन", "फॉर्म", "पंजीकरण",
+        "apply", "applying", "application", "process", "procedure", "portal", "register",
+        "registration", "sign up", "where do i go", "which office", "where to go", "how do i join",
+        "where to sign up", "where to register", "how can i apply",
+        "आवेदन", "फॉर्म", "पंजीकरण", "प्रक्रिया", "कहाँ जाना है", "कहाँ जाऊं", "कार्यालय", "दफ्तर",
+        "अर्ज", "नोंदणी", "कुठे जायचे", "कुठे अर्ज करावा",
     },
     "benefits": {
         "benefit", "benefits", "amount", "money", "rupees", "rs", "installment",
-        "सहायता", "लाभ", "रुपये", "पैसे",
+        "सहायता", "लाभ", "रुपये", "पैसे", "रुपया", "किस्त",
     },
     "details": {
-        "eligible", "eligibility", "criteria", "qualification", "who can",
-        "पात्र", "पात्रता", "योग्यता",
+        "eligible", "eligibility", "criteria", "qualification", "who can", "who is eligible",
+        "qualify", "conditions", "age limit",
+        "पात्र", "पात्रता", "योग्यता", "शर्तें", "नियम", "कोण पात्र आहे", "अटी",
     },
 }
 
-PART_REGEX: dict[str, re.Pattern[str]] = {
-    part: re.compile(
-        r"\b(?:" + "|".join(re.escape(kw) for kw in sorted(kws, key=len, reverse=True)) + r")\b",
-        re.IGNORECASE | re.UNICODE,
-    )
-    for part, kws in PART_KEYWORDS.items()
-}
 
-_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
+def split_words(text: str) -> list[str]:
+    """Split text into lower-cased words on whitespace and punctuation across scripts.
+    Preserves Indic combining marks / vowel signs.
+    """
+    out: list[str] = []
+    curr: list[str] = []
+    for ch in str(text):
+        cat = unicodedata.category(ch)
+        if cat.startswith("P") or cat.startswith("Z") or cat.startswith("S") or ch in " \t\n\r":
+            if curr:
+                out.append("".join(curr).lower())
+                curr = []
+        else:
+            curr.append(ch)
+    if curr:
+        out.append("".join(curr).lower())
+    return out
 
 
 def _norm(text: str) -> str:
-    return " ".join(_PUNCT.sub(" ", str(text).lower()).split())
+    return " ".join(split_words(text))
+
+
+def match_part(text: str, kws: set[str]) -> bool:
+    """Matches keyword or multi-word phrase against text on whole word boundaries."""
+    words = split_words(text)
+    if not words:
+        return False
+    words_set = set(words)
+    joined = " " + " ".join(words) + " "
+    for kw in kws:
+        kw_words = split_words(kw)
+        if not kw_words:
+            continue
+        if len(kw_words) == 1:
+            if kw_words[0] in words_set:
+                return True
+        else:
+            kw_joined = " " + " ".join(kw_words) + " "
+            if kw_joined in joined:
+                return True
+    return False
+
+
+class _Match:
+    def __bool__(self) -> bool:
+        return True
+
+
+class PartMatcher:
+    def __init__(self, part: str, kws: set[str]) -> None:
+        self.part = part
+        self.kws = kws
+
+    def search(self, text: str) -> Optional[_Match]:
+        return _Match() if match_part(text, self.kws) else None
+
+
+PART_REGEX: dict[str, PartMatcher] = {
+    part: PartMatcher(part, kws)
+    for part, kws in PART_KEYWORDS.items()
+}
 
 
 def _hash_texts(texts: Sequence[str]) -> str:
@@ -120,7 +177,7 @@ class ChunkHit:
 
 
 def default_embed() -> Embed:
-    """The local embedding model via fastembed (ONNX runtime on CPU, no paid API)."""
+    """Load default fastembed model."""
     import numpy as np
     from fastembed import TextEmbedding
 
@@ -156,9 +213,9 @@ class ChunkIndex:
 
         self.snapshot_id = snapshot_id
         self.chunks = chunks
-        self.scheme_ids = scheme_ids
-        self._vectors = vectors            # shape (passages, dim), unit length
-        self._passage_to_chunk = passage_to_chunk  # passage row -> chunk index
+        self.scheme_ids = tuple(scheme_ids)
+        self._vectors = vectors
+        self._passage_to_chunk = passage_to_chunk
         self._embed = embed
         self._door_a = door_a
         self._scheme_index = scheme_index
@@ -176,6 +233,10 @@ class ChunkIndex:
             [bool(c.text and c.text.strip()) for c in chunks],
             dtype=bool,
         )
+
+    @property
+    def ids(self) -> tuple[str, ...]:
+        return self.scheme_ids
 
     @classmethod
     def from_rows(
@@ -312,6 +373,7 @@ class ChunkIndex:
 
         _, base_rows = scheme_index._rows("CURRENT")
         base_entries = load_repo_scheme_entries()
+        base_entries_by_slug = {e.slug: e for e in base_entries}
 
         rows_100: list[dict[str, Any]] = []
         entries_100: list[SchemeEntry] = []
@@ -331,14 +393,23 @@ class ChunkIndex:
             r["chunks"] = b_row.get("chunks")
             rows_100.append(r)
 
-            b_ent = base_entries[i % len(base_entries)]
-            e = SchemeEntry(
-                slug=f"{b_ent.slug}_var_{i:03d}",
-                priority=b_ent.priority,
-                names={k: f"{v} {i}" for k, v in b_ent.names.items()},
-                aliases=[f"{a} {i}" for a in b_ent.aliases],
-                distinctive_tokens=b_ent.distinctive_tokens,
-            )
+            b_ent = base_entries_by_slug.get(base_sid)
+            if b_ent is not None:
+                e = SchemeEntry(
+                    slug=sid_new,
+                    priority=b_ent.priority,
+                    names={k: f"{v} {i}" for k, v in b_ent.names.items()},
+                    aliases=[f"{a} {i}" for a in b_ent.aliases],
+                    distinctive_tokens=b_ent.distinctive_tokens,
+                )
+            else:
+                e = SchemeEntry(
+                    slug=sid_new,
+                    priority=100,
+                    names={"en": f"{name_en} {i}", "hi": f"{name_hi} {i}"},
+                    aliases=[f"{a} {i}" for a in b_row.get("aliases_en") or []],
+                    distinctive_tokens=(),
+                )
             entries_100.append(e)
 
         door_a_100 = DoorA(scheme_entries=entries_100)
@@ -357,8 +428,17 @@ class ChunkIndex:
         # 1. Rapidfuzz-based SchemeIndex._name_scores
         if self._scheme_index is not None:
             try:
+                from haqdaar.data.scheme_names import contains_word, short_names_for
                 for sid, s in zip(self._scheme_index.ids, self._scheme_index._name_scores(text)):
                     if s > 0 and sid in scores:
+                        # Verify that the query text actually contains the scheme's name or short form
+                        # to avoid false partial matches on consonant-stripped strings
+                        if s >= 0.85:
+                            snames = list(short_names_for(sid))
+                            if snames and not any(contains_word(text.lower(), sn.lower()) for sn in snames):
+                                sid_norm = sid.replace("-", " ")
+                                if sid_norm not in text.lower() and not any(contains_word(text.lower(), w) for w in sid.split("-")):
+                                    continue
                         scores[sid] = max(scores[sid], float(s))
             except Exception:
                 pass
@@ -379,8 +459,9 @@ class ChunkIndex:
     def search(
         self,
         query: str | Sequence[str],
-        fits: Optional[Mapping[str, Any] | Callable[[str], Any]] = None,
+        *,
         k: int = 5,
+        fits: Optional[dict[str, Any] | set[str]] = None,
         max_chunks_per_scheme: int = 2,
     ) -> list[ChunkHit]:
         """Search top k chunks for English query or multiple queries.
@@ -390,6 +471,9 @@ class ChunkIndex:
         unless the query names that scheme (name match 0.85+).
         Empty English texts are never returned.
         """
+        if fits is not None:
+            if isinstance(fits, bool) or not isinstance(fits, (dict, set)):
+                raise TypeError(f"fits must be a dict or set of scheme ids, got {type(fits).__name__}")
         try:
             if isinstance(query, str):
                 queries = [query]
@@ -411,14 +495,21 @@ class ChunkIndex:
 
             scheme_fits = np.zeros(n_schemes, dtype=np.float32)
             if fits is not None:
-                for i, sid in enumerate(self.scheme_ids):
-                    m = fits(sid) if callable(fits) else fits.get(sid, "not known yet")
-                    if isinstance(m, (int, float)):
-                        scheme_fits[i] = float(m)
-                    elif m == "fits":
-                        scheme_fits[i] = 0.15
-                    elif m == "does not fit":
-                        scheme_fits[i] = -0.50
+                if isinstance(fits, set):
+                    for i, sid in enumerate(self.scheme_ids):
+                        if sid in fits:
+                            scheme_fits[i] = 0.15
+                elif isinstance(fits, dict):
+                    for i, sid in enumerate(self.scheme_ids):
+                        m = fits.get(sid, "not known yet")
+                        if isinstance(m, bool):
+                            scheme_fits[i] = 0.15 if m else -0.50
+                        elif isinstance(m, (int, float)):
+                            scheme_fits[i] = float(m)
+                        elif m == "fits":
+                            scheme_fits[i] = 0.15
+                        elif m == "does not fit":
+                            scheme_fits[i] = -0.50
             chunk_fits_adj = scheme_fits[self._chunk_scheme_indices]
 
             for q_text in clean_queries:
@@ -443,9 +534,9 @@ class ChunkIndex:
 
                 # 3. Fixed-code part keyword bonus (whole words only)
                 part_boosts = np.zeros(len(PARTS), dtype=np.float32)
-                for part, rx in PART_REGEX.items():
-                    if rx.search(q_text):
-                        part_boosts[PART_INDEX[part]] = 0.20
+                for part, matcher in PART_REGEX.items():
+                    if matcher.search(q_text):
+                        part_boosts[PART_INDEX[part]] = 0.25
                 chunk_part_boost = part_boosts[self._chunk_part_indices]
 
                 # 4. Total query score
@@ -510,8 +601,9 @@ def get(snapshot_id: str = "CURRENT") -> ChunkIndex:
 
 def search(
     query: str | Sequence[str],
-    fits: Optional[Mapping[str, Any] | Callable[[str], Any]] = None,
+    *,
     k: int = 5,
+    fits: Optional[dict[str, Any] | set[str]] = None,
     max_chunks_per_scheme: int = 2,
     snapshot_id: str = "CURRENT",
 ) -> list[ChunkHit]:

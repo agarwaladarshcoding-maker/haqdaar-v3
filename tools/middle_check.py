@@ -16,11 +16,24 @@ if os.environ.get("YES") != "1":
     print("set YES=1 to run this check")
     sys.exit(0)
 
-from haqdaar.model.middle import reply_in
+from haqdaar.model.middle import reply_in, split_sentences
 
 path = sys.argv[1] if len(sys.argv) > 1 else "fixtures/middle_replies.txt"
 with open(path, encoding="utf-8") as f:
     replies = [line.strip() for line in f if line.strip()]
+
+total_sentences = sum(len(split_sentences(r)) for r in replies)
+total_calls = total_sentences * 4
+
+prompt = f"this makes {total_calls} paid calls, go on? "
+try:
+    ans = input(prompt).strip().lower()
+except (EOFError, KeyboardInterrupt):
+    ans = "no"
+
+if ans not in ("y", "yes"):
+    print("cancelled")
+    sys.exit(0)
 
 for i, reply in enumerate(replies, 1):
     print("--- reply %d: %s" % (i, reply))
