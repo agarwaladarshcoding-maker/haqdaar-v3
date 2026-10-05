@@ -409,6 +409,8 @@ class _Talk:
                 continue
             if not isinstance(inp, Speech) or not inp.text.strip():
                 continue                        # noise: say nothing, keep listening
+            if tunables.LANG_EACH_TURN:     # 1.2: the caller's last turn set the language
+                self.lang = getattr(self.audio, "language", self.lang)
             if self._turn(inp.text.strip(), inp.end_ms, inp.stt_ms, bool(inp.cut_clip)) == "goodbye":
                 return self._end(farewell=True)
 

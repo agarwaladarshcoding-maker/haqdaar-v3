@@ -161,6 +161,20 @@ TTS_PACE: float = float(os.environ.get("TTS_PACE", 0.9))
 # 7.14: play the live voice as its sound arrives (first sound ~0.4 s in, not after the whole sentence). Off: as before.
 LIVE_TTS_STREAM: bool = os.environ.get("LIVE_TTS_STREAM", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
 LIVE_TTS_PACE: float = float(os.environ.get("LIVE_TTS_PACE", 1.0 if TALK_ONLY else TTS_PACE))
+# 1.2 (5 Oct): in a talk call the speech service is told no language after the greeting either; a
+# turn of 3 or more real words in Hindi, Marathi or English makes that the language of the reply.
+LANG_EACH_TURN: bool = os.environ.get("LANG_EACH_TURN", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
+# 1.1 part B (5 Oct): the greeting of a talk call, said by the live voice and kept on disk after
+# the first call. (Sarvam language code, words.) Gujarati and Tamil say the short line. "For keys
+# press 6" is NOT said: key 6 is not built yet. Any line that fails: the recorded greeting is said.
+GREETING_FIVE: bool = os.environ.get("GREETING_FIVE", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
+GREETING_LINES: tuple[tuple[str, str], ...] = (
+    ("hi-IN", "हक़दार में आपका स्वागत है। अपनी भाषा में बोलिए।"),
+    ("en-IN", "Welcome to Haqdaar. Speak in English or your own language."),
+    ("mr-IN", "हक्कदार मध्ये आपले स्वागत आहे. तुमच्या भाषेत बोला."),
+    ("gu-IN", "હકદારમાં સ્વાગત છે. તમારી ભાષામાં બોલો."),
+    ("ta-IN", "ஹக்தார் வரவேற்கிறது. உங்கள் மொழியில் பேசுங்கள்."),
+)
 TTS_WORKERS: int = int(os.environ.get("TTS_WORKERS", 3))
 TTS_TIMEOUT_S: float = float(os.environ.get("TTS_TIMEOUT_S", 60))
 TTS_MAX_ATTEMPTS: int = int(os.environ.get("TTS_MAX_ATTEMPTS", 5))

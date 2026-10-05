@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
 from haqdaar.audio import live_tts
-from haqdaar.audio.lang_words import is_bare_greeting, language_from_code, language_from_words
+from haqdaar.audio.lang_words import NAMES, is_bare_greeting, language_from_code, language_from_words
 from haqdaar.audio.lines import MENU_KEYS
 from haqdaar.audio.mouth import Clip, Mouth
 from haqdaar.audio.turn import HANGUP, Turn, real_words
@@ -96,7 +96,8 @@ class PhoneAudio:
         exception: real words that name no language start the talk, in the language the speech
         service heard, and the words are kept in `first_words` as turn 1."""
         self.first_words = ""
-        self.say(("greeting_trilingual",))
+        if not self._say_greeting_five():
+            self.say(("greeting_trilingual",))
         # A talk call hears the language by voice too (a caller who came to talk says "Hindi" and
         # then waits; with keys only the line stayed quiet for 30 s and looked dead, 5 Oct 12:43).
         if (tunables.SPEECH_CUT_IN or tunables.TALK_ONLY) and hasattr(self.turn, "wait_input"):
@@ -130,6 +131,44 @@ class PhoneAudio:
         self._silence = 0
         self._log(f"<- key {key}: not a language")
         return Digit(digit=key)
+
+    def _say_greeting_five(self) -> bool:
+        """1.1 part B: the greeting of a talk call in five languages, by the live voice. Each line
+        is made once and kept on disk. False (nothing said) when it is off or a line failed: the
+        recorded greeting is said then. The prompt keeps the old name; the call page reads it."""
+        if not (tunables.GREETING_FIVE and tunables.TALK_ONLY) or self._speak is not None:
+            return False
+        clips: list[Clip] = []
+        for i, (code, text) in enumerate(tunables.GREETING_LINES):
+            lang = code.split("-")[0].lower()
+            key = self._live_key(f"greeting|{text}", code)
+            audio = self._saved_answer(key)
+            if audio is None:
+                audio = live_tts.speak(text, lang, code=code)
+                if not audio:
+                    self._log(f"!! greeting line {code} failed: the recorded greeting is said")
+                    return False
+                self._save_answer(key, audio)
+            clips.append((f"greeting_{lang}_{i}", bytes(audio)))
+        self._token_clips["greeting_trilingual"] = [name for name, _ in clips]
+        self._play(clips, "greeting_trilingual")
+        self._filler = False
+        return True
+
+    def _follow_language(self, inp: Input) -> Input:
+        """1.2: the reply goes out in the language the caller just spoke, not the one picked at
+        the greeting. Short turns (under 3 real words) and languages the voice does not have keep
+        the last language: the guess is weak on "haan" or "ok"."""
+        if tunables.LANG_EACH_TURN and isinstance(inp, Speech) and real_words(inp.text) >= 3:
+            heard = (inp.lang or "").strip().lower().split("-")[0]
+            if heard in NAMES and heard != self.language:
+                self._log(f"<- voice: language {self.language} -> {heard}")
+                self.language = heard  # type: ignore[assignment]
+        return inp
+
+    def _listen_lang(self) -> str:
+        """The language the speech service is told. None in a talk call: it finds it itself."""
+        return "" if tunables.LANG_EACH_TURN else self.language
 
     def _start_talk(self, heard: Speech) -> tuple[Lang, LangSource]:
         """Words at the greeting that name no language: the talk starts. "hello?" alone is not a
@@ -312,7 +351,7 @@ class PhoneAudio:
         and the next next_input() gives them, so the engine drops what it made from the older
         words. Reads the queue only; never plays or cuts anything."""
         if self._newer is None and hasattr(self.turn, "newer_input"):
-            self._newer = self.turn.newer_input(tunables.SILENCE_GAP_S, lang=self.language)
+            self._newer = self.turn.newer_input(tunables.SILENCE_GAP_S, lang=self._listen_lang())
             if self._newer is not None:
                 self._log("<- newer words while busy")
         return self._newer is not None
@@ -337,9 +376,9 @@ class PhoneAudio:
                     # They spoke over whatever the engine said since: the same cut as a cut-in.
                     cut = self.mouth.clear() if self.mouth.playing else ("", -1)
                     inp = replace(inp, prompt_n=self.turn.prompt_n, cut_clip=cut[0], heard_ms=cut[1])
-                return inp
+                return self._follow_language(inp)
         if hasattr(self.turn, "wait_input"):
-            inp = self._wait_words(profile=profile, lang=self.language)
+            inp = self._follow_language(self._wait_words(profile=profile, lang=self._listen_lang()))
             if tunables.CUT_IN_GATE and isinstance(inp, Speech) and inp.cut_clip and hasattr(self.mouth, "take_cut"):
                 self._cut = self.mouth.take_cut()   # kept aside: "one moment" would make the Mouth forget it
             if isinstance(inp, Silence):

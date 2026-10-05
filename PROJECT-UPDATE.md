@@ -1628,3 +1628,11 @@ that call. It lasted 13 seconds and Twilio never reached our app. That is Twilio
 after its message you must press any key, or it hangs up. Our code was not at fault, so there is
 nothing to fix in the app. Step 1.1 part A (the greeting door: any first words start the talk,
 a key after a noise is taken) is now committed and pushed so it cannot be lost.
+
+**5 Oct, 4:45 pm — after the good call.** Two things built for the demonstration. One: the greeting
+of a talk call is now in five languages (Hindi, English, Marathi, Gujarati, Tamil), 18 seconds,
+said by Sarvam's voice and saved, so it costs nothing after today. It does not say "press 6"
+yet, because key 6 is not built. Two: the reply now follows the language the caller speaks, not
+the key pressed at the start. Sarvam finds the language itself on every turn (checked on 6 test
+clips: all right). Very short replies like "haan" keep the last language. The new Sarvam key is in
+the settings file.

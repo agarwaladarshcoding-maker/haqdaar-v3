@@ -47,19 +47,20 @@ def _as_ulaw(body: bytes) -> bytes:
     return body
 
 
-def stream(text: str, lang: str) -> Iterator[bytes]:
+def stream(text: str, lang: str, code: str = "") -> Iterator[bytes]:
     """One text in one language -> 8 kHz mu-law, piece by piece as Sarvam sends it (7.14).
     Raises on a failure or past QA_TTS_TIMEOUT_S. Nothing to say: yields nothing. Costs Sarvam money per call."""
     deadline = time.monotonic() + tunables.QA_TTS_TIMEOUT_S
     load_dotenv(BASE_DIR / ".env")
     key = os.environ.get("SARVAM_API_KEY", "")
     text = clean(text, lang)
-    if not key or not text or lang not in TTS_LANG:
+    if not key or not text or (lang not in TTS_LANG and not code):
         return
     payload = {
         "text": text,
-        "target_language_code": TTS_LANG[lang],
-        "speaker": tunables.TTS_SPEAKERS[lang],
+        # `code`: a Sarvam language code given straight (the greeting's Gujarati and Tamil lines).
+        "target_language_code": code or TTS_LANG[lang],
+        "speaker": tunables.TTS_SPEAKERS.get(lang, tunables.TTS_SPEAKERS["hi"]),
         "model": tunables.TTS_MODEL,
         "pace": tunables.LIVE_TTS_PACE,
         "speech_sample_rate": tunables.SAMPLE_RATE,
@@ -89,10 +90,10 @@ def stream(text: str, lang: str) -> Iterator[bytes]:
         yield wav_to_ulaw(b"".join(wav))
 
 
-def speak(text: str, lang: str) -> Optional[bytes]:
+def speak(text: str, lang: str, code: str = "") -> Optional[bytes]:
     """One text in one language -> 8 kHz mu-law bytes, or None. Costs Sarvam money per call."""
     try:
-        body = b"".join(stream(text, lang))
+        body = b"".join(stream(text, lang, code))
         return body or None
     except Exception:
         return None
