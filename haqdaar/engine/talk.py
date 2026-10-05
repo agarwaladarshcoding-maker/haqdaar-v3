@@ -28,7 +28,7 @@ from haqdaar.contracts.log_schema import (
 from haqdaar.contracts.types import SEVEN_BOXES, UNASKED, UNKNOWN, Digit, Hangup, Silence, Speech
 from haqdaar.data import chunk_index, log_text, scheme_index
 from haqdaar.data.scheme_text import SchemeText
-from haqdaar.engine import talk_kind, talk_pick, talk_words, words_no_answer, words_tell_me
+from haqdaar.engine import talk_follow, talk_kind, talk_pick, talk_words, words_no_answer, words_tell_me
 from haqdaar.engine.filter import Filter
 from haqdaar.model import middle
 from haqdaar.model.answer import check_answer, mask_digits
@@ -93,11 +93,6 @@ def _free_ask(last_asked: str, changed: set[str]) -> bool:
     """1.3 (A): every question the line asks counts. One is given back: the caller answered
     another box than the one asked last (asked age, told the state: the age ask was free)."""
     return bool(last_asked) and bool(changed) and last_asked not in changed
-
-
-# "will I get it" after "just tell me": one question may come back (1.8 owns
-# the full word list; this is only the crack in the just-tell door).
-_WILL_RESULT = ("मिलेगा क्या", "मिलेगी क्या", "milega", "milegi", "will i get", "will i receive")
 
 
 def _take_facts(facts: Any, bv: dict[str, Any], corpus: Any, log: Any, turn_n: int) -> set[str]:
@@ -166,6 +161,13 @@ class _Talk:
         self.focus = ""                 # the scheme the talk is about now
         self.told: dict[str, set[str]] = {}  # scheme -> the parts of it already said (prompt.PARTS)
         self.shown: set[str] = set()    # schemes an answer of this call was about (going back to one is allowed)
+        self.last_named: list[str] = []  # 1.8: the schemes the last accepted reply named, in order
+        self.all_named: list[str] = []   # 1.8: every scheme a reply named in this call, first named first
+        self.hold_until = 0.0           # 1.8: "hold on": no quiet rule before this time
+        self._held_n = 0                # 1.8: the quiet count when the hold began (the rule counts from there)
+        self._pair: list[str] = []      # 1.8: this turn compares these two schemes
+        self._others: Optional[list[str]] = None  # 1.8: this turn wants a scheme not named yet: the ones left
+        self._will_get = False          # 1.8: "will I get it?" about the scheme in talk
         self.named = False              # the caller's newest words name a scheme
         self.last_action = ""
         self.left: tuple[str, ...] = ()
@@ -214,13 +216,18 @@ class _Talk:
             nar = talk_pick.Narrow(nar.left, None)  # 1.3b: a question on the scheme in talk
         if sum(self.asked.values()) >= tunables.TALK_MAX_QUESTIONS:   # 1.3a: at most 3 questions
             nar = talk_pick.Narrow(nar.left, None)
+        if self._will_get:                   # 1.8: "will I get it?": the picker on the scheme in talk alone
+            box = talk_pick.needs_ask(self.focus, self.bv, self.corpus,
+                                      [b for b, n in self.asked.items() if n >= ASK_TRIES])
+            nar = talk_pick.Narrow(nar.left, box, tuple(self.corpus.values(box)) if box else (),
+                                   (box,) if box else ())
         show = list(nar.left[:2] if self.just_tell else nar.left[:SHOW_K]) or ids[:SHOW_K]
         if self.focus:                       # the scheme the talk is about goes first, in full
             show = ([self.focus] + [s for s in show if s != self.focus])[:SHOW_K]
         pieces = self._pieces() if tunables.TALK_CHUNKS else None
         if pieces is not None:               # 1.5: parts, not cards; the proof is still the whole cards
             sent = [sid for sid, _m, _t in pieces]
-            self._proof_ids = sent + ([self.focus] if self.focus and self.focus not in sent else [])
+            self._proof_ids = sent + [s for s in dict.fromkeys([self.focus, *self._pair]) if s and s not in sent]
             return nar, pieces
         self._proof_ids = None
         cards = []
@@ -251,17 +258,23 @@ class _Talk:
         t0 = time.monotonic()
         try:
             fits = {sid: talk_pick.mark(sid, self.bv, self.corpus) for sid in index.scheme_ids}
-            ask = (self._found_text, self.focus, self.heard[-1] if self.heard else "", tuple(sorted(fits.items())))
+            pins = [s for s in dict.fromkeys([self.focus, *self._pair]) if s]   # 1.8: the pair is pinned like the focus
+            ask = (self._found_text, self.focus, self.heard[-1] if self.heard else "", tuple(sorted(fits.items())),
+                   tuple(pins), tuple(self._others or ()))
             if self._piece_memo is None or self._piece_memo[0] != ask:
                 hits = index.search(self._found_text, k=PIECES_POOL, fits=fits)
-                if self.focus and self.heard:     # "which papers?": the parts of the scheme in talk, by its name
-                    name = "".join(self.texts.card(self.focus, "en").split("\n")[1:2]).removeprefix("name: ")
-                    own = [h for h in index.search(name + " " + self.heard[-1], k=PIECES_POOL, fits=fits)
-                           if h.scheme_id == self.focus][:FOCUS_PIECES]
+                if pins and self.heard:           # "which papers?": the parts of the scheme in talk, by its name
+                    own = []
+                    for pin in pins:
+                        name = "".join(self.texts.card(pin, "en").split("\n")[1:2]).removeprefix("name: ")
+                        own += [h for h in index.search(name + " " + self.heard[-1], k=PIECES_POOL, fits=fits)
+                                if h.scheme_id == pin][:FOCUS_PIECES]
                     hits = own + hits
-                fit = [h for h in hits if fits.get(h.scheme_id) != talk_pick.DOES_NOT_FIT or h.scheme_id == self.focus]
+                fit = [h for h in hits if fits.get(h.scheme_id) != talk_pick.DOES_NOT_FIT or h.scheme_id in pins]
+                if self._others is not None:      # 1.8: "any other?": only schemes not named yet
+                    fit = [h for h in fit if h.scheme_id in self._others]
                 got: list[Any] = []
-                for h in fit or hits:
+                for h in fit if self._others is not None else fit or hits:
                     if (h.scheme_id, h.part) not in {(g.scheme_id, g.part) for g in got}:
                         got.append(h)
                 self._piece_memo = (ask, got[:PIECES_K])
@@ -283,6 +296,34 @@ class _Talk:
             return None
         return cards
 
+    def _names_in(self, say: str, scheme: str) -> list[str]:
+        """1.8: the schemes a reply named, in the order said; the model's own `scheme` is one even when
+        the reply only says "it"."""
+        named = getattr(self.index, "named_in", None)
+        try:
+            names = list(named(say, set(self._sent_ids) | {scheme})) if callable(named) else []
+        except Exception:
+            names = []
+        return [scheme] + names if scheme and scheme not in names else names
+
+    def _hold(self) -> tuple[str, str]:
+        self.hold_until = time.monotonic() + tunables.TALK_HOLD_S
+        return "hold", prompt.HOLD.get(self.lang, prompt.HOLD["en"])
+
+    def _early(self, words: str) -> Optional[tuple[str, str]]:
+        """1.8: replies made by code alone, with no model call."""
+        if talk_follow.hold(words):
+            return self._hold()
+        if self.last_say and talk_follow.hear(words):     # mid-call "hello? can you hear me?"
+            sents = _sentences(self.last_say)
+            again = ([s for s in sents if "?" in s] or sents)[-1]
+            return "hear", prompt.HEAR.get(self.lang, prompt.HEAR["en"]) + " " + again
+        if self.last_say and talk_follow.how_much(words):    # only the sentence that held the number
+            nums = [s for s in _sentences(self.last_say) if re.search(r"\d", s)]
+            if nums:
+                return "answer", " ".join(nums)
+        return None
+
     def _found(self) -> list[str]:
         """Search's top 10 on the last three caller turns, plus every scheme of the kind of help
         the caller named (search is weak on English words written in Hindi letters)."""
@@ -303,6 +344,9 @@ class _Talk:
         if category in self.corpus.values("category"):
             kind = {self.corpus.scheme_id(ix) for ix in Filter.survivors({"category": category}, self.corpus)}
             ids += [sid for sid in ranked[SEARCH_K:] if sid in kind]
+        if self._others is not None:         # 1.8: "any other?": what is left of the found schemes
+            self._others = [sid for sid in ids if sid not in self.all_named
+                            and talk_pick.mark(sid, self.bv, self.corpus) != talk_pick.DOES_NOT_FIT]
         return ids
 
     def _timed(self, stage: str, fn: Any, *args: Any) -> Any:
@@ -315,6 +359,21 @@ class _Talk:
 
     def _decide(self, words: str, cut: bool = False) -> tuple[str, str]:
         """(action, say). At most two model calls: the second only after a refused first reply."""
+        early = self._early(words)
+        if early is not None:
+            return early
+        self._pair, self._others = [], None
+        follow = [prompt.FOLLOW["simpler"]] if talk_follow.simpler(words) else []
+        if talk_follow.how_much(words):
+            follow.append(prompt.FOLLOW["how_much"])
+        move, sid = talk_follow.pick(words, self.last_named, self.all_named, self.focus)
+        if move == "move":                          # 1.8: "the second one": the talk moves to it, by code
+            self.focus = sid
+            follow.append(prompt.FOLLOW["move"].format(sid=sid))
+        elif move == "other":
+            self._others = []                       # filled by _found
+        if talk_follow.side_by_side(words, self.all_named):
+            self._pair = self.all_named[-2:]
         # The clear words first, by fixed code (a real call showed the model can miss "farmer schemes").
         known0 = {b: v for b, v in self.bv.items() if v != UNASKED}
         cat0 = self.bv.get("category")
@@ -345,9 +404,8 @@ class _Talk:
             if extra != self.bv.get("category") and extra not in self.more_needs \
                     and len(self.more_needs) < 2:
                 self.more_needs.append(extra)
-        padded = " " + str(words).lower() + " "
-        self._will_now = bool(self.just_tell and not self._will_used and any(
-            w in padded for w in _WILL_RESULT))
+        self._will_get = bool(self.focus and talk_follow.will_get(words))   # 1.8: "will I get it?": the scheme in talk
+        self._will_now = bool(self.just_tell and not self._will_used and talk_follow.will_get(words))
         ids = self._timed("search", self._found)
         self.turn_kind = talk_kind.kind(words, self.index)  # 1.3b (P2.1): on every turn
         boxes = {b: self.corpus.values(b) for b in SEVEN_BOXES}
@@ -355,6 +413,14 @@ class _Talk:
         note = prompt.CUT_NOTE if cut else ""
         wrong_ask = False                           # the last try asked a box the picker did not name
         nar, cards = self._state(ids)
+        if self._others is not None:
+            follow.append(prompt.FOLLOW["other"].format(left=", ".join(f"[{s}]" for s in self._others))
+                         if self._others else prompt.FOLLOW["other_none"])
+        if len(self._pair) == 2:
+            follow.append(prompt.FOLLOW["side"].format(a=self._pair[0], b=self._pair[1]))
+        if self._will_get:
+            follow.append(prompt.FOLLOW["will_ask" if nar.ask else "will_known"].format(sid=self.focus))
+        note = " ".join([note, *follow]).strip()
         if self.turn_kind == talk_kind.NOT_HELD_SCHEME:  # 1.3b (P2.2): fixed words, no questions
             self.last_asked = ""
             return "answer", prompt.not_held_say(self.lang, self._help_kinds())
@@ -424,6 +490,8 @@ class _Talk:
             if action == "other_topic":         # fixed words; the model does not write this one
                 self.last_asked = ""
                 return action, prompt.OTHER_TOPIC.get(self.lang, prompt.OTHER_TOPIC["en"])
+            if action == "hold":                # 1.8: fixed words; the question being asked stays open
+                return self._hold()
             ask_box = str(data.get("ask_box") or "").strip()
             if action == "ask" and ask_box and ask_box != nar.ask:
                 wrong_ask = True
@@ -481,15 +549,25 @@ class _Talk:
             # scheme is off the point ("how much money?" got the first pension scheme, not the one in talk).
             if (_try == 0 and action == "answer" and self.last_action == "answer" and self.focus
                     and scheme in ids and scheme != self.focus and not self.named
-                    and scheme not in self.shown and scheme not in self.told):
+                    and scheme not in self.shown and scheme not in self.told and scheme not in self._pair):
                 self.log.write({"ev": "blocked", "rule": "other_scheme", "question": mask_digits(words), "text": say})
                 note = (f"The caller is still asking about [{self.focus}] and named no other scheme. "
                         f"Answer about [{self.focus}].")
                 continue
+            if len(self._pair) == 2 and _try == 0 and action == "answer" and scheme in ids and scheme not in self._pair:
+                self.log.write({"ev": "blocked", "rule": "other_scheme", "question": mask_digits(words), "text": say})
+                note = f"The caller compares [{self._pair[0]}] and [{self._pair[1]}] only. Answer about those two."
+                continue                        # 1.8: side by side: only the two last named
             if scheme in ids:
                 self.focus = scheme
                 if action in ("answer", "show_scheme") and say:
                     self.shown.add(scheme)
+            if action in ("answer", "show_scheme") and say:
+                names = self._names_in(say, scheme if scheme in ids else "")
+                if names:                       # 1.8: what this reply named; a second scheme counts as shown
+                    self.shown.update(names)
+                    self.last_named = names
+                    self.all_named += [n for n in names if n not in self.all_named]
             parts = data.get("parts")
             if self.focus and action in ("answer", "show_scheme") and isinstance(parts, list):
                 self.told.setdefault(self.focus, set()).update(p for p in parts if p in prompt.PARTS)
@@ -625,7 +703,8 @@ class _Talk:
                     stop_filler()
                     if self.voice_fails < VOICE_FAILS_HANGUP:
                         self.audio.say(("unclear_prompt",))
-                self.last_say = say
+                if action not in ("hold", "hear"):  # 1.8: "repeat" and the next "hello?" go back to the question
+                    self.last_say = say
             if "ev" in row:                         # nothing was said (or no voice on this audio)
                 self.log.write(dict(row))
                 row.clear()
@@ -662,7 +741,10 @@ class _Talk:
                 return self._end(farewell=False, reason=STOP_ZERO_SURVIVORS)
             if isinstance(inp, Silence):
                 self.log.write(TurnLogRecord(turn_n=self.turn_n, turn_class="SILENCE", silence_n=inp.n))
-                if inp.n >= SILENCE_HANGUP_RUNG:
+                if time.monotonic() < self.hold_until:  # 1.8: "hold on": the quiet rule has not started
+                    self._held_n = inp.n
+                    continue
+                if inp.n - self._held_n >= SILENCE_HANGUP_RUNG:
                     return self._end(farewell=True, reason=STOP_ZERO_SURVIVORS)
                 self.audio.say(("waiting_for_reply",))
                 if not self.last_say:
@@ -673,6 +755,7 @@ class _Talk:
                 continue
             if not isinstance(inp, Speech) or not inp.text.strip():
                 continue                        # noise: say nothing, keep listening
+            self._held_n, self.hold_until = 0, 0.0   # words came: the hold is over
             if tunables.LANG_EACH_TURN:     # 1.2: the caller's last turn set the language
                 self.lang = getattr(self.audio, "language", self.lang)
             if self._turn(inp.text.strip(), inp.end_ms, inp.stt_ms, bool(inp.cut_clip)) == "goodbye":

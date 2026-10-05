@@ -86,6 +86,21 @@ def mark(scheme_id: str, box_vector: Mapping[str, Any], corpus: Any) -> str:
     return FITS
 
 
+def needs_ask(scheme_id: str, box_vector: Mapping[str, Any], corpus: Any, skip: Sequence[str] = ()) -> str | None:
+    """1.8 ("will I get it?"): the picker run on ONE scheme. The first box the scheme depends on that the
+    caller has not been asked yet; None when every box it depends on is known (or was asked, no answer)."""
+    ix = _ix(corpus, scheme_id)
+    if ix < 0:
+        return None
+    bit = 1 << ix
+    for box in SEVEN_BOXES:
+        if box == "category" or box in skip or box_vector.get(box) != UNASKED:
+            continue
+        if any(not corpus.mask(box, v) & bit for v in corpus.values(box)):
+            return box
+    return None
+
+
 @dataclass(frozen=True)
 class Narrow:
     left: tuple[str, ...]          # the found schemes that still fit, in search order
