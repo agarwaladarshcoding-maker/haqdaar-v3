@@ -127,6 +127,9 @@ class Speech:
     heard_ms: int = -1
     lang: str = ""          # what the speech service heard (7.1)
     english: bool = False   # True when `text` is an English translation of the speech (7.1)
+    # 7.14 stage times, for the log only: two Speech with the same words are still equal.
+    end_ms: int = field(default=-1, compare=False)   # quiet the ear waited to end the caller's turn
+    stt_ms: int = field(default=-1, compare=False)   # time speech-to-text took
 
 
 @dataclass(frozen=True)

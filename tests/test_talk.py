@@ -352,3 +352,25 @@ def test_one_moment_is_said_again_while_the_line_still_checks(call, monkeypatch)
     audio, _, _ = call([Speech("what is PM Kisan")], [_say("It is for farmers.")], delay=0.2)
     assert audio.played.count("one_moment") >= 2
     assert audio.answers == ["It is for farmers."]
+
+
+def test_stage_times_are_on_the_act_row_and_only_in_the_text_when_asked(call, corpus):
+    say = f"PM Kisan gives {_number(corpus, 'pm-kisan')} rupees to farmer families."
+    _audio, client, rows = call([Speech("what is PM Kisan", end_ms=600, stt_ms=500),
+                                 Speech("tell me again")],
+                                [_say(say, scheme="pm-kisan"), _say("", action="repeat")], delay=0.05)
+    acts = [r for r in rows if r.get("ev") == "act"]
+    assert [r["action"] for r in acts] == ["answer", "repeat"]
+    first = acts[0]
+    assert first["end_ms"] == 600 and first["stt_ms"] == 500
+    assert first["model_ms"] >= 50 and first["search_ms"] >= 0 and first["voice_ms"] >= 0
+    assert first["wait_ms"] >= 1100 + first["model_ms"] and first["ms"] >= first["model_ms"]
+    assert "end_ms" not in acts[1] and "stt_ms" not in acts[1]      # no ear time known: left out
+    assert rows.index(first) < max(i for i, r in enumerate(rows) if r.get("ev") == "said")
+    assert "TIMES" not in log_text.log_text(rows)                   # the model's copy has no times
+    assert "TIMES" not in client.calls[1]
+    text = log_text.log_text(rows, times=True)
+    assert "TIMES (ms): end wait 600, speech-to-text 500, search " in text
+    assert text.count("TIMES (ms)") == 2 and "AGENT said its last reply again\n  TIMES" in text
+    old = [{k: v for k, v in r.items() if not k.endswith("_ms")} for r in rows]
+    assert "TIMES" not in log_text.log_text(old, times=True)        # an old log: no line, no error

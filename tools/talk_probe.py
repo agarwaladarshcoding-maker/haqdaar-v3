@@ -228,7 +228,7 @@ def main() -> None:
 
     path = Path(args.logs) / f"{call_id}.jsonl"
     print(f"\n=== the call as the log has it ({path})")
-    print(log_text.log_text(log_text.read_rows(path)) if path.exists() else "(no log file)")
+    print(log_text.log_text(log_text.read_rows(path), times=True) if path.exists() else "(no log file)")
 
 
 if __name__ == "__main__":

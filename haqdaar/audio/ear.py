@@ -759,6 +759,7 @@ class Ear:
 
         # Utterance complete: speech frames gathered
         self.silence_count = 0
+        end_ms = int(getattr(self.vad, "quiet", 0)) * 20
         speech_pcm = self.vad.get_speech_pcm()
 
         # Keycheck again before calling STT
@@ -773,6 +774,7 @@ class Ear:
         # Call STT (timeout handled internally, never raises)
         t0 = time.monotonic()
         stt_res = self.stt.transcribe(speech_pcm, lang=lang, hint=hint)
+        stt_ms = int((time.monotonic() - t0) * 1000)
         self._needs_stale_drain = True
 
         # Check if key arrived during STT
@@ -788,8 +790,9 @@ class Ear:
         if stt_res.success and stt_res.transcript:
             self._log(f'<- speech "{stt_res.transcript}" ({stt_res.lang}, stt {stt_res.latency_s:.2f}s)')
             if tunables.ENGLISH_PIPE:
-                return Speech(text=stt_res.transcript, lang=stt_res.lang, english=stt_res.english)
-            return Speech(text=stt_res.transcript)
+                return Speech(text=stt_res.transcript, lang=stt_res.lang, english=stt_res.english,
+                              end_ms=end_ms, stt_ms=stt_ms)
+            return Speech(text=stt_res.transcript, end_ms=end_ms, stt_ms=stt_ms)
 
         # Speech started but yielded no valid transcript or failed/timed out: NOISE
         if not stt_res.success:

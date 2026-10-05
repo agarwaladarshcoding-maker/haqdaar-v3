@@ -158,8 +158,9 @@ class PhoneAudio:
             self._play(clips, sequence[0] if sequence else "")
         self._filler = sequence == ("one_moment",) and bool(clips)
 
-    def say_text(self, text: str) -> bool:
-        """Say a sentence made during the call (QA_SPEAK). False: nothing was said."""
+    def say_text(self, text: str, on_first: Any = None) -> bool:
+        """Say a sentence made during the call (QA_SPEAK). False: nothing was said.
+        `on_first` is called just before its first sound is sent."""
         if not tunables.QA_SPEAK or self.turn.hung_up.is_set():
             return False
         lang = self.language
@@ -170,6 +171,8 @@ class PhoneAudio:
         key = self._live_key(text, lang)
         audio = self._saved_answer(key)
         cached = audio is not None
+        if audio is None and tunables.LIVE_TTS_STREAM and self._speak is None:
+            return self._say_stream(text, lang, key, t0, on_first)
         if audio is None:
             audio = (self._speak or live_tts.speak)(text, lang)
         self._log(
@@ -183,8 +186,45 @@ class PhoneAudio:
         if self.newer_words():  # 7.5: they spoke again while this was made: never say it
             return False
         self._token_clips["answer"] = ["answer"]
+        if on_first:
+            on_first()
         self.stop_filler()  # after the render, so the filler covers the wait and the answer never queues behind it
         self._play([("answer", bytes(audio))], "answer")
+        return True
+
+    def _say_stream(self, text: str, lang: str, key: str, t0: float, on_first: Any) -> bool:
+        """7.14: say a new sentence as its sound arrives. The first sound goes out about half a
+        second in; the rest comes faster than it plays. The whole sound is saved when it all came."""
+        chunks = live_tts.stream(text, lang)
+        try:
+            head = next(chunks, b"")
+        except Exception:
+            head = b""
+        if not head:
+            self._log(f"-> live say answer ({len(text)} chars, {time.monotonic() - t0:.1f} s, failed)")
+            return False
+        if self.newer_words():
+            chunks.close()
+            return False
+        self._log(f"-> live say answer ({len(text)} chars, first sound {time.monotonic() - t0:.1f} s, streamed)")
+        self._token_clips["answer"] = ["answer"]
+        if on_first:
+            on_first()
+        self.stop_filler()
+        whole = [True]
+
+        def pieces() -> Any:
+            yield head
+            try:
+                yield from chunks
+            except Exception as e:      # the sound stopped part way: what came is said, nothing is saved
+                whole[0] = False
+                self._log(f"!! live voice stopped part way: {e!r}")
+
+        n = self.turn.start_prompt("answer") if hasattr(self.turn, "start_prompt") else None
+        audio = self.mouth.play_stream("answer", pieces(), tag=(n, "answer") if n else None)
+        if whole[0]:
+            self._save_answer(key, audio)
         return True
 
     def _live_key(self, text: str, lang: str) -> str:

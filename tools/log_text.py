@@ -34,7 +34,7 @@ def main() -> int:
     if path is None:
         print(f"no call log found for {args.call!r}", file=sys.stderr)
         return 1
-    print(log_text(read_rows(path), max_chars=args.max_chars))
+    print(log_text(read_rows(path), max_chars=args.max_chars, times=True))
     return 0
 
 

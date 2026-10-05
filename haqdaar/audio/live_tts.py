@@ -3,9 +3,8 @@
 Step 7.2 (C1) — say a sentence made during the call, in the same voice as the recorded lines.
 
 `speak(text, lang)` asks Sarvam's streaming text-to-speech endpoint (bulbul:v3, the same speaker
-and pace as `render.py`) for 8 kHz mu-law and gives the bytes back whole. It reads the stream to
-the end rather than feeding the Mouth as bytes arrive: the Mouth works out a clip's length when
-it is queued, and a clip that grows would break the marks, `#` repeat and the cut-clip stamp.
+and pace as `render.py`) for 8 kHz mu-law and gives the bytes back whole. `stream(text, lang)`
+gives the same sound piece by piece as it arrives (7.14); the Mouth plays it with `play_stream`.
 
 It never raises. Any failure, or running past QA_TTS_TIMEOUT_S, gives None and the caller
 falls back to saying nothing.
@@ -16,7 +15,7 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 
 from dotenv import load_dotenv
 import httpx
@@ -48,36 +47,50 @@ def _as_ulaw(body: bytes) -> bytes:
     return body
 
 
+def stream(text: str, lang: str) -> Iterator[bytes]:
+    """One text in one language -> 8 kHz mu-law, piece by piece as Sarvam sends it (7.14).
+    Raises on a failure or past QA_TTS_TIMEOUT_S. Nothing to say: yields nothing. Costs Sarvam money per call."""
+    deadline = time.monotonic() + tunables.QA_TTS_TIMEOUT_S
+    load_dotenv(BASE_DIR / ".env")
+    key = os.environ.get("SARVAM_API_KEY", "")
+    text = clean(text, lang)
+    if not key or not text or lang not in TTS_LANG:
+        return
+    payload = {
+        "text": text,
+        "target_language_code": TTS_LANG[lang],
+        "speaker": tunables.TTS_SPEAKERS[lang],
+        "model": tunables.TTS_MODEL,
+        "pace": tunables.LIVE_TTS_PACE,
+        "speech_sample_rate": tunables.SAMPLE_RATE,
+        "output_audio_codec": "mulaw",
+    }
+    wav: list[bytes] = []                       # a WAV container cannot be opened piece by piece
+    first = True
+    with httpx.stream(
+        "POST", ENDPOINT, headers={"api-subscription-key": key},
+        json=payload, timeout=tunables.QA_TTS_TIMEOUT_S,
+    ) as response:
+        if response.status_code != 200:
+            raise RuntimeError(f"live voice: http {response.status_code}")
+        for chunk in response.iter_bytes():
+            if time.monotonic() > deadline:
+                raise TimeoutError("live voice: too slow")
+            if not chunk:
+                continue
+            if wav or (first and chunk[:4] == b"RIFF"):
+                wav.append(chunk)
+            else:
+                yield chunk
+            first = False
+    if wav:
+        yield wav_to_ulaw(b"".join(wav))
+
+
 def speak(text: str, lang: str) -> Optional[bytes]:
     """One text in one language -> 8 kHz mu-law bytes, or None. Costs Sarvam money per call."""
-    deadline = time.monotonic() + tunables.QA_TTS_TIMEOUT_S
     try:
-        load_dotenv(BASE_DIR / ".env")
-        key = os.environ.get("SARVAM_API_KEY", "")
-        text = clean(text, lang)
-        if not key or not text or lang not in TTS_LANG:
-            return None
-        payload = {
-            "text": text,
-            "target_language_code": TTS_LANG[lang],
-            "speaker": tunables.TTS_SPEAKERS[lang],
-            "model": tunables.TTS_MODEL,
-            "pace": tunables.LIVE_TTS_PACE,
-            "speech_sample_rate": tunables.SAMPLE_RATE,
-            "output_audio_codec": "mulaw",
-        }
-        chunks: list[bytes] = []
-        with httpx.stream(
-            "POST", ENDPOINT, headers={"api-subscription-key": key},
-            json=payload, timeout=tunables.QA_TTS_TIMEOUT_S,
-        ) as response:
-            if response.status_code != 200:
-                return None
-            for chunk in response.iter_bytes():
-                if time.monotonic() > deadline:
-                    return None
-                chunks.append(chunk)
-        body = b"".join(chunks)
-        return _as_ulaw(body) if body else None
+        body = b"".join(stream(text, lang))
+        return body or None
     except Exception:
         return None

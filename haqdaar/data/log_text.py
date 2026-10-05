@@ -100,7 +100,20 @@ def _cut(text: str, n: int = LINE_CHARS) -> str:
     return text if len(text) <= n else text[: n - 1].rstrip() + "…"
 
 
-def _line(row: dict[str, Any], answer_said: bool) -> Optional[str]:
+_STAGES = (("end_ms", "end wait"), ("stt_ms", "speech-to-text"), ("search_ms", "search"),
+           ("model_ms", "model"), ("voice_ms", "first voice"))
+
+
+def _times(row: dict[str, Any]) -> Optional[str]:
+    """One talk turn's stage times as one short line; None for a row with none (an old log)."""
+    parts = [f"{name} {row[key]}" for key, name in _STAGES if isinstance(row.get(key), int)]
+    if not parts:
+        return None
+    total = f" = {row['wait_ms'] / 1000:.1f} s from the caller's last word" if isinstance(row.get("wait_ms"), int) else ""
+    return "  TIMES (ms): " + ", ".join(parts) + total
+
+
+def _line(row: dict[str, Any], answer_said: bool, times: bool = False) -> Optional[str]:
     ev = row.get("ev")
     if ev == "said":
         words = row.get("en") or row.get("text") or ", ".join(row.get("tokens") or [])
@@ -116,11 +129,14 @@ def _line(row: dict[str, Any], answer_said: bool) -> Optional[str]:
     if ev == "heard":
         return f'CALLER: "{_cut(row.get("text", ""))}"'
     if ev == "act":
+        line = None
         if row.get("action") == "not_for_me":
-            return "AGENT said nothing (the words were not for the agent)"
+            line = "AGENT said nothing (the words were not for the agent)"
         if row.get("action") == "repeat":
-            return "AGENT said its last reply again"
-        return None
+            line = "AGENT said its last reply again"
+        if times:
+            line = "\n".join(x for x in (line, _times(row)) if x) or None
+        return line
     if ev is not None:
         return None
     cls = row.get("class")
@@ -154,12 +170,13 @@ def _line(row: dict[str, Any], answer_said: bool) -> Optional[str]:
     return None
 
 
-def log_text(rows: Iterable[dict[str, Any]], max_chars: int = 0) -> str:
+def log_text(rows: Iterable[dict[str, Any]], max_chars: int = 0, times: bool = False) -> str:
     """The call as one short English line per event, oldest first. Over `max_chars` (0 = no cap),
-    the OLDEST lines go and the newest stay. Pure."""
+    the OLDEST lines go and the newest stay. `times`: add each talk turn's stage times (for a
+    person reading the call; the model's copy of the log never has them). Pure."""
     rows = [r for r in rows if isinstance(r, dict)]
     answer_said = any(r.get("ev") == "said" and r.get("tokens") == ["answer"] for r in rows)
-    lines = [x for x in (_line(r, answer_said) for r in rows) if x]
+    lines = [x for x in (_line(r, answer_said, times) for r in rows) if x]
     if max_chars and max_chars > 0:
         while len(lines) > 1 and len("\n".join(lines)) > max_chars:
             lines.pop(0)

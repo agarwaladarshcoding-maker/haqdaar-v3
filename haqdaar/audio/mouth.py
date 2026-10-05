@@ -18,7 +18,7 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Iterable, Optional
 
 from haqdaar.audio.render import stretch
 from haqdaar.audio.telephony import build_clear, build_mark, build_media
@@ -63,6 +63,50 @@ class Mouth:
             self.last_cut = ("", -1)
             self._resume = []
         self._send(clips, tag)
+
+    def play_stream(self, name: str, chunks: Iterable[bytes], tag: Optional[Tag] = None) -> bytes:
+        """Play ONE clip whose sound arrives in pieces (live voice, 7.14). Each piece is sent as it
+        comes and the clip grows; its one mark is sent after the last piece. A clear() stops the
+        sending, not the reading. Returns the whole sound."""
+        frame = min(tunables.FRAME_BYTES, int(0.200 * tunables.SAMPLE_RATE))
+        with self._lock:
+            self._last = []
+            self._repeats = 0
+            self.last_cut = ("", -1)
+            self._resume = []
+            generation = self._cleared
+            start_t = max(self._clock(), self._play_until)
+            self._seq += 1
+            mark = f"{self._seq}:{name}"
+            self._pending.add(mark)
+            self._marked.discard(name)
+            cs: dict[str, Any] = {"mark": mark, "name": name, "start": start_t, "end": start_t,
+                                  "dur_ms": 0, "tag": tag, "audio": b""}
+            self._clip_schedules.append(cs)
+        whole = bytearray()
+        try:
+            for chunk in chunks:
+                whole += chunk
+                with self._lock:
+                    if self._cleared != generation:
+                        continue
+                    cs["audio"] = bytes(whole)
+                    cs["end"] = start_t + len(whole) / tunables.SAMPLE_RATE
+                    cs["dur_ms"] = int(len(whole) * 1000 / tunables.SAMPLE_RATE)
+                    self._play_until = self._ends[name] = cs["end"]
+                for i in range(0, len(chunk), frame):
+                    if self._cleared != generation:
+                        break
+                    self._emit(build_media(self._sid, chunk[i:i + frame]))
+        finally:
+            with self._lock:
+                live = self._cleared == generation
+                if live:
+                    self._last = [(name, bytes(whole))]
+            if live:
+                self._emit(build_mark(self._sid, mark))
+            self._log(f"-> say {name} ({len(whole) / tunables.SAMPLE_RATE:.1f} s, streamed)")
+        return bytes(whole)
 
     def repeat(self, tag: Optional[Tag] = None) -> None:
         """`#`: say the last sequence again. A second `#` in a row says it slower (D13)."""

@@ -452,3 +452,105 @@ def test_switch_off_the_voice_does_not_stop_the_clip(monkeypatch):
     got = line.phone.next_input("spoken")
     assert not isinstance(got, Speech)
     assert line.mouth.last_cut == ("", -1)
+
+
+# --- 7.14: the live voice plays as its sound arrives --------------------------------------
+
+
+def _media(line: Line) -> list[str]:
+    return [m["event"] for m in line.sent]
+
+
+def test_s14_a_new_sentence_is_sent_piece_by_piece_as_one_clip_and_saved_whole(monkeypatch, tmp_path):
+    monkeypatch.setattr(tunables, "QA_SPEAK", True)
+    monkeypatch.setattr(tunables, "LIVE_TTS_STREAM", True)
+    seen: list[int] = []
+    order: list[str] = []
+    line = Line(pool=AudioPool(audio_dir=tmp_path, tier2="none"))
+
+    def stream(text: str, lang: str):
+        for piece in (b"\x11" * 800, b"\x22" * 800, b"\x33" * 400):
+            yield piece
+            seen.append(len([m for m in line.sent if m.get("event") == "media"]))
+
+    monkeypatch.setattr(live_tts, "stream", stream)
+    assert line.phone.say_text("Six thousand rupees a year.", on_first=lambda: order.append(str(len(line.sent)))) is True
+    assert order == ["0"]                               # called before the first sound is sent
+    assert seen == [1, 2, 3]                            # each piece went out before the next one came
+    assert _media(line) == ["media", "media", "media", "mark"] and _said(line) == ["answer"]
+    assert abs(line.mouth.remaining() - 0.25) < 0.05    # one clip, 2000 bytes long
+    saved = list(tmp_path.glob("*.ulaw"))
+    assert len(saved) == 1 and saved[0].read_bytes() == b"\x11" * 800 + b"\x22" * 800 + b"\x33" * 400
+    line.mouth.clear()
+    monkeypatch.setattr(live_tts, "stream", lambda t, l: (_ for _ in ()).throw(AssertionError))
+    assert line.phone.say_text("Six thousand rupees a year.") is True      # the saved sound, no new ask
+
+
+def test_s14_a_stream_with_no_sound_says_nothing_and_one_that_breaks_is_not_saved(monkeypatch, tmp_path):
+    monkeypatch.setattr(tunables, "QA_SPEAK", True)
+    monkeypatch.setattr(tunables, "LIVE_TTS_STREAM", True)
+    line = Line(pool=AudioPool(audio_dir=tmp_path, tier2="none"))
+
+    def fails(text: str, lang: str):
+        raise RuntimeError("http 500")
+        yield b""
+
+    monkeypatch.setattr(live_tts, "stream", fails)
+    first: list[int] = []
+    assert line.phone.say_text("anything", on_first=lambda: first.append(1)) is False
+    assert line.sent == [] and first == []
+
+    def breaks(text: str, lang: str):
+        yield b"\x11" * 800
+        raise TimeoutError("too slow")
+
+    monkeypatch.setattr(live_tts, "stream", breaks)
+    assert line.phone.say_text("anything") is True
+    assert _media(line) == ["media", "mark"] and list(tmp_path.glob("*.ulaw")) == []
+
+
+def test_s14_a_clear_stops_the_sending_and_off_is_as_before(monkeypatch):
+    monkeypatch.setattr(tunables, "QA_SPEAK", True)
+    monkeypatch.setattr(tunables, "LIVE_TTS_STREAM", True)
+    line = Line(pool=_NoPool())
+
+    def pieces():
+        yield b"\x11" * 800
+        line.mouth.clear()
+        yield b"\x22" * 800
+
+    assert line.mouth.play_stream("answer", pieces()) == b"\x11" * 800 + b"\x22" * 800
+    assert _media(line) == ["media", "clear"] and line.mouth.remaining() == 0.0
+
+    monkeypatch.setattr(tunables, "LIVE_TTS_STREAM", False)
+    off = Line(pool=_NoPool())
+    monkeypatch.setattr(live_tts, "speak", lambda t, l: b"\x55" * 1600)
+    monkeypatch.setattr(live_tts, "stream", lambda t, l: (_ for _ in ()).throw(AssertionError))
+    assert off.phone.say_text("Six thousand rupees a year.") is True
+    assert _media(off) == ["media", "mark"]
+
+
+def test_s14_stream_gives_the_pieces_and_speak_is_their_join(monkeypatch):
+    class Resp:
+        status_code = 200
+
+        def __init__(self, pieces):
+            self.pieces = pieces
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def iter_bytes(self):
+            return iter(self.pieces)
+
+    monkeypatch.setenv("SARVAM_API_KEY", "k")
+    monkeypatch.setattr(live_tts.httpx, "stream", lambda *a, **k: Resp([b"\x01\x02", b"", b"\x03"]))
+    assert list(live_tts.stream("hello", "en")) == [b"\x01\x02", b"\x03"]
+    assert live_tts.speak("hello", "en") == b"\x01\x02\x03"
+    bad = Resp([])
+    bad.status_code = 500
+    monkeypatch.setattr(live_tts.httpx, "stream", lambda *a, **k: bad)
+    assert live_tts.speak("hello", "en") is None

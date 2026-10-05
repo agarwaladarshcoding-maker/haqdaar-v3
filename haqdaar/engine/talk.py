@@ -170,11 +170,19 @@ class _Talk:
             ids += [sid for sid in ranked[SEARCH_K:] if sid in kind]
         return ids
 
+    def _timed(self, stage: str, fn: Any, *args: Any) -> Any:
+        """Run one stage of the turn and add its time to the turn's stage times."""
+        t0 = time.monotonic()
+        try:
+            return fn(*args)
+        finally:
+            self.stage[stage] = self.stage.get(stage, 0.0) + time.monotonic() - t0
+
     def _decide(self, words: str) -> tuple[str, str]:
         """(action, say). At most two model calls: the second only after a refused first reply."""
         # The clear words first, by fixed code (a real call showed the model can miss "farmer schemes").
         _take_facts(talk_words.spot(words, self.corpus), self.bv, self.corpus, self.log, self.turn_n)
-        ids = self._found()
+        ids = self._timed("search", self._found)
         boxes = {b: self.corpus.values(b) for b in SEVEN_BOXES}
         text = log_text.log_text(_rows(self.log), tunables.TALK_LOG_CHARS)
         note = ""
@@ -182,8 +190,8 @@ class _Talk:
         nar, cards = self._state(ids)
         for _try in (0, 1):
             known = {b: v for b, v in self.bv.items() if v != UNASKED}
-            data = _call(self.model, prompt.build(self.lang, text, known, boxes, nar.ask, nar.order,
-                                                  cards, words, note))
+            data = self._timed("model", _call, self.model, prompt.build(
+                self.lang, text, known, boxes, nar.ask, nar.order, cards, words, note))
             wrong_ask = False
             if data is None:
                 break
@@ -196,7 +204,7 @@ class _Talk:
             for box, n in self.asked.items():      # asked twice, still no answer: stop asking it
                 if n >= ASK_TRIES and self.bv.get(box) == UNASKED:
                     self.bv[box] = UNKNOWN
-            ids = self._found()
+            ids = self._timed("search", self._found)
             nar, cards = self._state(ids)          # the facts may have changed the picker's answer
             self.left = nar.left
             if action in ("not_for_me", "repeat", "goodbye"):
@@ -249,21 +257,26 @@ class _Talk:
             return
         parts = _sentences(say)
         warm = getattr(self.audio, "warm_text", None)
-        if warm and parts:
-            warm(parts[0])
-        if before_first:
-            before_first()
+        stream = bool(warm) and tunables.LIVE_TTS_STREAM    # the first sentence plays as its sound arrives
         ahead = []                              # the later sentences are made while the first is said
         for sentence in parts[1:] if warm else []:
             ahead.append(threading.Thread(target=warm, args=(sentence,), daemon=True))
             ahead[-1].start()
+        if warm and parts and not stream:
+            warm(parts[0])
+        if before_first and not stream:
+            before_first()
         for n, sentence in enumerate(parts):
             if n and ahead:
                 ahead[n - 1].join(timeout=tunables.QA_TTS_TIMEOUT_S)
-            self.audio.say_text(sentence)
+            if stream and n == 0:
+                self.audio.say_text(sentence, on_first=before_first)
+            else:
+                self.audio.say_text(sentence)
 
-    def _turn(self, words: str) -> str:
+    def _turn(self, words: str, end_ms: int = -1, stt_ms: int = -1) -> str:
         self.turn_n += 1
+        self.stage = {}
         self.heard.append(words)
         self.log.write({"ev": "heard", "text": mask_digits(words)})
         t0 = time.monotonic()
@@ -295,13 +308,31 @@ class _Talk:
         try:
             action, say = self._decide(words)
             back[0] = time.monotonic()
-            self.log.write({"ev": "act", "action": action, "scheme": self.focus,
-                            "ms": int((time.monotonic() - t0) * 1000)})
+            row: dict[str, Any] = {
+                "ev": "act", "action": action, "scheme": self.focus, "ms": int((back[0] - t0) * 1000),
+                "end_ms": end_ms if end_ms >= 0 else None, "stt_ms": stt_ms if stt_ms >= 0 else None,
+                "search_ms": int(self.stage.get("search", 0.0) * 1000),
+                "model_ms": int(self.stage.get("model", 0.0) * 1000)}
+
+            def first_voice() -> None:
+                """The first sentence's sound is ready: the stage times are whole, the row is written."""
+                stop_filler()
+                if "ev" not in row:
+                    return
+                now = time.monotonic()
+                row["voice_ms"] = int((now - back[0]) * 1000)
+                row["wait_ms"] = max(end_ms, 0) + max(stt_ms, 0) + int((now - t0) * 1000)
+                self.log.write(dict(row))
+                row.clear()
+
             if action == "repeat":
                 say = self.last_say
             if say:
-                self._speak(say, stop_filler)
+                self._speak(say, first_voice)
                 self.last_say = say
+            if "ev" in row:                         # nothing was said (or no voice on this audio)
+                self.log.write(dict(row))
+                row.clear()
         finally:
             stop_filler()
         return action
@@ -337,7 +368,7 @@ class _Talk:
                 continue
             if not isinstance(inp, Speech) or not inp.text.strip():
                 continue                        # noise: say nothing, keep listening
-            if self._turn(inp.text.strip()) == "goodbye":
+            if self._turn(inp.text.strip(), inp.end_ms, inp.stt_ms) == "goodbye":
                 return self._end(farewell=True)
 
 

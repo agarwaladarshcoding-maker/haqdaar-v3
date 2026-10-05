@@ -133,6 +133,8 @@ TTS_SPEAKERS: dict[str, str] = {
 # 15 Sep: the owner said the voice was too fast at 1.0.
 TTS_PACE: float = float(os.environ.get("TTS_PACE", 0.9))
 # Live voice only. The 582 recorded clips keep TTS_PACE (it is part of their render key).
+# 7.14: play the live voice as its sound arrives (first sound ~0.4 s in, not after the whole sentence). Off: as before.
+LIVE_TTS_STREAM: bool = os.environ.get("LIVE_TTS_STREAM", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
 LIVE_TTS_PACE: float = float(os.environ.get("LIVE_TTS_PACE", 1.0 if TALK_ONLY else TTS_PACE))
 TTS_WORKERS: int = int(os.environ.get("TTS_WORKERS", 3))
 TTS_TIMEOUT_S: float = float(os.environ.get("TTS_TIMEOUT_S", 60))
