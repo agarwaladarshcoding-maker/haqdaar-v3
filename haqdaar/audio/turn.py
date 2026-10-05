@@ -466,8 +466,12 @@ class Turn:
                     self._log_event(event="speech", value="", took=False, why="key_beat_speech")
                 self.prompt_open = False
                 return inp
-            if isinstance(inp, (Silence, Noise)):
+            if isinstance(inp, Silence):
                 self.prompt_open = False
+                return inp
+            if isinstance(inp, Noise):
+                # Sound with no words is not an answer: the phone waits on, so a key that comes
+                # next must still be taken (a closed prompt dropped it, call ..50a7a2).
                 return inp
             # Speech: prompt stays open until confirm / router
             if isinstance(inp, Speech):

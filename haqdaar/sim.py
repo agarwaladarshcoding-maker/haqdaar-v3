@@ -20,6 +20,8 @@ import tempfile
 import time
 from typing import Any, Optional
 
+from haqdaar.audio.lang_words import is_bare_greeting, language_from_words
+from haqdaar.audio.turn import real_words
 from haqdaar.contracts import tunables
 from haqdaar.contracts.types import (
     Digit,
@@ -190,6 +192,7 @@ class FakeAudio:
         clock: Optional[Any] = None,
     ) -> None:
         self.language: Lang = language
+        self.first_words = ""
         self.fallback: list[str] = list(fallback) if fallback else list(PERSONAS[DEFAULT_PERSONA])
         self.played_lines: list[str] = []
         self._last_played: tuple[str, ...] = ()
@@ -227,8 +230,19 @@ class FakeAudio:
         self.prompt_start_t = self._clock()
         self._current_prompt = "greeting_trilingual"
 
+        self.first_words = ""
         val = self._get_next_raw_input("Select language (key 1 is the first offered, default 1): ")
         picked = tunables.turn0_keys().get(val)
+        # As on the phone: in a talk call, words that name no language start the talk. The sim has
+        # no speech service, so the language is the one the words name, else Hindi.
+        if (picked is None and tunables.TALK_ONLY and real_words(val)
+                and val.lower() not in ("s", "n", "h", "silence", "noise", "hangup") and not val.isdigit()):
+            named = language_from_words(val)
+            self.language = named or "hi"
+            if named is None and not is_bare_greeting(val):
+                self.first_words = val
+            self.note(f"<- voice: language {self.language}")
+            return self.language, "voice"
         self.note(f"<- key {val}: language {picked or 'hi'}")
         self.language = picked or "hi"
         return self.language, "keypad" if picked else "default"

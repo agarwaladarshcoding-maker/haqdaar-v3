@@ -9,7 +9,8 @@ Everything after that is the real thing: ear, Sarvam speech-to-text, search, mod
   .venv/bin/python -m tools.talk_probe --script farmer                           (another)
 
 A script is a list of steps: "key:1", "say:<words>", "over:<words>" (talk while the agent talks),
-"during:<words>" (start 1.2 s into the agent's reply), "quiet:<seconds>". The probe waits for the agent to finish before each "say".
+"during:<words>" (start 1.2 s into the agent's reply), "quiet:<seconds>", "hiss:<seconds>" (a loud
+hiss after the agent has finished, no words). The probe waits for the agent to finish before each "say".
 """
 from __future__ import annotations
 
@@ -36,6 +37,10 @@ VOICES = {"hi": "Lekha", "en": "Rishi"}
 SCRIPTS: dict[str, tuple[str, list[str]]] = {
     # the language is SAID, no key at all (5 Oct 12:43: a caller who spoke at the greeting got a quiet line)
     "voicepick": ("hi", ["say:हिंदी", "say:मुझे खेती की योजना चाहिए", "say:ठीक है धन्यवाद, बस इतना ही"]),
+    # step 1.1: a full question at the greeting is turn 1, no "which language" step and no second hello
+    "hindiquestion": ("hi", ["say:पीएम किसान में कितना पैसा मिलता है", "say:ठीक है धन्यवाद, बस इतना ही"]),
+    # step 1.1: a noise with no words after the greeting, then key 1: the key must be taken
+    "noisekey": ("hi", ["hiss:2.0", "key:1", "say:मुझे खेती की योजना चाहिए", "say:ठीक है धन्यवाद, बस इतना ही"]),
     # the owner's call of 5 Oct, word for word
     "farmer": ("hi", ["key:1", "say:मेरे को फार्मर स्कीम्स के बारे में जानना है", "say:मेरे को खेती से जुड़ी योजनाएं चाहिए",
                       "say:पीएम किसान में कितना पैसा मिलता है", "say:इसके लिए कौन से कागज़ लगेंगे",
@@ -77,6 +82,14 @@ def voice(text: str, lang: str, gain: float = 1.0) -> bytes:
     if gain != 1.0:
         pcm = audioop.mul(pcm, 2, gain)
     return audioop.lin2ulaw(pcm, 2)
+
+
+def hiss_frames(seconds: float) -> list[bytes]:
+    """A loud hiss, loud but not a voice, as caller frames."""
+    rnd = random.Random(1)
+    count = int(seconds * 8000)
+    hiss = audioop.lin2ulaw(struct.pack(f"<{count}h", *[max(-32000, min(32000, int(rnd.gauss(0, 3000)))) for _ in range(count)]), 2)
+    return [hiss[i:i + FRAME].ljust(FRAME, b"\xff") for i in range(0, len(hiss), FRAME)]
 
 
 class Probe:
@@ -216,16 +229,19 @@ async def run(script: str, url: str) -> str:
                 if kind == "during":
                     await p.say(arg, lang, wait=False)
                 else:                           # a loud hiss: loud, but not a voice
-                    rnd = random.Random(1)
-                    count = int(float(arg) * 8000)
-                    hiss = audioop.lin2ulaw(struct.pack(f"<{count}h", *[max(-32000, min(32000, int(rnd.gauss(0, 3000)))) for _ in range(count)]), 2)
                     cleared = p.clears
                     p.note(f"NOISE: {arg} s of loud hiss")
-                    p.out += [hiss[i:i + FRAME].ljust(FRAME, b"\xff") for i in range(0, len(hiss), FRAME)]
+                    p.out += hiss_frames(float(arg))
                     while p.out and not p.closed:
                         await asyncio.sleep(0.02)
                     await asyncio.sleep(1.0)
                     p.note(f"   the agent {'STOPPED for the noise' if p.clears > cleared else 'went on talking'}")
+            elif kind == "hiss":                # a loud hiss once the agent has finished
+                await p.agent_done()
+                p.note(f"NOISE: {arg} s of loud hiss, after the agent")
+                p.out += hiss_frames(float(arg))
+                while p.out and not p.closed:
+                    await asyncio.sleep(0.02)
             elif kind == "over":
                 await asyncio.sleep(1.5)
                 await p.say(arg, lang, wait=False)

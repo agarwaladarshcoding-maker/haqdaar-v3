@@ -23,10 +23,10 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
 from haqdaar.audio import live_tts
-from haqdaar.audio.lang_words import language_from_words
+from haqdaar.audio.lang_words import is_bare_greeting, language_from_code, language_from_words
 from haqdaar.audio.lines import MENU_KEYS
 from haqdaar.audio.mouth import Clip, Mouth
-from haqdaar.audio.turn import HANGUP, Turn
+from haqdaar.audio.turn import HANGUP, Turn, real_words
 from haqdaar.contracts import tunables
 from haqdaar.contracts.types import (
     SCHEME_CHUNKS, Digit, Hangup, Input, Lang, LangSource, Noise, Silence, Speech, compute_render_key,
@@ -78,6 +78,7 @@ class PhoneAudio:
             self.turn._log = self._log
         self._speak = speak   # text, lang -> mu-law bytes or None; live Sarvam when not given
         self.language: Lang = "hi"
+        self.first_words = ""   # words said at the greeting that start the talk: its first turn
         self._silence = 0
         self._token_clips: dict[str, list[str]] = {}   # token -> names of the clips it played
         self._filler = False   # 7.4: "one_moment" was said and not yet stopped
@@ -91,7 +92,10 @@ class PhoneAudio:
         """Say the greeting and wait once. A language key gives (lang, "keypad"); with voice on,
         a language said gives (lang, "voice"). Anything else comes back as the input it was
         (Silence, Hangup, a wrong key, words that name no language): the engine asks again,
-        so no language is ever picked for a caller who did not pick one."""
+        so no language is ever picked for a caller who did not pick one. A talk call is the
+        exception: real words that name no language start the talk, in the language the speech
+        service heard, and the words are kept in `first_words` as turn 1."""
+        self.first_words = ""
         self.say(("greeting_trilingual",))
         # A talk call hears the language by voice too (a caller who came to talk says "Hindi" and
         # then waits; with keys only the line stayed quiet for 30 s and looked dead, 5 Oct 12:43).
@@ -101,6 +105,8 @@ class PhoneAudio:
             if isinstance(heard, Speech):
                 lang = language_from_words(heard.text)
                 self._silence = 0
+                if lang is None and tunables.TALK_ONLY and real_words(heard.text):
+                    return self._start_talk(heard)
                 if lang is None:
                     self._log("<- voice: no language heard")
                     return heard
@@ -124,6 +130,15 @@ class PhoneAudio:
         self._silence = 0
         self._log(f"<- key {key}: not a language")
         return Digit(digit=key)
+
+    def _start_talk(self, heard: Speech) -> tuple[Lang, LangSource]:
+        """Words at the greeting that name no language: the talk starts. "hello?" alone is not a
+        need, so it keeps no first words and the talk says its own short hello."""
+        self.language = language_from_code(heard.lang)
+        if not is_bare_greeting(heard.text):
+            self.first_words = heard.text.strip()
+        self._log(f"<- voice: language {self.language} (said words, the talk starts)")
+        return self.language, "voice"
 
     def _quiet_wait_s(self) -> float:
         """How long to wait for the caller's reply: the long first wait, then the rest of the way

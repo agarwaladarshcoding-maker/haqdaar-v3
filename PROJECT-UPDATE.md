@@ -1599,3 +1599,26 @@ What the caller hears in a normal call is the same as before.
 - *Not proven without a phone:* that Twilio's signature matches through the tunnel, and that
   Twilio really asks `/answer-again` when a stream drops. One phone call shows both.
 
+
+## 5 Oct 2026, late night: step 1.0 pushed; step 1.1 part A built (the greeting door). Not tried on the phone yet.
+- *Step 1.0.* The owner's phone call worked (replies felt a bit slow on the hall network). It is
+  committed and pushed (a3958c6).
+- *Added, step 1.1 part A (no cost).* In a talk call:
+  - Any real words at the greeting start the talk. A full Hindi question is no longer "no
+    language heard". The language is the one Sarvam heard: Hindi, Marathi or English; any other
+    is Hindi for now.
+  - Those words are the first turn. They are answered, and there is no second hello.
+  - "hello?" or "haan?" alone gets the talk's short hello, not the whole greeting again.
+  - A noise with no words no longer shuts the keys: noise, then key 1, works.
+- *Checked, not changed.* Room sound does not reset the 30 s quiet rule; a test now pins it.
+- *Not built yet (rest of 1.1).* The new greeting words (five languages): they need a paid Sarvam
+  render and the owner's OK on the words. Key 6 at the greeting. The 60 s answering-machine rule.
+- *Still true.* Words said WHILE the greeting plays are thrown away (that is step 2.3). "Hindi
+  mein PM Kisan batao" picks Hindi and drops the rest.
+- *Checks.* 2,448 tests pass, none fail. 2,552 scripted talk calls break no rule. Stress: 1,000
+  callers, 0 crashes, 0 truth failures. Cut-in check: 65,622 runs, the same red rows as before
+  the step (C4.voice, C7, C8, C15, C18.bed550, C18.bed900, 8 of C19).
+- *What the project can do now.* A caller can start talking right after the greeting, in a full
+  sentence, and gets an answer to that sentence.
+- *Side folders, to merge later.* 1.3a (Muse) and 1.5a (Antigravity) started before 1.0. They are
+  merged into this branch after the phone check of 1.1, 1.3a first.

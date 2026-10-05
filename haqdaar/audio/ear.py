@@ -796,10 +796,9 @@ class Ear:
 
         if stt_res.success and stt_res.transcript:
             self._log(f'<- speech "{stt_res.transcript}" ({stt_res.lang}, stt {stt_res.latency_s:.2f}s)')
-            if tunables.ENGLISH_PIPE:
-                return Speech(text=stt_res.transcript, lang=stt_res.lang, english=stt_res.english,
-                              end_ms=end_ms, stt_ms=stt_ms)
-            return Speech(text=stt_res.transcript, end_ms=end_ms, stt_ms=stt_ms)
+            # The code is kept always: at the greeting the talk call takes its language from it.
+            return Speech(text=stt_res.transcript, lang=stt_res.lang, english=stt_res.english,
+                          end_ms=end_ms, stt_ms=stt_ms)
 
         # Speech started but yielded no valid transcript or failed/timed out: NOISE
         if not stt_res.success:

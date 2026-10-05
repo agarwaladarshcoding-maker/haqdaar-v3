@@ -664,7 +664,7 @@ class Engine:
         # --- 2b. Talk only (7.13): no keys after the language pick. The keys path below is untouched.
         if tunables.TALK_ONLY:
             from haqdaar.engine import talk
-            return talk.run(audio, model, corpus, log, lang)
+            return talk.run(audio, model, corpus, log, lang, first_words=getattr(audio, "first_words", ""))
 
         # --- 3. Mode Initialization ---
         # Keypad-only mode is entered when model is None or keypad-only requested

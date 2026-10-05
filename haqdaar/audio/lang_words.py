@@ -57,3 +57,27 @@ def language_from_words(text: str) -> Lang | None:
                 found.add(keys[key])
     found &= set(keys.values())
     return found.pop() if len(found) == 1 else None
+
+
+# The code the speech service sends back ("hi-IN", "mr-IN", "en-IN"): the language of a caller who
+# spoke at the greeting without naming one. The code knows three languages; any other code, or
+# none, is Hindi.
+def language_from_code(code: str) -> Lang:
+    lang = (code or "").strip().lower().split("-")[0]
+    return lang if lang in NAMES else "hi"  # type: ignore[return-value]
+
+
+# A caller who only says "hello?" or "haan?" is checking the line is alive. Not a need: no first
+# words, and the talk's own short hello answers. Every word must be one of these.
+BARE_GREETINGS = frozenset({
+    "hello", "hallo", "helo", "hi", "hey", "haan", "han", "haa", "ha", "ji", "jee",
+    "हैलो", "हेलो", "हलो", "हाय", "हां", "हाँ", "हा", "जी", "जि", "हांजी", "हाँजी", "होय", "हो",
+})
+
+
+_BARE = frozenset(_plain(g) for g in BARE_GREETINGS)
+
+
+def is_bare_greeting(text: str) -> bool:
+    words = _NON_WORD.sub(" ", _plain(text)).split()
+    return bool(words) and all(w in _BARE for w in words)

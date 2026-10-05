@@ -383,8 +383,13 @@ class _Talk:
             reason = STOP_LE_4_SURVIVORS if 0 < len(self.left) <= tunables.STOP_SURVIVORS else STOP_NO_SPLIT
         self.log.close(reason=reason, ladder_rung=0, mode="voice")
 
-    def run(self) -> None:
-        self._speak(prompt.HELLO.get(self.lang, prompt.HELLO["en"]))
+    def run(self, first_words: str = "") -> None:
+        if first_words:
+            # The caller already asked at the greeting: answer that, with no second hello.
+            if self._turn(first_words) == "goodbye":
+                return self._end(farewell=True)
+        else:
+            self._speak(prompt.HELLO.get(self.lang, prompt.HELLO["en"]))
         while True:
             if self.turn_n >= tunables.TALK_MAX_TURNS:
                 return self._end(farewell=True)
@@ -408,6 +413,7 @@ class _Talk:
                 return self._end(farewell=True)
 
 
-def run(audio: Any, model: Any, corpus: Any, log: Any, lang: str, index: Any = None) -> None:
-    """The rest of the call after the language pick. Ends the call itself."""
-    _Talk(audio, model, corpus, log, lang, index).run()
+def run(audio: Any, model: Any, corpus: Any, log: Any, lang: str, index: Any = None, first_words: str = "") -> None:
+    """The rest of the call after the language pick. Ends the call itself. `first_words`: what the
+    caller said at the greeting; it is turn 1 and the hello is skipped."""
+    _Talk(audio, model, corpus, log, lang, index).run(first_words)

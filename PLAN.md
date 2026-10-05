@@ -73,6 +73,7 @@ Small guards, no change to what the caller hears. Each was found by reading; see
   `scratch/` is ignored, junk files cleared.
 
 ### 1.1 The greeting door
+**PART A BUILT 5 Oct late night (not yet tried on the phone).** Keys stay open after a noise; any real words at the greeting start the talk; the words are turn 1 with no second hello; "hello?" alone gets the short hello. NOT built yet: the new greeting words (part B, paid render, owner's OK), key 6 at the greeting, the 60 s answering-machine rule. Details: `.agent/NOTES.md`, "Step 1.1 part A".
 - Keys stay open after a noise with no words.
 - Any real words at the greeting start the talk. They are kept as turn 1.
 - New greeting: hello in Hindi, English and 3 set languages (a setting, not from the phone

@@ -52,6 +52,16 @@ make talk-eval
   turns connect-again off. Read the `line    report:` line of the call in `logs/server.log`.
 - The no-phone probe needs `PHONE_CHECK=false` on its server.
 
+## Step 1.1 part A is built (5 Oct late night), waiting for one phone call
+- In a talk call, any real words at the greeting start the talk and are answered as turn 1.
+  The language is the one Sarvam heard (Hindi, Marathi or English; anything else is Hindi).
+- A noise at the greeting no longer shuts the keys. "hello?" alone gets the talk's short hello.
+- Left of 1.1: the new greeting words (part B: paid render, the owner's OK first), key 6 at the
+  greeting, the 60 s answering-machine rule.
+- Two side folders are to be merged into this branch after the phone check: `~/code/haqdaar-v2-1.3`
+  (1.3a, Muse) first, then `~/code/haqdaar-v2-1.5` (1.5a, Antigravity; its diff has open points
+  in NOTES, "Turn 14"). Both started before 1.0.
+
 ## Limits to keep in mind
 - One caller at a time.
 - Groq: 8,000 tokens a minute and 200,000 a day for each model. A talk turn is about 3,000.
