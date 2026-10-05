@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls calls-ui sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock barge-eval log-text stage-check door-a-check qa-check qa-router-check talk-eval talk-questions
+.PHONY: run call calls calls-ui sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me mac-call ear-check model-bakeoff muse-status muse-block muse-unblock barge-eval log-text stage-check door-a-check qa-check qa-router-check talk-eval talk-questions
 
 test:
 	$(PYTHON) -m pytest
@@ -23,6 +23,11 @@ run:
 calls:
 	$(PYTHON) -m tools.calls
 
+# 5 Oct: the line's own sound record of a call placed with CALL_RECORD=true (newest, or ID=CA...).
+# Saves it under logs/recordings/ and says where the sound has holes on our side and the caller's.
+recording:
+	$(PYTHON) -m tools.recording $(ID)
+
 # The call page: each call as a back and forth with timings. This computer only (port 8001).
 calls-ui:
 	$(PYTHON) -m tools.call_viewer $(ARGS)
@@ -37,6 +42,10 @@ call:
 # Times tiny requests to the tunnel, Sarvam and Groq first; a weak net means no ring (WEAK_OK=1 rings anyway).
 call-me:
 	caffeinate -dimsu $(PYTHON) -m tools.run_demo
+
+# 5 Oct: talk to the system on this Mac (mic and speakers), no phone, no Twilio. Use headphones. PORT=8001 by default.
+mac-call:
+	$(PYTHON) -m tools.mac_call --serve --port $(or $(PORT),8001)
 
 # 5 Oct: run a few minutes before a demo call. Says what is ready and what is not. Places no call.
 stage-check:

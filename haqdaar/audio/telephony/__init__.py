@@ -39,6 +39,7 @@ SIGNATURE_HEADER: str = provider.SIGNATURE_HEADER
 place_call = provider.place_call
 point_number_at = provider.point_number_at
 recent_calls = provider.recent_calls
+call_recording = provider.call_recording
 
 __all__ = [
     "ConnectedEvent",
@@ -60,5 +61,6 @@ __all__ = [
     "place_call",
     "point_number_at",
     "recent_calls",
+    "call_recording",
     "provider",
 ]

@@ -89,6 +89,7 @@ InboundEvent = Union[
 #   place_call(to_number, answer_url, opener=None) -> str      ring a number; call id
 #   point_number_at(answer_url) -> str         dial-ins go to answer_url; old url
 #   recent_calls(limit=5) -> list[dict]        newest first
+#   call_recording(call_sid="") -> (call id, WAV bytes)        the line's own sound record of a call
 PROVIDER_FUNCTIONS: dict[str, tuple[str, ...]] = {
     "parse_event": ("data",),
     "build_media": ("stream_sid", "payload"),
@@ -101,4 +102,5 @@ PROVIDER_FUNCTIONS: dict[str, tuple[str, ...]] = {
     "place_call": ("to_number", "answer_url", "opener"),
     "point_number_at": ("answer_url",),
     "recent_calls": ("limit",),
+    "call_recording": ("call_sid",),
 }

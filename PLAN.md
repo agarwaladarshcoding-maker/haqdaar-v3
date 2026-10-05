@@ -15,6 +15,7 @@ The charts in `flow/` are the design. This file is the order of work.
 - **Later, not planned yet:** greeting languages picked from the place of the caller's number;
   100+ schemes; an Indian phone number.
 - **After every step:** the checks of section 7 and one phone call by the owner.
+  (From 5 Oct ~18:00 this one call may be a Mac call, step 1.9. Phase 2 starts with 2.0.)
 - **After every phase, the whole system is checked before the next one starts (the gate):**
   1. `pytest`, `make talk-eval`, `make stress`, `make barge-eval`: all clean.
   2. Five phone calls by the owner from a fixed list: a named scheme; a situation; a rude
@@ -269,7 +270,34 @@ After the first answer a real caller does not ask clean questions. Each line bel
 - Check: one talk-eval script per group; the "by code" cases in pytest; 10 real-model turns on
   the owner's word; phone check with the owner playing a rude, a slow and a confused caller.
 
+### 1.9 The Mac call (added 5 Oct ~18:00, the owner's plan for the demo)
+The owner: the phone leg (Twilio in the US, the hotspot) breaks the sound and adds a wait, and
+it is not the part we are building. So for the demo and for every step check, talk to the
+system on the Mac itself: the Mac's microphone in, the Mac's speakers or headphones out.
+- `make mac-call` starts the server with no phone and runs `tools/mac_call.py`. The tool plays
+  Twilio's part on the same `/stream` socket (8 kHz sound, marks, clear, keys typed in the
+  terminal). Nothing under `haqdaar/` changes, so what is shown IS the real call path: ear,
+  language, model, search, voice, log.
+- What it takes out: Twilio's trial message, the US leg, the tunnel, the number-move question.
+  What stays: Sarvam (ear, voice) and Groq over the network, so the hotspot or hall network
+  still sets the reply time.
+- Headphones. With the speakers the microphone hears the agent's own voice. Today that sound is
+  thrown away while a clip plays (cut-in is off), so a plain talk works on speakers; any cut-in
+  test needs headphones.
+- The step check "one phone call by the owner" may be a Mac call from now on. The phase gate
+  keeps its five PHONE calls: the phone line is still what a real caller gets.
+- Not in this step: a recording of the Mac call (the call's log and trace are written as for
+  any call); a screen that shows the log live.
+- Added 5 Oct ~18:50 (owner asked): the screen now shows the talk live. `make mac-call` prints what
+  the ear heard (YOU), what the agent says (AGENT), keys, what the agent chose and the reply time.
+  It reads the call's own log, so nothing under `haqdaar/` changed. `--plain` for no colour.
+
 ## 3. Phase 2: cut-in (chart 2)
+- 2.0 (added 5 Oct ~18:00) Cut-in on the Mac first. One Mac call with headphones and
+  `CUT_IN_GATE=true`: talk over a reply, cough, stay quiet, talk over the greeting. Costs no
+  phone time and has no phone-leg noise, so what goes wrong is our gate and nothing else. Read
+  the call's trace: every stop of the voice must have a reason line. Its result picks the order
+  of 2.2 to 2.5. The same call on the phone is 2.1.
 - 2.1 Phone check of the gate as built (`CUT_IN_GATE=true`). Costs nothing; do it first.
 - 2.2 Ear on from the first sound of a reply.
 - 2.3 Cut-in at the greeting: real words stop it and become turn 1.
@@ -285,6 +313,100 @@ After the first answer a real caller does not ask clean questions. Each line bel
 - 3.4 Language by key: 1 Hindi, 2 English, 3 to 5 the set languages.
 - 3.5 Three clarifying questions with no usable reply: offer keys.
 - 3.6 `make stress` (1,000 callers), `make barge-eval`, mixed keys-and-talk scripts, phone check.
+
+## 4b. Phase 4: a photo by a link in an SMS (added 5 Oct ~18:50; changed ~19:30 on the owner's word)
+What it is: in a call the caller asks to send a photo. The line sends an SMS with a link to the
+caller's own number. The link opens one small page. The page already knows the number, takes
+many photos, and has one send button. A reader looks at the photos, a helper at a desk checks
+the result, and the line calls the caller back and says the answer, with the scheme that fits.
+It sits next to cut-in and keys; it changes neither.
+(The first plan said a 3-digit code on the call, typed into the page. The owner dropped the
+code at ~19:30: a link, nothing to type.)
+
+The flow, box by box:
+1. In a call the caller says photo words ("फोटो भेजना है", "photo pathavaycha aahe", "I want
+   to send a photo"), or presses key 9. Found by a word list in code, not by the model.
+2. The agent says one fixed line: "I am sending a link to this phone by SMS. Open it and send
+   the photos. I will call you back." A case is saved: a long random token, the language, the
+   caller's number, the time. The SMS goes out. The talk then goes on as before.
+3. The link is `<photo address>/p/<token>`. The number is NOT in the link; the token stands
+   for it, and the page shows only "for the phone ending 4321". Nothing is typed.
+4. The page is one small file (no outside file, under 20 KB), so it opens fast on a slow line.
+   Two big buttons: "take a photo" (camera) and "pick photos" (many at once). Up to 6 photos,
+   shown small, each can be taken out again. Each is made small on the phone (about 1,000 dots
+   wide), so a send is quick. One button: "send".
+5. The reader gets all the photos of the case and gives: what they show, what looks wrong, how
+   sure, words to search our schemes with. Our own search then picks the scheme.
+6. The desk page (this laptop only) shows the photos, the reader's result, the scheme, and the
+   text that will be said. The helper can change the text, then presses "call back".
+7. The line calls the caller. The call opens with the answer in the caller's language, not the
+   greeting. After it the caller can talk as in any call.
+
+The reader is NOT ours to build (owner, ~19:30). The team is finding a model made for crops
+now, and others later. It runs on a computer of ours ("local"), with a Muse API as the backup.
+Our part is the plug: `PHOTO_READER=stand-in | http | muse`. `http` posts the photos to
+`PHOTO_READER_URL` and takes back the same five fields. Until a reader is plugged in, the desk
+says "no reader set" and the helper writes the answer.
+
+Rules:
+- The reader's words are never said to a caller before a helper pressed "call back".
+- No medicine name and no dose comes from the reader. Only what the helper typed.
+- The caller's number is kept for the case only, in one file, and wiped after the call-back or
+  after 24 hours. This is the one place a number is kept; the call log still holds none. The
+  number is never in the link, never on a page in full, never in a log line.
+- A link lives 24 hours. A wrong token gets "link not found"; many wrong tries from one address
+  are slowed down. A photo over 5 MB or not a picture is refused. At most 6 photos a case.
+- Two small servers in one tool (`tools/photo_desk.py`), NOT on the call server: the photo page
+  on port 8002, which is the only one the outside can reach, and the desk on port 8003, bound to
+  this laptop. They are apart because a tunnel makes every visitor look like this laptop, so
+  "is it this laptop" can not guard a page behind a tunnel.
+- The photo page must be reached from the caller's phone, so it needs an address the phone can
+  open: `PHOTO_BASE_URL`. For the demo, on the hotspot, the laptop's own address works with no
+  tunnel when the phone is the hotspot. For any other phone it needs its own tunnel.
+- One caller at a time holds: the call-back waits while a call is live.
+
+Steps:
+- 4.1 The case store and the pages (new files only, no call code). Antigravity.
+  `haqdaar/photo/cases.py`, `haqdaar/photo/reader.py`, `tools/photo_desk.py`, `make photo-desk`,
+  tests. Prompt: `.agent/PROMPT-antigravity-photo.md`.
+- 4.2 In the call: photo word list, key 9 in a talk call, the fixed line, the case, the SMS.
+  The caller's number is taken at `/answer` (the server keeps only a hash of it today). A new
+  provider function `send_sms`. Claude.
+- 4.3 The call-back: "call back" places the call; the call opens with the answer. One pending
+  answer in a file, read at call start (one caller at a time makes this safe). Works for the
+  Mac call too: press "call back", run `make mac-call`, the agent opens with the answer. Claude.
+- 4.4 The reader plug is filled when the team has its model. Not our build.
+- 4.5 Check: a Mac call sends the link (shown on the screen too); the phone opens it and sends
+  three photos; the desk shows them; "call back"; the answer is heard. Then the same by phone.
+- Open risks, said plainly: (a) SMS on the Twilio trial goes only to a checked number, starts
+  with Twilio's trial words, and an SMS from a US number to India is often held back by the
+  Indian networks. So the link is ALSO shown on the Mac call screen and on the desk, and one
+  real SMS is tried before the demo. (b) A keypad phone can not open a link: the caller passes
+  the SMS on, or a person near them opens it. The page works on any phone that has the link.
+- Not in this phase: WhatsApp, many helpers, a queue of cases, photos of papers (Aadhaar and
+  such: private, not taken).
+
+## 4c. The next two hours (5 Oct ~19:00 to ~21:00), who does what
+Three workers side by side; the file sets do not cross.
+- Muse: finishes 1.3b in `~/code/haqdaar-v2-1.3` (already running).
+- Antigravity: step 4.1 in a new folder `~/code/haqdaar-v2-photo`, prompt in
+  `.agent/PROMPT-antigravity-photo.md`. New files only.
+- Claude, in this order:
+  1. 0:00 Commit what is loose here (Mac call + its screen, recording tool, plan).
+  2. 0:10 Merge 1.5b; wire search by part into the talk on `phase1-merge`. Translate (1.4) is NOT
+     wired for the demo: the read of a4bb9f2 found the guard refuses good Hindi lines ("a loan"
+     -> "एक कर्ज", "18-40 years"), so a caller would hear English. The talk keeps answering in the
+     caller's language straight from the model, as it does today. The guard gets a fix pass later.
+  3. 0:40 Step 2.0: the owner makes one Mac call with headphones and `CUT_IN_GATE=true`. Claude
+     reads the trace and fixes what the gate got wrong (2.2 to 2.4 as the call shows).
+  4. 1:00 Read and merge 1.3b when Muse is done. Steps 4.2 + 4.3 (code in the call, call-back).
+  5. 1:20 Read Antigravity's 4.1, join it.
+  6. 1:35 Step 4.5, the whole run, by the owner. Fix what breaks.
+  7. 1:50 Full tests, talk-eval, commit, tag the demo.
+- Keys in these two hours: only key 9 (the photo code) in a talk call. The rest of Phase 3
+  (3.1 to 3.6) does not fit in two hours and is not started.
+- What can slip: if 1.3b is late, the demo runs on v5-clean + 1.5b + 1.4b without it. If the
+  gate is bad on the Mac call, cut-in stays off for the demo and photo goes first.
 
 ## 5. Risks, and what guards each
 - **Groq day limit** (200,000 tokens a model, about 65 turns): real-model test runs stay small
@@ -334,6 +456,13 @@ The older text of each decision is kept below.
   rule files, so they were left. Goes with D2: keep the brain as old background, or drop it.
 - D7. Follow-up talk (1.8): build it right after 1.3, or after 1.5 as numbered? The cases that
   are fixed code (the word "not", short names, "just tell me", "I do not know") are in 1.3 now.
+
+**Open (5 Oct ~18:50), for Phase 4:**
+- D10. CLOSED (owner, 5 Oct ~19:30): the reader is not ours to build. A crop model first, run on
+  our own computer; a Muse API as the backup. We build only the plug (4b).
+- D11. Taken as said: crop photos first, other kinds later. Not papers.
+- D12. Who gets the SMS and the call-back on the Twilio trial: only a checked number, so the demo
+  uses the owner's own phone. Still open: does an SMS from the US number reach it (one try).
 
 ## 7. Checks, every step
 ```
