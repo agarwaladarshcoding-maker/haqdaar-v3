@@ -259,9 +259,31 @@ def _clean_occurrences(word: str, text: str) -> list[str]:
     return [" ".join(toks) for toks in _value_clauses((word,), text)]
 
 
+# The need follows "I want": "मुझे लोन चाहिए", "I need a loan", "मला कर्ज हवे".
+_WANT_MARKS = frozenset({"चाहिए", "चाहिये", "चाहता", "चाहती", "चाहते", "चाहूँगा", "चाहूंगा", "चाहूँगी", "चाहूंगी",
+                         "हवे", "हवा", "हवी", "हवेत", "पाहिजे", "need", "needs", "want", "wants", "wanna"})
+# Said between a word and the "want" word, they put the word in someone else's sentence
+# ("मेरी मां बीमार है मुझे लोन चाहिए": the illness is hers, the loan is wanted).
+_BREAKS = _IS | frozenset({"मुझे", "मैं", "मै", "मला", "मी", "i", "me", "is", "was", "थी", "था", "आहे"})
+
+
+def _wanted(toks: list[str], value: str) -> bool:
+    """The value's word stands right by a "want" word, in the same sentence of the talk."""
+    marks = [i for i, t in enumerate(toks) if t in _WANT_MARKS]
+    for word in WORDS["category"][value]:
+        for at in _occurrences(word, toks):
+            for m in marks:
+                lo, hi = (at + 1, m) if at < m else (m + 1, at)
+                if hi - lo <= 3 and not any(t in _BREAKS for t in toks[lo:hi]):
+                    return True
+    return False
+
+
 def _ordered(text: str, box: str, values: list[str]) -> list[str]:
     """1.3b: the named values first-named first ("खेती और घर": farming, then
-    housing). The talk takes the first and keeps the rest for later."""
+    housing). The talk takes the first and keeps the rest for later.
+    A category said right by a "want" word goes before the others (the need
+    follows "मुझे ... चाहिए", not the illness of the mother)."""
     toks = _toks(" " + str(text).lower() + " ")
     whole = box == "gender"
 
@@ -272,7 +294,7 @@ def _ordered(text: str, box: str, values: list[str]) -> list[str]:
                 best = min(best, at)
         return best
 
-    return sorted(values, key=_pos)
+    return sorted(values, key=lambda v: (box == "category" and not _wanted(toks, v), _pos(v)))
 
 
 def spot_all(text: str, corpus: Any) -> dict[str, list[str]]:
@@ -315,7 +337,7 @@ def _person_filter(text: str, out: dict[str, list[str]]) -> dict[str, list[str]]
 
 
 # Marathi "Xसाठी" (for X) is one token: the person word carries the साठी tail.
-_SAATHI_PEOPLE = ("आई", "वडील", "भाऊ", "बहीण", "मुलगा", "मुलगी", "नवरा", "बायको")
+_SAATHI_PEOPLE = ("आई", "वडील", "वडिलां", "भाऊ", "बहीण", "मुलगा", "मुलगी", "नवरा", "बायको")
 
 
 _SELF_FOR = frozenset({"मेरे", "अपने", "खुद", "mere", "apne", "me", "myself", "माझ्या", "स्वतः"})
@@ -338,6 +360,27 @@ def other_person(text: str) -> str:
             if near in OTHER_PEOPLE:
                 return near
     return ""
+
+
+# "मैं किसान हूँ": work said about oneself, not a kind of help asked for.
+_AM = frozenset({"हूँ", "हूं", "hoon", "hu", "am", "i'm", "im", "आहे", "आहोत"})
+_WORK_FORMS = frozenset(w for words in WORDS["occupation"].values() for w in words)
+
+
+def work_only(text: str, value: str) -> bool:
+    """The category `value` is named only by a work word in an "I am" sentence ("मैं किसान हूँ"),
+    with no "want" word. That is the work box, not a new need."""
+    forms = WORDS["category"][value]
+    clauses = _value_clauses(forms, text)
+    if not clauses:
+        return False
+    for toks in clauses:
+        hit = [f for f in forms if _occurrences(f, toks)]
+        if not hit or any(f not in _WORK_FORMS for f in hit):
+            return False
+        if not any(t in _AM for t in toks) or any(t in _WANT_MARKS for t in toks):
+            return False
+    return True
 
 
 def new_person(text: str) -> bool:

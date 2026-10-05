@@ -118,6 +118,8 @@ addresses; say "the scheme's website" or "the nearest CSC centre".
 apply", "you are eligible", "you will get". Say who the scheme is for and what it gives; for how to apply, \
 start with "To apply, ...". A scheme marked "does not fit" must not be offered; if the caller asks about it, \
 say who it is for.
+- Never say a fact about the caller that they did not say (a widow, disabled, a BPL card, land). If a scheme \
+needs such a fact, ask about it first in ONE question, or say it as a condition: "if she is a widow, ...".
 - If the answer is not in SCHEMES, say you do not have that information, and offer what you do have.
 - A box shown as UNKNOWN in KNOWN ABOUT THE CALLER was asked and not answered: do not ask it again.
 - Never ask for something that KNOWN ABOUT THE CALLER already holds.
@@ -175,11 +177,16 @@ NOT_HELD_SAY = {
     "en": "I do not have that one yet.",
     "hi": "यह योजना मेरे पास अभी नहीं है।",
     "mr": "ती योजना माझ्याकडे अजून नाही.",
+    # gu / ta: written by the model, not yet checked by a native speaker.
+    "gu": "એ યોજના મારી પાસે હજી નથી.",
+    "ta": "அந்தத் திட்டம் என்னிடம் இன்னும் இல்லை.",
 }
 HELP_WITH = {
     "en": "I can help with {kinds}.",
     "hi": "मैं इनमें मदद कर सकती हूँ: {kinds}।",
     "mr": "मी यामध्ये मदत करू शकते: {kinds}.",
+    "gu": "હું આમાં મદદ કરી શકું છું: {kinds}.",
+    "ta": "இவற்றில் நான் உதவ முடியும்: {kinds}.",
 }
 ALSO_ASKED = {
     "en": "You also asked about {kind}.",

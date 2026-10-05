@@ -194,6 +194,14 @@ def _corpus_and_pool() -> tuple[Any, Any]:
 
             index = scheme_index.get(corpus.snapshot_id)
             say(f"search  {len(index.ids)} schemes" + ("" if index._vectors is not None else " (names only: no model)"))
+            if tunables.TALK_CHUNKS:    # 1.5: load the parts index now, never on a caller's first turn
+                from haqdaar.data import chunk_index
+
+                try:
+                    parts = chunk_index.get(corpus.snapshot_id)
+                    say(f"parts   {len(parts.chunks)} parts" + ("" if parts._vectors is not None else " (names only: no model)"))
+                except Exception as exc:
+                    say(f"!! parts index did not load ({exc}); the talk sends whole cards")
             if tunables.CUT_IN_GATE:
                 from haqdaar.audio import silero
 
