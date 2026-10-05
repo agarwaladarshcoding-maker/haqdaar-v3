@@ -9,18 +9,21 @@ Divides each scheme into 5 distinct parts (chunks):
   - details: eligibility criteria, who is eligible, and rules
 
 Search and ranking:
-  - Supports single query or multiple queries (results joined across queries).
+  - Supports single query or multiple queries (best score across queries).
   - Fixed-code ranking combining:
       1. Vector score (fastembed multilingual ONNX on CPU)
-      2. Name match (calling existing SchemeIndex / DoorA matchers without changing them)
+      2. Pre-built name match (SchemeIndex / DoorA matchers kept on self)
       3. Caller-provided "fits" marks ("fits" = +0.15, "does not fit" = -0.5, "not known yet" = 0.0)
-      4. Fixed-code part keyword bonus for targeted queries
-  - Caches embeddings in data_cache/chunk_index/ so repeated runs are instantaneous.
+      4. Fixed-code part keyword bonus for targeted queries (whole words only)
+  - Caches embeddings and text hashes in data_cache/chunk_index/.
+  - Caps at most 2 chunks per scheme unless the scheme is named (0.85+).
+  - Ignores chunks with empty English text.
   - Scales to 100+ schemes with sub-20ms search latency.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
 import logging
 from pathlib import Path
@@ -38,6 +41,7 @@ TEXT_LANGS = ("en", "hi")
 Embed = Callable[[Sequence[str]], Any]
 
 PARTS = ("summary", "benefits", "papers needed", "how to apply", "details")
+PART_INDEX: dict[str, int] = {p: i for i, p in enumerate(PARTS)}
 
 FIELD_TO_PART: dict[str, str] = {
     "summary": "summary",
@@ -76,11 +80,27 @@ PART_KEYWORDS: dict[str, set[str]] = {
     },
 }
 
+PART_REGEX: dict[str, re.Pattern[str]] = {
+    part: re.compile(
+        r"\b(?:" + "|".join(re.escape(kw) for kw in sorted(kws, key=len, reverse=True)) + r")\b",
+        re.IGNORECASE | re.UNICODE,
+    )
+    for part, kws in PART_KEYWORDS.items()
+}
+
 _PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
 
 
 def _norm(text: str) -> str:
     return " ".join(_PUNCT.sub(" ", str(text).lower()).split())
+
+
+def _hash_texts(texts: Sequence[str]) -> str:
+    h = hashlib.sha256()
+    for t in texts:
+        h.update(t.encode("utf-8"))
+        h.update(b"\x00")
+    return h.hexdigest()
 
 
 @dataclass(frozen=True)
@@ -129,24 +149,46 @@ class ChunkIndex:
         vectors: Any,
         passage_to_chunk: Any,
         embed: Optional[Embed],
+        door_a: Any = None,
+        scheme_index: Any = None,
     ) -> None:
+        import numpy as np
+
         self.snapshot_id = snapshot_id
         self.chunks = chunks
         self.scheme_ids = scheme_ids
         self._vectors = vectors            # shape (passages, dim), unit length
         self._passage_to_chunk = passage_to_chunk  # passage row -> chunk index
         self._embed = embed
+        self._door_a = door_a
+        self._scheme_index = scheme_index
+
+        self._scheme_id_to_idx = {sid: i for i, sid in enumerate(scheme_ids)}
+        self._chunk_scheme_indices = np.array(
+            [self._scheme_id_to_idx.get(c.scheme_id, -1) for c in chunks],
+            dtype=np.int32,
+        )
+        self._chunk_part_indices = np.array(
+            [PART_INDEX.get(c.part, -1) for c in chunks],
+            dtype=np.int32,
+        )
+        self._chunk_valid_text_mask = np.array(
+            [bool(c.text and c.text.strip()) for c in chunks],
+            dtype=bool,
+        )
 
     @classmethod
-    def load(
+    def from_rows(
         cls,
+        rows: list[dict[str, Any]],
         snapshot_id: str = "CURRENT",
         embed: Optional[Embed] = None,
         cache: bool = True,
+        door_a: Any = None,
+        scheme_index_inst: Any = None,
     ) -> "ChunkIndex":
         from haqdaar.data import scheme_index
 
-        snapshot_id, rows = scheme_index._rows(snapshot_id)
         scheme_ids = [str(r["scheme_id"]) for r in rows]
 
         chunks: list[Chunk] = []
@@ -183,101 +225,154 @@ class ChunkIndex:
                     texts_to_embed.extend([head_en, head_hi])
                     passage_to_chunk.extend([chunk_idx, chunk_idx])
 
+        # Pre-build SchemeIndex instance if not provided
+        if scheme_index_inst is None:
+            names = [scheme_index._names(r) for r in rows]
+            ids = [str(r["scheme_id"]) for r in rows]
+            try:
+                import numpy as np
+                scheme_index_inst = scheme_index.SchemeIndex(
+                    snapshot_id, ids, names, None, np.array([], dtype=np.int32), None
+                )
+            except Exception:
+                scheme_index_inst = None
+
+        # Pre-build DoorA instance if not provided
+        if door_a is None:
+            try:
+                from haqdaar.data.door_a_sources import load_repo_scheme_entries
+                from haqdaar.engine.door_a import DoorA
+                door_a = DoorA(scheme_entries=load_repo_scheme_entries())
+            except Exception as exc:
+                logger.warning("Failed to initialize DoorA for ChunkIndex: %s", exc)
+                door_a = None
+
         vectors = None
         try:
             import numpy as np
 
             path = CACHE_DIR / f"{snapshot_id}__chunks__{EMBED_MODEL.split('/')[-1]}.npy"
+            hash_path = CACHE_DIR / f"{snapshot_id}__chunks__{EMBED_MODEL.split('/')[-1]}.hash"
+            texts_hash = _hash_texts(texts_to_embed)
             use_cache = cache and embed is None
             if embed is None:
                 embed = default_embed()
-            if use_cache and path.exists():
-                vectors = np.load(path)
-                if vectors.shape[0] != len(texts_to_embed):
+
+            if use_cache and path.exists() and hash_path.exists():
+                try:
+                    cached_hash = hash_path.read_text(encoding="utf-8").strip()
+                    if cached_hash == texts_hash:
+                        loaded = np.load(path)
+                        if loaded.shape[0] == len(texts_to_embed):
+                            vectors = loaded
+                except Exception:
                     vectors = None
+
             if vectors is None and texts_to_embed:
                 vectors = _unit(np.asarray(embed(texts_to_embed), dtype="float32"))
                 if use_cache:
                     path.parent.mkdir(parents=True, exist_ok=True)
                     np.save(path, vectors)
+                    hash_path.write_text(texts_hash, encoding="utf-8")
             ptc_arr: Any = np.asarray(passage_to_chunk, dtype=np.int32)
         except Exception as exc:
             logger.warning("Failed to initialize vectors for ChunkIndex: %s", exc)
             vectors, ptc_arr, embed = None, np.asarray(passage_to_chunk, dtype=np.int32), None
 
-        return cls(snapshot_id, chunks, scheme_ids, vectors, ptc_arr, embed)
+        return cls(
+            snapshot_id, chunks, scheme_ids, vectors, ptc_arr, embed,
+            door_a=door_a, scheme_index=scheme_index_inst
+        )
 
     @classmethod
-    def make_synthetic(
+    def load(
         cls,
-        n_schemes: int = 100,
+        snapshot_id: str = "CURRENT",
         embed: Optional[Embed] = None,
+        cache: bool = True,
     ) -> "ChunkIndex":
-        """Create a synthetic ChunkIndex with n_schemes for scalability and performance testing."""
-        import numpy as np
+        from haqdaar.data import scheme_index
 
-        chunks: list[Chunk] = []
-        passage_to_chunk: list[int] = []
-        scheme_ids: list[str] = [f"scheme-{i:03d}" for i in range(n_schemes)]
+        snapshot_id, rows = scheme_index._rows(snapshot_id)
+        return cls.from_rows(rows, snapshot_id=snapshot_id, embed=embed, cache=cache)
 
-        p_count = 0
-        for sid in scheme_ids:
-            for part in PARTS:
-                c_idx = len(chunks)
-                chunks.append(Chunk(scheme_id=sid, part=part, text=f"Synthetic text for {sid} {part}"))
-                for _ in range(6):
-                    passage_to_chunk.append(c_idx)
-                    p_count += 1
+    @classmethod
+    def make_100_schemes(
+        cls,
+        embed: Optional[Embed] = None,
+        cache: bool = True,
+    ) -> "ChunkIndex":
+        """Make 100 schemes by replicating and varying the 17 real schemes with real text,
+        real embedding model, and pre-built DoorA + SchemeIndex name matchers kept ON.
+        """
+        from haqdaar.data import scheme_index
+        from haqdaar.data.door_a_sources import load_repo_scheme_entries
+        from haqdaar.contracts.types import SchemeEntry
+        from haqdaar.engine.door_a import DoorA
 
-        dim = 384
-        vectors = np.random.randn(p_count, dim).astype(np.float32)
-        vectors = _unit(vectors)
+        _, base_rows = scheme_index._rows("CURRENT")
+        base_entries = load_repo_scheme_entries()
 
-        if embed is None:
-            def default_synthetic_embed(texts: Sequence[str]) -> Any:
-                v = np.random.randn(len(texts), dim).astype(np.float32)
-                return _unit(v)
-            embed = default_synthetic_embed
+        rows_100: list[dict[str, Any]] = []
+        entries_100: list[SchemeEntry] = []
 
-        return cls(
-            snapshot_id=f"SYNTHETIC_{n_schemes}",
-            chunks=chunks,
-            scheme_ids=scheme_ids,
-            vectors=vectors,
-            passage_to_chunk=np.asarray(passage_to_chunk, dtype=np.int32),
+        for i in range(100):
+            b_row = base_rows[i % len(base_rows)]
+            r = dict(b_row)
+            base_sid = str(b_row["scheme_id"])
+            sid_new = f"{base_sid}_var_{i:03d}"
+            r["scheme_id"] = sid_new
+            name_en = b_row.get("scheme_name_en") or ""
+            name_hi = b_row.get("scheme_name_hi") or ""
+            r["scheme_name_en"] = f"{name_en} {i}"
+            r["scheme_name_hi"] = f"{name_hi} {i}"
+            r["aliases_en"] = [f"{a} {i}" for a in b_row.get("aliases_en") or []]
+            r["aliases_hi"] = [f"{a} {i}" for a in b_row.get("aliases_hi") or []]
+            r["chunks"] = b_row.get("chunks")
+            rows_100.append(r)
+
+            b_ent = base_entries[i % len(base_entries)]
+            e = SchemeEntry(
+                slug=f"{b_ent.slug}_var_{i:03d}",
+                priority=b_ent.priority,
+                names={k: f"{v} {i}" for k, v in b_ent.names.items()},
+                aliases=[f"{a} {i}" for a in b_ent.aliases],
+                distinctive_tokens=b_ent.distinctive_tokens,
+            )
+            entries_100.append(e)
+
+        door_a_100 = DoorA(scheme_entries=entries_100)
+        return cls.from_rows(
+            rows_100,
+            snapshot_id="100_SCHEMES_BENCHMARK",
             embed=embed,
+            cache=cache,
+            door_a=door_a_100,
         )
 
     def _get_name_scores(self, text: str) -> dict[str, float]:
-        """Call existing name matchers without changing their code."""
+        """Use pre-built name matchers without recreating them."""
         scores: dict[str, float] = {sid: 0.0 for sid in self.scheme_ids}
-        if self.snapshot_id.startswith("SYNTHETIC"):
-            return scores
 
         # 1. Rapidfuzz-based SchemeIndex._name_scores
-        try:
-            from haqdaar.data import scheme_index
-
-            idx = scheme_index.get(self.snapshot_id)
-            for sid, s in zip(idx.ids, idx._name_scores(text)):
-                if s > 0 and sid in scores:
-                    scores[sid] = max(scores[sid], float(s))
-        except Exception:
-            pass
+        if self._scheme_index is not None:
+            try:
+                for sid, s in zip(self._scheme_index.ids, self._scheme_index._name_scores(text)):
+                    if s > 0 and sid in scores:
+                        scores[sid] = max(scores[sid], float(s))
+            except Exception:
+                pass
 
         # 2. Phonetic token-based DoorA matching
-        try:
-            from haqdaar.data.door_a_sources import load_repo_scheme_entries
-            from haqdaar.engine.door_a import DoorA
-
-            da = DoorA(scheme_entries=load_repo_scheme_entries())
-            res = da.match(text)
-            if res.confidence > 0:
-                for sid in res.scheme_ids:
-                    if sid in scores:
-                        scores[sid] = max(scores[sid], float(res.confidence))
-        except Exception:
-            pass
+        if self._door_a is not None:
+            try:
+                res = self._door_a.match(text)
+                if res.confidence > 0:
+                    for sid in res.scheme_ids:
+                        if sid in scores:
+                            scores[sid] = max(scores[sid], float(res.confidence))
+            except Exception:
+                pass
 
         return scores
 
@@ -286,12 +381,14 @@ class ChunkIndex:
         query: str | Sequence[str],
         fits: Optional[Mapping[str, Any] | Callable[[str], Any]] = None,
         k: int = 5,
+        max_chunks_per_scheme: int = 2,
     ) -> list[ChunkHit]:
         """Search top k chunks for English query or multiple queries.
-        
-        Results across multiple queries are joined.
-        Ranking by fixed code: vector score, existing name match, caller's fits mark,
-        and targeted part keywords.
+
+        Multi-query: takes best score (max) across queries.
+        Top k: at most max_chunks_per_scheme chunks from one scheme,
+        unless the query names that scheme (name match 0.85+).
+        Empty English texts are never returned.
         """
         try:
             if isinstance(query, str):
@@ -305,13 +402,28 @@ class ChunkIndex:
 
             import numpy as np
 
-            # Track aggregated scores per chunk index across queries
-            combined_scores = np.zeros(len(self.chunks), dtype=np.float32)
-            by_labels = ["vector"] * len(self.chunks)
+            n_chunks = len(self.chunks)
+            n_schemes = len(self.scheme_ids)
+
+            best_scores = np.full(n_chunks, -np.inf, dtype=np.float32)
+            best_by_is_name = np.zeros(n_chunks, dtype=bool)
+            scheme_is_named = np.zeros(n_schemes, dtype=bool)
+
+            scheme_fits = np.zeros(n_schemes, dtype=np.float32)
+            if fits is not None:
+                for i, sid in enumerate(self.scheme_ids):
+                    m = fits(sid) if callable(fits) else fits.get(sid, "not known yet")
+                    if isinstance(m, (int, float)):
+                        scheme_fits[i] = float(m)
+                    elif m == "fits":
+                        scheme_fits[i] = 0.15
+                    elif m == "does not fit":
+                        scheme_fits[i] = -0.50
+            chunk_fits_adj = scheme_fits[self._chunk_scheme_indices]
 
             for q_text in clean_queries:
                 # 1. Vector scores
-                chunk_vec = np.zeros(len(self.chunks), dtype=np.float32)
+                chunk_vec = np.zeros(n_chunks, dtype=np.float32)
                 if self._vectors is not None and self._embed is not None:
                     try:
                         q_vec = _unit(np.asarray(self._embed([q_text]), dtype="float32"))[0]
@@ -321,55 +433,64 @@ class ChunkIndex:
                         pass
 
                 # 2. Name match scores
-                name_scores = self._get_name_scores(q_text)
+                name_scores_dict = self._get_name_scores(q_text)
+                scheme_name_scores = np.array(
+                    [name_scores_dict.get(sid, 0.0) for sid in self.scheme_ids],
+                    dtype=np.float32,
+                )
+                chunk_name_scores = scheme_name_scores[self._chunk_scheme_indices]
+                scheme_is_named |= (scheme_name_scores >= 0.85)
 
-                # 3. Fixed-code part keywords
-                q_lower = q_text.lower()
-                q_tokens = set(q_lower.replace("?", " ").replace(".", " ").replace(",", " ").split())
+                # 3. Fixed-code part keyword bonus (whole words only)
+                part_boosts = np.zeros(len(PARTS), dtype=np.float32)
+                for part, rx in PART_REGEX.items():
+                    if rx.search(q_text):
+                        part_boosts[PART_INDEX[part]] = 0.20
+                chunk_part_boost = part_boosts[self._chunk_part_indices]
 
-                for i, c in enumerate(self.chunks):
-                    sid = c.scheme_id
-                    part = c.part
-                    v = float(chunk_vec[i])
-                    n = name_scores.get(sid, 0.0)
+                # 4. Total query score
+                q_score = chunk_vec + 0.35 * chunk_name_scores + chunk_part_boost + chunk_fits_adj
+                by_is_name = chunk_name_scores >= 0.85
 
-                    # Part boost for targeted queries
-                    part_boost = 0.0
-                    if part in PART_KEYWORDS:
-                        kws = PART_KEYWORDS[part]
-                        if any(kw in q_tokens or kw in q_lower for kw in kws):
-                            part_boost = 0.20
+                improved = q_score > best_scores
+                best_scores = np.where(improved, q_score, best_scores)
+                best_by_is_name = np.where(improved, by_is_name, best_by_is_name)
 
-                    # Fits mark adjustment
-                    f_adj = 0.0
-                    if fits is not None:
-                        m = fits(sid) if callable(fits) else fits.get(sid, "not known yet")
-                        if isinstance(m, (int, float)):
-                            f_adj = float(m)
-                        elif m == "fits":
-                            f_adj = 0.15
-                        elif m == "does not fit":
-                            f_adj = -0.50
+            # Mask out chunks with empty English text (Point 10)
+            best_scores[~self._chunk_valid_text_mask] = -np.inf
 
-                    q_score = v + 0.35 * n + part_boost + f_adj
-                    combined_scores[i] += q_score / len(clean_queries)
-                    if n >= 0.85:
-                        by_labels[i] = "name"
-
-            # Rank and select top k
-            top_indices = np.argsort(-combined_scores)[:k]
+            # Rank and select top k with scheme cap (Point 5)
+            sorted_indices = np.argsort(-best_scores)
             hits: list[ChunkHit] = []
-            for idx_c in top_indices:
-                c = self.chunks[int(idx_c)]
+            scheme_chunk_counts: dict[str, int] = {}
+
+            for idx in sorted_indices:
+                if len(hits) >= k:
+                    break
+                score = float(best_scores[idx])
+                if score <= -1e8:
+                    break
+                c = self.chunks[idx]
+                sid = c.scheme_id
+                s_idx = self._chunk_scheme_indices[idx]
+                is_named = scheme_is_named[s_idx]
+                count = scheme_chunk_counts.get(sid, 0)
+
+                if max_chunks_per_scheme is not None and max_chunks_per_scheme > 0 and not is_named:
+                    if count >= max_chunks_per_scheme:
+                        continue
+
+                scheme_chunk_counts[sid] = count + 1
                 hits.append(
                     ChunkHit(
-                        scheme_id=c.scheme_id,
+                        scheme_id=sid,
                         part=c.part,
                         text=c.text,
-                        score=float(combined_scores[idx_c]),
-                        by=by_labels[idx_c],
+                        score=score,
+                        by="name" if best_by_is_name[idx] else "vector",
                     )
                 )
+
             return hits
         except Exception as exc:
             logger.warning("Chunk search failed: %s", exc)
@@ -391,7 +512,10 @@ def search(
     query: str | Sequence[str],
     fits: Optional[Mapping[str, Any] | Callable[[str], Any]] = None,
     k: int = 5,
+    max_chunks_per_scheme: int = 2,
     snapshot_id: str = "CURRENT",
 ) -> list[ChunkHit]:
     """Top k chunks for query across the specified snapshot."""
-    return get(snapshot_id).search(query, fits=fits, k=k)
+    return get(snapshot_id).search(
+        query, fits=fits, k=k, max_chunks_per_scheme=max_chunks_per_scheme
+    )
