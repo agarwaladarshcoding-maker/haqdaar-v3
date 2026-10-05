@@ -89,6 +89,8 @@ class PhoneAudio:
             self.mouth.no_cut = ALWAYS_SAY   # a key during the goodbye does not chop it
         self._newer: Optional[Input] = None   # 7.5: words the caller said while the engine was busy
         self._cut: list[Any] = []             # 7.14: the clips a cut-in turn cut off (say_cut_again)
+        self._said: dict[int, str] = {}       # 2.5: prompt_n -> the sentence it said, to name what a cut left unsaid
+        self.unsaid: list[str] = []           # 2.5: the sentences of the reply the last real cut left not heard
 
     # --- what the engine calls -----------------------------------------------------
     def select_language(self) -> tuple[Lang, LangSource] | Input:
@@ -258,6 +260,7 @@ class PhoneAudio:
             on_first()
         self.stop_filler()  # after the render, so the filler covers the wait
         self._play([("answer", bytes(audio))], "answer")
+        self._said[getattr(self.turn, "prompt_n", 0)] = text
         return True
 
     def _say_stream(self, text: str, lang: str, key: str, t0: float, on_first: Any) -> bool:
@@ -290,6 +293,8 @@ class PhoneAudio:
                 self._log(f"!! live voice stopped part way: {e!r}")
 
         n = self.turn.start_prompt("answer") if hasattr(self.turn, "start_prompt") else None
+        if n:
+            self._said[n] = text
         audio = self.mouth.play_stream("answer", pieces(), tag=(n, "answer") if n else None)
         if whole[0]:
             self._save_answer(key, audio)
@@ -386,7 +391,7 @@ class PhoneAudio:
         return self.mouth.say_again(clips)
 
     def next_input(self, profile: str = "normal") -> Input:
-        self._cut = []
+        self._cut, self.unsaid = [], []
         if self._newer is not None:
             inp, self._newer = self._newer, None
             if not self.turn.hung_up.is_set():
@@ -400,6 +405,7 @@ class PhoneAudio:
             inp = self._follow_language(self._wait_words(profile=profile, lang=self._listen_lang()))
             if tunables.CUT_IN_GATE and isinstance(inp, Speech) and inp.cut_clip and hasattr(self.mouth, "take_cut"):
                 self._cut = self.mouth.take_cut()   # kept aside: "one moment" would make the Mouth forget it
+                self.unsaid = [self._said[c[2][0]] for c in self._cut if c[2] and c[2][0] in self._said]
             if isinstance(inp, Silence):
                 self._silence += 1
                 inp = Silence(n=self._silence)

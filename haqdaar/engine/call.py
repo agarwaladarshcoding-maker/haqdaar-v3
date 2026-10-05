@@ -158,11 +158,15 @@ class _LoggedAudio:
     def _cut(self, inp: Any) -> Any:
         try:
             if isinstance(inp, (Speech, Digit)) and inp.heard_ms >= 0 and inp.cut_clip:
-                self._log.write({
+                row = {
                     "ev": "cut", "by": "key" if isinstance(inp, Digit) else "speech",
                     "clip": inp.cut_clip, "heard_ms": inp.heard_ms,
                     "en": log_text.lookup(self._log.snapshot_id)(inp.cut_clip, "en"),
-                })
+                }
+                unsaid = getattr(self._real, "unsaid", None)
+                if isinstance(unsaid, list) and unsaid:     # 2.5: what of the reply the caller did not hear
+                    row["unsaid"] = list(unsaid)
+                self._log.write(row)
         except Exception:
             pass
         return inp
