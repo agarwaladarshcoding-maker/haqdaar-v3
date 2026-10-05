@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional, Sequence
 
 from haqdaar.contracts import tunables
+from haqdaar.data import scheme_names
 
 EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 CACHE_DIR = Path("data_cache") / "scheme_index"
@@ -67,6 +68,11 @@ def _names(row: dict[str, Any]) -> list[str]:
             name = _norm(name or "")
             if name and name not in out:
                 out.append(name)
+    # 1.3a: the short names people say, kept next to the scheme data by scheme id.
+    for name in scheme_names.short_names_for(row.get("scheme_id", "")):
+        name = _norm(name)
+        if name and name not in out:
+            out.append(name)
     return out
 
 

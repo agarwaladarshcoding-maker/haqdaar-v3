@@ -25,7 +25,7 @@ from haqdaar.contracts.log_schema import (
 from haqdaar.contracts.types import SEVEN_BOXES, UNASKED, UNKNOWN, Digit, Hangup, Silence, Speech
 from haqdaar.data import log_text, scheme_index
 from haqdaar.data.scheme_text import SchemeText
-from haqdaar.engine import talk_pick, talk_words
+from haqdaar.engine import talk_pick, talk_words, words_no_answer, words_tell_me
 from haqdaar.engine.filter import Filter
 from haqdaar.model.answer import check_answer, mask_digits
 from haqdaar.prompts import talk as prompt
@@ -80,11 +80,11 @@ def _age_band(value: str, corpus: Any) -> Optional[str]:
     return None
 
 
-def _take_facts(facts: Any, bv: dict[str, Any], corpus: Any, log: Any, turn_n: int) -> bool:
+def _take_facts(facts: Any, bv: dict[str, Any], corpus: Any, log: Any, turn_n: int) -> set[str]:
     """C2: a fact counts only when it is an allowed value of its box. Others are dropped and logged."""
-    changed = False
+    changed: set[str] = set()
     if not isinstance(facts, dict):
-        return False
+        return changed
     for box, value in facts.items():
         if value is None or str(value).strip() == "":
             continue
@@ -99,7 +99,7 @@ def _take_facts(facts: Any, bv: dict[str, Any], corpus: Any, log: Any, turn_n: i
         if bv.get(box) != match:
             bv[box] = match
             log.write(TurnLogRecord(turn_n=turn_n, turn_class="ANSWER", box=box, value=match))
-            changed = True
+            changed.add(box)
     return changed
 
 
@@ -144,12 +144,17 @@ class _Talk:
         self.last_action = ""
         self.left: tuple[str, ...] = ()
         self.asked: dict[str, int] = {}  # box -> how often we asked it
+        self.just_tell = False  # 1.3a: the caller said "just tell me"; no more questions this call
         self.turn_n = 0
 
     # --- the fixed part: search -> filter -> picker ---
     def _state(self, ids: list[str]) -> tuple[talk_pick.Narrow, list[tuple[str, str, str]]]:
         nar = talk_pick.narrow(ids, self.bv, self.corpus)
-        show = list(nar.left[:SHOW_K]) or ids[:SHOW_K]
+        if self.just_tell:                       # 1.3a: asking stopped; the 2 best left are shown
+            nar = talk_pick.Narrow(nar.left, None)
+        if sum(self.asked.values()) >= tunables.TALK_MAX_QUESTIONS:   # 1.3a: at most 3 questions
+            nar = talk_pick.Narrow(nar.left, None)
+        show = list(nar.left[:2] if self.just_tell else nar.left[:SHOW_K]) or ids[:SHOW_K]
         if self.focus:                       # the scheme the talk is about goes first, in full
             show = ([self.focus] + [s for s in show if s != self.focus])[:SHOW_K]
         cards = []
@@ -193,6 +198,12 @@ class _Talk:
         note = prompt.CUT_NOTE if cut else ""
         wrong_ask = False                           # the last try asked a box the picker did not name
         nar, cards = self._state(ids)
+        if words_tell_me.is_just_tell_me(words):  # 1.3a: no more questions for the rest of the call
+            self.just_tell = True
+            nar, cards = self._state(ids)
+        if words_no_answer.no_answer(words) and nar.ask and self.bv.get(nar.ask) == UNASKED:
+            self.bv[nar.ask] = UNKNOWN            # 1.3a: not known at once, never asked again
+            nar, cards = self._state(ids)
         for _try in (0, 1):
             known = {b: v for b, v in self.bv.items() if v != UNASKED}
             data = self._timed("model", _call, self.model, prompt.build(
@@ -206,7 +217,7 @@ class _Talk:
             if action not in prompt.ACTIONS:
                 note = "action must be one of: " + ", ".join(prompt.ACTIONS)
                 continue
-            _take_facts(data.get("facts"), self.bv, self.corpus, self.log, self.turn_n)
+            filled = _take_facts(data.get("facts"), self.bv, self.corpus, self.log, self.turn_n)
             for box, n in self.asked.items():      # asked twice, still no answer: stop asking it
                 if n >= ASK_TRIES and self.bv.get(box) == UNASKED:
                     self.bv[box] = UNKNOWN
@@ -273,7 +284,11 @@ class _Talk:
             if self.focus and action in ("answer", "show_scheme") and isinstance(parts, list):
                 self.told.setdefault(self.focus, set()).update(p for p in parts if p in prompt.PARTS)
             if action == "ask" and ask_box:
-                self.asked[ask_box] = self.asked.get(ask_box, 0) + 1
+                # 1.3a: an answer to another question does not count this one
+                # as asked (asked age, told the state: the age ask is free).
+                answered_it = ask_box in filled or self.bv.get(ask_box) != UNASKED
+                if answered_it or not filled:
+                    self.asked[ask_box] = self.asked.get(ask_box, 0) + 1
             return action, say
         if wrong_ask and nar.ask:                   # C1: the picker's question, in fixed words
             self.asked[nar.ask] = self.asked.get(nar.ask, 0) + 1

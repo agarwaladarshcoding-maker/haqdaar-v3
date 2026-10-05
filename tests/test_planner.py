@@ -118,6 +118,17 @@ def test_speaking_rule_exception_prevents_le_4_stop(corpus):
     assert act.box == "state"
 
 
+def test_tie_break_easy_first_is_the_talk_pickers_rule(corpus):
+    """tie_break="easy_first" (talk only, PLAN 1.3): worst scores tie at 0,
+    averages are state 3.0, gender 2.0, social_category 1.75, so
+    social_category asks first. The default keeps snapshot order (state)."""
+    bv = {"category": "farming"}
+    assert len(Filter.survivors(bv, corpus)) == 4
+    act = next_action(bv, corpus, tie_break="easy_first")
+    assert isinstance(act, Ask)
+    assert act.box == "social_category"
+
+
 def test_stop_max_turns(corpus):
     """Stop 2a: 8 turns spent triggers STOP_MAX_TURNS."""
     bv = {"category": "farming"}

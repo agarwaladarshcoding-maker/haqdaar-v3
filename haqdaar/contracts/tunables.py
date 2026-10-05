@@ -41,6 +41,7 @@ TALK_MAX_WORDS: int = int(os.environ.get("TALK_MAX_WORDS", 110))
 TALK_SENTENCE_WORDS: int = int(os.environ.get("TALK_SENTENCE_WORDS", 24))   # a longer sentence is refused: it is a phone call
 TALK_LOG_CHARS: int = int(os.environ.get("TALK_LOG_CHARS", 1500))           # how much of the call log the model reads
 TALK_MAX_TURNS: int = int(os.environ.get("TALK_MAX_TURNS", 40))             # a talk call always ends
+TALK_MAX_QUESTIONS: int = int(os.environ.get("TALK_MAX_QUESTIONS", 3))   # 1.3a: at most 3 questions a talk call
 # Tried in order; the next one only when Groq says "too many requests" (8000 tokens a minute per model).
 # Order by speed measured 5 Oct on real talk prompts: qwen 0.5-0.6 s, gpt-oss-120b 0.7-1.3 s, gpt-oss-20b 0.9-2.8 s.
 TALK_MODELS: str = os.environ.get("TALK_MODELS", "qwen/qwen3.8-27b,openai/gpt-oss-120b,openai/gpt-oss-20b")

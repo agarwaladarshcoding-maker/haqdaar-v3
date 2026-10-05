@@ -34,6 +34,19 @@ from haqdaar.engine.terminals import _filter_speakable
 EXPECTED_TURNS_KEYPAD: int = 1
 EXPECTED_TURNS_SPOKEN: int = 2
 
+# 1.3a: the fixed easy-first order for breaking minimax ties. The kind of help
+# first, then what callers say most readily on a spoken call: their work, age,
+# who it is for, where they live, their group, income last.
+EASY_FIRST: tuple[BoxId, ...] = (
+    "category",
+    "occupation",
+    "age",
+    "gender",
+    "state",
+    "social_category",
+    "income_band",
+)
+
 
 def _is_answered(box: BoxId, val: Optional[ValueCode], corpus: Any) -> bool:
     """Return True if box is answered with a valid in-corpus value."""
@@ -129,6 +142,58 @@ def _minimax_score(
     return elimination / turns
 
 
+def _average_remaining(
+    box: BoxId,
+    box_vector: Mapping[BoxId, ValueCode],
+    corpus: Any,
+) -> float:
+    """1.3a: the mean schemes left over the box's answers (fewer is better).
+
+    The second step of the tie rule: of two boxes whose worst answer leaves
+    the same count, the one that leaves fewer on average asks first.
+    """
+    vals = corpus.values(box)
+    if not vals:
+        return 0.0
+    counts = [
+        len(Filter.survivors({**box_vector, box: v}, corpus))
+        for v in vals
+    ]
+    return sum(counts) / len(counts)
+
+
+def _pick_best(
+    boxes: Sequence[BoxId],
+    survivors: Sequence[int],
+    box_vector: Mapping[BoxId, ValueCode],
+    corpus: Any,
+    tie_break: str = "snapshot",
+) -> BoxId:
+    """Worst answer leaves the fewest. Ties: snapshot order (the keys path and
+    every caller before 1.3a), or, with tie_break="easy_first" (the talk
+    picker, PLAN 1.3): fewer left on average, then the fixed easy-first order.
+    No model, no chance."""
+    if tie_break == "easy_first":
+        order = {b: n for n, b in enumerate(EASY_FIRST)}
+        best = boxes[0]
+        best_key = (0.0, 0.0, 0)
+        for b in boxes:
+            score = _minimax_score(b, survivors, box_vector, corpus)
+            avg = _average_remaining(b, box_vector, corpus)
+            key = (score, -avg, -order.get(b, len(order)))
+            if b == boxes[0] or key > best_key:
+                best, best_key = b, key
+        return best
+    best_box = boxes[0]
+    best_score = -1.0
+    for b in boxes:
+        score = _minimax_score(b, survivors, box_vector, corpus)
+        if score > best_score:
+            best_score = score
+            best_box = b
+    return best_box
+
+
 def _cap_stop(
     turn_count: Optional[int],
     question_count: Optional[int],
@@ -152,6 +217,7 @@ def _hard_box_to_ask_before_speaking(
     candidates: Sequence[int],
     box_vector: Mapping[BoxId, ValueCode],
     corpus: Any,
+    tie_break: str = "snapshot",
 ) -> Optional[BoxId]:
     """The speaking-rule exception, as one rule for every terminal.
 
@@ -163,7 +229,8 @@ def _hard_box_to_ask_before_speaking(
     them too, and the caller hears an empty terminal over a corpus that held
     something. Applied to whichever set the terminal is about to speak.
 
-    Returns the box to ask (minimax order, ties on snapshot order), or None.
+    Returns the box to ask (minimax order, ties on snapshot order unless the
+    talk picker asks for easy-first), or None.
     """
     if not candidates:
         return None
@@ -176,14 +243,7 @@ def _hard_box_to_ask_before_speaking(
     ]
     if not unasked_non_any_hard:
         return None
-    best = unasked_non_any_hard[0]
-    best_score = -1.0
-    for h in unasked_non_any_hard:
-        score = _minimax_score(h, candidates, box_vector, corpus)
-        if score > best_score:
-            best_score = score
-            best = h
-    return best
+    return _pick_best(unasked_non_any_hard, candidates, box_vector, corpus, tie_break)
 
 
 def _nearest_candidates(
@@ -234,11 +294,18 @@ def next_action(
     *,
     turn_count: Optional[int] = None,
     question_count: Optional[int] = None,
+    stop_survivors: Optional[int] = None,
+    tie_break: str = "snapshot",
 ) -> Union[Ask, Widen, Stop]:
     """Determine next action for Haqdaar v2 questioning loop.
 
     Signature: next_action(box_vector, corpus) -> Ask(box) | Widen(box) | Stop(reason).
+    `stop_survivors` moves the short-list stop (keys keep STOP_SURVIVORS; the
+    talk loop asks down to 2). `tie_break="easy_first"` is the talk picker's
+    PLAN 1.3 tie rule (fewer left on average, then easy-first order); every
+    other caller keeps snapshot-order ties.
     """
+    stop_at = tunables.STOP_SURVIVORS if stop_survivors is None else stop_survivors
     surv = Filter.survivors(box_vector, corpus)
     n_surv = len(surv)
 
@@ -251,7 +318,7 @@ def next_action(
             # No rung to walk. The terminal is Nearest or Empty, so the
             # speaking-rule exception is the only thing left to check.
             gag = _hard_box_to_ask_before_speaking(
-                _nearest_candidates(box_vector, corpus), box_vector, corpus
+                _nearest_candidates(box_vector, corpus), box_vector, corpus, tie_break
             )
             if gag is not None:
                 capped = _cap_stop(turn_count, question_count, box_vector, corpus)
@@ -264,7 +331,7 @@ def next_action(
             test_vector = {k: v for k, v in box_vector.items() if k not in dropped}
             widened = Filter.survivors(test_vector, corpus)
             if len(widened) >= 1:
-                gag = _hard_box_to_ask_before_speaking(widened, box_vector, corpus)
+                gag = _hard_box_to_ask_before_speaking(widened, box_vector, corpus, tie_break)
                 if gag is not None:
                     capped = _cap_stop(turn_count, question_count, box_vector, corpus)
                     return capped if capped is not None else Ask(gag)
@@ -275,7 +342,7 @@ def next_action(
         # The ladder found nothing. The terminal will be Nearest or Empty, and
         # the same rule applies to the nearest candidates.
         gag = _hard_box_to_ask_before_speaking(
-            _nearest_candidates(box_vector, corpus), box_vector, corpus
+            _nearest_candidates(box_vector, corpus), box_vector, corpus, tie_break
         )
         if gag is not None:
             capped = _cap_stop(turn_count, question_count, box_vector, corpus)
@@ -283,8 +350,8 @@ def next_action(
 
         return Stop(STOP_ZERO_SURVIVORS)
 
-    # 2. <= 4 survivors check with Speaking-Rule Exception (T10 D3, D4)
-    if n_surv <= tunables.STOP_SURVIVORS:
+    # 2. Short-list check with Speaking-Rule Exception (T10 D3, D4)
+    if n_surv <= stop_at:
         # Do not stop on "<=4" while an unasked hard box is non-ANY on any survivor.
         unasked_non_any_hard = [
             h
@@ -307,15 +374,8 @@ def next_action(
         if eff_q >= tunables.MAX_QUESTIONS:
             return Stop(STOP_MAX_QUESTIONS)
 
-        # Ask qualifying hard box in minimax order, ties broken on snapshot order (SEVEN_BOXES)
-        best_hard = unasked_non_any_hard[0]
-        best_score = -1.0
-        for h in unasked_non_any_hard:
-            score = _minimax_score(h, surv, box_vector, corpus)
-            if score > best_score:
-                best_score = score
-                best_hard = h
-        return Ask(best_hard)
+        # Ask the qualifying hard box (ties per tie_break).
+        return Ask(_pick_best(unasked_non_any_hard, surv, box_vector, corpus, tie_break))
 
     # 3. Budget caps: 8 turns OR 6 questions (T10 D4)
     if turn_count is not None and turn_count >= tunables.MAX_TURNS:
@@ -339,16 +399,8 @@ def next_action(
     if not askable_boxes:
         return Stop(STOP_NO_SPLIT)
 
-    # 5. Minimax elimination divided by expected turns, ties break on snapshot order (SEVEN_BOXES)
-    best_box = askable_boxes[0]
-    best_score = -1.0
-    for b in askable_boxes:
-        score = _minimax_score(b, surv, box_vector, corpus)
-        if score > best_score:
-            best_score = score
-            best_box = b
-
-    return Ask(best_box)
+    # 5. Minimax elimination divided by expected turns (ties per tie_break).
+    return Ask(_pick_best(askable_boxes, surv, box_vector, corpus, tie_break))
 
 
 class Planner:
@@ -361,10 +413,14 @@ class Planner:
         *,
         turn_count: Optional[int] = None,
         question_count: Optional[int] = None,
+        stop_survivors: Optional[int] = None,
+        tie_break: str = "snapshot",
     ) -> Union[Ask, Widen, Stop]:
         return next_action(
             box_vector,
             corpus,
             turn_count=turn_count,
             question_count=question_count,
+            stop_survivors=stop_survivors,
+            tie_break=tie_break,
         )
