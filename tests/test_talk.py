@@ -417,3 +417,29 @@ def test_the_prompt_names_the_scheme_in_talk_and_the_parts_already_told(call, co
     assert "SCHEME IN TALK: none yet" in client.calls[0]     # the test's search finds no scheme by name
     assert "TOLD: gives. NOT TOLD YET: who, papers, apply." in client.calls[1]
     assert "TOLD: gives, papers. NOT TOLD YET: who, apply." in client.calls[2]
+
+
+def test_an_answer_about_another_scheme_than_the_one_in_talk_is_sent_back_once(call, corpus):
+    n = _number(corpus, "pm-kisan")
+    audio, client, rows = call(
+        [Speech("the first one"), Speech("how much money")],
+        [_say("It is for farmer families.", scheme="pm-kisan"),
+         _say("That one is a house scheme.", scheme="pmay-g"),
+         _say(f"It gives {n} rupees a year.", scheme="pm-kisan")])
+    assert [r["rule"] for r in rows if r.get("ev") == "blocked"] == ["other_scheme"]
+    assert "Answer about [pm-kisan]" in client.calls[2]
+    assert audio.answers[-1] == f"It gives {n} rupees a year."
+
+
+def test_needed_papers_is_not_taken_for_a_promise_but_a_promise_still_is(corpus, tmp_path, monkeypatch):
+    from tools import talk_questions
+
+    monkeypatch.setattr(scheme_index, "get", lambda snapshot_id="CURRENT": Index())
+    ok = "क्या मैं आपको ज़रूरी कागज़ों के बारे में बताऊं?"
+    client = Client([_say(ok), _say("यह पैसा आपको ज़रूर मिलेगा।"), _say("यह पैसा आपको ज़रूर मिलेगा, ज़रूरी कागज़ लाइए।")])
+    t, audio, log = talk_questions._talk(corpus, client, "hi", str(tmp_path), "forbidden_test")
+    t._turn("पीएम किसान")
+    assert audio.answers == [ok]
+    t._turn("पैसा मिलेगा क्या")
+    assert " ".join(audio.answers[1:]) == prompt.NOT_SURE["hi"]      # said sentence by sentence
+    assert [r["rule"] for r in log_text.read_rows(log.path) if r.get("ev") == "blocked"] == ["forbidden", "forbidden"]

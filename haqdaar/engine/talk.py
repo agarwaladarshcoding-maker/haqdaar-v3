@@ -38,6 +38,7 @@ ASK_TRIES = 2            # a box asked this often with no answer is left as not 
 _CODE_NAME = re.compile(r"[A-Za-z]+_[A-Za-z]+")   # "business_loans" must never be said aloud
 # Letters the voice can say: Latin, Devanagari, usual marks, the rupee sign. (A model once wrote a Korean letter.)
 _OTHER_SCRIPT = re.compile(r"[^\u0000-\u024F\u0900-\u097F\u2000-\u206F\u20B9]")
+_HINDI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
 SILENCE_HANGUP_RUNG = 2  # T1: no reply twice in a row -> goodbye
 _SENTENCE_GAP = re.compile(r"(?<=[.!?।])\s+")
 _SHORT_PIECE = 12        # "Rs." and such are not a sentence of their own
@@ -139,6 +140,8 @@ class _Talk:
         self.last_say = ""
         self.focus = ""                 # the scheme the talk is about now
         self.told: dict[str, set[str]] = {}  # scheme -> the parts of it already said (prompt.PARTS)
+        self.named = False              # the caller's newest words name a scheme
+        self.last_action = ""
         self.left: tuple[str, ...] = ()
         self.asked: dict[str, int] = {}  # box -> how often we asked it
         self.turn_n = 0
@@ -161,7 +164,8 @@ class _Talk:
         """Search's top 10 on the last three caller turns, plus every scheme of the kind of help
         the caller named (search is weak on English words written in Hindi letters)."""
         named = self.index.search(self.heard[-1], 1) if self.heard else []
-        if named and named[0].by == "name":  # the caller said a scheme's name: the talk is about it now
+        self.named = bool(named and named[0].by == "name")
+        if self.named:                       # the caller said a scheme's name: the talk is about it now
             self.focus = named[0].scheme_id
         ranked = [h.scheme_id for h in self.index.search(" ".join(self.heard[-3:]), len(self.index.ids) or SEARCH_K)]
         ids = ranked[:SEARCH_K]
@@ -198,7 +202,7 @@ class _Talk:
             if data is None:
                 break
             action = str(data.get("action") or "").strip().lower()
-            say = str(data.get("say") or "").strip()
+            say = str(data.get("say") or "").strip().translate(_HINDI_DIGITS)   # the voice and the checks want 0-9
             if action not in prompt.ACTIONS:
                 note = "action must be one of: " + ", ".join(prompt.ACTIONS)
                 continue
@@ -221,8 +225,19 @@ class _Talk:
                 continue
             proof = "\n\n".join(c for _s, _m, c in cards) + "\n" + " ".join(
                 str(v) for vals in boxes.values() for v in vals)
-            rule = check_answer(_plain_numbers(say), self.lang, _plain_numbers(proof),
-                                tunables.TALK_MAX_SENTENCES, tunables.TALK_MAX_WORDS) if say else "empty"
+            checked = _plain_numbers(say)
+            rule = "empty"
+            for _ in range(6 if say else 0):
+                rule = check_answer(checked, self.lang, _plain_numbers(proof),
+                                    tunables.TALK_MAX_SENTENCES, tunables.TALK_MAX_WORDS)
+                hit = vocab.find_forbidden(checked, self.lang) if rule == "forbidden" else ""
+                # The word list is matched as plain letters: "आपको ज़रूर" (a promise) is found inside
+                # "आपको ज़रूरी कागज़" (the papers needed). A hit that is only the start of a longer
+                # Hindi word is not the forbidden words; the rest of the checks still run.
+                inside = re.compile(re.escape(hit) + r"(?=[\u0900-\u097F])") if hit else None
+                if not inside or not inside.search(checked) or re.search(re.escape(hit) + r"(?![\u0900-\u097F])", checked):
+                    break
+                checked = inside.sub("…", checked)
             # A long sentence is sent back once to be cut. The second time it is said as it is:
             # a long true reply is better on the phone than "I am not sure".
             if not rule and _try == 0 and any(
@@ -244,6 +259,14 @@ class _Talk:
                     note += f' Do not use the words "{vocab.find_forbidden(say, self.lang)}" or words that start with them.'
                 continue
             scheme = str(data.get("scheme") or "").strip()
+            # The talk was about one scheme and the caller named no other: an answer about another
+            # scheme is off the point ("how much money?" got the first pension scheme, not the one in talk).
+            if (_try == 0 and action == "answer" and self.last_action == "answer" and self.focus
+                    and scheme in ids and scheme != self.focus and not self.named):
+                self.log.write({"ev": "blocked", "rule": "other_scheme", "question": mask_digits(words), "text": say})
+                note = (f"The caller is still asking about [{self.focus}] and named no other scheme. "
+                        f"Answer about [{self.focus}].")
+                continue
             if scheme in ids:
                 self.focus = scheme
             parts = data.get("parts")
@@ -315,6 +338,8 @@ class _Talk:
         threading.Thread(target=filler, daemon=True).start()
         try:
             action, say = self._decide(words, cut)
+            if action in ("answer", "ask", "show_scheme"):
+                self.last_action = action
             back[0] = time.monotonic()
             row: dict[str, Any] = {
                 "ev": "act", "action": action, "scheme": self.focus, "ms": int((back[0] - t0) * 1000),

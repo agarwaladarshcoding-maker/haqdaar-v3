@@ -44,6 +44,11 @@ TALK_MAX_TURNS: int = int(os.environ.get("TALK_MAX_TURNS", 40))             # a 
 # Tried in order; the next one only when Groq says "too many requests" (8000 tokens a minute per model).
 # Order by speed measured 5 Oct on real talk prompts: qwen 0.5-0.6 s, gpt-oss-120b 0.7-1.3 s, gpt-oss-20b 0.9-2.8 s.
 TALK_MODELS: str = os.environ.get("TALK_MODELS", "qwen/qwen3.8-27b,openai/gpt-oss-120b,openai/gpt-oss-20b")
+# A "muse:<model name>" entry in TALK_MODELS is served by Muse (haqdaar/model/muse_talk.py), inside its rupee caps.
+# Measured 5 Oct on a full talk prompt, muse-spark-1.3-contributor: 8.6 s at "minimal", 16.8 s at "low" ("none" is
+# refused). Too slow for the front of the chain; it is not in the default chain. It needs its own, longer timeout.
+TALK_MUSE_EFFORT: str = os.environ.get("TALK_MUSE_EFFORT", "minimal")
+TALK_MUSE_TIMEOUT_S: float = float(os.environ.get("TALK_MUSE_TIMEOUT_S", 12.0))
 TALK_END_WAIT_MS: int = int(os.environ.get("TALK_END_WAIT_MS", 600))        # quiet that ends the caller's turn in a talk call (keys call: 800)
 QA_MAX_PER_CALL: int = int(os.environ.get("QA_MAX_PER_CALL", 5))
 QA_MAX_SCHEMES: int = int(os.environ.get("QA_MAX_SCHEMES", 4))

@@ -57,6 +57,8 @@ class GroqModelClient:
             load_dotenv()
             api_key = os.environ.get("GROQ_API_KEY", "")
         self.api_key = api_key
+        # A second Groq key (another account): tried once when the first is refused for its limits.
+        self.backup_key = os.environ.get("GROQ_API_KEY_2", "")
 
         # llama-3.3-70b-versatile is gone from Groq (404, 4 Oct); gpt-oss-120b is the fallback.
         default_model = os.environ.get("GROQ_ROUTER_MODEL", os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b"))
@@ -100,6 +102,7 @@ class GroqModelClient:
         task: str = "model_router",
         timeout: Optional[float] = None,
         model: Optional[str] = None,
+        _key: Optional[str] = None,
     ) -> ModelClientResponse:
         """Call Groq API with JSON mode and timeout. Never raises.
 
@@ -107,6 +110,9 @@ class GroqModelClient:
         a longer timeout and a backup model); left out, nothing changes.
         """
         model = model or self.model
+        if model.startswith("muse:"):           # a talk-chain entry served by Muse, with its money guard
+            from haqdaar.model import muse_talk
+            return muse_talk.call(messages, task=task, timeout=timeout, model=model)
         if not self.api_key:
             return ModelClientResponse(
                 success=False,
@@ -116,7 +122,7 @@ class GroqModelClient:
             )
 
         headers = {
-            "Authorization": f"Bearer {self.api_key}",
+            "Authorization": f"Bearer {_key or self.api_key}",
             "Content-Type": "application/json",
             "User-Agent": "haqdaar/0.1",
         }
@@ -174,6 +180,9 @@ class GroqModelClient:
 
             if resp.status_code == 429:
                 self._write_ledger(task, 0, 0, error="http_429", model=model)
+                backup = getattr(self, "backup_key", "")
+                if backup and _key is None and backup != self.api_key:
+                    return self.call(messages, task=task, timeout=timeout, model=model, _key=backup)
                 return ModelClientResponse(
                     success=False,
                     data=None,
