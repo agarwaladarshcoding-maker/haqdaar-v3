@@ -1,0 +1,22 @@
+
+== 5 Oct 11:12 (CA7863...c18fba) farmer
+CALLER: मेरे को फार्मर स्कीम्स के बारे में जानना है।
+   -> show_scheme: "किसानों के लिए कई योजनाएँ हैं। पीएम किसान योजना में हर साल 6000 रुपये मिलते हैं। किसान क्रेडिट कार्ड से कर्ज़ मिलता है। आप कौन सी योजना के बारे में जानना चाहते हैं?"
+      in talk: pm-kisan  told: -
+CALLER: पहले वाले के बारे में।
+   -> answer: "पीएम किसान में सालाना 6000 रुपये मिलते हैं। यह जमींदार किसानों के लिए है। कागज़ात या आवेदन का तरीका सुनना है?"
+      in talk: pm-kisan  told: gives, who
+      (too many requests for qwen/qwen3.8-27b: waiting 25 s)
+CALLER: नहीं।
+   -> ask: "ठीक है। क्या आप किसी और योजना के बारे में जानना चाहते हैं?"
+      in talk: pm-kisan  told: gives, who
+CALLER: मैं इस स्कीम के बारे में और जानना चाहता हूँ।
+   -> answer: "इस योजना के लिए आधार कार्ड, जमीन के कागज़ और बैंक खाता चाहिए। आवेदन के लिए पीएम किसान वेबसाइट पर जाएं और नया किसान पंजीकरण चुनें। क्या मैं आपको और कुछ बताना चाहेंगे?"
+      in talk: pm-kisan  told: apply, gives, papers, who
+      (too many requests for qwen/qwen3.8-27b: waiting 25 s)
+CALLER: इस स्कीम के बेनिफिट्स क्या-क्या हैं?
+   -> answer: "पीएम किसान योजना में हर साल 6000 रुपये मिलते हैं। यह तीन किस्तों में मिलते हैं। क्या आप दूसरी योजना के बारे में जानना चाहेंगे?"
+      in talk: pm-kisan  told: apply, gives, papers, who
+   rules: no 'sorry', no restart
+
+saved: data_cache/reports/talk_questions.json
