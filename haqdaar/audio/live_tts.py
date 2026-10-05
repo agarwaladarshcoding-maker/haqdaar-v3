@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import Iterator, Optional
 
 from dotenv import load_dotenv
-import httpx
 
+from haqdaar import net
 from haqdaar.audio.render import TTS_LANG, wav_to_ulaw
 from haqdaar.contracts import tunables
 
@@ -67,7 +67,9 @@ def stream(text: str, lang: str) -> Iterator[bytes]:
     }
     wav: list[bytes] = []                       # a WAV container cannot be opened piece by piece
     first = True
-    with httpx.stream(
+    # A network error before any sound is tried once more, with the same timeout; the deadline
+    # check below still ends a slow stream, so the worst case is one more QA_TTS_TIMEOUT_S.
+    with net.stream(
         "POST", ENDPOINT, headers={"api-subscription-key": key},
         json=payload, timeout=tunables.QA_TTS_TIMEOUT_S,
     ) as response:

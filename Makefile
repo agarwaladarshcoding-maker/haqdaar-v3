@@ -17,7 +17,7 @@ backup:
 run:
 	@mkdir -p logs
 	@$(PYTHON) -m tools.tunnel | tee -a logs/server.log
-	NGROK_DOMAIN=$$($(PYTHON) -m tools.tunnel --host) PYTHONUNBUFFERED=1 $(PYTHON) -m tools.keep_running $(PYTHON) -m uvicorn haqdaar.server:app --host 0.0.0.0 --port 8000 2>&1 | tee -a logs/server.log
+	NGROK_DOMAIN=$$($(PYTHON) -m tools.tunnel --host) PYTHONUNBUFFERED=1 $(PYTHON) -m tools.keep_running $(PYTHON) -m uvicorn haqdaar.server:app --host 127.0.0.1 --port 8000 2>&1 | tee -a logs/server.log
 
 # Last calls on the phone line, with any warnings the provider logged.
 calls:
@@ -33,6 +33,8 @@ call:
 	NGROK_DOMAIN=$${HOST:-$$($(PYTHON) -m tools.tunnel --host)} $(PYTHON) -m tools.call_me $(TO)
 
 # One command: tunnel + haqdaar.server + rings your phone (CALL_ME_NUMBER). NOCALL=1 skips the ring.
+# Asks before it moves the phone number off another work folder (MOVE_NUMBER=1 says yes).
+# Times tiny requests to the tunnel, Sarvam and Groq first; a weak net means no ring (WEAK_OK=1 rings anyway).
 call-me:
 	caffeinate -dimsu $(PYTHON) -m tools.run_demo
 
@@ -56,7 +58,8 @@ demo-fixture:
 pipeline-discover:
 	$(PYTHON) -m haqdaar.data.pipeline.p0_discover
 
-pipeline-scrape:
+# A failed fetch deletes a scheme's saved pages, so copy data_cache first.
+pipeline-scrape: backup
 	$(PYTHON) -m haqdaar.data.pipeline.p1_scrape
 
 pipeline-extract:
@@ -141,7 +144,7 @@ stress:
 	$(PYTHON) -m tools.stress -n $(or $(N),1000) --seed $(or $(SEED),1)
 
 # Step 4.1: transcribe 3 sentences x en/hi/mr against fixtures (or custom audio)
-# NOTE: defaults to live API calls (spends Sarvam/Groq budget); use ARGS=--offline for zero-cost offline check.
+# NOTE: offline by default (zero API spend); ARGS=--live spends Sarvam/Groq budget.
 ear-check:
 	$(PYTHON) -m tools.ear_check $(ARGS)
 

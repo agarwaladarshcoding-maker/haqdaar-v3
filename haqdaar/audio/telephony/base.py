@@ -81,8 +81,11 @@ InboundEvent = Union[
 #   build_media(stream_sid, payload) -> dict   8 kHz mu-law audio to play
 #   build_mark(stream_sid, name) -> dict       tell me when playback reaches here
 #   build_clear(stream_sid) -> dict            drop everything queued (a key was pressed)
-#   build_stream_twiml(stream_url, keep_call_alive=False) -> str
+#   build_stream_twiml(stream_url, keep_call_alive=False, again_url="") -> str
 #                                              the /answer reply that opens the stream
+#   build_end_twiml(line_dropped=False) -> str the reply that ends the call
+#   request_is_signed(url, form, signature) -> bool            the request came from the provider
+#   number_answers_at() -> str                 where dial-ins go now; changes nothing
 #   place_call(to_number, answer_url, opener=None) -> str      ring a number; call id
 #   point_number_at(answer_url) -> str         dial-ins go to answer_url; old url
 #   recent_calls(limit=5) -> list[dict]        newest first
@@ -91,7 +94,10 @@ PROVIDER_FUNCTIONS: dict[str, tuple[str, ...]] = {
     "build_media": ("stream_sid", "payload"),
     "build_mark": ("stream_sid", "name"),
     "build_clear": ("stream_sid",),
-    "build_stream_twiml": ("stream_url", "keep_call_alive"),
+    "build_stream_twiml": ("stream_url", "keep_call_alive", "again_url"),
+    "build_end_twiml": ("line_dropped",),
+    "request_is_signed": ("url", "form", "signature"),
+    "number_answers_at": (),
     "place_call": ("to_number", "answer_url", "opener"),
     "point_number_at": ("answer_url",),
     "recent_calls": ("limit",),

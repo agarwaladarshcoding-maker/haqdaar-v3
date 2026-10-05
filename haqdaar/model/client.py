@@ -16,6 +16,7 @@ from typing import Any, Optional
 from dotenv import load_dotenv
 import httpx
 
+from haqdaar import net
 from haqdaar.contracts import tunables
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -138,8 +139,10 @@ class GroqModelClient:
 
         t0 = time.monotonic()
         try:
-            with httpx.Client(timeout=timeout if timeout is not None else self.timeout) as client:
-                resp = client.post(self.endpoint, headers=headers, json=payload)
+            resp = net.post(
+                self.endpoint, headers=headers, json=payload,
+                timeout=timeout if timeout is not None else self.timeout,
+            )
             latency = time.monotonic() - t0
 
             if resp.status_code == 200:

@@ -11,7 +11,8 @@ Components:
 - Ear: listener handling telephony audio, DTMF, and hangup events.
   - Distinguishes NOISE from SILENCE.
   - Keypress always wins over speech (barge-in).
-  - An STT timeout is a failure signal, never an exception, never a retry loop.
+  - An STT timeout is a failure signal, never an exception, never a retry loop (one quick
+    second try on a network error only, see net.py).
   - One caller at a time; never blocks the socket loop.
 
 Environment overrides:
@@ -41,6 +42,7 @@ import audioop
 from dotenv import load_dotenv
 import httpx
 
+from haqdaar import net
 from haqdaar.contracts import tunables
 from haqdaar.contracts.types import Digit, Hangup, Input, Noise, Silence, Speech
 
@@ -210,8 +212,7 @@ class SarvamSTT:
         t0 = time.monotonic()
         eff_timeout = timeout if timeout is not None else self.timeout
         try:
-            with httpx.Client(timeout=eff_timeout) as client:
-                resp = client.post(self.endpoint, headers=headers, data=data, files=files)
+            resp = net.post(self.endpoint, headers=headers, data=data, files=files, timeout=eff_timeout)
             latency = time.monotonic() - t0
             if resp.status_code == 200:
                 body = resp.json()
@@ -308,8 +309,7 @@ class GroqWhisperSTT:
         t0 = time.monotonic()
         eff_timeout = timeout if timeout is not None else self.timeout
         try:
-            with httpx.Client(timeout=eff_timeout) as client:
-                resp = client.post(self.endpoint, headers=headers, data=data, files=files)
+            resp = net.post(self.endpoint, headers=headers, data=data, files=files, timeout=eff_timeout)
             latency = time.monotonic() - t0
             if resp.status_code == 200:
                 body = resp.json()
@@ -356,7 +356,8 @@ class SpeechToText:
 
     - 1 s silence padding.
     - Hint words forwarded to Groq prompt.
-    - Timeout is a failure signal, never an exception, never a retry loop.
+    - Timeout is a failure signal, never an exception, never a retry loop (one quick second try
+      on a network error only, see net.py).
     - Usage recorded to reports ledger.
     """
 
@@ -552,7 +553,8 @@ class Ear:
       - Noise: speech started (energy detected), but STT returned empty or failed -> Noise().
     - Keypress always wins over speech:
       - Any DTMF key queued or arriving during speech/STT aborts speech and returns Digit(digit).
-    - STT timeout is a failure signal, never an exception, never a retry loop.
+    - STT timeout is a failure signal, never an exception, never a retry loop (one quick second
+      try on a network error only, see net.py).
     - One caller at a time; socket loop methods never block.
     """
 

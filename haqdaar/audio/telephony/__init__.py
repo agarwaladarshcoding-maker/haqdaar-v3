@@ -32,6 +32,10 @@ build_media = provider.build_media
 build_mark = provider.build_mark
 build_clear = provider.build_clear
 build_stream_twiml = provider.build_stream_twiml
+build_end_twiml = provider.build_end_twiml
+request_is_signed = provider.request_is_signed
+number_answers_at = provider.number_answers_at
+SIGNATURE_HEADER: str = provider.SIGNATURE_HEADER
 place_call = provider.place_call
 point_number_at = provider.point_number_at
 recent_calls = provider.recent_calls
@@ -49,6 +53,10 @@ __all__ = [
     "build_mark",
     "build_clear",
     "build_stream_twiml",
+    "build_end_twiml",
+    "request_is_signed",
+    "number_answers_at",
+    "SIGNATURE_HEADER",
     "place_call",
     "point_number_at",
     "recent_calls",

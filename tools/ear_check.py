@@ -1,13 +1,13 @@
 """tools/ear_check.py — Speech-to-text verification across languages (plan 4.1).
 
 Usage:
-    python -m tools.ear_check               # runs live against all 9 static speech fixtures (spends API budget!)
-    python -m tools.ear_check --lang hi      # runs only Hindi sentences (live)
-    python -m tools.ear_check --offline      # offline verification mode (zero network calls, zero API spend)
-    python -m tools.ear_check <path.wav>     # transcribes a specific audio file (live)
+    python -m tools.ear_check               # offline over all 9 static speech fixtures (zero network calls, zero spend)
+    python -m tools.ear_check --lang hi      # only Hindi sentences (offline)
+    python -m tools.ear_check --live         # live against Sarvam and Groq Whisper (spends API budget!)
+    python -m tools.ear_check --live <path.wav>   # transcribes a specific audio file (needs --live)
 
-NOTE: Plain `make ear-check` defaults to live calls against Sarvam and Groq Whisper,
-which spends API credits and usage quota. Use `--offline` for local zero-cost verification.
+NOTE: Offline is the default. `--offline` is still accepted so old commands work.
+`--live` spends API credits and usage quota.
 
 Verifies STT latency, provider routing (Sarvam -> Groq fallback), and transcript quality.
 """
@@ -29,7 +29,7 @@ from haqdaar.audio.ear import (
 def run_ear_check(
     fixtures_dir: Path | None = None,
     lang_filter: str | None = None,
-    offline: bool = False,
+    offline: bool = True,
     custom_files: list[str] | None = None,
 ) -> int:
     fixtures_dir = fixtures_dir or BASE_DIR / "fixtures" / "audio" / "speech"
@@ -44,6 +44,9 @@ def run_ear_check(
 
     # If specific files passed
     if custom_files:
+        if offline:
+            print("Custom files are transcribed by the paid service: add --live to run them.")
+            return 1
         print(f"=== HAQDAAR v2 Ear Check — {len(custom_files)} custom file(s) ===")
         for fpath_str in custom_files:
             fpath = Path(fpath_str)
@@ -120,13 +123,14 @@ def run_ear_check(
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="HAQDAAR v2 ear check (STT)")
     parser.add_argument("--lang", choices=["en", "hi", "mr"], help="Filter to specific language")
-    parser.add_argument("--offline", action="store_true", help="Run offline checks without paid APIs")
+    parser.add_argument("--live", action="store_true", help="Call the paid services (Sarvam, Groq); default is offline")
+    parser.add_argument("--offline", action="store_true", help="Offline checks without paid APIs (the default; kept for old commands)")
     parser.add_argument("files", nargs="*", help="Optional custom audio files to transcribe")
     args = parser.parse_args(argv)
 
     return run_ear_check(
         lang_filter=args.lang,
-        offline=args.offline,
+        offline=not args.live,
         custom_files=args.files if args.files else None,
     )
 

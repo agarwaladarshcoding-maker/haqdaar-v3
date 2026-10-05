@@ -76,3 +76,12 @@ def _all_three_languages(monkeypatch):
     2026) but it is kept in the system. The suite goes on testing all three languages: key 1
     Hindi, 2 Marathi, 3 English. tests/test_langs_offered.py tests the paused setting."""
     monkeypatch.setattr(tunables, "LANGS_OFFERED", ("hi", "mr", "en"))
+
+
+@pytest.fixture(autouse=True)
+def _plain_phone_line(monkeypatch):
+    """Step 1.0: the suite's stand-in phone line does not sign its requests, and a socket that
+    closes with no stop message ends the call at once (a kept call would live on into the next
+    test). tests/test_step10_line.py turns both back on."""
+    monkeypatch.setattr(tunables, "PHONE_CHECK", False)
+    monkeypatch.setattr(tunables, "LINE_RECONNECT", False)

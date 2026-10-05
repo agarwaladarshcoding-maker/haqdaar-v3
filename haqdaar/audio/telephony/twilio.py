@@ -168,20 +168,63 @@ def build_clear(stream_sid: str) -> dict[str, Any]:
     }
 
 
-def build_stream_twiml(stream_url: str, keep_call_alive: bool = False) -> str:
+def build_stream_twiml(stream_url: str, keep_call_alive: bool = False, again_url: str = "") -> str:
     """Build TwiML XML to connect call to bidirectional WebSocket stream.
     
     Hard rule: keepCallAlive='false' (T14).
+    `again_url` (step 1.0): asked by the line when the stream ends, so a dropped stream can be opened again.
     """
     keep_alive_str = "true" if keep_call_alive else "false"
+    action = f' action="{again_url}" method="POST"' if again_url else ""
     return (
         f'<?xml version="1.0" encoding="UTF-8"?>\n'
         f"<Response>\n"
-        f"  <Connect>\n"
+        f"  <Connect{action}>\n"
         f'    <Stream url="{stream_url}" keepCallAlive="{keep_alive_str}"/>\n'
         f"  </Connect>\n"
         f"</Response>"
     )
+
+
+# Step 1.0: said by the line's own voice when a dropped stream can not be opened again. No clip of
+# ours can be played then (our sound goes through the stream). Step 1.6 gives it recorded words.
+LINE_DROPPED_WORDS: tuple[tuple[str, str], ...] = (
+    ("hi-IN", "लाइन कट गई। कृपया फिर से कॉल करें।"),
+    ("en-IN", "The line dropped. Please call again."),
+)
+
+
+def build_end_twiml(line_dropped: bool = False) -> str:
+    """The reply that ends the call. `line_dropped`: first say so, in the line's own voice."""
+    said = "".join(f'  <Say language="{lang}">{words}</Say>\n' for lang, words in LINE_DROPPED_WORDS)
+    return (
+        f'<?xml version="1.0" encoding="UTF-8"?>\n'
+        f"<Response>\n"
+        f"{said if line_dropped else ''}"
+        f"  <Hangup/>\n"
+        f"</Response>"
+    )
+
+
+SIGNATURE_HEADER = "X-Twilio-Signature"
+
+
+def request_is_signed(url: str, form: dict[str, str], signature: str) -> bool:
+    """True when `signature` is the provider's own for a request to `url` with these POST fields.
+
+    HMAC-SHA1 of the url plus every field name and value (sorted by name), keyed with the account's
+    auth token, in base64. No token in the environment: nothing can be checked, so False.
+    """
+    import hashlib
+    import hmac
+    import os
+
+    token = os.environ.get("TWILIO_AUTH_TOKEN", "")
+    if not token or not signature:
+        return False
+    text = url + "".join(k + form[k] for k in sorted(form))
+    want = base64.b64encode(hmac.new(token.encode(), text.encode("utf-8"), hashlib.sha1).digest()).decode()
+    return hmac.compare_digest(want, signature)
 
 
 def _api(path: str, data: dict[str, str] | None = None, opener: Any = None) -> dict[str, Any]:
@@ -223,8 +266,7 @@ def recent_calls(limit: int = 5) -> list[dict[str, Any]]:
     return calls
 
 
-def point_number_at(answer_url: str) -> str:
-    """Set the line's own number to fetch `answer_url` when someone dials in. Returns the old URL."""
+def _line_number() -> dict[str, Any]:
     import os
     import urllib.parse
 
@@ -232,8 +274,19 @@ def point_number_at(answer_url: str) -> str:
     found = _api(f"IncomingPhoneNumbers.json?PhoneNumber={number}")["incoming_phone_numbers"]
     if not found:
         raise RuntimeError("line number not found on this account")
-    old = found[0]["voice_url"]
+    return found[0]
+
+
+def number_answers_at() -> str:
+    """The URL the line's own number fetches now when someone dials in. Changes nothing."""
+    return _line_number()["voice_url"]
+
+
+def point_number_at(answer_url: str) -> str:
+    """Set the line's own number to fetch `answer_url` when someone dials in. Returns the old URL."""
+    found = _line_number()
+    old = found["voice_url"]
     if old != answer_url:
-        _api(f"IncomingPhoneNumbers/{found[0]['sid']}.json",
+        _api(f"IncomingPhoneNumbers/{found['sid']}.json",
              {"VoiceUrl": answer_url, "VoiceMethod": "POST"})
     return old

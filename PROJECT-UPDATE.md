@@ -1567,3 +1567,35 @@ same folder, uncommitted. It waits for the owner's phone check. No money was spe
 - *Greeting:* Gujarati and Tamil are right. They say a short "welcome, speak in your own
   language"; Hindi, English and Marathi say the full line. About 16 s in all.
 - *Network:* a phone hotspot. No cloud server; no money is spent on it.
+
+## 5 Oct 2026, night: Phase 1 step 1.0 built (safe and smooth line). Not committed yet. Not tried on the phone yet.
+
+What the caller hears in a normal call is the same as before.
+
+- *The number is not moved without a question.* `make call-me` and `make run` now say where
+  the phone number points and ask before they point it at this folder. A small file in the
+  home folder (`~/.haqdaar/number_holder.json`) remembers which folder took it last.
+- *The server is closed to the outside.* It listens on this computer only. `/answer` takes
+  only a request signed by Twilio; `/stream` takes only a call that `/answer` saw. The test
+  route `/tone` and the open `/docs` pages are gone. A call is closed after 10 minutes.
+- *Cheaper checks.* `make stage-check` sends a few words to each model, not 2,500 tokens.
+  `make ear-check` is offline unless `ARGS=--live`. `make pipeline-scrape` makes a backup first.
+- *Line report.* Every call's log ends with one row: why the line closed, the longest gap in
+  the caller's sound, how far ahead our sound was sent, the slowest Sarvam and Groq reply, and
+  how many times the stream dropped. The same is one line in `logs/server.log`.
+- *Network test before the ring.* `make call-me` times three tiny requests to the tunnel,
+  Sarvam and Groq (no cost). Slower than 2 s or no reply: it says "weak network" and does not ring.
+- *Connections stay open.* Sarvam and Groq requests share one kept-open connection, and a
+  network error gets one quick second try. A time-out is not tried again.
+- *A dropped stream is opened again.* Twilio asks `/answer-again`; the same call goes on, and
+  the sound that was cut is said again. After 3 drops or 60 s the caller hears, in Twilio's own
+  voice, "the line dropped, please call again" (no recorded clip yet; that needs a paid render).
+- *Dead code cut:* `TURN0_KEYS`, the `voice_demo` branch, four settings no code read, one stale pointer.
+- *Switches, if a call fails:* `PHONE_CHECK=false` (Twilio check off), `LINE_RECONNECT=false`
+  (connect-again off, the line then behaves as before).
+- *Checks.* 2,429 tests pass. 2,552 scripted talk calls break no rule. 1,000 key callers: 0
+  crashes, 0 truth failures. Cut-in scorecard: 65,622 runs, the same pass / fail rows as the
+  morning's run on the old folder (its red rows are old and belong to Phase 2).
+- *Not proven without a phone:* that Twilio's signature matches through the tunnel, and that
+  Twilio really asks `/answer-again` when a stream drops. One phone call shows both.
+

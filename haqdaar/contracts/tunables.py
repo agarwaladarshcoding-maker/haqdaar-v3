@@ -87,7 +87,6 @@ def turn0_keys() -> dict[str, str]:
 KEY_REPEAT_MS: int = int(os.environ.get("KEY_REPEAT_MS", 300))
 KEY_GUARD_MS: int = int(os.environ.get("KEY_GUARD_MS", 250))
 ENDPOINT_MS: int = int(os.environ.get("ENDPOINT_MS", 700))
-RESPONSE_BUDGET_S: float = float(os.environ.get("RESPONSE_BUDGET_S", 1.2))
 MODEL_TIMEOUT_S: float = float(os.environ.get("MODEL_TIMEOUT_S", 2.0))
 STT_TIMEOUT_S: float = float(os.environ.get("STT_TIMEOUT_S", 5.0))
 SILENCE_GAP_S: int = int(os.environ.get("SILENCE_GAP_S", 6))
@@ -102,12 +101,24 @@ OVERFLOW_READ_CAP: int = int(os.environ.get("OVERFLOW_READ_CAP", 3))
 READBACK_REPLAY_MAX: int = int(os.environ.get("READBACK_REPLAY_MAX", 2))
 CONFIRM_REPEAT_MAX: int = int(os.environ.get("CONFIRM_REPEAT_MAX", 3))
 MODEL_FAILURES_TO_KEYPAD: int = int(os.environ.get("MODEL_FAILURES_TO_KEYPAD", 2))
-BOX_STRIKES_TO_KEYPAD: int = int(os.environ.get("BOX_STRIKES_TO_KEYPAD", 2))
 UNCLEAR_TRIES: int = int(os.environ.get("UNCLEAR_TRIES", 3))
 KEYPAD_CARDINALITY_MAX: int = int(os.environ.get("KEYPAD_CARDINALITY_MAX", 9))
 ALIAS_FLOOR: int = int(os.environ.get("ALIAS_FLOOR", 3))
 CALL_CEILING_S: int = int(os.environ.get("CALL_CEILING_S", 600))
-MAX_SOURCE_AGE_DAYS: int = int(os.environ.get("MAX_SOURCE_AGE_DAYS", 14))
+
+# Step 1.0: safe and smooth line. Each switch is ON unless set to false.
+def _off(name: str) -> bool:
+    return os.environ.get(name, "true").strip().lower() in ("0", "false", "no", "off")
+
+
+PHONE_CHECK: bool = not _off("PHONE_CHECK")           # /answer must be signed by the phone provider; /stream takes only a call /answer saw
+STREAM_START_WAIT_S: float = float(os.environ.get("STREAM_START_WAIT_S", 5.0))   # a socket that sends no start is closed
+LINE_RECONNECT: bool = not _off("LINE_RECONNECT")     # a dropped stream is opened again and the call goes on
+LINE_RECONNECT_WAIT_S: float = float(os.environ.get("LINE_RECONNECT_WAIT_S", 60.0))   # how long a dropped call is kept
+LINE_RECONNECT_TRIES: int = int(os.environ.get("LINE_RECONNECT_TRIES", 3))       # then "the line dropped" and hang up
+NET_KEEPALIVE_S: float = float(os.environ.get("NET_KEEPALIVE_S", 60.0))          # an open connection to Sarvam / Groq is kept this long
+NET_CHECK_TRIES: int = int(os.environ.get("NET_CHECK_TRIES", 3))                 # make call-me: tiny requests before the ring
+NET_CHECK_SLOW_S: float = float(os.environ.get("NET_CHECK_SLOW_S", 2.0))         # a slower reply than this = "weak network"
 
 # Door A matching thresholds (4.3)
 DOOR_A_EXACT_SCORE: float = float(os.environ.get("DOOR_A_EXACT_SCORE", 1000.0))
@@ -233,7 +244,6 @@ TRANSLATE_RETRY_BACKOFF_S: float = float(os.environ.get("TRANSLATE_RETRY_BACKOFF
 GATE_NUMBER_MIN: int = int(os.environ.get("GATE_NUMBER_MIN", 100))
 GATE_LENGTH_RATIO_MAX: float = float(os.environ.get("GATE_LENGTH_RATIO_MAX", 1.6))
 GATE_SCRIPT_MIN: float = float(os.environ.get("GATE_SCRIPT_MIN", 0.8))
-GATES_FILE: str = os.environ.get("GATES_FILE", "data_cache/derived/gates.jsonl")
 # G3 counts words, not characters (Devanagari uses more characters per word), and skips text
 # shorter than this: turning "Aadhaar Card." into a spoken sentence must add words.
 GATE_LENGTH_MIN_WORDS: int = int(os.environ.get("GATE_LENGTH_MIN_WORDS", 12))

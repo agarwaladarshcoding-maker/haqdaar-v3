@@ -39,6 +39,7 @@ sentence was not taken as Hindi; the words said there were thrown away. That is 
 ## 2. Phase 1: the talk flow (chart 1)
 
 ### 1.0 Safe before the first call (added 5 Oct evening, from the folder audit; about an hour)
+**BUILT 5 Oct night (not yet tried on the phone).** What was built and what is not proven: `.agent/NOTES.md`, "step 1.0 BUILT". Switches: `PHONE_CHECK=false`, `LINE_RECONNECT=false`.
 Small guards, no change to what the caller hears. Each was found by reading; see NOTES.
 - `make call-me` and `make run` point the ONE Twilio number at this folder with no question
   asked. From then on the fallback folder gets no calls. Print which folder holds the number

@@ -31,7 +31,7 @@ from haqdaar.contracts.log_schema import (
 from haqdaar.contracts.types import Lang, LangSource
 
 
-EV_ROWS = ("said", "key", "cut", "blocked", "heard", "act")
+EV_ROWS = ("said", "key", "cut", "blocked", "heard", "act", "line")
 
 
 class Log:

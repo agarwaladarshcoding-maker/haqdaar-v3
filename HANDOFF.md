@@ -46,6 +46,12 @@ make calls                                       # read the last calls
 make talk-eval
 ```
 
+## Step 1.0 is built (5 Oct night), waiting for one phone call
+- `make call-me` asks before it moves the phone number here, and tests the network before it rings.
+- If a call does not connect: `PHONE_CHECK=false` turns the Twilio check off; `LINE_RECONNECT=false`
+  turns connect-again off. Read the `line    report:` line of the call in `logs/server.log`.
+- The no-phone probe needs `PHONE_CHECK=false` on its server.
+
 ## Limits to keep in mind
 - One caller at a time.
 - Groq: 8,000 tokens a minute and 200,000 a day for each model. A talk turn is about 3,000.

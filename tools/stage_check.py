@@ -2,7 +2,7 @@
 
 Run this a few minutes before a demo call: `make stage-check`. It says, in plain lines, whether
 each thing the call needs is ready, and what to do when it is not. It places no call. It costs
-one two-word Sarvam sentence and one full-size Groq prompt per model (about 2,500 tokens each).
+one two-word Sarvam sentence and one tiny Groq request per model.
 
 Made on 5 Oct after `make call-me` sat silent in the hackathon hall: the hall's network let out
 only the web ports, so the Cloudflare tunnel never connected and the phone never rang.
@@ -94,10 +94,10 @@ def main() -> int:
     working = 0
     for model in [m.strip() for m in tunables.TALK_MODELS.split(",") if m.strip()]:
         code, text = http("https://api.groq.com/openai/v1/chat/completions", {"Authorization": f"Bearer {env.get('GROQ_API_KEY', '')}"},
-                          {"model": model, "messages": [{"role": "user", "content": "word " * 2500 + "Say ok."}], "max_tokens": 4})
+                          {"model": model, "messages": [{"role": "user", "content": "Say ok."}], "max_tokens": 4})
         day = "tokens per day" in text
         print(f"  {'ok     ' if code == 200 else 'note   '}  {model}: " + (
-            "answers a full-size prompt" if code == 200 else
+            "answers" if code == 200 else
             "its DAY of tokens is used up (the call moves to the next model)" if day else f"http {code} {text[:100]}"), flush=True)
         working += code == 200
     line(working > 0, f"{working} model(s) can answer now", "all models are refused: wait, or use another Groq key")

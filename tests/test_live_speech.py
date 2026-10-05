@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 import pytest
 
+from haqdaar import net
 from haqdaar.audio import ear as ear_mod
 from haqdaar.audio import live_tts
 from haqdaar.audio.ear import Ear, GroqWhisperSTT, SarvamSTT, SttResult
@@ -196,10 +197,17 @@ def _fake_client(sent: list[dict]):
     return Client
 
 
+def _use_client(monkeypatch, client_cls) -> None:
+    """The call path posts through the shared client in haqdaar.net; answer with this stand-in."""
+    monkeypatch.setattr(
+        net, "post", lambda url, *, timeout, **kw: client_cls().post(url, **kw)
+    )
+
+
 def test_b1_off_the_request_is_as_before(monkeypatch):
     sent: list[dict] = []
     monkeypatch.setattr(tunables, "ENGLISH_PIPE", False)
-    monkeypatch.setattr(ear_mod.httpx, "Client", _fake_client(sent))
+    _use_client(monkeypatch, _fake_client(sent))
     res = SarvamSTT(api_key="k", model="saaras:v4").transcribe(b"wav", lang="hi")
     assert sent == [{"model": "saaras:v4", "mode": "transcribe", "language_code": "hi-IN"}]
     assert res.english is False
@@ -208,7 +216,7 @@ def test_b1_off_the_request_is_as_before(monkeypatch):
 def test_b1_on_it_translates_and_keeps_the_callers_language(monkeypatch):
     sent: list[dict] = []
     monkeypatch.setattr(tunables, "ENGLISH_PIPE", True)
-    monkeypatch.setattr(ear_mod.httpx, "Client", _fake_client(sent))
+    _use_client(monkeypatch, _fake_client(sent))
     res = SarvamSTT(api_key="k", model="saaras:v4").transcribe(b"wav", lang="hi")
     assert sent == [{"model": "saaras:v4", "mode": "translate", "language_code": "hi-IN"}]
     assert (res.english, res.lang) == (True, "hi-IN")
@@ -234,7 +242,7 @@ def test_b2_the_groq_backup_gives_the_callers_language(monkeypatch):
             return R()
 
     monkeypatch.setattr(tunables, "ENGLISH_PIPE", True)
-    monkeypatch.setattr(ear_mod.httpx, "Client", Client)
+    _use_client(monkeypatch, Client)
     res = GroqWhisperSTT(api_key="k").transcribe(b"wav", lang="hi")
     assert (res.english, res.lang) == (False, "hi-IN")
 
@@ -325,13 +333,13 @@ def test_c1_clean_text_and_streamed_bytes(monkeypatch):
 
     monkeypatch.setenv("SARVAM_API_KEY", "k")
     monkeypatch.setattr(live_tts, "load_dotenv", lambda *a, **k: None)
-    monkeypatch.setattr(live_tts.httpx, "stream", lambda *a, **k: Resp([b"\x01\x02", b"\x03"]))
+    monkeypatch.setattr(net, "stream", lambda *a, **k: Resp([b"\x01\x02", b"\x03"]))
     assert live_tts.speak("hello", "en") == b"\x01\x02\x03"
 
     def boom(*a: Any, **k: Any) -> Any:
         raise RuntimeError("network down")
 
-    monkeypatch.setattr(live_tts.httpx, "stream", boom)
+    monkeypatch.setattr(net, "stream", boom)
     assert live_tts.speak("hello", "en") is None
     monkeypatch.delenv("SARVAM_API_KEY")
     assert live_tts.speak("hello", "en") is None
@@ -547,12 +555,12 @@ def test_s14_stream_gives_the_pieces_and_speak_is_their_join(monkeypatch):
             return iter(self.pieces)
 
     monkeypatch.setenv("SARVAM_API_KEY", "k")
-    monkeypatch.setattr(live_tts.httpx, "stream", lambda *a, **k: Resp([b"\x01\x02", b"", b"\x03"]))
+    monkeypatch.setattr(net, "stream", lambda *a, **k: Resp([b"\x01\x02", b"", b"\x03"]))
     assert list(live_tts.stream("hello", "en")) == [b"\x01\x02", b"\x03"]
     assert live_tts.speak("hello", "en") == b"\x01\x02\x03"
     bad = Resp([])
     bad.status_code = 500
-    monkeypatch.setattr(live_tts.httpx, "stream", lambda *a, **k: bad)
+    monkeypatch.setattr(net, "stream", lambda *a, **k: bad)
     assert live_tts.speak("hello", "en") is None
 
 

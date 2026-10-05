@@ -47,7 +47,6 @@ STAND_IN: dict[str, str] = {
     "did_not_get_reply": "unclear_prompt",
     "waiting_for_reply": "did_not_get_reply",
 }
-TURN0_KEYS: dict[str, Lang] = {"1": "hi", "2": "mr", "3": "en"}
 # Played even over a waiting key: the call is ending, nothing comes after it to answer.
 ALWAYS_SAY: frozenset[str] = frozenset({"closing_farewell"})
 

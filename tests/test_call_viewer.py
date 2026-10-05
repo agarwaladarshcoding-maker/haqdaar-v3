@@ -175,7 +175,8 @@ def test_a_phone_call_is_traced_with_clip_lengths(phone):
     # The test presses its keys at once, so the greeting is skipped; later clips carry a length.
     assert any(re.fullmatch(r"-> say \S+ \(\d+\.\d s\)", line) for line in lines)
     assert any(line.startswith("<- key 3: language en") for line in lines)
-    assert lines[-1] == "call    CA42 finished"
+    assert lines[-2] == "call    CA42 finished"
+    assert lines[-1].startswith("line    report: closed because we ended the call")   # step 1.0
     assert [r["t"] for r in rows] == sorted(r["t"] for r in rows)
     assert "9800000000" not in (phone / "calls" / "trace" / "CA42.jsonl").read_text()
 

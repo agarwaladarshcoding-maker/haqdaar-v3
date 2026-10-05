@@ -53,6 +53,7 @@ class Mouth:
         self.last_cut: tuple[str, int] = ("", -1)
         self.no_cut: frozenset[str] = frozenset()   # clips nothing may cut (the goodbye)
         self._resume: list[tuple[str, bytes, Optional[Tag]]] = []   # what the last clear() cut off
+        self.ahead_max = 0.0              # most seconds of sound sent ahead of its playing time (line report)
 
     # --- engine thread -------------------------------------------------------------
     def play(self, clips: list[Clip], tag: Optional[Tag] = None) -> None:
@@ -94,6 +95,7 @@ class Mouth:
                     cs["end"] = start_t + len(whole) / tunables.SAMPLE_RATE
                     cs["dur_ms"] = int(len(whole) * 1000 / tunables.SAMPLE_RATE)
                     self._play_until = self._ends[name] = cs["end"]
+                    self.ahead_max = max(self.ahead_max, cs["end"] - self._clock())
                 for i in range(0, len(chunk), frame):
                     if self._cleared != generation:
                         break
@@ -176,6 +178,28 @@ class Mouth:
             self._send([(name, audio)], tag)
         return bool(clips)
 
+    def rebind(self, emit: Callable[[dict[str, Any]], None], stream_sid: str) -> int:
+        """Step 1.0: the stream dropped and a new one is open for the same call. From now on the
+        sound goes there. Every clip whose mark never came back (it was sounding, or was queued
+        while the line was down) is sent again, each from its start, under its old mark, so the
+        engine does not have to know. Returns how many clips. Never waits: safe from the socket loop.
+        """
+        frame = min(tunables.FRAME_BYTES, int(0.200 * tunables.SAMPLE_RATE))
+        with self._lock:
+            self._emit = emit
+            self._sid = stream_sid
+            again = [cs for cs in self._clip_schedules if cs["mark"] in self._pending]
+            at = self._clock()
+            for cs in again:
+                cs["start"], cs["end"] = at, at + len(cs["audio"]) / tunables.SAMPLE_RATE
+                at = self._ends[cs["name"]] = cs["end"]
+                for i in range(0, len(cs["audio"]), frame):
+                    emit(build_media(stream_sid, cs["audio"][i:i + frame]))
+                emit(build_mark(stream_sid, cs["mark"]))
+            if again:
+                self._play_until = at
+        return len(again)
+
     def on_mark(self, name: str) -> None:
         """The line played up to this mark."""
         with self._lock:
@@ -239,6 +263,7 @@ class Mouth:
                 dur_ms = int(dur_s * 1000)
                 end_t = start_t + dur_s
                 self._play_until = end_t
+                self.ahead_max = max(self.ahead_max, end_t - now)
                 self._seq += 1
                 mark = f"{self._seq}:{name}"
                 self._pending.add(mark)

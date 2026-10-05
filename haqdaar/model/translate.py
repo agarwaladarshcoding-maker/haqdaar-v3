@@ -10,8 +10,8 @@ import os
 from typing import Optional
 
 from dotenv import load_dotenv
-import httpx
 
+from haqdaar import net
 from haqdaar.contracts import tunables
 
 TARGET_CODES = {"hi": "hi-IN", "mr": "mr-IN"}
@@ -35,17 +35,17 @@ class AnswerTranslator:
             return None
         timeout = self.timeout if self.timeout is not None else tunables.QA_TRANSLATE_TIMEOUT_S
         try:
-            with httpx.Client(timeout=timeout) as client:
-                resp = client.post(
-                    self.endpoint,
-                    headers={"api-subscription-key": self.api_key, "Content-Type": "application/json"},
-                    json={
-                        "input": text,
-                        "source_language_code": "en-IN",
-                        "target_language_code": target,
-                        "model": self.model,
-                    },
-                )
+            resp = net.post(
+                self.endpoint,
+                headers={"api-subscription-key": self.api_key, "Content-Type": "application/json"},
+                json={
+                    "input": text,
+                    "source_language_code": "en-IN",
+                    "target_language_code": target,
+                    "model": self.model,
+                },
+                timeout=timeout,
+            )
             if resp.status_code != 200:
                 return None
             out = resp.json().get("translated_text")

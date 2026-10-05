@@ -8,16 +8,18 @@ half the audio on the long hop, 13 Sep); ngrok stays as the backup.
 The quick-tunnel address changes each time cloudflared restarts; this handles it.
 """
 from __future__ import annotations
+import json
 import os
 import re
 import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-from haqdaar.audio.telephony import point_number_at
+from haqdaar.audio.telephony import number_answers_at, point_number_at
 
 LOGS = Path("logs")
 HOST_FILE = LOGS / "tunnel_host"
@@ -26,6 +28,8 @@ LOG_FILE = LOGS / "cloudflared.log"
 NGROK_LOG = LOGS / "ngrok.log"
 NGROK_PID = LOGS / "ngrok.pid"
 PORT = 8000
+REPO_ROOT = Path(__file__).resolve().parent.parent
+FALLBACK_FOLDER = "~/code/haqdaar-v2-7.3"
 
 
 def _alive(pid: int) -> bool:
@@ -129,6 +133,54 @@ def start_cloudflare() -> str:
     raise RuntimeError(f"cloudflared gave no address, see {LOG_FILE}")
 
 
+def _holder_file() -> Path:
+    # Outside the repo on purpose: every work folder reads and writes the same file.
+    return Path(os.environ.get("HAQDAAR_NUMBER_HOLDER", "~/.haqdaar/number_holder.json")).expanduser()
+
+
+def _read_holder() -> dict:
+    try:
+        data = json.loads(_holder_file().read_text())
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _write_holder(answer_url: str) -> None:
+    path = _holder_file()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"folder": str(REPO_ROOT), "url": answer_url,
+                                "at": datetime.now().isoformat(timespec="seconds")}))
+
+
+def take_number(answer_url: str) -> bool:
+    """Point the phone number at answer_url, but ask first unless this folder holds it already.
+    There is one number and two work folders; tunnel addresses change each run, so the address
+    alone does not say who holds it. The marker file does. True: the number points here now."""
+    now = number_answers_at()
+    marker = _read_holder()
+    ours = marker.get("folder") == str(REPO_ROOT) and marker.get("url") == now
+    if not ours:
+        move = os.environ.get("MOVE_NUMBER")
+        if not move:
+            last = marker.get("folder") or f"not known; the fallback folder is {FALLBACK_FOLDER}"
+            print(f"The phone number answers at {now} now (last taken by: {last}).\n"
+                  f"Point it at THIS folder ({REPO_ROOT})? Calls will stop reaching the other folder. [y/N] ",
+                  end="", flush=True)
+            if sys.stdin.isatty():
+                reply = sys.stdin.readline().strip().lower()
+            else:
+                reply = ""
+                print("\nNo terminal to ask on: answering no. To say yes, run with MOVE_NUMBER=1.", flush=True)
+            if reply not in ("y", "yes"):
+                print("tunnel  number left where it was", flush=True)
+                return False
+    point_number_at(answer_url)
+    _write_holder(answer_url)
+    print(f"tunnel  number now answers at {answer_url}", flush=True)
+    return True
+
+
 def main() -> int:
     load_dotenv()
     ngrok = os.environ.get("NGROK_DOMAIN", "")
@@ -144,9 +196,7 @@ def main() -> int:
             print(f"tunnel  cloudflared failed ({e}); using ngrok {ngrok}")
             host = ngrok
     try:
-        old = point_number_at(f"https://{host}/answer")
-        if old != f"https://{host}/answer":
-            print(f"tunnel  number now answers at {host} (was {old})")
+        take_number(f"https://{host}/answer")
     except Exception as e:  # keep the server usable even if the account call fails
         print(f"tunnel  could not update the number ({e}); dial-in may still use the old address")
     print(host)

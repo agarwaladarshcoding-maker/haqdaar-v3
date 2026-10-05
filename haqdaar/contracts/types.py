@@ -38,7 +38,7 @@ HARD_BOXES: frozenset[BoxId] = frozenset({"state", "gender", "social_category"})
 # phoned about (Door A); dropping it answers a question they did not ask, and
 # with it in the ladder "ladder exhausted" and "no scheme with a soft-only
 # miss-set" become the same condition, which made delivery shape 4 (NEAREST)
-# unreachable in every corpus. See WORK.md §9 22.
+# unreachable in every corpus.
 WIDENING_ORDER: tuple[BoxId, ...] = ("income_band", "age", "occupation")
 
 # Six scheme read-back chunks in order (05-DATA-CONTRACT.md §1E)
