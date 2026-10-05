@@ -1,3 +1,4 @@
+import re
 """tests/test_photo_desk.py
 
 Tests for tools.photo_desk:
@@ -236,3 +237,95 @@ def test_desk_approve_and_new(tmp_path):
         assert next_call.exists()
         data = json.loads(next_call.read_text(encoding="utf-8"))
         assert data["say"] == "Approved helper text"
+
+
+def test_mobile_friendly_and_no_banned_tokens(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        c = cases.new_case("hi", folder=tmp_path)
+        client = TestClient(photo_desk.photo_app)
+        resp = client.get(f"/p/{c.token}")
+        assert resp.status_code == 200
+        html_text = resp.text
+
+        # 1. Viewport & charset
+        assert '<meta name="viewport" content="width=device-width, initial-scale=1">' in html_text
+        assert '<meta charset="utf-8">' in html_text
+
+        # 2. Noscript present
+        assert "<noscript>" in html_text
+        assert "</noscript>" in html_text
+
+        # 3. Under 20 KB
+        assert len(resp.content) < 20 * 1024
+
+        # 4. Computer & helper notice present
+        assert "The photos are read by a computer and by a helper." in html_text
+        assert "फोटो कंप्यूटर और एक सहायक देखेंगे।" in html_text
+        assert "फोटो संगणक आणि एक मदतनीस पाहतील।" in html_text
+
+        # 5. Script part holds NONE of =>, async , await , let , const , ?., `, fetch(
+        script_match = re.search(r"<script>(.*?)</script>", html_text, re.DOTALL)
+        assert script_match is not None, "Script tag missing"
+        script_body = script_match.group(1)
+
+        banned_tokens = ["=>", "async ", "await ", "let ", "const ", "?.", "`", "fetch("]
+        for token in banned_tokens:
+            assert token not in script_body, f"Banned token {token!r} found in photo page script"
+
+
+def test_photo_page_gujarati_labels(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        c = cases.new_case("gu", folder=tmp_path)
+        client = TestClient(photo_desk.photo_app)
+        resp = client.get(f"/p/{c.token}")
+        assert resp.status_code == 200
+        html_text = resp.text
+
+        # Gujarati send word present
+        assert "મોકલો" in html_text
+        assert "ફોટો લો" in html_text
+        assert "ફોટો પસંદ કરો" in html_text
+        assert "મોકલાઈ ગયું, તમને કૉલ આવશે" in html_text
+
+        # Gujarati comes first, then Hindi, then English in the send button
+        send_btn_match = re.search(r'<button[^>]*id="send-btn"[^>]*>(.*?)</button>', html_text, re.DOTALL)
+        assert send_btn_match is not None
+        btn_text = send_btn_match.group(1)
+        gu_idx = btn_text.find("મોકલો")
+        hi_idx = btn_text.find("भेजें")
+        en_idx = btn_text.find("Send")
+        assert gu_idx != -1 and hi_idx != -1 and en_idx != -1
+        assert gu_idx < hi_idx < en_idx, "Gujarati labels must precede Hindi and English"
+
+
+def test_photo_page_tamil_labels(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        c = cases.new_case("ta", folder=tmp_path)
+        client = TestClient(photo_desk.photo_app)
+        resp = client.get(f"/p/{c.token}")
+        assert resp.status_code == 200
+        html_text = resp.text
+
+        # Tamil send word present
+        assert "அனுப்பு" in html_text
+        assert "புகைப்படம் எடு" in html_text
+        assert "புகைப்படங்களைத் தேர்ந்தெடு" in html_text
+        assert "அனுப்பப்பட்டது, உங்களுக்கு அழைப்பு வரும்" in html_text
+
+        # Tamil comes first, then Hindi, then English in the send button
+        send_btn_match = re.search(r'<button[^>]*id="send-btn"[^>]*>(.*?)</button>', html_text, re.DOTALL)
+        assert send_btn_match is not None
+        btn_text = send_btn_match.group(1)
+        ta_idx = btn_text.find("அனுப்பு")
+        hi_idx = btn_text.find("भेजें")
+        en_idx = btn_text.find("Send")
+        assert ta_idx != -1 and hi_idx != -1 and en_idx != -1
+        assert ta_idx < hi_idx < en_idx, "Tamil labels must precede Hindi and English"
+
+
+def test_desk_page_has_viewport(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        client = TestClient(photo_desk.desk_app)
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert '<meta name="viewport" content="width=device-width, initial-scale=1">' in resp.text

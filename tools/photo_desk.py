@@ -159,148 +159,175 @@ async def rate_limit_middleware(request: Request, call_next):
 PHOTO_HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="__LANG__">
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>Haqdaar - Photo Upload</title>
+<title>Haqdaar</title>
 <style>
-:root {
-  --bg: #0f172a;
-  --card: #1e293b;
-  --text: #f8fafc;
-  --text-dim: #94a3b8;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --border: #334155;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--bg);
-  color: var(--text);
-  line-height: 1.5;
-  padding: 16px;
+  font-family: system-ui, sans-serif;
+  background-color: #ffffff;
+  color: #000000;
+  font-size: 18px;
+  line-height: 1.4;
+  padding: 12px;
+  width: 100%;
   max-width: 480px;
   margin: 0 auto;
 }
-header { text-align: center; margin-bottom: 20px; }
-.brand { font-size: 24px; font-weight: 700; color: #38bdf8; margin-bottom: 4px; }
-.phone-info { font-size: 15px; color: var(--text-dim); font-weight: 500; min-height: 22px; }
-.btn-grid { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
-.action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 54px;
-  padding: 12px 18px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--text);
-  font-size: 17px;
-  font-weight: 600;
-  cursor: pointer;
-  touch-action: manipulation;
+header {
+  text-align: center;
+  margin-bottom: 16px;
 }
-.action-btn:active { background: #2d3748; }
-.send-btn {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-  min-height: 56px;
-  font-size: 19px;
+.brand {
+  font-size: 26px;
+  font-weight: bold;
+  color: #000000;
+  margin-bottom: 4px;
+}
+.phone-info {
+  font-size: 18px;
+  color: #111111;
+  font-weight: 500;
+  min-height: 24px;
+}
+.btn-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.action-btn {
+  display: block;
   width: 100%;
+  min-height: 56px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 2px solid #000000;
+  background-color: #f2f2f2;
+  color: #000000;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  text-align: center;
+}
+.send-btn {
+  background-color: #004488;
+  color: #ffffff;
+  border: 2px solid #002244;
+  margin-top: 12px;
 }
 .send-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
+  opacity: 0.5;
+  cursor: default;
 }
 .count-bar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: bold;
   margin-bottom: 12px;
-  color: var(--text-dim);
+  color: #111111;
 }
 .photos-container {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 .thumb-box {
   position: relative;
-  width: 100%;
+  width: 30%;
+  min-width: 80px;
   aspect-ratio: 1;
-  border-radius: 8px;
+  border: 2px solid #000000;
+  border-radius: 6px;
   overflow: hidden;
-  background: var(--card);
-  border: 1px solid var(--border);
+  background-color: #f9f9f9;
 }
 .thumb-box img {
   width: 100%;
   height: 100%;
+  max-width: 100%;
   object-fit: cover;
+  display: block;
 }
 .del-btn {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.75);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.3);
-  font-size: 16px;
+  top: 0;
+  right: 0;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  background-color: #000000;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  font-size: 24px;
+  font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
 }
+.notice-text {
+  font-size: 18px;
+  color: #333333;
+  text-align: center;
+  margin-top: 12px;
+  line-height: 1.4;
+}
+.error-msg {
+  color: #990000;
+  font-size: 18px;
+  font-weight: bold;
+  margin-top: 8px;
+  text-align: center;
+}
 .status-box {
   display: none;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
+  background-color: #f0f0f0;
+  border: 2px solid #000000;
+  border-radius: 8px;
+  padding: 14px;
   text-align: center;
   margin-bottom: 16px;
 }
-.status-text { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+.status-text {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: #000000;
+}
 .progress-bar-bg {
   width: 100%;
-  height: 8px;
-  background: var(--border);
-  border-radius: 4px;
+  height: 12px;
+  background-color: #cccccc;
+  border: 1px solid #000000;
+  border-radius: 6px;
   overflow: hidden;
 }
 .progress-bar-fill {
   height: 100%;
-  background: var(--primary);
+  background-color: #004488;
   width: 0%;
-  transition: width 0.3s;
-}
-.error-msg {
-  color: #f87171;
-  font-size: 14px;
-  margin-top: 6px;
-  text-align: center;
 }
 .success-card {
   display: none;
-  background: #064e3b;
-  border: 1px solid #059669;
-  border-radius: 12px;
+  background-color: #e8f5e9;
+  border: 2px solid #2e7d32;
+  border-radius: 8px;
   padding: 24px 16px;
   text-align: center;
 }
 .success-msg {
   font-size: 20px;
-  font-weight: 700;
-  color: #ecfdf5;
+  font-weight: bold;
+  color: #1b5e20;
   line-height: 1.4;
 }
 </style>
@@ -311,15 +338,19 @@ header { text-align: center; margin-bottom: 20px; }
   <div class="phone-info">__PHONE_HEADER__</div>
 </header>
 
+<noscript>
+  <div class="error-msg" style="padding:14px;border:2px solid #990000;margin-bottom:14px;">
+    This page needs JavaScript to send photos. / फोटो भेजने के लिए जावास्क्रिप्ट चालू करें। / फोटो पाठवण्यासाठी जावास्क्रिप्ट सुरू करा.
+  </div>
+</noscript>
+
 <main id="main-section">
   <div class="btn-grid" id="controls-grid">
     <button type="button" class="action-btn" id="camera-btn">
-      <span>📷</span>
-      <span>__TAKE_BTN__</span>
+      __TAKE_BTN__
     </button>
     <button type="button" class="action-btn" id="gallery-btn">
-      <span>🖼️</span>
-      <span>__PICK_BTN__</span>
+      __PICK_BTN__
     </button>
   </div>
 
@@ -345,6 +376,7 @@ header { text-align: center; margin-bottom: 20px; }
   <button type="button" class="action-btn send-btn" id="send-btn" disabled>
     __SEND_BTN__
   </button>
+  <div class="notice-text">__NOTICE__</div>
 </main>
 
 <div class="success-card" id="success-card">
@@ -353,211 +385,399 @@ header { text-align: center; margin-bottom: 20px; }
 </div>
 
 <script>
-const TOKEN = "__TOKEN__";
-let files = [];
+var TOKEN = "__TOKEN__";
+var files = [];
+var networkErrorMsg = "__NETWORK_ERR__";
+var cannotSendMsg = "__CANNOT_SEND_ERR__";
 
-const cameraInput = document.getElementById('camera-input');
-const galleryInput = document.getElementById('gallery-input');
-const cameraBtn = document.getElementById('camera-btn');
-const galleryBtn = document.getElementById('gallery-btn');
-const counter = document.getElementById('photo-counter');
-const thumbsGrid = document.getElementById('thumbs-grid');
-const sendBtn = document.getElementById('send-btn');
-const limitWarning = document.getElementById('limit-warning');
-const statusBox = document.getElementById('status-box');
-const statusText = document.getElementById('status-text');
-const progressFill = document.getElementById('progress-fill');
-const uploadErr = document.getElementById('upload-err');
-const mainSection = document.getElementById('main-section');
-const successCard = document.getElementById('success-card');
+var cameraInput = document.getElementById("camera-input");
+var galleryInput = document.getElementById("gallery-input");
+var cameraBtn = document.getElementById("camera-btn");
+var galleryBtn = document.getElementById("gallery-btn");
+var counter = document.getElementById("photo-counter");
+var thumbsGrid = document.getElementById("thumbs-grid");
+var sendBtn = document.getElementById("send-btn");
+var limitWarning = document.getElementById("limit-warning");
+var statusBox = document.getElementById("status-box");
+var statusText = document.getElementById("status-text");
+var progressFill = document.getElementById("progress-fill");
+var uploadErr = document.getElementById("upload-err");
+var mainSection = document.getElementById("main-section");
+var successCard = document.getElementById("success-card");
 
-cameraBtn.addEventListener('click', () => cameraInput.click());
-galleryBtn.addEventListener('click', () => galleryInput.click());
+cameraBtn.onclick = function() {
+  cameraInput.click();
+};
 
-cameraInput.addEventListener('change', (e) => {
-  if (e.target.files && e.target.files.length > 0) {
-    addFile(e.target.files[0]);
-    e.target.value = '';
+galleryBtn.onclick = function() {
+  galleryInput.click();
+};
+
+cameraInput.onchange = function(e) {
+  var tFiles = (e && e.target && e.target.files) ? e.target.files : cameraInput.files;
+  if (tFiles && tFiles.length > 0) {
+    addFile(tFiles[0]);
+    cameraInput.value = "";
   }
-});
+};
 
-galleryInput.addEventListener('change', (e) => {
-  if (e.target.files) {
-    for (let i = 0; i < e.target.files.length; i++) {
-      addFile(e.target.files[i]);
+galleryInput.onchange = function(e) {
+  var tFiles = (e && e.target && e.target.files) ? e.target.files : galleryInput.files;
+  if (tFiles) {
+    for (var i = 0; i < tFiles.length; i++) {
+      addFile(tFiles[i]);
     }
-    e.target.value = '';
+    galleryInput.value = "";
   }
-});
+};
 
 function addFile(file) {
   if (!file) return;
   if (files.length >= 6) {
-    limitWarning.style.display = 'block';
+    limitWarning.style.display = "block";
     return;
   }
-  limitWarning.style.display = 'none';
+  limitWarning.style.display = "none";
   files.push(file);
   renderThumbs();
 }
 
 function removeFile(index) {
   files.splice(index, 1);
-  limitWarning.style.display = 'none';
+  limitWarning.style.display = "none";
   renderThumbs();
 }
 
 function renderThumbs() {
-  counter.textContent = files.length + ' / 6';
+  counter.textContent = files.length + " / 6";
   sendBtn.disabled = files.length === 0;
-  thumbsGrid.innerHTML = '';
-  files.forEach((f, idx) => {
-    const box = document.createElement('div');
-    box.className = 'thumb-box';
-    const img = document.createElement('img');
-    img.src = URL.createObjectURL(f);
-    const del = document.createElement('button');
-    del.className = 'del-btn';
-    del.innerHTML = '&times;';
-    del.onclick = (e) => {
-      e.stopPropagation();
-      removeFile(idx);
-    };
-    box.appendChild(img);
-    box.appendChild(del);
-    thumbsGrid.appendChild(box);
-  });
-}
-
-function resizePhoto(file) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      let w = img.width, h = img.height;
-      const maxSide = 1024;
-      if (w > maxSide || h > maxSide) {
-        if (w > h) {
-          h = Math.round((h * maxSide) / w);
-          w = maxSide;
-        } else {
-          w = Math.round((w * maxSide) / h);
-          h = maxSide;
-        }
+  thumbsGrid.innerHTML = "";
+  for (var i = 0; i < files.length; i++) {
+    (function(idx) {
+      var f = files[idx];
+      var box = document.createElement("div");
+      box.className = "thumb-box";
+      var img = document.createElement("img");
+      if (window.URL && window.URL.createObjectURL) {
+        img.src = window.URL.createObjectURL(f);
       }
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.7);
-    };
-    img.onerror = () => resolve(file);
-    img.src = url;
-  });
-}
-
-async function sendOnePhoto(blob) {
-  try {
-    const r = await fetch('/p/' + TOKEN + '/photo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'image/jpeg' },
-      body: blob
-    });
-    if (r.ok) return true;
-  } catch(e) {}
-  try {
-    const r2 = await fetch('/p/' + TOKEN + '/photo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'image/jpeg' },
-      body: blob
-    });
-    return r2.ok;
-  } catch(e) {
-    return false;
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "del-btn";
+      del.innerHTML = "&times;";
+      del.onclick = function(e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        removeFile(idx);
+      };
+      box.appendChild(img);
+      box.appendChild(del);
+      thumbsGrid.appendChild(box);
+    })(i);
   }
 }
 
-sendBtn.addEventListener('click', async () => {
-  if (files.length === 0) return;
+function dataURLToBlob(dataURL) {
+  var parts = dataURL.split(",");
+  var byteString = atob(parts[1]);
+  var mimeMatch = parts[0].match(/:(.*?);/);
+  var mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+  var ab = new ArrayBuffer(byteString.length);
+  var ia = new Uint8Array(ab);
+  for (var i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([ab], {type: mime});
+}
 
+function resizePhoto(file, callback) {
+  if (!window.Image || !document.createElement("canvas")) {
+    if (file.size <= 5 * 1024 * 1024) {
+      callback(file, true);
+    } else {
+      callback(null, false);
+    }
+    return;
+  }
+  var img = new Image();
+  var url = "";
+  if (window.URL && window.URL.createObjectURL) {
+    url = window.URL.createObjectURL(file);
+  }
+  img.onload = function() {
+    if (url && window.URL && window.URL.revokeObjectURL) {
+      window.URL.revokeObjectURL(url);
+    }
+    var w = img.width;
+    var h = img.height;
+    var maxSide = 1024;
+    if (w > maxSide || h > maxSide) {
+      if (w > h) {
+        h = Math.round((h * maxSide) / w);
+        w = maxSide;
+      } else {
+        w = Math.round((w * maxSide) / h);
+        h = maxSide;
+      }
+    }
+    var canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, w, h);
+    if (canvas.toBlob) {
+      canvas.toBlob(function(b) {
+        if (b) {
+          callback(b, true);
+        } else {
+          try {
+            var dUrl = canvas.toDataURL("image/jpeg", 0.7);
+            callback(dataURLToBlob(dUrl), true);
+          } catch(err) {
+            if (file.size <= 5 * 1024 * 1024) {
+              callback(file, true);
+            } else {
+              callback(null, false);
+            }
+          }
+        }
+      }, "image/jpeg", 0.7);
+    } else if (canvas.toDataURL) {
+      try {
+        var dUrl2 = canvas.toDataURL("image/jpeg", 0.7);
+        callback(dataURLToBlob(dUrl2), true);
+      } catch(err2) {
+        if (file.size <= 5 * 1024 * 1024) {
+          callback(file, true);
+        } else {
+          callback(null, false);
+        }
+      }
+    } else {
+      if (file.size <= 5 * 1024 * 1024) {
+        callback(file, true);
+      } else {
+        callback(null, false);
+      }
+    }
+  };
+  img.onerror = function() {
+    if (url && window.URL && window.URL.revokeObjectURL) {
+      window.URL.revokeObjectURL(url);
+    }
+    if (file.size <= 5 * 1024 * 1024) {
+      callback(file, true);
+    } else {
+      callback(null, false);
+    }
+  };
+  if (url) {
+    img.src = url;
+  } else {
+    var reader = new FileReader();
+    reader.onload = function(evt) {
+      img.src = evt.target.result;
+    };
+    reader.onerror = function() {
+      if (file.size <= 5 * 1024 * 1024) {
+        callback(file, true);
+      } else {
+        callback(null, false);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function sendOnePhoto(blob, callback) {
+  var xhr = new XMLHttpRequest();
+  xhr.open("POST", "/p/" + TOKEN + "/photo", true);
+  xhr.setRequestHeader("Content-Type", "image/jpeg");
+  xhr.onreadystatechange = function() {
+    if (xhr.readyState === 4) {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        callback(true);
+      } else {
+        callback(false);
+      }
+    }
+  };
+  xhr.onerror = function() {
+    callback(false);
+  };
+  xhr.send(blob);
+}
+
+function sendWithRetry(blob, doneCb) {
+  sendOnePhoto(blob, function(ok) {
+    if (ok) {
+      doneCb(true);
+    } else {
+      sendOnePhoto(blob, function(ok2) {
+        doneCb(ok2);
+      });
+    }
+  });
+}
+
+sendBtn.onclick = function() {
+  if (files.length === 0) return;
   sendBtn.disabled = true;
   cameraBtn.disabled = true;
   galleryBtn.disabled = true;
-  statusBox.style.display = 'block';
-  uploadErr.style.display = 'none';
+  statusBox.style.display = "block";
+  uploadErr.style.display = "none";
 
-  const total = files.length;
-  let sent = 0;
-  const remainingFiles = [];
+  var total = files.length;
+  var sent = 0;
+  var remainingFiles = [];
 
-  for (let i = 0; i < files.length; i++) {
-    statusText.textContent = sent + ' of ' + total + ' sent';
-    progressFill.style.width = Math.round((sent / total) * 100) + '%';
-
-    const blob = await resizePhoto(files[i]);
-    const ok = await sendOnePhoto(blob);
-    if (ok) {
-      sent++;
-      statusText.textContent = sent + ' of ' + total + ' sent';
-      progressFill.style.width = Math.round((sent / total) * 100) + '%';
-    } else {
-      remainingFiles.push(files[i]);
+  function processIndex(i) {
+    if (i >= total) {
+      if (remainingFiles.length === 0) {
+        var doneXhr = new XMLHttpRequest();
+        doneXhr.open("POST", "/p/" + TOKEN + "/done", true);
+        doneXhr.onreadystatechange = function() {
+          if (doneXhr.readyState === 4) {
+            mainSection.style.display = "none";
+            successCard.style.display = "block";
+          }
+        };
+        doneXhr.onerror = function() {
+          mainSection.style.display = "none";
+          successCard.style.display = "block";
+        };
+        doneXhr.send();
+      } else {
+        files = remainingFiles;
+        renderThumbs();
+        sendBtn.disabled = false;
+        cameraBtn.disabled = false;
+        galleryBtn.disabled = false;
+        uploadErr.textContent = networkErrorMsg;
+        uploadErr.style.display = "block";
+      }
+      return;
     }
+
+    statusText.textContent = sent + " of " + total + " sent";
+    progressFill.style.width = Math.round((sent / total) * 100) + "%";
+
+    resizePhoto(files[i], function(blob, canSend) {
+      if (!canSend || !blob) {
+        uploadErr.textContent = cannotSendMsg;
+        uploadErr.style.display = "block";
+        remainingFiles.push(files[i]);
+        processIndex(i + 1);
+        return;
+      }
+      sendWithRetry(blob, function(ok) {
+        if (ok) {
+          sent++;
+          statusText.textContent = sent + " of " + total + " sent";
+          progressFill.style.width = Math.round((sent / total) * 100) + "%";
+        } else {
+          remainingFiles.push(files[i]);
+        }
+        processIndex(i + 1);
+      });
+    });
   }
 
-  if (remainingFiles.length === 0) {
-    try {
-      await fetch('/p/' + TOKEN + '/done', { method: 'POST' });
-    } catch(e) {}
-    mainSection.style.display = 'none';
-    successCard.style.display = 'block';
-  } else {
-    files = remainingFiles;
-    renderThumbs();
-    sendBtn.disabled = false;
-    cameraBtn.disabled = false;
-    galleryBtn.disabled = false;
-    uploadErr.textContent = sent + ' of ' + total + ' sent. Some failed to send.';
-    uploadErr.style.display = 'block';
-  }
-});
+  processIndex(0);
+};
 </script>
 </body>
 </html>"""
 
 
+# Note: Gujarati and Tamil labels have not been checked by a native speaker.
+PHRASES = {
+    "take": {
+        "hi": "फोटो खींचें",
+        "mr": "फोटो काढा",
+        "en": "Take a photo",
+        "gu": "ફોટો લો",
+        "ta": "புகைப்படம் எடு",
+    },
+    "pick": {
+        "hi": "फोटो चुनें",
+        "mr": "फोटो निवडा",
+        "en": "Pick photos",
+        "gu": "ફોટો પસંદ કરો",
+        "ta": "புகைப்படங்களைத் தேர்ந்தெடு",
+    },
+    "send": {
+        "hi": "भेजें",
+        "mr": "पाठवा",
+        "en": "Send",
+        "gu": "મોકલો",
+        "ta": "அனுப்பு",
+    },
+    "done_msg": {
+        "hi": "भेज दिया, आपको कॉल आएगा",
+        "mr": "पाठवले, तुम्हाला कॉल येईल",
+        "en": "sent, you will get a call",
+        "gu": "મોકલાઈ ગયું, તમને કૉલ આવશે",
+        "ta": "அனுப்பப்பட்டது, உங்களுக்கு அழைப்பு வரும்",
+    },
+    "limit_err": {
+        "hi": "अधिकतम 6 फोटो भेज सकते हैं",
+        "mr": "जास्तीत जास्त 6 फोटो पाठवू शकता",
+        "en": "six photos at most",
+        "gu": "વધુમાં વધુ 6 ફોટા",
+        "ta": "அதிகபட்சம் 6 புகைப்படங்கள்",
+    },
+    "for_phone": {
+        "hi": "फोन नंबर के लिए ...{tail}",
+        "mr": "फोन नंबरसाठी ...{tail}",
+        "en": "for the phone ending {tail}",
+        "gu": "ફોન નંબર માટે ...{tail}",
+        "ta": "தொலைபேசி எண்ணிற்கு ...{tail}",
+    },
+}
+
+NOTICE_PHRASES = {
+    "en": "The photos are read by a computer and by a helper.",
+    "hi": "फोटो कंप्यूटर और एक सहायक देखेंगे।",
+    "mr": "फोटो संगणक आणि एक मदतनीस पाहतील।",
+    "gu": "ફોટો કમ્પ્યુટર અને એક સહાયક જોશે.",
+    "ta": "புகைப்படங்களை ஒரு கணினியும் ஒரு உதவியாளரும் பார்ப்பார்கள்.",
+}
+
+NETWORK_ERR = "no network, press send again / नेटवर्क नहीं है, फिर से भेजें दबाएँ / नेटवर्क नाही, पुन्हा पाठवा दाबा"
+CANNOT_SEND_ERR = "this photo can not be sent / यह फोटो नहीं भेजी जा सकती / हा फोटो पाठवता येत नाही"
+
+
 def _render_photo_page(case: cases.Case) -> str:
     lang = case.lang
-    if lang == "mr":
+    if lang == "gu":
+        langs = ["gu", "hi", "en"]
+    elif lang == "ta":
+        langs = ["ta", "hi", "en"]
+    elif lang == "mr":
         langs = ["mr", "hi", "en"]
     elif lang == "en":
         langs = ["en", "hi", "mr"]
     else:
         langs = ["hi", "mr", "en"]
 
-    phrases = {
-        "take": {"hi": "फोटो खींचें", "mr": "फोटो काढा", "en": "Take a photo"},
-        "pick": {"hi": "फोटो चुनें", "mr": "फोटो निवडा", "en": "Pick photos"},
-        "send": {"hi": "भेजें", "mr": "पाठवा", "en": "Send"},
-        "done_msg": {"hi": "भेज दिया, आपको कॉल आएगा", "mr": "पाठवले, तुम्हाला कॉल येईल", "en": "sent, you will get a call"},
-        "limit_err": {"hi": "अधिकतम 6 फोटो भेज सकते हैं", "mr": "जास्तीत जास्त 6 फोटो पाठवू शकता", "en": "six photos at most"},
-        "for_phone": {"hi": "फोन नंबर के लिए ...{tail}", "mr": "फोन नंबरसाठी ...{tail}", "en": "for the phone ending {tail}"},
-    }
-
     tail = cases.number_tail(case)
     if tail:
-        phone_parts = [phrases["for_phone"][l].format(tail=tail) for l in langs]
+        phone_parts = [PHRASES["for_phone"][l].format(tail=tail) for l in langs]
         phone_header = " / ".join(phone_parts)
     else:
         phone_header = ""
 
-    take_btn = " / ".join(phrases["take"][l] for l in langs)
-    pick_btn = " / ".join(phrases["pick"][l] for l in langs)
-    send_btn = " / ".join(phrases["send"][l] for l in langs)
-    done_msg = " / ".join(phrases["done_msg"][l] for l in langs)
-    limit_err = " / ".join(phrases["limit_err"][l] for l in langs)
+    take_btn = " / ".join(PHRASES["take"][l] for l in langs)
+    pick_btn = " / ".join(PHRASES["pick"][l] for l in langs)
+    send_btn = " / ".join(PHRASES["send"][l] for l in langs)
+    done_msg = " / ".join(PHRASES["done_msg"][l] for l in langs)
+    limit_err = " / ".join(PHRASES["limit_err"][l] for l in langs)
+
+    if lang in ("gu", "ta"):
+        notice = " / ".join([NOTICE_PHRASES[lang], NOTICE_PHRASES["hi"], NOTICE_PHRASES["en"]])
+    else:
+        notice = " / ".join([NOTICE_PHRASES[l] for l in langs])
 
     html_out = PHOTO_HTML_TEMPLATE
     html_out = html_out.replace("__LANG__", html.escape(case.lang))
@@ -567,8 +787,12 @@ def _render_photo_page(case: cases.Case) -> str:
     html_out = html_out.replace("__SEND_BTN__", html.escape(send_btn))
     html_out = html_out.replace("__DONE_MSG__", html.escape(done_msg))
     html_out = html_out.replace("__LIMIT_ERR__", html.escape(limit_err))
+    html_out = html_out.replace("__NOTICE__", html.escape(notice))
+    html_out = html_out.replace("__NETWORK_ERR__", html.escape(NETWORK_ERR))
+    html_out = html_out.replace("__CANNOT_SEND_ERR__", html.escape(CANNOT_SEND_ERR))
     html_out = html_out.replace("__TOKEN__", html.escape(case.token))
     return html_out
+
 
 
 @photo_app.get("/p/{token}")
@@ -665,6 +889,7 @@ DESK_HTML_TEMPLATE = """<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Haqdaar Photo Desk</title>
 <style>
 body {
