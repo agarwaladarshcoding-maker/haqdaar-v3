@@ -43,6 +43,16 @@ lines:
     hi: "बताइए, आपको किस बात में मदद चाहिए। आप किसी योजना का नाम भी बता सकते हैं।"
     mr: "तुम्हाला कशात मदत हवी आहे ते सांगा. तुम्ही योजनेचे नाव देखील सांगू शकता."
 
+  opener_short_prompt:
+    en: "What do you want to know? Say it, or press 0 for the list."
+    hi: "आप क्या जानना चाहते हैं? बोलें, या सूची के लिए 0 दबाएं।"
+    mr: "तुम्हाला काय जाणून घ्यायचे आहे? सांगा, किंवा सूचीसाठी 0 दाबा."
+
+  did_not_get_reply:
+    en: "I did not get your reply. Here is the menu again:"
+    hi: "मुझे आपका जवाब नहीं मिला। यहाँ मेनू फिर से है:"
+    mr: "मला तुमचे उत्तर मिळाले नाही. येथे मेनू पुन्हा आहे:"
+
   unclear_prompt:
     en: "Sorry, I did not catch that. Please say it again."
     hi: "माफ़ कीजिए, मैं समझ नहीं पाई। कृपया इसे फिर से कहें।"

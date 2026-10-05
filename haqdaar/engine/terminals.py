@@ -145,7 +145,8 @@ def more_sequence(schemes: Sequence[Any], corpus: Any = None) -> tuple[str, ...]
     same shape as every other terminal's scheme block.
     """
     seq: list[str] = [RESULTS_MORE_PROMPT]
-    seq.extend(_render_schemes_sequence(schemes, corpus, include_section_menu=True))
+    for block in _render_schemes_sequence(schemes, corpus, include_section_menu=True):
+        seq.extend(block)
     return tuple(seq)
 
 
@@ -190,23 +191,36 @@ def _filter_speakable(
     return [s for s in survivors if _is_speakable(s, box_vector, corpus)]
 
 
+def render_scheme_block(
+    scheme: Any,
+    corpus: Any = None,
+    *,
+    include_section_menu: bool = True,
+) -> list[str]:
+    """Render a single scheme block: name mark -> name -> summary -> end mark -> (section_menu)."""
+    sid = _get_scheme_id(scheme, corpus)
+    block = [
+        mark_name(sid),
+        scheme_name_chunk(sid),
+        scheme_summary_chunk(sid),
+        mark_end(sid),
+    ]
+    if include_section_menu:
+        block.append(SECTION_MENU)
+    return block
+
+
 def _render_schemes_sequence(
     schemes: Sequence[Any],
     corpus: Any = None,
     *,
     include_section_menu: bool = True,
-) -> list[str]:
-    """Render scheme blocks: name mark -> name -> summary -> end mark -> (section_menu)."""
-    seq: list[str] = []
-    for s in schemes:
-        sid = _get_scheme_id(s, corpus)
-        seq.append(mark_name(sid))
-        seq.append(scheme_name_chunk(sid))
-        seq.append(scheme_summary_chunk(sid))
-        seq.append(mark_end(sid))
-        if include_section_menu:
-            seq.append(SECTION_MENU)
-    return seq
+) -> list[list[str]]:
+    """Render per-scheme blocks handed to the engine one at a time instead of one joined queue."""
+    return [
+        render_scheme_block(s, corpus, include_section_menu=include_section_menu)
+        for s in schemes
+    ]
 
 
 def direct_match(
@@ -229,7 +243,8 @@ def direct_match(
     if st == UNKNOWN:
         seq.append(STATE_UNKNOWN_DISCLAIMER)
     seq.append(RESULTS_EXACT_PREAMBLE)
-    seq.extend(_render_schemes_sequence(sorted_survs, corpus, include_section_menu=True))
+    for block in _render_schemes_sequence(sorted_survs, corpus, include_section_menu=True):
+        seq.extend(block)
     return tuple(seq)
 
 
@@ -254,7 +269,8 @@ def overflow(
     if st == UNKNOWN:
         seq.append(STATE_UNKNOWN_DISCLAIMER)
     seq.append(RESULTS_OVERFLOW)
-    seq.extend(_render_schemes_sequence(top_n, corpus, include_section_menu=True))
+    for block in _render_schemes_sequence(top_n, corpus, include_section_menu=True):
+        seq.extend(block)
     return tuple(seq)
 
 
@@ -287,7 +303,8 @@ def widened_match(
     for b in dropped_boxes:
         seq.append(f"drop_{b}")
     seq.append(RESULTS_WIDENED_LEAD)
-    seq.extend(_render_schemes_sequence(selected, corpus, include_section_menu=True))
+    for block in _render_schemes_sequence(selected, corpus, include_section_menu=True):
+        seq.extend(block)
     return tuple(seq)
 
 
@@ -311,8 +328,10 @@ def nearest(
     if st == UNKNOWN:
         seq.append(STATE_UNKNOWN_DISCLAIMER)
     seq.append(TERMINAL_NEAREST_PREAMBLE)
-    seq.extend(_render_schemes_sequence(capped_near, corpus, include_section_menu=False))
+    for block in _render_schemes_sequence(capped_near, corpus, include_section_menu=False):
+        seq.extend(block)
     return tuple(seq)
+
 
 
 def empty(
@@ -473,3 +492,6 @@ class Terminals:
     classify_shape = staticmethod(classify_shape)
     ranked = staticmethod(ranked)
     more_sequence = staticmethod(more_sequence)
+    render_scheme_block = staticmethod(render_scheme_block)
+    scheme_blocks = staticmethod(_render_schemes_sequence)
+    render_schemes_sequence = staticmethod(_render_schemes_sequence)

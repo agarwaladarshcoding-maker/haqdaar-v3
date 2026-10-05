@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import subprocess
 import sys
 import threading
@@ -31,6 +32,12 @@ APP = os.environ.get("APP", "haqdaar.server:app")
 def get(url: str) -> dict:
     with urllib.request.urlopen(url, timeout=5) as r:
         return json.loads(r.read())
+
+
+def port_in_use(port: int) -> bool:
+    """True if something already listens on 127.0.0.1:port (don't start a 2nd server)."""
+    with socket.socket() as s:
+        return s.connect_ex(("127.0.0.1", port)) == 0
 
 
 def wait_for(what: str, check, seconds: float) -> bool:
@@ -67,6 +74,12 @@ def main() -> int:
         host = os.environ.get("NGROK_DOMAIN", "")
         print(f"run-demo  !! cloudflared failed 3 times; using ngrok {host} (run `ngrok http --url={host} 8000` in another window)", flush=True)
     print(f"run-demo  tunnel {host}", flush=True)
+
+    if port_in_use(PORT):
+        print(f"run-demo  !! port {PORT} is already held (likely an old server). "
+              f"Find it with `lsof -nP -iTCP:{PORT} -sTCP:LISTEN`, stop it, and re-run. "
+              f"Not starting a second server.", flush=True)
+        return 1
 
     env = dict(os.environ, NGROK_DOMAIN=host, PYTHONUNBUFFERED="1")
     server = subprocess.Popen(

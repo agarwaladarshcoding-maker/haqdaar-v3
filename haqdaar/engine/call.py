@@ -55,6 +55,7 @@ from haqdaar.engine.terminals import (
     DELIVERY_NEAREST,
     DELIVERY_OVERFLOW,
     DELIVERY_WIDENED_MATCH,
+    RESULTS_MORE_PROMPT,
     SECTION_MENU,
     SECTION_SOURCE_FRAME,
     Terminals,
@@ -101,16 +102,23 @@ def _door_a_read(audio: Any, log: Log, slug: str, transcript: str, span: str,
     ))
 
 
-def _door_a_pick(audio: Any, s1: str, s2: str) -> str | None:
+def _door_a_pick(audio: Any, log: Any, s1: str, s2: str) -> str | None:
     """Door A 2-candidate keypad turn (T12): name both, press 1/2/3.
 
     Returns "1"/"2" (picked), "hangup", or None (0/3/anything else declines).
     One turn, no repeats.
     """
-    audio.say(("door_a_option_1", scheme_name_chunk(s1),
-               "door_a_option_2", scheme_name_chunk(s2),
-               "door_a_option_none"))
-    pick = audio.next_input(profile="normal")
+    try:
+        pick = Engine._wait_for_input(
+            audio, log,
+            ("door_a_option_1", scheme_name_chunk(s1),
+             "door_a_option_2", scheme_name_chunk(s2),
+             "door_a_option_none"),
+            "normal",
+            valid_keys=("1", "2", "3", "0")
+        )
+    except EngineDropCall as e:
+        return "hangup"
     if isinstance(pick, Hangup):
         return "hangup"
     if isinstance(pick, Digit) and pick.digit in ("1", "2"):
@@ -118,8 +126,96 @@ def _door_a_pick(audio: Any, s1: str, s2: str) -> str | None:
     return None
 
 
+
+class EngineDropCall(Exception):
+    def __init__(self, ladder_rung):
+        self.ladder_rung = ladder_rung
+
 class Engine:
     """Stateful orchestrator for a single phone call."""
+    current_scheme: str | None = None
+
+    @staticmethod
+    def _wait_for_input(
+        audio: Any, log: Any, prompts: tuple[str, ...], profile: str,
+        valid_keys: tuple[str, ...] | None = None, allow_speech: bool = False,
+        miss_threshold: int | None = None, on_miss_prompts: tuple[str, ...] | None = None,
+        on_zero_prompts: tuple[str, ...] | None = None, on_miss_cb: Any = None,
+        turn_n: int = 0,
+        say_first: bool = True
+    ) -> Any:
+        if say_first:
+            audio.say(prompts)
+        miss_count = 0
+        ladder_rung = 0
+        current_prompts = prompts
+
+        while True:
+            inp = audio.next_input(profile=profile)
+            if isinstance(inp, Hangup):
+                return inp
+            
+            is_miss = False
+            if isinstance(inp, Silence):
+                is_cut = (hasattr(audio, "was_cut") and audio.was_cut("")) or bool(getattr(inp, "cut_clip", ""))
+                if not is_cut:
+                    ladder_rung = inp.n if (hasattr(inp, "n") and inp.n) else (ladder_rung + 1)
+                    log.write(TurnLogRecord(turn_n=turn_n, turn_class="SILENCE", silence_n=ladder_rung))
+                    miss_count += 1
+                    if on_miss_cb:
+                        if on_miss_cb(inp, miss_count): return None
+                    
+                    next_p = on_miss_prompts if (miss_threshold and miss_count >= miss_threshold) else prompts
+                    if ladder_rung == 1:
+                        current_prompts = ("did_not_get_reply",) + next_p
+                        audio.say(current_prompts)
+                        continue
+                    elif ladder_rung == 2:
+                        current_prompts = ("silence_presence",)
+                        audio.say(current_prompts)
+                        continue
+                    else:
+                        audio.say(("closing_farewell",))
+                        if hasattr(audio, "on_mark"): audio.on_mark("closing_farewell")
+                        audio.hangup()
+                        raise EngineDropCall(ladder_rung)
+                else:
+                    is_miss = True
+            elif isinstance(inp, Noise):
+                is_miss = True
+            elif isinstance(inp, Digit):
+                if inp.digit == "0" and on_zero_prompts is not None and current_prompts != on_zero_prompts:
+                    miss_count = 0
+                    ladder_rung = 0
+                    current_prompts = on_zero_prompts
+                    audio.say(current_prompts)
+                    continue
+                if valid_keys is not None and inp.digit not in valid_keys:
+                    is_miss = True
+                    if hasattr(audio, "trace") and getattr(audio, "trace", None) is not None:
+                        audio.trace.input_event(prompt_n=getattr(inp, "prompt_n", -1), prompt=profile, event="key", value=str(inp.digit), took=False, why="not_on_menu")
+                else:
+                    return inp
+            elif isinstance(inp, Speech):
+                if not allow_speech:
+                    is_miss = True
+                else:
+                    return inp
+            else:
+                return inp
+
+            if is_miss:
+                if isinstance(inp, Noise):
+                    log.write(TurnLogRecord(turn_n=turn_n, turn_class="NOISE"))
+                miss_count += 1
+                ladder_rung = 0
+                if on_miss_cb:
+                    if on_miss_cb(inp, miss_count): return None
+                next_p = on_miss_prompts if (miss_threshold and miss_count >= miss_threshold) else prompts
+                current_prompts = ("unclear_prompt",) + next_p
+                audio.say(current_prompts)
+
+
 
     @staticmethod
     def _handle_digit_input(
@@ -339,6 +435,8 @@ class Engine:
             door = DoorA.from_corpus(corpus).match(text, lang=lang)
             if door.action == "read":
                 ids = [door.scheme_ids[0]]  # a scheme named in the question always wins (E2)
+            elif getattr(Engine, "current_scheme", None) is not None:
+                ids = [Engine.current_scheme]  # 7.2: answer "this scheme" questions from current-scheme
             elif ids is None:
                 bv = box_vector or {}
                 survs = Filter.survivors(bv, corpus)
@@ -360,8 +458,40 @@ class Engine:
             }, "scheme_ids": list(ids)}
             if english:
                 kwargs["english"] = True
-            answer = model.answer(text, getattr(audio, "language", "hi"), cards, **kwargs)
-            if not answer or audio.say_text(answer) is False:
+            answer = None
+            for attempt in (1, 2):
+                try:
+                    answer = model.answer(text, getattr(audio, "language", "hi"), cards, **kwargs)
+                except Exception as e:
+                    import importlib
+                    write_fn = getattr(importlib.import_module("haqdaar.model.answer"), "write_question_line", None)
+                    if write_fn:
+                        write_fn(
+                            lang=getattr(audio, "language", "hi"),
+                            question=text,
+                            scheme_ids=list(ids),
+                            answer=None,
+                            blocked_by=f"exception: {e}",
+                            attempt=attempt,
+                        )
+                    answer = None
+                else:
+                    if not hasattr(model, "_ask_answer"):
+                        import importlib
+                        write_fn = getattr(importlib.import_module("haqdaar.model.answer"), "write_question_line", None)
+                        if write_fn:
+                            write_fn(
+                                lang=getattr(audio, "language", "hi"),
+                                question=text,
+                                scheme_ids=list(ids),
+                                answer=answer,
+                                blocked_by=None if answer else "model_null",
+                                attempt=attempt,
+                            )
+                if answer and audio.say_text(answer) is not False:
+                    break
+                answer = None
+            if not answer:
                 return False
         except Exception:
             return False  # a question must never take the call down
@@ -391,23 +521,27 @@ class Engine:
         log: Log,
     ) -> None:
         """Run a single call from connect to hangup."""
+        Engine.current_scheme = None
+        if hasattr(audio, "current_scheme"):
+            audio.current_scheme = None
         # --- 1. Turn 0: Language Selection ---
         if hasattr(audio, "select_language"):
             lang, lang_source = audio.select_language()
         else:
-            audio.say(("greeting_trilingual",))
-            inp = audio.next_input(profile="turn0")
-            if isinstance(inp, Hangup):
-                audio.hangup()
-                log.close(reason=STOP_ZERO_SURVIVORS, ladder_rung=0, mode="voice")
+            try:
+                inp = Engine._wait_for_input(
+                    audio, log, ("greeting_trilingual",), "turn0",
+                    valid_keys=tuple(tunables.turn0_keys().keys()),
+                    allow_speech=False
+                )
+                if isinstance(inp, Hangup):
+                    audio.hangup()
+                    log.close(reason=STOP_ZERO_SURVIVORS, ladder_rung=0, mode="voice")
+                    return
+                lang, lang_source = tunables.turn0_keys()[inp.digit], "keypad"
+            except EngineDropCall as e:
+                log.close(reason=STOP_ZERO_SURVIVORS, ladder_rung=e.ladder_rung, mode="voice")
                 return
-            elif isinstance(inp, Digit):
-                if inp.digit in tunables.turn0_keys():
-                    lang, lang_source = tunables.turn0_keys()[inp.digit], "keypad"
-                else:
-                    lang, lang_source = "hi", "default"
-            else:
-                lang, lang_source = "hi", "default"
 
         if hasattr(audio, "language"):
             audio.language = lang
@@ -544,144 +678,124 @@ class Engine:
 
                 if is_box_keypad:
                     if box == "category":
-                        prompt_id = "opener_prompt"
+                        prompt_ids = ("opener_short_prompt",)
                     elif box == "state":
-                        prompt_id = "state_q_maharashtra"
+                        prompt_ids = ("state_q_maharashtra",)
                     else:
-                        prompt_id = f"keypad_{box}"
-                    audio.say((prompt_id,))
-                    inp = audio.next_input(profile="normal")
+                        prompt_ids = (f"keypad_{box}",)
                 else:
                     if box == "category":
-                        prompt_id = "opener_prompt"
+                        prompt_ids = ("opener_short_prompt",)
                     elif box == "state":
-                        prompt_id = "state_q_maharashtra"
+                        prompt_ids = ("state_q_maharashtra",)
                     elif box_strikes[box] == 1:
-                        prompt_id = f"rephrase_{box}"
+                        prompt_ids = (f"rephrase_{box}",)
                     else:
-                        prompt_id = f"q_{box}"
-                    audio.say((prompt_id,))
-                    inp = audio.next_input(profile="spoken")
+                        prompt_ids = (f"q_{box}",)
 
-                if isinstance(inp, Silence):
-                    rung = inp.n if (hasattr(inp, "n") and inp.n) else (silence_ladder + 1)
-                    silence_ladder = rung
-                    # SILENCE leaves turn_n unchanged and logs silence_n
-                    log.write(TurnLogRecord(
-                        turn_n=turn_n,
-                        turn_class="SILENCE",
-                        silence_n=rung,
-                    ))
-                    if rung == 1:
-                        audio.repeat()
-                        continue
-                    elif rung == 2:
-                        audio.say(("silence_presence",))
-                        continue
-                    else:
-                        # Rung 3: closing farewell + hangup
-                        audio.say(("closing_farewell",))
-                        if hasattr(audio, "on_mark"):
-                            audio.on_mark("closing_farewell")
-                        audio.hangup()
-                        survs_s = Filter.survivors(box_vector, corpus)
-                        silence_stop = (
-                            STOP_ZERO_SURVIVORS if len(survs_s) == 0
-                            else (STOP_LE_4_SURVIVORS if len(survs_s) <= tunables.STOP_SURVIVORS else STOP_NO_SPLIT)
-                        )
-                        log.close(reason=silence_stop, ladder_rung=ladder_rung, mode=mode)
-                        return
-
-                elif isinstance(inp, Noise):
-                    # NOISE spends a cap turn
-                    turn_n += 1
-                    silence_ladder = 0
-                    box_strikes[box] += 1
-                    log.write(TurnLogRecord(
-                        turn_n=turn_n,
-                        turn_class="NOISE",
-                    ))
-                    if mode != "keypad_only" and (
-                        getattr(audio, "keypad_only", False)
-                        or getattr(getattr(audio, "turn", None), "keypad_only", False)
-                        or getattr(model, "keypad_only", False)
-                    ):
-                        mode = "keypad_only"
-                        log.write({"mode": "keypad_only"})
-                        audio.say(("keypad_only_mode",))
+                def handle_miss(m_inp, miss_count):
+                    nonlocal turn_n, silence_ladder, mode, stop_reason, question_count
+                    if isinstance(m_inp, Silence):
+                        return False
+                    
+                    if isinstance(m_inp, Noise):
+                        turn_n += 1
+                        silence_ladder = 0
+                        box_strikes[box] += 1
+                        log.write(TurnLogRecord(turn_n=turn_n, turn_class="NOISE"))
+                        if mode != "keypad_only" and (getattr(audio, "keypad_only", False) or getattr(getattr(audio, "turn", None), "keypad_only", False) or getattr(model, "keypad_only", False)):
+                            mode = "keypad_only"
+                            log.write({"mode": "keypad_only"})
+                            audio.say(("keypad_only_mode",))
+                            if turn_n >= tunables.MAX_TURNS:
+                                stop_reason = STOP_MAX_TURNS
+                            return True
+                        if box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
+                            if mode == "keypad_only" or is_box_keypad:
+                                box_vector[box] = UNKNOWN
+                                question_count += 1
+                                log.write(TurnLogRecord(turn_n=turn_n, turn_class="ANSWER", box=box, value=UNKNOWN, unknown_source="keypad_dropped"))
+                                return True
                         if turn_n >= tunables.MAX_TURNS:
                             stop_reason = STOP_MAX_TURNS
-                            break
-                        continue
-                    if box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
-                        if mode == "keypad_only" or is_box_keypad:
-                            box_vector[box] = UNKNOWN
-                            question_count += 1
-                            log.write(TurnLogRecord(
-                                turn_n=turn_n,
-                                turn_class="ANSWER",
-                                box=box,
-                                value=UNKNOWN,
-                                unknown_source="keypad_dropped",
-                            ))
-                    else:
-                        audio.repeat()
-                    if turn_n >= tunables.MAX_TURNS:
-                        stop_reason = STOP_MAX_TURNS
-                        break
-                    continue
+                            return True
+                        return False
 
-                elif isinstance(inp, Hangup):
-                    audio.hangup()
-                    survs_s = Filter.survivors(box_vector, corpus)
-                    h_stop = (
-                        STOP_ZERO_SURVIVORS if len(survs_s) == 0
-                        else (STOP_LE_4_SURVIVORS if len(survs_s) <= tunables.STOP_SURVIVORS else STOP_NO_SPLIT)
-                    )
-                    log.close(reason=h_stop, ladder_rung=ladder_rung, mode=mode)
-                    return
-
-                elif isinstance(inp, Digit):
-                    silence_ladder = 0
-                    turn_n, question_count, stop_reason, act = Engine._handle_digit_input(
-                        audio, log, corpus, box, inp, box_vector, box_strikes,
-                        turn_n, question_count, mode, is_box_keypad,
-                    )
-                    if stop_reason:
-                        break
-                    continue
-
-                elif isinstance(inp, Speech):
-                    silence_ladder = 0
-                    transcript = getattr(inp, "text", "") or ""
-                    if is_box_keypad or model is None:
-                        # A Speech input in keypad-only mode is a caller talking to a
-                        # menu. It is not free text to the Engine: it spends a cap turn
-                        # and is discarded, exactly like an out-of-menu digit.
+                    if isinstance(m_inp, Digit):
                         turn_n += 1
                         box_strikes[box] += 1
-                        log.write(TurnLogRecord(
-                            turn_n=turn_n,
-                            turn_class="UNCLEAR",
-                            discarded_transcript=str(transcript),
-                        ))
+                        log.write(TurnLogRecord(turn_n=turn_n, turn_class="UNCLEAR", transcript=str(m_inp.digit)))
+                        if getattr(audio, "keypad_only", False) or getattr(getattr(audio, "turn", None), "keypad_only", False):
+                            mode = "keypad_only"
+                            log.write({"mode": "keypad_only"})
+                            audio.say(("keypad_only_mode",))
                         if box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
-                            box_vector[box] = UNKNOWN
-                            question_count += 1
-                            log.write(TurnLogRecord(
-                                turn_n=turn_n,
-                                turn_class="ANSWER",
-                                box=box,
-                                value=UNKNOWN,
-                                unknown_source="keypad_dropped",
-                            ))
-                        else:
-                            audio.repeat()
+                            if mode == "keypad_only" or is_box_keypad:
+                                box_vector[box] = UNKNOWN
+                                question_count += 1
+                                log.write(TurnLogRecord(turn_n=turn_n, turn_class="ANSWER", box=box, value=UNKNOWN, unknown_source="keypad_dropped"))
+                                return True
                         if turn_n >= tunables.MAX_TURNS:
                             stop_reason = STOP_MAX_TURNS
-                            break
-                        continue
+                            return True
+                        return False
+                        
+                    if isinstance(m_inp, Speech):
+                        if is_box_keypad or model is None:
+                            turn_n += 1
+                            box_strikes[box] += 1
+                            log.write(TurnLogRecord(turn_n=turn_n, turn_class="UNCLEAR", discarded_transcript=getattr(m_inp, "text", "")))
+                            if box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
+                                box_vector[box] = UNKNOWN
+                                question_count += 1
+                                log.write(TurnLogRecord(turn_n=turn_n, turn_class="ANSWER", box=box, value=UNKNOWN, unknown_source="keypad_dropped"))
+                                return True
+                            if turn_n >= tunables.MAX_TURNS:
+                                stop_reason = STOP_MAX_TURNS
+                                return True
+                        return False
+                    return False
 
+                valid_keys = tuple([str(i) for i in range(1, len(corpus.values(box)) + 1)] + ["*", "#", "0"])
+                try:
+                    inp = Engine._wait_for_input(
+                        audio, log, prompt_ids, profile="normal" if is_box_keypad else "spoken",
+                        valid_keys=valid_keys,
+                        allow_speech=not is_box_keypad and model is not None,
+                        miss_threshold=2 if box == "category" else None,
+                        on_miss_prompts=("opener_prompt",) if box == "category" else None,
+                        on_zero_prompts=("opener_prompt",) if box == "category" else None,
+                        on_miss_cb=handle_miss,
+                        turn_n=turn_n
+                    )
+                except EngineDropCall as e:
+                    survs_s = Filter.survivors(box_vector, corpus)
+                    silence_stop = (STOP_ZERO_SURVIVORS if len(survs_s) == 0 else (STOP_LE_4_SURVIVORS if len(survs_s) <= tunables.STOP_SURVIVORS else STOP_NO_SPLIT))
+                    log.close(reason=silence_stop, ladder_rung=e.ladder_rung, mode=mode)
+                    return
+                
+                if inp is None:
+                    if stop_reason: break
+                    continue
+
+                if isinstance(inp, Hangup):
+                    audio.hangup()
+                    survs_s = Filter.survivors(box_vector, corpus)
+                    h_stop = (STOP_ZERO_SURVIVORS if len(survs_s) == 0 else (STOP_LE_4_SURVIVORS if len(survs_s) <= tunables.STOP_SURVIVORS else STOP_NO_SPLIT))
+                    log.close(reason=h_stop, ladder_rung=0, mode=mode)
+                    return
+
+                if isinstance(inp, Digit):
+                    silence_ladder = 0
+                    turn_n, question_count, stop_reason, act = Engine._handle_digit_input(
+                        audio, log, corpus, box, inp, box_vector, box_strikes, turn_n, question_count, mode, is_box_keypad
+                    )
+                    if stop_reason: break
+                    continue
+                
+                if isinstance(inp, Speech):
+                    silence_ladder = 0
+                    transcript = getattr(inp, "text", "") or ""
                     # --- Voice mode: process spoken answer via model ---
                     turn_n += 1
                     curr_lang = getattr(audio, "language", "hi")
@@ -728,7 +842,7 @@ class Engine:
                                 seeds = []  # clean naming: zero model calls (T12)
                         elif dres.action == "keypad_pick":
                             s1, s2 = dres.scheme_ids[0], dres.scheme_ids[1]
-                            outcome = _door_a_pick(audio, s1, s2)
+                            outcome = _door_a_pick(audio, log, s1, s2)
                             turn_n += 1
                             question_count += 1  # T12: the pick costs 1 turn against the six
                             if outcome == "hangup":
@@ -786,7 +900,7 @@ class Engine:
                                 door_a_done = True
                                 door_a_read = True
                             elif len(model_ids) == 2:
-                                outcome = _door_a_pick(audio, model_ids[0], model_ids[1])
+                                outcome = _door_a_pick(audio, log, model_ids[0], model_ids[1])
                                 turn_n += 1
                                 question_count += 1
                                 if outcome == "hangup":
@@ -920,260 +1034,88 @@ class Engine:
                         f"chip_{box}_{proposed_val}",
                         "confirm_yn_suffix",
                     )
-                    audio.say(confirm_seq)
-
                     # Confirmation loop: bounded against repeat-mashing via confirm_repeats
                     # without consuming cap turns (# and SILENCE do not consume turns per T14/T16)
                     confirm_repeats = 0
                     while True:
-                        confirm_inp = audio.next_input(profile="confirm")
+                        def confirm_miss_cb(m_inp, m_cnt):
+                            nonlocal turn_n, box_strikes, stop_reason, mode, silence_ladder
+                            if isinstance(m_inp, Silence):
+                                return False
+                            if isinstance(m_inp, Noise):
+                                turn_n += 1
+                                box_strikes[box] += 1
+                                log.write(TurnLogRecord(turn_n=turn_n, turn_class="NOISE"))
+                                if box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
+                                    if mode != "keypad_only" and (getattr(audio, "keypad_only", False) or getattr(model, "keypad_only", False)):
+                                        mode = "keypad_only"
+                                        audio.say(("keypad_only_mode",))
+                                    return True
+                                return False
+                            if isinstance(m_inp, Digit):
+                                if m_inp.digit == "#":
+                                    audio.repeat()
+                                    return False
+                                turn_n += 1
+                                box_strikes[box] += 1
+                                log.write(TurnLogRecord(turn_n=turn_n, turn_class="UNCLEAR", transcript=str(m_inp.digit)))
+                                if box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
+                                    if mode != "keypad_only" and (getattr(audio, "keypad_only", False) or getattr(model, "keypad_only", False)):
+                                        mode = "keypad_only"
+                                        audio.say(("keypad_only_mode",))
+                                    return True
+                                return False
+                            return False
+
+                        try:
+                            confirm_inp = Engine._wait_for_input(
+                                audio, log, confirm_seq, profile="confirm",
+                                valid_keys=("1", "2", "*"),
+                                on_miss_cb=confirm_miss_cb,
+                                turn_n=turn_n
+                            )
+                        except EngineDropCall as e:
+                            survs_s = Filter.survivors(box_vector, corpus)
+                            silence_stop = (STOP_ZERO_SURVIVORS if len(survs_s) == 0 else (STOP_LE_4_SURVIVORS if len(survs_s) <= tunables.STOP_SURVIVORS else STOP_NO_SPLIT))
+                            log.close(reason=silence_stop, ladder_rung=e.ladder_rung, mode=mode)
+                            return
+
+                        if confirm_inp is None:
+                            # Breakout from miss cb due to strikes
+                            break
+                        
+                        if isinstance(confirm_inp, Hangup):
+                            audio.hangup()
+                            survs_s = Filter.survivors(box_vector, corpus)
+                            h_stop = (STOP_ZERO_SURVIVORS if len(survs_s) == 0 else (STOP_LE_4_SURVIVORS if len(survs_s) <= tunables.STOP_SURVIVORS else STOP_NO_SPLIT))
+                            log.close(reason=h_stop, ladder_rung=ladder_rung, mode=mode)
+                            return
+                        
                         if isinstance(confirm_inp, Digit):
-                            silence_ladder = 0
-                            if confirm_inp.digit == "#":
-                                audio.repeat()
-                                confirm_repeats += 1
-                                if confirm_repeats >= tunables.CONFIRM_REPEAT_MAX:
-                                    turn_n += 1
-                                    box_strikes[box] += 1
-                                    log.write(TurnLogRecord(
-                                        turn_n=turn_n,
-                                        turn_class="UNCLEAR",
-                                        transcript="#",
-                                    ))
-                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
-                                        audio.say(("unclear_prompt",))
-                                    break
-                                continue
-                            elif confirm_inp.digit == "*":
+                            if confirm_inp.digit == "*":
                                 curr_lang = getattr(audio, "language", "hi")
                                 new_lang = _next_lang(curr_lang)
                                 if hasattr(audio, "language"):
                                     audio.language = new_lang
-                                log.write(LangSwitchRecord(
-                                    lang=new_lang,
-                                    lang_source="keypad",
-                                    turn_n=turn_n,
-                                ))
-                                audio.say((
-                                    "bundle_confirm_intro",
-                                    f"chip_{box}_{proposed_val}",
-                                    "confirm_yn_suffix",
-                                ))
-                                confirm_repeats += 1
-                                if confirm_repeats >= tunables.CONFIRM_REPEAT_MAX:
-                                    turn_n += 1
-                                    box_strikes[box] += 1
-                                    log.write(TurnLogRecord(
-                                        turn_n=turn_n,
-                                        turn_class="UNCLEAR",
-                                        transcript="*",
-                                    ))
-                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
-                                        audio.say(("unclear_prompt",))
-                                    break
+                                log.write(LangSwitchRecord(lang=new_lang, lang_source="keypad", turn_n=turn_n))
+                                audio.say(confirm_seq)
                                 continue
                             elif confirm_inp.digit == "1":
-                                # CONFIRM ACCEPT: caller confirmed!
                                 turn_n += 1
                                 box_vector[box] = proposed_val
                                 box_strikes[box] = 0
                                 question_count += 1
-                                log.write(TurnLogRecord(
-                                    turn_n=turn_n,
-                                    turn_class="ANSWER",
-                                    box=box,
-                                    value=proposed_val,
-                                    transcript="1",
-                                    span="1",
-                                ))
+                                log.write(TurnLogRecord(turn_n=turn_n, turn_class="ANSWER", box=box, value=proposed_val, transcript="1", span="1"))
                                 break
                             elif confirm_inp.digit == "2":
-                                # CONFIRM MISMATCH / RE-ASK: caller rejected!
                                 turn_n += 1
                                 box_strikes[box] += 1
-                                log.write(TurnLogRecord(
-                                    turn_n=turn_n,
-                                    turn_class="UNCLEAR",
-                                    transcript="2",
-                                ))
+                                log.write(TurnLogRecord(turn_n=turn_n, turn_class="UNCLEAR", transcript="2"))
                                 if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
                                     audio.say(("unclear_prompt",))
                                 break
-                            else:
-                                # Out-of-menu digit on confirm
-                                turn_n += 1
-                                box_strikes[box] += 1
-                                log.write(TurnLogRecord(
-                                    turn_n=turn_n,
-                                    turn_class="UNCLEAR",
-                                    transcript=str(confirm_inp.digit),
-                                ))
-                                if hasattr(audio, "trace") and getattr(audio, "trace", None) is not None:
-                                    audio.trace.input_event(
-                                        prompt_n=getattr(confirm_inp, "prompt_n", -1),
-                                        prompt="confirm",
-                                        event="key",
-                                        value=str(confirm_inp.digit),
-                                        took=False,
-                                        why="not_on_menu",
-                                    )
-                                if (
-                                    getattr(model, "keypad_only", False)
-                                    or getattr(audio, "keypad_only", False)
-                                    or getattr(getattr(audio, "turn", None), "keypad_only", False)
-                                ):
-                                    mode = "keypad_only"
-                                    log.write({"mode": "keypad_only"})
-                                    audio.say(("keypad_only_mode",))
-                                    break
-                                elif box_strikes[box] >= tunables.BOX_STRIKES_TO_KEYPAD:
-                                    break
-                                else:
-                                    audio.say(("unclear_prompt",))
-                                    audio.say(confirm_seq)
-                                    continue
+                        break
 
-                        elif isinstance(confirm_inp, Silence):
-                            rung = confirm_inp.n if (hasattr(confirm_inp, "n") and confirm_inp.n) else (silence_ladder + 1)
-                            silence_ladder = rung
-                            log.write(TurnLogRecord(
-                                turn_n=turn_n,
-                                turn_class="SILENCE",
-                                silence_n=rung,
-                            ))
-                            if rung == 1:
-                                audio.repeat()
-                                confirm_repeats += 1
-                                if confirm_repeats >= tunables.CONFIRM_REPEAT_MAX:
-                                    turn_n += 1
-                                    box_strikes[box] += 1
-                                    log.write(TurnLogRecord(
-                                        turn_n=turn_n,
-                                        turn_class="UNCLEAR",
-                                        transcript="silence_limit",
-                                    ))
-                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
-                                        audio.say(("unclear_prompt",))
-                                    break
-                                continue
-                            elif rung == 2:
-                                audio.say(("silence_presence",))
-                                confirm_repeats += 1
-                                if confirm_repeats >= tunables.CONFIRM_REPEAT_MAX:
-                                    turn_n += 1
-                                    box_strikes[box] += 1
-                                    log.write(TurnLogRecord(
-                                        turn_n=turn_n,
-                                        turn_class="UNCLEAR",
-                                        transcript="silence_limit",
-                                    ))
-                                    if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
-                                        audio.say(("unclear_prompt",))
-                                    break
-                                continue
-                            else:
-                                audio.say(("closing_farewell",))
-                                if hasattr(audio, "on_mark"):
-                                    audio.on_mark("closing_farewell")
-                                audio.hangup()
-                                survs_s = Filter.survivors(box_vector, corpus)
-                                silence_stop = (
-                                    STOP_ZERO_SURVIVORS if len(survs_s) == 0
-                                    else (STOP_LE_4_SURVIVORS if len(survs_s) <= tunables.STOP_SURVIVORS else STOP_NO_SPLIT)
-                                )
-                                log.close(reason=silence_stop, ladder_rung=ladder_rung, mode=mode)
-                                return
-
-                        elif isinstance(confirm_inp, Noise):
-                            turn_n += 1
-                            box_strikes[box] += 1
-                            log.write(TurnLogRecord(
-                                turn_n=turn_n,
-                                turn_class="NOISE",
-                            ))
-                            if mode != "keypad_only" and (
-                                getattr(model, "keypad_only", False)
-                                or getattr(audio, "keypad_only", False)
-                                or getattr(getattr(audio, "turn", None), "keypad_only", False)
-                            ):
-                                mode = "keypad_only"
-                                log.write({"mode": "keypad_only"})
-                                audio.say(("keypad_only_mode",))
-                            elif box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
-                                audio.say(("unclear_prompt",))
-                            break
-
-                        elif isinstance(confirm_inp, Speech):
-                            silence_ladder = 0
-                            spk = str(getattr(confirm_inp, "text", "") or "").strip().lower()
-                            if model is not None and hasattr(model, "confirm"):
-                                is_confirmed = model.confirm(spk, lang=getattr(audio, "language", None))
-                            else:
-                                is_confirmed = None
-
-                            if is_confirmed is True:
-                                turn_n += 1
-                                box_vector[box] = proposed_val
-                                box_strikes[box] = 0
-                                question_count += 1
-                                log.write(TurnLogRecord(
-                                    turn_n=turn_n,
-                                    turn_class="ANSWER",
-                                    box=box,
-                                    value=proposed_val,
-                                    transcript=spk,
-                                    span=spk,
-                                ))
-                                break
-                            elif is_confirmed is False:
-                                turn_n += 1
-                                box_strikes[box] += 1
-                                log.write(TurnLogRecord(
-                                    turn_n=turn_n,
-                                    turn_class="UNCLEAR",
-                                    transcript=spk,
-                                ))
-                                if box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
-                                    audio.say(("unclear_prompt",))
-                                break
-                            else:
-                                if Engine._try_question(
-                                    audio, model, corpus, log, qa, confirm_inp, mode, turn_n, box_vector, asked="confirm",
-                                ):
-                                    audio.say(confirm_seq)  # 7.3: answered; the same read-back again, no strike
-                                    continue
-                                turn_n += 1
-                                box_strikes[box] += 1
-                                log.write(TurnLogRecord(
-                                    turn_n=turn_n,
-                                    turn_class="UNCLEAR",
-                                    transcript=spk,
-                                ))
-                                if mode != "keypad_only" and (
-                                    getattr(model, "keypad_only", False)
-                                    or getattr(audio, "keypad_only", False)
-                                    or getattr(getattr(audio, "turn", None), "keypad_only", False)
-                                ):
-                                    mode = "keypad_only"
-                                    log.write({"mode": "keypad_only"})
-                                    audio.say(("keypad_only_mode",))
-                                elif box_strikes[box] < tunables.BOX_STRIKES_TO_KEYPAD:
-                                    audio.say(("unclear_prompt",))
-                                break
-
-                        elif isinstance(confirm_inp, Hangup):
-                            audio.hangup()
-                            survs_s = Filter.survivors(box_vector, corpus)
-                            h_stop = (
-                                STOP_ZERO_SURVIVORS if len(survs_s) == 0
-                                else (STOP_LE_4_SURVIVORS if len(survs_s) <= tunables.STOP_SURVIVORS else STOP_NO_SPLIT)
-                            )
-                            log.close(reason=h_stop, ladder_rung=ladder_rung, mode=mode)
-                            return
-
-                    if also_question is not None and box_vector[box] == proposed_val:
-                        # BOTH: the answer was read back and accepted; now the question, once.
-                        Engine._try_question(audio, model, corpus, log, qa, also_question, mode, turn_n, box_vector)
                     if stop_reason:
                         break
                     if turn_n >= tunables.MAX_TURNS:
@@ -1233,25 +1175,24 @@ class Engine:
                 shape=shape,
                 pre_vetted=True,
             )
-            audio.say(terminal_seq)
-
             # --- D9: Delivery log ---
-            # Every named scheme in terminal_seq already had its name+summary
-            # spoken by the audio.say() above, regardless of what the caller
-            # does next in the read-back menu. So "summary" is seeded for all
-            # of them up front; _read_back appends any extra section the
-            # caller actually asks for, and the record is written once each,
-            # after the caller's interaction with that terminal is fully known
-            # (simplest correct point -- one write per scheme, no rewrites).
             named = [
                 t.split(":", 1)[1] for t in terminal_seq if t.startswith("name:")
             ]
 
             # --- 6. Read-Back Menu ---
-            # section_menu plays after each named scheme. 1-4 replay a section
-            # behind section_source_frame, 9 advances (or pages in more, D8),
-            # * switches language and replays, 0 leaves, other keys replay the menu.
+            # Results queued one scheme at a time: read the scheme, play its menu,
+            # wait, then the next. The engine's current-scheme is always the one
+            # the caller hears.
             if SECTION_MENU in terminal_seq:
+                first_scheme_idx = next(
+                    (i for i, t in enumerate(terminal_seq) if t.startswith("name:")),
+                    len(terminal_seq),
+                )
+                preamble = terminal_seq[:first_scheme_idx]
+                if preamble:
+                    audio.say(preamble)
+
                 sections_heard: dict[str, list[str]] = {n: ["summary"] for n in named}
                 # D8 paging: candidate_survs holds every speakable candidate this
                 # terminal resolved, not just the ones named so far (direct match
@@ -1272,87 +1213,84 @@ class Engine:
                     log.close(reason=STOP_ZERO_SURVIVORS if not survs else STOP_LE_4_SURVIVORS,
                               ladder_rung=ladder_rung, mode=mode)
                     return
-            elif named:
-                # Nearest: "Restraint: summary only, NO section_menu,
-                # auto-advance" (terminals.py nearest()) -- there is no later
-                # touch point for these schemes, so write here.
-                cur_lang = getattr(audio, "language", lang)
-                for n in named:
-                    log.write(DeliveryRecord(
-                        slug=n,
-                        ending=shape,
-                        sections=Engine._heard_sections(audio, n, ["summary"]),
-                        lang=cur_lang,
-                    ))
+            else:
+                audio.say(terminal_seq)
+                if named:
+                    # Nearest: "Restraint: summary only, NO section_menu,
+                    # auto-advance" (terminals.py nearest()) -- there is no later
+                    # touch point for these schemes, so write here.
+                    cur_lang = getattr(audio, "language", lang)
+                    for n in named:
+                        log.write(DeliveryRecord(
+                            slug=n,
+                            ending=shape,
+                            sections=Engine._heard_sections(audio, n, ["summary"]),
+                            lang=cur_lang,
+                        ))
 
             # --- 7. Anything Else ---
             ae_strikes = 0
             while True:
-                audio.say(("anything_else",))
-                if mode == "keypad_only":
-                    ae_inp = audio.next_input(profile="normal")
-                else:
-                    ae_inp = audio.next_input(profile="confirm")
+                def ae_miss_cb(m_inp, m_cnt):
+                    nonlocal turn_n, mode, ae_strikes
+                    if isinstance(m_inp, Silence):
+                        return False
+                    if isinstance(m_inp, Noise):
+                        ae_strikes += 1
+                        if ae_strikes >= tunables.BOX_STRIKES_TO_KEYPAD:
+                            return True
+                        return False
+                    if isinstance(m_inp, Digit):
+                        if m_inp.digit == "#":
+                            audio.repeat()
+                            return False
+                        ae_strikes += 1
+                        if hasattr(audio, "trace") and getattr(audio, "trace", None) is not None:
+                            audio.trace.input_event(getattr(m_inp, "prompt_n", -1), "anything_else", "key", str(m_inp.digit), False, "not_on_menu")
+                        if ae_strikes >= tunables.BOX_STRIKES_TO_KEYPAD:
+                            return True
+                        return False
+                    return False
+                    
+                try:
+                    ae_inp = Engine._wait_for_input(
+                        audio, log, ("anything_else",), profile="normal" if mode == "keypad_only" else "confirm",
+                        valid_keys=("1", "2", "0", "*", "#"),
+                        allow_speech=mode != "keypad_only" and model is not None,
+                        on_miss_cb=ae_miss_cb,
+                        turn_n=turn_n
+                    )
+                except EngineDropCall as e:
+                    log.close(reason=STOP_ZERO_SURVIVORS if not survs else STOP_LE_4_SURVIVORS, ladder_rung=e.ladder_rung, mode=mode)
+                    return
+                
+                if ae_inp is None:
+                    # Breakout due to strikes
+                    break
+
                 if isinstance(ae_inp, Hangup):
                     audio.hangup()
-                    log.close(reason=STOP_ZERO_SURVIVORS if not survs else STOP_LE_4_SURVIVORS,
-                              ladder_rung=ladder_rung, mode=mode)
+                    log.close(reason=STOP_ZERO_SURVIVORS if not survs else STOP_LE_4_SURVIVORS, ladder_rung=ladder_rung, mode=mode)
                     return
                 is_yes = False
                 if isinstance(ae_inp, Digit):
-                    if ae_inp.digit == "#":
-                        continue  # the loop says the line again
-                    elif ae_inp.digit == "*":
+                    if ae_inp.digit == "*":
                         curr_lang = getattr(audio, "language", "hi")
                         new_lang = _next_lang(curr_lang)
                         if hasattr(audio, "language"):
                             audio.language = new_lang
-                        log.write(LangSwitchRecord(
-                            lang=new_lang,
-                            lang_source="keypad",
-                            turn_n=turn_n,
-                        ))
+                        log.write(LangSwitchRecord(lang=new_lang, lang_source="keypad", turn_n=turn_n))
                         continue
                     elif ae_inp.digit == "1":
                         is_yes = True
                         if hasattr(audio, "trace") and getattr(audio, "trace", None) is not None:
-                            audio.trace.input_event(
-                                prompt_n=getattr(ae_inp, "prompt_n", -1),
-                                prompt="anything_else",
-                                event="key",
-                                value="1",
-                                took=True,
-                                why="ok",
-                            )
+                            audio.trace.input_event(getattr(ae_inp, "prompt_n", -1), "anything_else", "key", "1", True, "ok")
                         break
                     elif ae_inp.digit in ("0", "2"):
                         is_yes = False
                         if hasattr(audio, "trace") and getattr(audio, "trace", None) is not None:
-                            audio.trace.input_event(
-                                prompt_n=getattr(ae_inp, "prompt_n", -1),
-                                prompt="anything_else",
-                                event="key",
-                                value=str(ae_inp.digit),
-                                took=True,
-                                why="ok",
-                            )
+                            audio.trace.input_event(getattr(ae_inp, "prompt_n", -1), "anything_else", "key", str(ae_inp.digit), True, "ok")
                         break
-                    else:
-                        # Out of menu digit on anything_else (G6: "wrong key" line then repeat)
-                        ae_strikes += 1
-                        if hasattr(audio, "trace") and getattr(audio, "trace", None) is not None:
-                            audio.trace.input_event(
-                                prompt_n=getattr(ae_inp, "prompt_n", -1),
-                                prompt="anything_else",
-                                event="key",
-                                value=str(ae_inp.digit),
-                                took=False,
-                                why="not_on_menu",
-                            )
-                        if ae_strikes >= tunables.BOX_STRIKES_TO_KEYPAD:
-                            break  # a stuck key must not loop forever: take it as "no"
-                        audio.say(("unclear_prompt",))
-                        continue
                 elif isinstance(ae_inp, Speech):
                     spk = str(getattr(ae_inp, "text", "") or "").strip().lower()
                     if model is not None and hasattr(model, "confirm"):
@@ -1426,7 +1364,7 @@ class Engine:
         turn_n: int,
         qa: Optional[dict[str, Any]] = None,
     ) -> bool:
-        """Drive the read-back menu. Returns False if the caller hung up.
+        """Drive the read-back menu one scheme at a time. Returns False if the caller hung up.
 
         Appends each section actually played to sections_heard[<scheme>] (D9),
         so the caller writes one DeliveryRecord per scheme once this returns.
@@ -1435,140 +1373,187 @@ class Engine:
         OVERFLOW_READ_CAP of them, extending `named` in place, instead of leaving.
         """
         ix = 0
-        heard: set[str] = set()
-        replays = 0
+        just_paged = False
         pending_section: tuple[str, str] | None = None
+
         while ix < len(named):
-            rb_inp = audio.next_input(profile="readback")
-            if pending_section is not None:
-                p_sid, p_sec = pending_section
-                if not (hasattr(audio, "was_cut") and audio.was_cut(f"scheme:{p_sid}:{p_sec}")):
-                    sections_heard[p_sid].append(p_sec)
-                pending_section = None
+            sid = named[ix]
+            # 1. Play this scheme + its menu
+            block = Terminals.render_scheme_block(sid, corpus=corpus, include_section_menu=True)
+            if ix > 0 and not just_paged:
+                audio.say(("next_scheme_intro", *block))
+            else:
+                audio.say(tuple(block))
+            just_paged = False
 
-            if isinstance(rb_inp, Hangup):
-                audio.hangup()
-                return False
-            if isinstance(rb_inp, Silence):
-                # No key on the menu is not a dead end: move on to the next scheme.
-                ix += 1
-                replays = 0
-                continue
-            if (
-                qa is not None
-                and isinstance(rb_inp, Speech)
-                and Engine._try_question(
-                    audio, qa["model"], corpus, log, qa, rb_inp, qa["mode"], turn_n,
-                    # The open scheme first ("this" means it), then the other results just read.
-                    scheme_ids=([named[ix]] + [n for n in named if n != named[ix]])[:tunables.QA_MAX_SCHEMES],
-                    asked="section_menu",
-                )
-            ):
-                audio.say((SECTION_MENU,))  # a question never moves the call: same menu again
-                continue
-            if not isinstance(rb_inp, Digit):
-                ix += 1
-                replays = 0
-                continue
-            key = rb_inp.digit
+            heard: set[str] = set()
+            replays = 0
 
-            if key == "*":
-                # D13's `*` cycle, shared with the question phase (_next_lang):
-                # rotate language, log the switch, then replay the current
-                # scheme's block in the new language. Does not advance ix.
-                new_lang = _next_lang(getattr(audio, "language", "hi"))
-                if hasattr(audio, "language"):
-                    audio.language = new_lang
-                log.write(LangSwitchRecord(
-                    lang=new_lang,
-                    lang_source="keypad",
-                    turn_n=turn_n,
-                ))
-                sid = named[ix]
-                audio.say((
-                    mark_name(sid),
-                    scheme_name_chunk(sid),
-                    scheme_summary_chunk(sid),
-                    mark_end(sid),
-                    SECTION_MENU,
-                ))
-                continue
+            # 2. Wait loop for this scheme's menu
+            while True:
+                # Set current_scheme to the scheme just read before each wait
+                Engine.current_scheme = sid
+                setattr(audio, "current_scheme", sid)
 
-            if key in Engine.SECTION_KEYS and key not in heard:
-                # Each section plays at most once per scheme. Without the guard
-                # a caller (or a fake) holding one key replays it forever.
-                heard.add(key)
-                replays = 0
-                section = Engine.SECTION_KEYS[key]
-                pending_section = (named[ix], section)
-                audio.say((
-                    SECTION_SOURCE_FRAME,
-                    f"scheme:{named[ix]}:{section}",
-                    SECTION_MENU,
-                ))
-                continue
-            if key in Engine.SECTION_KEYS:
-                key = "9"
-            if key == "#":
-                audio.repeat()
-                continue
-            if key == "9":
-                replays = 0
-                if ix == len(named) - 1 and rest:
-                    # D8 paging: more speakable candidates than were named. Page
-                    # in the next OVERFLOW_READ_CAP instead of leaving the menu.
-                    page = rest[:tunables.OVERFLOW_READ_CAP]
-                    del rest[:tunables.OVERFLOW_READ_CAP]
-                    audio.say(Terminals.more_sequence(page, corpus))
-                    for sid in page:
-                        sections_heard[sid] = ["summary"]
-                    named.extend(page)
-                    ix += 1
-                    heard = set()
-                    continue
-                ix += 1
-                heard = set()
-                if ix < len(named):
-                    audio.say(("next_scheme_intro",))
-                else:
-                    audio.say(("no_more_schemes",))
-                continue
-            if key == "0":
-                # 0 = none of these: leave the menu.
+                rb_inp = audio.next_input(profile="readback")
+
                 if pending_section is not None:
                     p_sid, p_sec = pending_section
                     if not (hasattr(audio, "was_cut") and audio.was_cut(f"scheme:{p_sid}:{p_sec}")):
                         sections_heard[p_sid].append(p_sec)
                     pending_section = None
-                return True
-            # Any other digit (5-8): replay the section menu, bounded so a stuck
-            # key can never loop forever. After READBACK_REPLAY_MAX replays in a
-            # row on the same scheme, treat the next one as 9.
-            replays += 1
-            if hasattr(audio, "trace") and getattr(audio, "trace", None) is not None:
-                audio.trace.input_event(
-                    prompt_n=getattr(rb_inp, "prompt_n", -1),
-                    prompt="readback",
-                    event="key",
-                    value=str(key),
-                    took=False,
-                    why="not_on_menu",
-                )
-            if replays > tunables.READBACK_REPLAY_MAX:
-                replays = 0
-                ix += 1
-                heard = set()
-                if ix < len(named):
-                    audio.say(("next_scheme_intro",))
-                else:
-                    audio.say(("no_more_schemes",))
-                continue
-            audio.say(("unclear_prompt", SECTION_MENU))
-            continue
+
+                if isinstance(rb_inp, Hangup):
+                    audio.hangup()
+                    Engine.current_scheme = None
+                    setattr(audio, "current_scheme", None)
+                    return False
+
+                if isinstance(rb_inp, Silence):
+                    if (hasattr(audio, "was_cut") and audio.was_cut("")) or bool(getattr(rb_inp, "cut_clip", "")):
+                        replays += 1
+                        if replays > tunables.READBACK_REPLAY_MAX:
+                            replays = 0
+                            ix += 1
+                            if ix < len(named):
+                                break  # Move to next scheme
+                            else:
+                                audio.say(("no_more_schemes",))
+                                Engine.current_scheme = None
+                                setattr(audio, "current_scheme", None)
+                                return True
+                        audio.say(("unclear_prompt", SECTION_MENU))
+                        continue
+                    # Normal silence on menu moves on to next scheme
+                    ix += 1
+                    if ix < len(named):
+                        break  # Move to next scheme
+                    else:
+                        audio.say(("no_more_schemes",))
+                        Engine.current_scheme = None
+                        setattr(audio, "current_scheme", None)
+                        return True
+
+                if (
+                    qa is not None
+                    and isinstance(rb_inp, Speech)
+                    and Engine._try_question(
+                        audio, qa["model"], corpus, log, qa, rb_inp, qa["mode"], turn_n,
+                        scheme_ids=[sid],
+                        asked="section_menu",
+                    )
+                ):
+                    audio.say((SECTION_MENU,))  # Question answered; replay section menu
+                    continue
+
+                if not isinstance(rb_inp, Digit):
+                    replays += 1
+                    if replays > tunables.READBACK_REPLAY_MAX:
+                        replays = 0
+                        ix += 1
+                        if ix < len(named):
+                            break  # Move to next scheme
+                        else:
+                            audio.say(("no_more_schemes",))
+                            Engine.current_scheme = None
+                            setattr(audio, "current_scheme", None)
+                            return True
+                    audio.say(("unclear_prompt", SECTION_MENU))
+                    continue
+
+                key = rb_inp.digit
+
+                if key == "*":
+                    new_lang = _next_lang(getattr(audio, "language", "hi"))
+                    if hasattr(audio, "language"):
+                        audio.language = new_lang
+                    log.write(LangSwitchRecord(
+                        lang=new_lang,
+                        lang_source="keypad",
+                        turn_n=turn_n,
+                    ))
+                    audio.say(tuple(Terminals.render_scheme_block(sid, corpus=corpus, include_section_menu=True)))
+                    continue
+
+                if key in Engine.SECTION_KEYS and key not in heard:
+                    heard.add(key)
+                    replays = 0
+                    section = Engine.SECTION_KEYS[key]
+                    pending_section = (sid, section)
+                    audio.say((
+                        SECTION_SOURCE_FRAME,
+                        f"scheme:{sid}:{section}",
+                        SECTION_MENU,
+                    ))
+                    continue
+
+                if key in Engine.SECTION_KEYS:
+                    key = "9"
+
+                if key == "#":
+                    audio.repeat()
+                    continue
+
+                if key == "9":
+                    replays = 0
+                    if ix == len(named) - 1 and rest:
+                        page = rest[:tunables.OVERFLOW_READ_CAP]
+                        del rest[:tunables.OVERFLOW_READ_CAP]
+                        audio.say((RESULTS_MORE_PROMPT,))
+                        for psid in page:
+                            sections_heard[psid] = ["summary"]
+                        named.extend(page)
+                        ix += 1
+                        just_paged = True
+                        break  # Move to first scheme of the new page
+                    ix += 1
+                    if ix < len(named):
+                        break  # Move to next scheme
+                    else:
+                        audio.say(("no_more_schemes",))
+                        Engine.current_scheme = None
+                        setattr(audio, "current_scheme", None)
+                        return True
+
+                if key == "0":
+                    if pending_section is not None:
+                        p_sid, p_sec = pending_section
+                        if not (hasattr(audio, "was_cut") and audio.was_cut(f"scheme:{p_sid}:{p_sec}")):
+                            sections_heard[p_sid].append(p_sec)
+                        pending_section = None
+                    Engine.current_scheme = None
+                    setattr(audio, "current_scheme", None)
+                    return True
+
+                # Unmapped digits (5-8):
+                replays += 1
+                if hasattr(audio, "trace") and getattr(audio, "trace", None) is not None:
+                    audio.trace.input_event(
+                        prompt_n=getattr(rb_inp, "prompt_n", -1),
+                        prompt="readback",
+                        event="key",
+                        value=str(key),
+                        took=False,
+                        why="not_on_menu",
+                    )
+                if replays > tunables.READBACK_REPLAY_MAX:
+                    replays = 0
+                    ix += 1
+                    if ix < len(named):
+                        break
+                    else:
+                        audio.say(("no_more_schemes",))
+                        Engine.current_scheme = None
+                        setattr(audio, "current_scheme", None)
+                        return True
+                audio.say(("unclear_prompt", SECTION_MENU))
+
         if pending_section is not None:
             p_sid, p_sec = pending_section
             if not (hasattr(audio, "was_cut") and audio.was_cut(f"scheme:{p_sid}:{p_sec}")):
                 sections_heard[p_sid].append(p_sec)
+        Engine.current_scheme = None
+        setattr(audio, "current_scheme", None)
         return True
 
 

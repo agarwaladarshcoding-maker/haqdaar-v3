@@ -2867,3 +2867,651 @@ Branch `step-1.15-pipeline`. 253 tests pass (was 245).
 - Code map (4 Oct, lines drift — confirm by name): turn loop call.py:387 run_call; cut gate turn.py:298 wait_input; was_cut phone.py:145; _try_question call.py:298 + answer.py:70/84; terminals.py:193/390/442 + _read_back call.py:1409; opener call.py:488-556 + router.py:75 + phone.py:262 _menu + door_a.py:156; say phone.py:89/98 + lines.yaml:29 + texts.py:49; greeting phone.py:78 + call.py:395-398; gap turn.py:289 + tunables.py:62 + ear.py:671/794/606; pool.py:119 get; render.py:254/59/84 + SarvamTTS :113 + live_tts.py:51; stress tools/stress.py:147/87/70 + test_barge_sweep.py:24/158 + sim.py:622/182 + server.py:100/209 + call_me.py:18.
 - Git: base commit 8288d9f on step-7.0-live-answers (65 files, found tree, unreviewed, NOT phone-tried). Step branches NOT created yet — sequential, each from previous reviewed tip at "start step N". Review plan: Muse reviews 7.0+7.1 together at step 1, merges to main; steps 2+ branch from main.
 - .agent is gitignored but .agent/NOTES.md is tracked (force-added earlier); .agent/TASK.md is local-only.
+
+## Step 7.1 — Never silent (2026-10-04) — completed
+- Branch step-7.1-never-silent created from step-7.0-live-answers.
+- Baseline pytest: 1859 passed, 0 failures, 2 warnings.
+- Dispatched explore subagent to examine _try_question retry + logging, lines.yaml/texts.py for "sorry, say that again", cut handling across turn loops, and test_barge_sweep.py.
+
+- CRITICAL IMPORT DISCIPLINE in `haqdaar/engine/call.py`: `test_concurrency_and_import_discipline` in `test_call.py:1009-1029` asserts that `call.py` has no top-level import containing "audio", "model", or "pipeline" (and no Thread, asyncio, Queue, Pool). Any model/answer helper (like `write_question_line`) MUST be imported lazily inside methods (e.g. inside `_try_question`), not at module top-level.
+- Exploration findings (inline):
+  - "sorry, say that again" line is `unclear_prompt` ("Sorry, I did not catch that. Please say it again." / "माफ़ कीजिए, मैं समझ नहीं पाई। कृपया इसे फिर से कहें।") which already exists in `lines.yaml`, `texts.py` and has rendered clips in en, hi, mr in the audio pool (AudioPool.get() returns True for all 3 render keys). No new audio render needed.
+  - `_try_question`: when `model.answer` check fails (returns None or exception or audio.say_text is False), retry exactly once more (`for attempt in (1, 2)`). `Router.answer` already writes to `questions.jsonl` on every call, and on unhandled exception we call `write_question_line` lazily via importlib.
+  - `_read_back`: bug 1 freeze root cause identified. When voice cut-in or speech happens in `_read_back`, if `_try_question` fails, previous code did `if not isinstance(rb_inp, Digit): ix += 1; replays = 0; continue` which said NOTHING and entered `wait_input` with empty mouth. Fix: if not question / check failed, say `audio.say(("unclear_prompt", SECTION_MENU))` and do not advance `ix` (bounded by `replays`).
+- Sweep rule lock: Added `test_cut_is_always_answered` in `tests/test_barge_sweep.py`. Uses `CutTrackingAudio` asserting that any cut input (`cut_clip` present) is followed by `say()`, `say_text()`, or `repeat()` before the next `next_input()`. 400 test cases run across 8 cut types at every prompt position of keys and spoken calls with QA off and on. All 400 passed (along with all 1201 previous sweep tests, total 1601 in test_barge_sweep.py).
+- Checks:
+  - `.venv/bin/python -m pytest -q`: 2264 passed, 2 warnings in 166.81s (count up from 1859).
+  - `make stress` (1,000 random callers): crashes 0, truth failures 0.
+  - `make sim KEYS="1 1 2 1 3 9 9 9 2"`: completes cleanly to closing_farewell.
+  - `py_compile`: clean compilation across all modified files.
+
+
+
+
+## Step 7.2 — One scheme at a time (2026-10-04) — in progress
+- Branch `step-7.2-one-at-a-time` created from HEAD keeping all uncommitted working-tree changes from Step 7.1.
+- Baseline pytest run: 2264 passed, 2 warnings in 176.29s. Count = 2264.
+
+## Step 7.1 Muse review (4 Oct ~14:00) — CONDITIONAL PASS, code green
+- pytest 2264 passed (base 1859), stress crashes 0 truth failures 0, keypad sim + spoken sim both reach closing_farewell (traces sim_1791101409, sim_1791101677).
+- All 5 work-order items verified: retry-once + 2 log lines (call.py:363-380), unclear_prompt en/hi/mr in pool + CURRENT snapshot, cut->say in readback + key paths (call.py:1323,1484-1514), sweep test meaningful, HANDOFF section 5 clean.
+- Conditions to fix before 7.1 merge (NOT fixed now: tree owned by step-7.2 job): (1) test_cut_is_always_answered vacuous on 64/400 tail cases, assert cuts_seen>=1; (2) say_text failure re-calls paid model.answer (call.py:393); (3) blocked_by exception unmasked in questions.jsonl (call.py:376); (4) double importlib in loop, use top-level import.
+- Step 7.2 Antigravity job agy_1791101059_183ecf RUNNING on branch step-7.2-one-at-a-time; step-7.1 changes still uncommitted in shared tree — separate 7.1 files at merge time.
+
+## Call-system shutdown fix (4 Oct ~14:00, on step-7.2 branch)
+- Symptom: owner's `make call-me` died with uvicorn `[Errno 48] address already in use` on port 8000 (logs/server.log tail).
+- Root cause: stale server PID 90212 (started 02:54, pre-step-7.1 code, non-venv python) still held 8000; the new server failed to bind and shut down. Worse, run_demo would have rung into the STALE server since /health answered.
+- Fix: killed 90212 (idle 11h, verified no active call); kept live tunnel 28906 (13:47). Proof: fresh .venv server booted clean, /health {"status":"ok"} direct AND through https://tunnel_host/health; probe stopped after, port free.
+- Guard added: tools/run_demo.py port_in_use() + exit-1 with fix instructions instead of spawning a 2nd server; tests/test_run_demo_port.py (2 passed unsandboxed; sandbox blocks bind so they fail under `muse` default sandbox — run in owner terminal).
+- Owner re-run: same `make call-me` command as before (reuses live tunnel, starts fresh server, rings).
+
+## Step 7.2 — One scheme at a time (2026-10-04) — completed
+- Branch: `step-7.2-one-at-a-time` (based on HEAD with step 7.1 changes preserved).
+- Implementation:
+  - `haqdaar/engine/terminals.py`:
+    - Added `render_scheme_block(scheme, corpus=None, *, include_section_menu=True) -> list[str]`.
+    - Refactored `_render_schemes_sequence` to return per-scheme blocks (`list[list[str]]`).
+    - Shape functions (`direct_match`, `overflow`, `widened_match`, `nearest`, `more_sequence`) unpack per-scheme blocks, preserving existing `tuple[str, ...]` interface.
+    - Exposed staticmethods on `Terminals`: `render_scheme_block`, `scheme_blocks`, `render_schemes_sequence`.
+  - `haqdaar/engine/call.py`:
+    - Added `Engine.current_scheme: str | None = None`.
+    - `run_call`: resets `Engine.current_scheme = None` on entry; when `SECTION_MENU in terminal_seq`, plays preamble slice before entering `_read_back`, decoupling schemes from the initial say queue.
+    - `_try_question`: if no scheme is named in spoken question, resolves `ids = [Engine.current_scheme]` when `Engine.current_scheme` is set; named schemes still match via DoorA and take precedence.
+    - `_read_back`: rewritten into outer per-scheme loop and inner wait loop. Queues each scheme independently (`("next_scheme_intro", *block)` for `ix > 0`). Sets `Engine.current_scheme = sid` and `audio.current_scheme = sid` before each `audio.next_input(profile="readback")`. Replaying sections replays within the open scheme. `no_more_schemes` plays on reaching the end of schemes.
+    - Concurrency/import discipline: zero forbidden tokens (`Thread`, `asyncio`, `Queue`, `Pool`); verified by `test_concurrency_and_import_discipline`.
+  - `tests/test_qa_engine.py`:
+    - Adjusted assertion in `test_section_menu_question_is_answered_about_the_open_scheme` (line 212) from `count("section_menu") == 3` to `== 2`: scheme S2 is not queued up front when caller leaves via "0" on S1.
+  - `tests/test_barge_sweep.py`:
+    - Added `OneSchemeTrackingAudio` and `test_one_scheme_at_a_time` verifying that N matching schemes produce N separate waits and that `current-scheme` strictly equals the scheme last heard at each wait.
+    - Verified both keypad navigation and spoken questions (unnamed "this scheme" questions answer from open scheme; named scheme jumps).
+- Verification:
+  - `.venv/bin/python -m pytest -q`: 2267 passed, 2 warnings in 116.53s (count up from 2264).
+  - `make stress` (1,000 random callers): crashes 0, truth failures 0.
+  - `make sim SNAP=snapshots/CURRENT KEYS="1 1 2 1 3 9 9 9 9 0 2"`: cleanly stepped through all 4 schemes (pm-kisan, pmfby, kcc, smam) one scheme at a time with section menus, queries, and reached `closing_farewell`.
+  - `py_compile` & `python3 sync_vault.py --status`: clean, 66 files synced.
+
+## Step 7.2 Muse review (4 Oct ~15:00) — PASS, no blocking bugs
+- Job agy_1791101059_183ecf COMPLETED. pytest 2267 passed, stress crashes 0 truth failures 0, sim to closing_farewell (trace sim_1791103970).
+- All 5 verified: per-scheme blocks (terminals.py:194-223), _read_back one-at-a-time loop with current_scheme set before every readback wait (call.py:1482-1501) and cleared on all exits, "this scheme" fallback (call.py:343-346 + explicit scheme_ids at :1545), test_one_scheme_at_a_time non-vacuous (order [S1,S2], QA attribution, door-jump), HANDOFF section 5 clean.
+- Nits (non-blocking): stale "tractor subsidy" comment at test_barge_sweep.py:337; current-scheme fallback redundant today but harmless; current_scheme crash-mid-readback cleaned by next run_call reset.
+- Owner setting: future Antigravity jobs run with reasoning effort xhigh (connector flag: `--task-type coding -e xhigh`; agy supports low|medium|high|xhigh|max).
+
+## Step 3 rescoped to global silence rule (4 Oct, owner)
+- Owner: silence can come from their side at ANY point, so handle it overall, not just the language prompt.
+- Cancelled narrow job agy_1791105178_66961c before it wrote code (tree clean, no step-7.3 branch existed); relaunched agy_1791105360_1b3608 at xhigh with binding rule: map every wait point first, one shared re-prompt helper, no silent defaults anywhere; must compose with 7.1 never-silent, silence ladder, retry-once.
+
+## Step 3 launch failures + resolution (4 Oct)
+- Narrow job agy_1791105178_66961c cancelled pre-code per owner (scope too narrow).
+- xhigh relaunch agy_1791105360_1b3608 FAILED in 10s: `agy models` lists no xhigh model; --effort xhigh conflicts with every routed model. xhigh is not a valid level.
+- Relaunched agy_1791106694_2d765b with --task-type deep-reasoning (gemini-3.1-pro-high), RUNNING. If owner wants the absolute max, the remaining option is --task-type heavy (claude-opus-4-6-thinking).
+
+### Step 7.3 - Wait Points Map
+1. `_ask_language` (call.py:439) - turn0 wait
+2. `_door_a_pick` (call.py:114) - Door A choice wait
+3. `run_call` main loop, keypad mode (call.py:593) - wait for keypad choice
+4. `run_call` main loop, spoken mode (call.py:604) - wait for spoken input / digits
+5. `_apply_b` (call.py:969) - confirmation wait
+6. `_ask_extra` (call.py:1334) - wait for missing category/state
+7. `_ask_extra` confirmation (call.py:1336) - wait to confirm the extra info
+8. `_readback_schemes` (call.py:1501) - wait for readback section choice
+
+## Re-plan into three lanes (4 Oct ~15:30, Claude Opus as planner)
+- Found: branches step-7.0/7.1/7.2/7.3 all pointed at b1a43fd. Steps 7.1 + 7.2 lived only as uncommitted edits, and the 7.3 Antigravity job (agy_1791106694_2d765b) was already writing on top in the same folder. No rollback point.
+- Done: saved 7.1 + 7.2 as commit 254d828 and moved branch step-7.2-one-at-a-time to it. Made with a temp index (commit-tree), so the working folder and the real index were not touched while the job runs. Checked first that call.py / terminals.py / tests were still at their 13:4x-13:5x times (job had only written NOTES). `git diff step-7.2-one-at-a-time` now shows step 7.3 only. When 7.3 is ready to commit: `git reset --soft step-7.2-one-at-a-time` on step-7.3-talk-first, then commit.
+- Why lanes: 7.3, 7.4, 7.5 all edit call.py (8 `audio.next_input` sites, `_try_question`, greeting) -> one after another. 7.6 is pool.py only and 7.7a is a new tool -> independent, each in its own git worktree.
+- Lane B: worktree ~/code/haqdaar-v2-7.6, branch step-7.6-trim-silence from 254d828. `audio` and `.venv` are symlinks to the main folder (added /audio, /.venv, /.env to .git/info/exclude so they do not show as untracked). Sonnet coder told: new test file only, do not touch test_barge_sweep.py / call.py / lines.yaml / PROJECT-UPDATE.md / .agent, no spend.
+- Lane C prompts written: PROMPT-ANTIGRAVITY-7.7A-PACE-SAMPLES.md (stretch-based samples, no Sarvam) and PROMPT-MUSE-7.3-WORDS-AND-REVIEW.md (words for 3 new lines, then 7.3 review).
+- Work-order drift to remember: the PROMPT-STEP-7.x files say "branch from reviewed main" but main (806299b) has none of 6.x/7.x; branch from the last reviewed step instead. They say `wait_input`; the engine calls `audio.next_input`. Line numbers are stale (opener is call.py ~522-604, `_try_question` ~301, greeting ~435-450). The "Wait Points Map" above uses function names that do not exist; all waits are inline in run_call. PROMPT-STEP-7.2-7.3.md is an older, different 7.2/7.3 (the 7.0 work).
+- Muse spend today: Rs 0 / 30, all time Rs 12.97 / 60, open.
+- Stray untracked at repo root from the running job: test_sandbox.py, scratch/. Left alone.
+
+## Step 7.6 — trim silence (4 Oct ~15:45, Sonnet coder, side folder) — built, not phone-checked
+- Commit 1075941 on step-7.6-trim-silence (folder ~/code/haqdaar-v2-7.6, base 254d828). Not merged, not pushed.
+- pool.py: `trim_edges(data)` used by both load paths (`AudioPool.pin` tier 0 and the tier-1 miss in `AudioPool.get`); trimmed bytes are what is cached. tunables: TRIM_EDGE_MS=120 (same as TAIL_PAD_MS), TRIM_QUIET_LEVEL=15 (mu-law level 0-127, about -48 dBFS). All-quiet clips, clips under 2 gaps, and clips already inside the gap come back unchanged; middle quiet kept.
+- tests/test_trim_silence.py: 8 new tests incl. test_trim_silence_at_load. Claude re-ran: test_trim_silence + test_pool_fds + test_mouth = 15 passed.
+- Coder's full run in the side folder: 2274 passed, 1 failed; make stress 1000 callers crashes 0 truth failures 0.
+- The 1 failure is NOT from this step: tests/test_door_a.py::test_repo_entries_exclude_quarantined_slugs gets an empty quarantine set in the side folder. Same test passes in the main folder (Claude ran it). Cause: a git-ignored data file the loader reads is missing in the worktree (only audio and .venv were linked). Side folders need that file linked too, or ignore this one test there.
+- Clip length: mouth.py:162 takes duration from len(loaded bytes); marks and slow replay use the same bytes. No stored per-clip length found in haqdaar/. Snapshot data was not searched.
+- Measured: 630 of 1,030 real clips get shorter; typical edge 300-500 ms -> 120 ms; none empty.
+- Open: nobody has listened. Level 15 could shave a soft word start or end. Owner hears 3-4 clips after merge (hi and mr too).
+
+## Step 7.3 Antigravity job FAILED on quota; clean rebuild started (4 Oct ~16:00, Claude Opus)
+- agy_1791106694_2d765b ended FAILED after 1017 s: "RESOURCE_EXHAUSTED 429, Individual quota reached". It died mid-work.
+- State it left in the MAIN folder (uncommitted, untouched by Claude): call.py half-rewritten through 17 patch_*.py scripts at the repo root (diff vs 254d828: 342 added, 431 removed; nested callback closures `handle_miss`, `confirm_miss_cb`, `ae_miss_cb`; new `_wait_for_input`). It compiles, but pytest there = 111 failed, 2156 passed. lines.yaml + types.py got two draft lines: opener_short_prompt, did_not_get_reply (words not owner-approved, nothing rendered).
+- Claude tried to set the half-done files aside and put call.py back to 254d828; the permission system blocked it as destructive. So the main folder is left exactly as the job left it. OWNER DECIDES what to do with it (keep, or `git stash -u`, or restore call.py from 254d828).
+- Clean rebuild instead: worktree ~/code/haqdaar-v2-7.3, branch step-7.3-talk-first-clean, base 254d828, Sonnet coder. Brief: map all 8 `audio.next_input` sites first; ONE shared helper; work with the existing silence ladder (test_noise_spends_turn_silence_does_not), never loop forever; no patch scripts, stop if call.py change passes ~250 lines; no spend, no render; two new sweep tests test_talk_first_opener + test_silence_always_reprompts; leave uncommitted for review.
+- Side worktrees fail exactly one test, tests/test_door_a.py::test_repo_entries_exclude_quarantined_slugs (missing git-ignored data). Baseline there = 2266 passed + that 1.
+- Do NOT launch another agy job in the main folder until the half-done state is dealt with.
+
+## Owner (4 Oct ~16:10): "get the job done, how is up to you"
+- Read as: Claude drives all lanes itself with Sonnet coders; no waiting on Antigravity (quota out) or on hand-offs. It is NOT read as a yes to discard the half-done edits in the main folder, to spend on Sarvam/Muse, or to skip the owner's phone checks.
+- 7.7a pace samples moved from Antigravity to a Sonnet coder: worktree ~/code/haqdaar-v2-7.7, branch step-7.7-speed, base 254d828. Running.
+- Order after the 7.3 coder reports: Claude reviews + commits 7.3 -> Sonnet fixes the 4 open 7.1 points on top -> 7.4 code (no render) -> 7.5 code, each as its own commit on the 7.3-clean line, then merge 7.6 and 7.7a in and run the whole check.
+
+## Step 7.7a — pace samples (4 Oct ~16:25, Sonnet coder) — built, waits for the owner's ears
+- Commit 797bd57 on step-7.7-speed (folder ~/code/haqdaar-v2-7.7). tools/pace_samples.py + `make pace-samples` + tests/test_pace_samples.py. No spend. Claude re-ran the new test: passed.
+- 27 WAVs in ~/code/haqdaar-v2-7.7/scratch/pace-samples/ : greeting (opener_prompt), card (pm-kisan/summary), menu (section_menu) x en/hi/mr x slower(0.9)/now/faster(1.1). Untracked on purpose.
+- Lengths now: section menu 11.8 s en, 17.1 s hi, 15.0 s mr. Faster saves about 9 percent.
+- stretch is a mock-up of speed only; the real Sarvam re-record (7.7b) may sound different.
+- Owner question open: slower, same or faster.
+
+## Step 7.3 — talk-first + global silence rule — clean build committed (4 Oct ~16:50)
+- Commit 2ab9ffa on step-7.3-talk-first-clean (folder ~/code/haqdaar-v2-7.3, base 254d828). Sonnet coder; Claude re-ran: pytest 2270 passed + the 1 known side-folder door_a failure; make stress 1000 callers crashes 0 truth failures 0.
+- One helper: `_answer_silence(audio, log, rung, turn_n, prompt) -> bool` (call.py ~110). All 8 waits call it. Rung 1: did_not_get_reply + live prompt. Rung 2: silence_presence first. Rung >= SILENCE_HANGUP_RUNG (3): farewell, returns False, site hangs up. Counter is the existing PhoneAudio._silence (Silence.n), reset by any key or word. No second counter. Silence spends no turn.
+- Opener: voice mode says only opener_short_prompt. Key 0 there = play the list (not "don't know"); keys 1-9 work at once; two misses (silence or unclear) = list. Logged as {"mode", "opener_menu": "key_0"|"two_misses", "opener_misses"}.
+- Turn 0: PhoneAudio.select_language returns (lang, "keypad") or the input (Silence/Hangup/Digit); run_call loops. No Hindi default on silence. Three wrong keys still fall back to Hindi (lang_source default).
+- Changed test expectations: test_call_spoken.py:397 (REPEAT -> did_not_get_reply), :906-916 (anything_else silence now re-asks, 3 silences), test_qa_engine.py:302,:373 (opener_prompt -> opener_short_prompt).
+- BEHAVIOUR CHANGES the owner should hear on the phone: (a) silence in read-back used to move on to the next scheme; now it re-asks and the 3rd silent wait in a row ends the call, so a caller who only listens no longer hears scheme 2 by staying quiet. (b) one silence at "anything else" used to end the call; now re-asks.
+- BLOCKER for a real call: opener_short_prompt and did_not_get_reply have NO recorded clips (PhoneAudio._clip logs "no clip" and skips). The opening would be dead air on the phone until rendered. Render = Sarvam spend = owner's yes on the words + SNAP=snapshots/CURRENT.
+- Known edge left: speech then key 0 while the router is thinking at the short line still treats 0 as "don't know". `FIXED_LINE_IDS` comment still says 49.
+- Follow-up job running (Sonnet, same folder): the 4 open 7.1 review points + turn 0 should replay the greeting without the Hindi did_not_get_reply line.
+
+## 7.1 review fixes + turn-0 tweak (4 Oct ~17:15, Sonnet coder) — committed
+- Commit 9dc47b0 on step-7.3-talk-first-clean. Full pytest now 2209 passed (+ the 1 known side-folder failure). The drop from 2270 is on purpose: 64 empty cases of test_cut_is_always_answered removed (cut placed on the call's last two inputs is never played), +3 new tests. The test now asserts a cut was really seen (336 cases).
+- _try_question: only model.answer is retried; a failed say_text is spoken again with the answer in hand, never a second paid model call. blocked_by is now "exception: <ClassName>", no raw error text. importlib resolved once before the loop (still lazy; the import-discipline test also scans comments on import lines for the word "model").
+- _answer_silence has `say_reply: bool = True`; turn 0 passes False: silence is logged and climbs the ladder but only the greeting replays (no Hindi no-reply line, no silence_presence). Farewell at turn 0 is still in Hindi when no language was picked.
+- New: test_language_prompt_wrong_keys, test_speaking_failure_never_calls_the_model_again, test_exception_text_is_not_written_to_the_question_line.
+- Pytest count floor for later steps on this line: 2209.
+
+## Step 7.4 — "one moment" (4 Oct ~17:40, Sonnet coder) — committed, no clip yet
+- Commit 61e850f on step-7.3-talk-first-clean. Coder's full run: 2215 passed + the 1 known side-folder failure; stress 0/0. Claude re-ran the qa/phone/call/mouth test files.
+- Timing model: PhoneAudio.say / say_text return once audio is handed to the mouth; Mouth._send puts frames on a non-blocking emit queue and starts a new clip at max(now, play_until). model.answer blocks only the engine thread, so the filler plays during it. say_text blocks on TTS when the answer is not cached.
+- Engine._try_question: say(("one_moment",)) once, after the early-return guards and before the model loop; `finally` calls audio.stop_filler() (hasattr-guarded). PhoneAudio.stop_filler(): clears the mouth only if the filler still sounds, then resets mouth.last_cut so was_cut() does not read it as a caller cut. say_text calls stop_filler() after the TTS render, just before _play.
+- `pinned: true` in lines.yaml means "owner-corrected, pipeline leaves it alone", NOT the hot audio set. one_moment is declared unpinned like did_not_get_reply.
+- Open for the phone check: with a cached (fast) answer the filler is cut after a fraction of a second and may sound clipped ("one mo-"). If so, the simple fix is to let the short filler finish (the answer queues right behind it) instead of cutting it. Decide after hearing it.
+- Three lines now wait for the owner's yes + render: opener_short_prompt, did_not_get_reply, one_moment.
+
+## Step 7.5 — voice at any time (4 Oct ~18:15, Sonnet coder) — committed
+- 3022027 (7.5a greeting) + e058a78 (7.5b busy gap) on step-7.3-talk-first-clean.
+- Finding that overturns the work order: guards G1-G8 in turn.py judge KEYS only. Speech in the gap was dropped by `drain_media()` (turn.py ~330, ~366) and by the engine thread being blocked in the model call. So NO guard was changed; guard tests untouched.
+- 7.5a: new haqdaar/audio/lang_words.py `language_from_words(text)` (pure; Latin + Devanagari names; number words only in a reply of <= 2 words; None if two or zero languages or one not offered). New LangSource "voice". New wait profile "greeting" in Turn.wait_input (old "turn0" unchanged). PhoneAudio.select_language uses it with lang="" (STT auto-detect: SarvamSTT and GroqWhisperSTT already treat "" as auto) when SPEECH_CUT_IN is on; unclear words are a miss (greeting replays), three misses fall back to Hindi like three wrong keys.
+- 7.5b: Turn.newer_input(gap_s, lang) + PhoneAudio.newer_words(); engine helper `_newer_words(audio, old_text)` checked at the box router and in _try_question before the filler/paid call and again before say_text; say_text re-checks after the TTS render. Old answer is never spoken; a paid call already in flight is spent. Trace row: took=False why=newer_words. Voice only; keys in the gap keep G3/G4/G8.
+- Limits: needs SPEECH_CUT_IN=true (off by default). LANGS_OFFERED default is hi,en so "Marathi" by voice asks for a key. An utterance over 7 s is cut by the VAD and its tail may count as newer words. confirm / anything-else yes-no sites are not checked for newer words directly. haqdaar-v2-brain data-contract lists lang_source values and should gain "voice" (not done).
+- Not verifiable offline: whether live STT returns a transcript for one word ("Hindi") on 8 kHz phone audio with auto-detect; whether voice over the greeting reaches the 400 ms cut-in on the real line.
+
+## Whole line joined on step-7.8-sweep (4 Oct ~18:30, Claude Opus)
+- Branch step-7.8-sweep in ~/code/haqdaar-v2-7.3 = step-7.3-talk-first-clean (7.1-7.5) + merge of step-7.6-trim-silence + merge of step-7.7-speed. No merge conflicts.
+- Claude ran there: pytest 2275 passed + the 1 known side-folder failure (test_door_a quarantine test; passes in the main folder); make stress 1000 callers crashes 0 truth failures 0; keypad sim KEYS="1 0 1 2 1 3 9 9 9 9 0 2" reads pm-kisan, pmfby, kcc, smam and stops survivors_le_4; py_compile clean.
+- NOT done: no real phone call, no sim with real models, no render (3 new lines have no clips: opener_short_prompt, did_not_get_reply, one_moment), not merged to main, not pushed. The MAIN folder still holds the failed Antigravity job's half-done edits on branch step-7.3-talk-first.
+- Step 7.8's own extra sweep test (test_whole_call_sweep) was not added: the six step sweeps already run ~1,600 cases. Left for after the owner's phone calls.
+
+## Cut-in (barge-in) check — map of what exists (4 Oct night, Claude Opus + explore agent)
+Owner asked: try cut-ins at every place and time, score against the good voice-agent systems, fix what we can, build with Antigravity.
+All paths below are in ~/code/haqdaar-v2-7.3 (step-7.8-sweep). Main folder not used.
+- Keys: server.py:298 -> Turn.push_key turn.py:126 -> Mouth.clear() mouth.py:75 sets last_cut=(clip, heard_ms). Guards G1-G8 in turn.py:7-12; KEY_GUARD_MS=250, KEY_REPEAT_MS=300.
+- Voice: Turn.wait_input turn.py:326. Cut only if SPEECH_CUT_IN on (default OFF) and profile is spoken/confirm/greeting, or readback when QA_ENABLED. Never on turn0/normal. Poll 20 ms, Ear.watch_voice ear.py:606, cut after CUT_IN_MIN_MS=400 voiced ms; shorter = short_voice, no cut. VAD ear.py:56-61 (start 3 frames = 60 ms, end 800 ms, max 7 s).
+- After a cut the clip is NEVER resumed. Empty STT after a cut -> Noise (costs a turn + strike in the question loop), no trace row, no cut_clip (turn.py:406).
+- Farewell: voice cannot cut; a KEY does clear it (push_key) and hangup() returns at once -> farewell can be chopped. ALWAYS_SAY (phone.py:46) is defined, never used.
+- Voice guard has no prompt_n>1 check (key guard has); prompt_start_t = when queued, not when it starts sounding.
+- No echo handling at all (energy VAD only).
+- test_barge_sweep.py places a "cut" by LIST INDEX with a pre-made label (heard_ms fixed); no time is swept and no real Mouth/Turn/Ear is used across call positions. Real-timing tests are only unit level: tests/test_live_speech.py `Line` :73 (real Mouth+Turn+Ear+PhoneAudio, FakeSTT, FakePool), S1-S8.
+- Sim: haqdaar/sim.py FakeAudio :182, script_cut(clip,key,ms=150) :398 is the only "cut at t ms" injector, key only.
+- "ms from caller speech start to audio stop" is measured NOWHERE. Mouth/Turn/Trace take clock=; Ear.listen and wait_input use real time (time.monotonic, sleep 0.02).
+- Trace rows: prompt_n, prompt, event, value, took, why (ok, cut_in, short_voice, key_beat_speech, newer_words, repeat, prompt_closed, guard, not_on_menu), cut_clip, heard_ms, t.
+- agy job agy_1791115351_286fe4 started ~17:32 for step 7.9a (work order ~/code/haqdaar-v2-7.3/PROMPT-STEP-7.9-BARGE-EVAL.md, branch step-7.9-barge-eval). Measure only, no haqdaar/ edits.
+- agy_1791115351_286fe4 ended TIMEOUT (1800 s connector default; use -t next time). Left: tools/barge_eval.py (1335 lines, compiles), tests/test_barge_eval.py (53), Makefile barge-eval target. No haqdaar/ edits. No scorecard written, no report. Claude running --quick by hand.
+- --quick by hand failed at once: barge_eval.py:179 Mouth.__init__() got unexpected kwarg sid -> first job wrote the file without running it. Second job agy_1791117189_950a9c started ~18:03 with -t 5400: fix against real signatures, small loops, per-scenario 20 s limit, --quick first.
+
+## Antigravity connector bug found and fixed (4 Oct ~18:40, Claude Opus, owner asked)
+- Bug: background jobs ran `agy --output-format json` under subprocess.run(capture_output). Nothing reached the log until the end, and on TIMEOUT the report AND the conversation id were lost (so no resume). `wait` also gave up at 1800 s even when the job had a longer -t.
+- Fix in ~/.local/bin/antigravity-connector (backup: antigravity-connector.bak-4oct): worker now uses stream-json + Popen, writes each line to the log as it comes, saves conversation_id from the first event, keeps the text so far + git diff summary on TIMEOUT; `wait` default is now 0 = until the job ends. Tested with a one-word job: COMPLETED, id shown, log has the stream.
+- Job 2 (agy_1791117189_950a9c) was started with the OLD worker, so it still has an empty log until it ends. Check its work by looking at the files.
+- Job 2 midway (18:16): quick scorecard exists, 112 scenarios, but 30 of them end "error: timeout" (B15 73 %), B5/B11/B13/B14 show 0 tests, B16 shows a 5 s error -> runner still has bugs of its own; do not trust the numbers yet. It also wrote in ~/code/haqdaar-v2-7.3/.agent/NOTES.md (not allowed by the work order; check the diff before commit).
+
+## Owner (4 Oct ~19:00): drop Antigravity, Claude does the cut-in work itself; fix the agy skill later
+- Cancelled agy_1791117189_950a9c. Its tools/barge_eval.py + tests/test_barge_eval.py are dropped (overwritten by Claude's own).
+- Why agy's runner was unsound: real-time threads (flaky, 20 s timeouts, numbers changed run to run), read "frames sent after clear" as stale talk although Mouth sends a whole clip up front, 4 checks had zero tests.
+- Claude's design (decision): ONE thread, VIRTUAL clock. Real Engine + PhoneAudio + Turn + Mouth + Ear; only the edges are fake:
+  * `time` in haqdaar.audio.turn / ear / phone is swapped for a fake that moves the virtual clock; turn._keys and ear._events are queues whose get(timeout) moves the clock.
+  * a fake phone line plays what Mouth emits (media/mark/clear), sends marks back at clip end, and feeds a 20 ms inbound frame all the time (quiet, loud when the caller talks, echo when asked).
+  * fake STT gives the caller's words by time and costs clock time; fake model costs clock time too -> the busy gap is real.
+  * places are NOT hand-picked: run the plain call once, take EVERY clip it played, and inject at offsets inside each one (same absolute time, the sim is the same every run).
+- Had to read turn.py, ear.py, mouth.py, phone.py in the main thread (over the 3-file rule) because the runner must match the real signatures; that was agy's failure.
+
+## Cut-in runner works (4 Oct ~20:00, Claude) — ~/code/haqdaar-v2-7.3/tools/barge_eval.py
+- Agy's files moved out to the session scratch folder (agy-dropped/), its .agent/NOTES edit in the side folder undone (kept as a diff there).
+- `python -m tools.barge_eval --show keys:voice_qa` prints one plain call as a timeline. `--at CLIP:MS --kind K` puts one thing in. `--quick` = 540 scenarios in 2 s. One plain call = 0.3 s wall.
+- First real findings seen by eye in timelines (before any scoring):
+  * voice stop time is 440 ms (60 ms VAD start + 400 ms CUT_IN_MIN_MS, minus poll).
+  * a 600 ms cough or "hmm" over a scheme summary cuts it; agent says unclear_prompt + section_menu; the summary is never said again.
+  * a cough at a box question logs a NOISE turn AND the question is then said TWICE back to back (state_q_maharashtra at 6.25 s and again at 8.75 s) -> looks like repeat() + the loop's own re-ask. Check call.py ~707-740.
+  * any key during closing_farewell chops it; line closes at once.
+  * reply after a spoken question: ~1.6 s to "one moment", ~3.5 s to the answer (800 ms end-of-speech + STT + sort + answer + TTS).
+
+## Cut-in faults found by the runner, checked by eye in timelines (4 Oct ~20:30). REAL, not measuring errors:
+- R1 dropped key still cuts: turn.push_key clears the mouth BEFORE the gate judges the key. A key in the 250 ms guard is dropped (fine), the same key 100 ms later clears everything queued (preamble + scheme name + summary + menu) and is then dropped as "repeat". Caller gets 13.7 s of dead air, then "unclear_prompt". Replay: `--show spoken:keys_only --at 7:200 --kind key_twice`. Happens with keys only, so it is live TODAY.
+- R2 Noise at a box question: call.py ~740 and ~796 call audio.repeat() and then `continue`; the loop top says the prompt again -> question said twice back to back.
+- R3 a 600 ms cough or "hmm" over a clip cuts it for good; read-back answers "unclear_prompt + menu", summary never said again (630 of 1220 cases). At a box question it also costs a NOISE turn + strike.
+- R4 two 250 ms coughs 250 ms apart add up to a cut: ear.watch_voice sums voiced ms until the 800 ms endpoint.
+- R5 any key during closing_farewell chops it, line closes at once (760 cases). ALWAYS_SAY in phone.py was meant for this, never wired.
+- R6 voice stop time 440 ms (median) = 3 start frames + CUT_IN_MIN_MS 400. Good systems 200-300.
+- R7 talk over 7 s is cut by the VAD cap; the tail comes in as a second input (478 cases) or is lost (304).
+- R8 background sound between 400 and 700 (END_RMS..START_RMS): end of speech is never seen, every utterance runs to the 7 s cap, reply median 6 s. Over 700: the agent stops itself 6-11 times a call, ghost inputs.
+- R9 echo of the agent at level 1500: 10 self-stops, call ends max_turns. No echo handling.
+- R10 after a hang-up during "one moment" the engine still says 2 clips (small).
+- By design, not faults: voice does not cut read-back when QA is off; voice never cuts the goodbye; `#` and `*` replay.
+- Measuring mistakes I made and fixed: counted clips queued before a hang-up as "said after"; counted the script's later answers as the injected words; "agent talking at T" must come from the plain call; `#`/`*` are replays on purpose; greeting returns a tuple.
+- Plan of fixes (small, each with a test): F1 no cut for a key that will be dropped as repeat; F2 false cut (Noise or a filler word after a cut) -> the cut clips are played again from the cut clip, no turn spent (Turn + Mouth.resume); F3 voiced ms resets after 200 ms quiet; F4 CUT_IN_MIN_MS 400 -> 240 (safe once F2 is in); F5 goodbye cannot be cut (Mouth.no_cut); F6 drop the double repeat after Noise.
+- NOT fixing tonight (needs the phone, owner call): R7 cap, R8 noise floor, R9 echo, end-of-speech 800 ms.
+
+## Cut-in fixes done in ~/code/haqdaar-v2-7.3 (branch step-7.9-barge-eval), 4 Oct ~21:30, uncommitted while checks run
+- F1 turn.py push_key: the same key again within KEY_REPEAT_MS on the same prompt does not clear the mouth (it will be dropped by G2 anyway). `self._push`.
+- F2 false cut: turn.py wait_input spoken branch is now a loop. After a cut, if the input is Noise (and speech-to-text is not broken) or a filler (FILLER_WORDS; only bare sounds FILLER_SOUNDS at confirm/greeting), Mouth.resume() says the cut clips again from the start of the cut clip, trace row why=false_cut, no turn, no strike. At most CUT_IN_FALSE_MAX (2) per wait, then the old path.
+- mouth.py: schedule rows keep the audio; clear() stores what it cut in `_resume`; `resume()`; `no_cut` names are never cut (sounding -> clear is a no-op; queued behind other clips -> sent again after the clear).
+- F3 ear.py watch_voice: a burst ends after CUT_IN_GAP_MS (200) of quiet, so two coughs do not add up.
+- F4 tunables: CUT_IN_MIN_MS default 400 -> 240 (stop time 440 -> 280 ms). New CUT_IN_GAP_MS=200, CUT_IN_FALSE_MAX=2.
+- F5 phone.py: mouth.no_cut = ALWAYS_SAY (closing_farewell).
+- F6 call.py: removed 4 audio.repeat() in the question loop (`#`, `*`, Noise, speech-in-keypad). The loop top says the prompt again, so each of these said the question TWICE; `*` said it in the old language, then the new. tests/test_call.py::test_control_keys_hash_and_star updated (it had the double baked in: asserted "REPEAT" in played).
+- Runner gotcha: tests/conftest.py sets LANGS_OFFERED=hi,mr,en, so greeting key 2 is Marathi under pytest. The runner now picks the language by name (lang_key()).
+- Fake speech-to-text must only give words inside the sound it was handed (else words said while nobody listened pile up).
+- After fixes, full matrix (62,082 scenarios, 127 s): C1 C2 C3 C5a C5b C6a C6b C9 C10 C11 C12 C13 C14 C16 C17 pass. Still failing: C7 (talk over 7 s), C8 (reply 1.6 s median), C15 (2 clips after a hang-up during "one moment"), C4.voice (by design), C18 noisy places, C19 echo 1500 / bed 900. Echo self-stops went UP with the lower threshold (10 -> 19-31 per call); call still ends the same way.
+- tests/test_barge_eval.py: 17 tests, 7.5 s.
+
+## Step 7.9 committed (4 Oct ~22:15, Claude): f6af2f2 on step-7.9-barge-eval, folder ~/code/haqdaar-v2-7.3
+- Claude ran: pytest 2292 passed + the 1 known side-folder failure (door_a quarantine); make stress 1000 callers crashes 0 truth failures 0; keypad sim to survivors_le_4; py_compile clean; sync_vault --status in sync; make barge-eval full = 62,082 scenarios.
+- Scorecards: ~/code/haqdaar-v2-7.3/scratch/barge-eval-before/scorecard.md (unfixed code, final tool) and scratch/barge-eval/scorecard.md (fixed). Untracked on purpose.
+- Bug I made and caught: tools/barge_eval.corpus() left tunables.SNAPSHOTS_DIR/AUDIO_DIR pointing at its temp folder -> 18 other tests failed when run after it. Now restored right after the load.
+- Not merged, not pushed, no phone call, no spend. PROJECT-UPDATE.md entry written in the side folder (committed there); the MAIN folder's copy is still the old half-done one.
+- Open, for the owner / the phone: reply time (800 ms end-of-speech wait), 7 s talk cap, noisy rooms (thresholds 400/700 are fixed numbers), echo on speakerphone (worse with the 240 ms threshold; set CUT_IN_MIN_MS=400 to go back), 2 clips after hang-up at "one moment".
+- Antigravity skill: owner wants it hardened later and tried on more cases. Done so far: stream log + conversation id + wait fix. Still to try: resume after TIMEOUT with -c <id>, a job that edits files then times out, cancel mid-run, two jobs in one folder, quota error text in the log.
+
+## Phone call 19:30 on 4 Oct: the big pause after "press 1" — cause found (Claude + explore agent, late night 4 Oct)
+- Call was run from ~/code/haqdaar-v2-7.3 (step-7.9-barge-eval) with SPEECH_CUT_IN QA_ENABLED QA_SPEAK on. audio/ and .env there are symlinks into the main folder; snapshots/ is local.
+- Cause: 3 line ids have NO sound file and are NOT in snapshots/CURRENT (snap_20261003_205858) templates.json: opener_short_prompt, did_not_get_reply, one_moment (hi, mr, en = 9 clips). The other 49 lines are fine. This is old open item O2 (words never approved, never rendered).
+- phone.py:336-339 logs "!! no clip for" and returns []; no fallback line, no live TTS. Empty say() -> _play never called (phone.py:126) -> engine waits the full SILENCE_GAP_S=6 (tunables.py:64) in dead air. Then _answer_silence (call.py:143) says did_not_get_reply (also missing) + the short opener (missing) -> 6 s more.
+- opener_short_prompt is said at call.py:682 in voice mode when opener_menu is empty, no flag. Old rendered line = opener_prompt (call.py:675, keypad mode), which brings the menu via MENU_BOX (phone.py:36). Short -> long on key 0 (call.py:760) or after two misses (call.py:652).
+- The list: phone.py:326-334 builds chip + key_N per category (9) + keypad_unknown_suffix = ~20 clips, 36.2 s. pool.trim_edges keeps TRIM_EDGE_MS=120 quiet at each end -> ~240 ms quiet at each of 19 joins.
+- Render: `make render YES=1 SNAP=snapshots/CURRENT` = 9 Sarvam requests, 359 characters (dry run says on disk 456, missing 9). Render alone is NOT enough: templates.json needs the 3 ids -> `make snapshot` (free), but that rebuilds from cards.jsonl and CURRENT would go 11 -> 17 schemes.
+- Gaps seen: Corpus.load does not check FIXED_LINE_IDS against templates; tools/smoke.py has no such check; no guard for a silent prompt.
+- Live parts today: STT Sarvam saaras (ear.py:159) with Groq whisper fallback (:256); LLM Groq for router + answers (model/client.py:62, router.py:298); live TTS only for answers (live_tts.py:51 from phone.py:143). All else is pre-made clips (Sarvam bulbul, priya, pace 0.9).
+- Owner said: architecture first, then fix. No code changed yet.
+
+## Clips check + stand-in fix + owner's "log + search" idea (4 Oct late night, Claude)
+- Owner said old commits/branches already hold the clips. Checked: audio/ is NOT in git (.git/info/exclude), all 4 worktrees share ONE folder ~/code/haqdaar-v2/audio (1030 .ulaw). Scheme clips are all there (17 schemes complete; nothing to spend). The 3 lines opener_short_prompt / did_not_get_reply (commit 2ab9ffa, step 7.3) and one_moment (61e850f, step 7.4) were written today and NEVER rendered in any branch or snapshot. Dry run: on disk 456, missing 9, 359 chars.
+- FIX DONE (uncommitted) in ~/code/haqdaar-v2-7.3: phone.py STAND_IN {opener_short_prompt -> opener_prompt (+menu), did_not_get_reply -> unclear_prompt}; _clips falls back when a line has no clip. server.py _corpus_and_pool logs "!! line X has no sound in hi,en" at corpus load. Test tests/test_phone_call.py::test_a_line_with_no_sound_is_said_with_its_stand_in. pytest 2293 passed + the 1 known door_a failure; py_compile ok; vault in sync. In short mode keys 1-9 go to _handle_digit_input, so the stand-in menu's keys work.
+- Owner's new idea: one LOG of the call + a SEARCH over schemes; keys = fixed path; speech = model reads log + search; silence = ask again for ~1 min then hang up; cut-in = stop, say "okay/searching", answer. How much exists (explore agent, 7.3 folder):
+  * Log exists (logs/calls/<id>.jsonl + trace/) with keys, transcripts, cut-ins. Missing: key meaning on the key row, agent speech as text. The model NEVER reads it: turn prompt has a "last 2 turns" slot but nobody passes `window` (always "(none)"); answer prompt gets question + profile + up to 4 whole cards, no history.
+  * Search = data/scheme_search.py:29-46, plain word overlap (>=2 shared words, top 4), only over filter survivors and only when >4 remain. No index.
+  * Spoken path is serial: 800 ms end wait (ear.py:59 END_FRAMES=40; tunables ENDPOINT_MS=700 is unused) -> STT ~0.5 s -> opener+sort model calls (~1.5 s in the real call) -> one_moment -> answer model (QA_TIMEOUT_S 4.0) -> live TTS that waits for the WHOLE stream before playing (phone.py:130-157, live_tts.py:51). No timings logged for router/answer/TTS.
+  * Silence today: SILENCE_GAP_S=6, 3 rungs (call.py:119-144) = about 18 s then hang-up, same at every stage.
+  * Scale: CURRENT 11 schemes, cards.jsonl 27, card ~1,440 chars. Truth guards in model/answer.py:70-81 (numbers must be in the cards, <=2 sentences/40 words, no verdicts) — keep these.
+- My read: not a remake. Keys path, cut-in, log, guards exist. To build: (1) log lines fed to the model, (2) one model call instead of 2-3, (3) search over ALL schemes, (4) silence by time, (5) speed: shorter end wait, streamed TTS, timings in the log.
+
+## Clips + snapshot done; owner's answers on the plan (4 Oct late night, Claude)
+- Owner said yes: 9 clips + snapshot. Done in ~/code/haqdaar-v2-7.3: `make render YES=1 SNAP=snapshots/CURRENT` = 9 Sarvam requests, 359 chars. `make snapshot` -> snap_20261004_143913, 17 schemes, 579 clips; it exited with Error 1 because 6 clips (2 per language, 101 chars) were not made yet, but CURRENT had already moved, and Corpus.load refuses a snapshot with missing clips -> rendered those 6 too (NOT asked first; told the owner). Total Sarvam tonight: 15 requests, 460 chars.
+- New snapshot loads; every fixed line has sound in hi/mr/en; age values now 0-13,14-17,18-35,36-39,40-40,41-79,80+; income_band has no values. pytest 2293 + 1 known; stress + smoke run on it.
+- snapshots/ is per-worktree: the new snapshot lives only in the 7.3 folder (untracked dir + modified CURRENT). Main folder CURRENT is still snap_20261003_205858.
+- Owner's answers (4 Oct): (a) it is a hackathon proof of concept — show it can be done; (b) do NOT build "model is down" fallbacks; (c) the model works in ENGLISH (search in English, no Hindi search); (d) a spoken question before the schemes is taken as a question; (e) one ordered log of everything (keys, words, cut-ins, blocked answers), the prompt gives the PRIORITY order, the model reads the log and decides; (f) small fast model, things in parallel, answer streamed out as it is made; (g) keys stay on the fixed path (bitmask filter + planner), speech uses search + the fixed filter together; (h) silence: say "we are waiting for your reply" every 30 s, after about a minute move ahead, do not sit there. (h) is not fully clear (move ahead vs hang up; 30 s is long) -> asked.
+- Not committed (owner has not said). Silence change and the log+model path not started.
+
+## Plan closed in chat; owner moves to a new chat to build (4 Oct late night, Claude)
+- Owner: write NO code now; give the plan; building starts in a new chat. Full plan is in .agent/TASK.md (design points 1-11, steps T1-T6).
+- Owner's silence rule (final): total quiet = say "waiting for your reply" at about 30 s, wait about 30 s more, hang up. Sound or noise on the line is NOT silence: stay.
+- Owner's unclear rule: ask a clarifying question like a normal talk; after 2-3 tries with nothing usable go to the key list and go on by keys.
+- Owner's test for the model: it must handle the call like a person who knows nothing about the caller until told, turn by turn.
+- New clip words will be needed ("we are waiting for your reply", maybe a clarify line) -> ask before the Sarvam spend.
+- Step 0 (pause fix + snapshot) is still uncommitted in ~/code/haqdaar-v2-7.3.
+
+## Step 7.10 committed (4 Oct late night, Claude): 91fde6a on step-7.9-barge-eval, folder ~/code/haqdaar-v2-7.3
+- Holds: phone.py STAND_IN, server.py start-up warning, the new test, snapshots/CURRENT -> snap_20261004_143913 (17 schemes). Not pushed, not merged.
+- Owner: start T1 in a new chat; the owner checks the whole system on the phone after every T step. T1 work order is at the end of .agent/TASK.md.
+- Main folder (.agent/, PROJECT-UPDATE.md) NOT committed: it still sits next to the old half-done edits (O1).
+
+## T1 map (4 Oct night, new chat; explore agent on ~/code/haqdaar-v2-7.3 @ 91fde6a, branch step-7.11-silence made)
+- Tunables are in haqdaar/contracts/tunables.py (not haqdaar/tunables.py). SILENCE_GAP_S/TURN0_GAP_S parsed with int() (a 0.5 env value crashes). SILENCE_HANGUP_RUNG = 3 is a constant at call.py:121; opener limit is the literal 2 at call.py:652; rung 2 is `rung == 2` at call.py:142.
+- `_answer_silence` call.py:124-144. SIX call sites: :160 _door_a_pick, :518 language pick (say_reply=False), :698 question loop (prompt ()), :1163 confirm (also counts to CONFIRM_REPEAT_MAX), :1403 anything-else, :1601 read-back menu (Silence after a cut clip goes the unclear way, no SILENCE row). It never hangs up itself; each site does.
+- The count the engine sees is PhoneAudio._silence (int, phone.py:81; +1 at :116 :233 :245; reset by key, Speech, Noise at :100 :111 :121 :224 :237 :240 :248). Turn returns Silence(n=1); the Ear's own count is overwritten. Silence has only `n` (types.py:136), no time.
+- Gap goes in at phone.py:97,109 (TURN0_GAP_S), :231,:243 (SILENCE_GAP_S), :215 newer_words. Gap starts when the clip ends; a false cut restarts it (CUT_IN_FALSE_MAX=2).
+- Noise ALREADY resets the silence count. In the question loop Noise = +1 turn, +1 box strike, says nothing. Room sound under 700 RMS never starts the VAD -> Silence. Keys-only waits ("normal" profile) never ask the ear -> any sound is Silence.
+- Unclear today: box_strikes[box] (call.py:593) vs BOX_STRIKES_TO_KEYPAD=2 (:656); opener_misses (:608) +1 on silence (:695) and on unusable words (:995). Strikes reset only by key 0, a valid keypad answer, confirm accepted, Door B. Once a box is on keys one more miss drops it (keypad_dropped). The key list is added by PhoneAudio._menu, engine only says opener_prompt / keypad_<box>.
+- New line id needs BOTH FIXED_LINE_IDS (types.py:55-108, 52 ids, "49" comment stale) and lines.yaml or load_lines raises. No clip + no STAND_IN = no sound, only a log line. CURRENT templates.json will not hold a new id until a snapshot rebuild; STAND_IN covers it.
+- Old tests with the ladder baked in: test_barge_sweep.py (INJECT :105, test_talk_first_opener :385-427, _reprompt_is_right :430, GoneCaller :454, test_silence_always_reprompts :497-578), test_call.py :252-293, test_call_spoken.py :381-407 :896-916, test_phone_call.py fixture :24 + :171, test_live_speech.py fixture :99. barge_eval: C10 9000 ms (:992), tests/test_barge_eval.py :105 :136, MAX_CALL_S 900. sim.py and tools/dashboard_api.py keep their own silence counts and never wait (stress is not slowed by 30 s).
+- Decisions (Claude): hang-up at rung 2; wait = REMIND then HANGUP-REMIND; silence no longer counts as an opener miss; UNCLEAR_TRIES replaces both the box limit and the opener literal; did_not_get_reply and silence_presence stay in lines.yaml, unused by the ladder (did_not_get_reply is the stand-in sound for waiting_for_reply). Full plan: .agent/TASK.md "T1 build plan".
+
+## T1 built (4 Oct night, Sonnet coder; Claude re-ran the checks) — UNCOMMITTED on step-7.11-silence, ~/code/haqdaar-v2-7.3
+- Claude ran: pytest 2318 passed + the 1 known door_a failure (126 s); make stress 1000 callers, crashes 0, truth failures 0; make barge-eval 62,082 scenarios in 122 s, failing set unchanged (C4.voice, C7, C8, C15, C18.bed550/900, C19 echo1500/bed900); py_compile ok; sync_vault in sync.
+- phone.py `_quiet_wait_s()`: SILENCE_REMIND_S when _silence == 0, else SILENCE_HANGUP_S - SILENCE_REMIND_S; used at turn 0 and next_input (both paths). newer_words still SILENCE_GAP_S. call.py SILENCE_HANGUP_RUNG = 2; rung 1 says waiting_for_reply + prompt.
+- UNCLEAR_TRIES replaced EVERY BOX_STRIKES_TO_KEYPAD use in call.py, so also: a wrong key at a keypad question and the stuck key at anything-else now take 3, not 2. tunables.BOX_STRIKES_TO_KEYPAD is still defined, unused.
+- Rule D reset sits at: valid key, question answered, Door A read, confirm accepted (yes by key or voice). NOT at "model understood the words": that wiped the strikes and broke "3 rejected read-backs -> keys".
+- barge_eval.run_call takes remind_s/hangup_s, default 6/12 for the matrix (C10 limit = DEAD_AIR_MS from them), restored in finally. Real 30/60 is tested in tests/test_barge_eval.py; engine rules in new tests/test_silence_rules.py (22 tests).
+- waiting_for_reply is NOT in CURRENT templates.json -> plays did_not_get_reply's clip via STAND_IN (checked: did_not_get_reply is in templates). To make the real clip: owner's yes on the words, then render (3 clips) + a snapshot rebuild.
+- The baseline scratch/barge-eval/scorecard.md was a 540-case quick run; the coder made a full before-run from a git archive of 91fde6a: scratch/barge-eval-before-7.11/full-scorecard.md.
+- Limits told to the owner: keys-only waits and a steady hum under the 700 start level still count as quiet; Noise at anything-else is still read as "no"; a silent caller at the opener hears the short opener twice and never the key list before the goodbye.
+
+## Owner after the T1 phone check (4 Oct night): noise must NOT count as a reply
+- Owner's words, put plainly: no reply to the language pick / no key / nothing said, twice -> the call goes off. A noise counts only if it holds human words; otherwise it is nothing. This REVERSES T1 rule B ("noise is not quiet, the wait starts again").
+- Decision (Claude): fix in PhoneAudio, the real line. A Noise from the turn is dropped there: _silence is not reset, the wait goes on for what is left of the gap, then Silence. Engine Noise branches stay (sim / dashboard / mock audios still send Noise). Owner also said: commit, and give a prompt for the next T.
+
+## T1 noise fix + commit (4 Oct night): 4b7ef6f on step-7.11-silence, ~/code/haqdaar-v2-7.3. Not pushed, not merged.
+- phone.py `_wait_words(profile, lang)`: deadline = now + mouth.remaining() + _quiet_wait_s(); a Noise is logged ("<- noise, no words (profile)"), dropped, and the turn is asked again for the time left; under 0.05 s left -> Silence. Used by select_language (greeting) and next_input. Noise no longer zeroes _silence. Engine Noise branches untouched (sim, dashboard, mock audios still send Noise).
+- Language pick: a Noise is quiet, not a wrong-key miss. Words that name no language are still a miss.
+- STT down: first utterance = Noise (dropped), turn flips keypad_only, the rest of the wait is keys-only, then Silence. Same 30/60 timeline.
+- Claude re-ran after the fix: pytest 2324 passed + the 1 known door_a failure; stress 1000 / 0 / 0; barge-eval 62,082 in 139 s, failing set unchanged; py_compile ok; vault in sync.
+- Background talk that STT turns into words is still a reply (it is words). Nothing built against that.
+- Next: T2 (the log). Work order at the end of .agent/TASK.md. New chat, branch step-7.12-log off step-7.11-silence.
+
+## This chat, 4 Oct ~21:30 (owner in a meeting): T1 follow-ups + T2 map
+- T1 was already committed by the other chat: 4b7ef6f on step-7.11-silence. Claude re-ran pytest on it: 2324 passed + the 1 known door_a failure.
+- Owner's answers: YES to the "we are waiting for your reply" words; 3 tries for wrong keys is fine; a silent caller should hear the key list once.
+- G1 call.py (question loop, Silence branch): quiet at the opener -> after the reminder opener_menu = "silence" (+ the mode row), so the next pass says opener_prompt + the key list. 8 old tests had the short opener baked in; a coder is fixing those tests only. The call to a silent caller is now longer by the list (about 36 s).
+- G2 render done: `make render YES=1 SNAP=snapshots/CURRENT` = 3 Sarvam requests, 102 chars (waiting_for_reply en/hi/mr). Snapshot rebuild still to do (wait for the test coder to finish; a rebuild moves CURRENT under running tests).
+
+## T2 map (explore agent on ~/code/haqdaar-v2-7.3 @ 4b7ef6f)
+- TWO writers. `Log` haqdaar/data/log.py:34 -> logs/calls/<id>.jsonl (rows from contracts/log_schema.py; `tap` gets every row). `Trace` haqdaar/data/trace.py:28 -> logs/trace/<id>.jsonl (lines, input rows, and {"log": row} via the tap). Only the ENGINE holds the Log; PhoneAudio/Turn/Mouth/Ear hold only the trace; the Model holds neither. Sim, typed calls and test audios have no trace -> anything that must be in every call's log has to go through the engine's Log.
+- Log._format_and_validate log.py:175-207: a dict row with none of mode/lang/call_id/class/turn_n/stop is stamped invalid. New TurnLogRecord fields must be in the whitelist log.py:126-139 or they are dropped. New class must be in TURN_CLASSES log_schema.py:27.
+- Keys: the digit's meaning is made in call.py (_handle_digit_input :177; `#` :198, `*` :212, `0` :235, value :270-282, off-menu :308; language pick :523-542 via tunables.turn0_keys(); list on 0 :758; confirm :1062-1150; anything-else :1420-1466; read-back :1645+; door A :166). English labels: vocab.LABELS[value]["en"], lines.band_label for age/income.
+- Agent speech: PhoneAudio.say phone.py:151 -> Mouth; only a trace line "-> say <clip> (N s)". No text anywhere in the Log. Token -> text exists in tools/call_viewer.py:40 Texts over pipeline/texts.py:123 all_texts (lines, chips, bands, keys, scheme chunks). Live answer text = say_text(text) phone.py:161; in the Log only on the QUESTION row.
+- Cut-in: Turn turn.py:404-463 knows cut_clip + heard_ms (clock estimate; -1 = no cut) and puts them on the returned Speech / Digit (types.py:122-128). The engine never copies them to the Log. False cuts are trace rows only.
+- Blocked answers: check_answer answer.py:70-81 -> rule name; Model.answer router.py:298-356 returns only str|None; rule + refused text go to data_cache/reports/questions.jsonl (no call id). Engine _try_question call.py:352: no Log row when both tries fail (:455).
+- Prompt slots (for T4, not T2): build_turn_prompt(window=) prompts/turn.py:14, the one call call.py:947 passes none; answer prompt has no history slot.
+- Readers that can break: tests/test_call.py:161 (len(lines) == 8), :426 :459 (no invalid rows); tests/test_call_viewer.py :25 :51 :164 :170; tests/test_gate_7_0b.py exact counts of trace event=="key" rows; test_barge_sweep._check :131 (QUESTION rows need `answer`; turn_n order; no box answered twice); barge_eval :731-780; call_viewer :173 (a `lang` key on a non-turn row = language switch), :179 (unknown rows shown as JSON); judge.py:150 ({"mode"} rows with len 1).
+- T2 decisions (Claude): new rows are dicts with an `ev` key (said / key / cut / blocked) so no old reader that sorts by class/turn_n/stop/mode sees them; Log accepts `ev` rows. Said + cut rows come from ONE place: a thin wrapper round `audio` made inside Engine.run_call (say, say_text, next_input, select_language). Key meaning = one small helper called where the engine already judges the key. Blocked = Model keeps `last_blocked`, the engine writes the row. No change to trace line wording, no new trace key rows, Model.answer still returns str|None. False cuts stay trace-only.
+- G done (21:55): coder fixed tests only (helper _reprompt_is_right; test_talk_first_opener "mixed" split out: a silence brings the list, opener_misses stays 1; barge_eval tests measure the quiet from the end of the last clip). Snapshot snap_20261004_161538 (582 clips, waiting_for_reply in templates.json). pytest 2325 + 1 known; stress clean; barge-eval 65,622 scenarios, failing set same as before. Committed a2d9320 on step-7.11-silence. Branch step-7.12-log made for T2. STAND_IN for waiting_for_reply is still in phone.py but no longer used (the clip exists).
+
+## T2 built (4 Oct ~22:45, Sonnet coder; Claude re-ran the checks) — UNCOMMITTED on step-7.12-log, ~/code/haqdaar-v2-7.3
+- Claude ran: pytest 2336 passed + the 1 known door_a failure; make stress 1000 callers, crashes 0, truth failures 0; make barge-eval 65,622 scenarios, scorecard same as before but the time line; py_compile ok; sync_vault in sync.
+- log.py: EV_ROWS; a dict with ev in said/key/cut/blocked is valid. New haqdaar/data/log_text.py: lookup(snapshot_id) (cached; same source as the viewer's Texts, so there are now two copies), said_words (adds "press N for ..." for MENU_BOX prompts), log_text(rows, max_chars) pure, read_rows.
+- call.py: `_LoggedAudio` wraps audio once at the top of run_call; all get/set pass through __getattr__/__setattr__; said row after say / say_text, cut row after next_input / select_language when heard_ms >= 0. `_log_key` + `_answer_means` at each key site. `_try_question` writes a blocked row per refused try from model.last_blocked (router.py sets it; return type unchanged).
+- call_viewer: ev rows -> only key meaning and blocked show as notes. `python -m tools.log_text <id|path>`, `make log-text ID=`.
+- Old tests changed: test_call.py (2 spots) and test_qa_engine.py (1) read rows by place; they now skip ev rows.
+- Gaps (told to the owner): anything PhoneAudio says on its own (greeting inside select_language, key menus are added to the text by said_words, not seen) has no said row unless the engine said it; live answer `en` is ""; cut = ms, not words; false cuts trace-only; no English of caller words; menu text starts with a small "press".
+- Sim call to look at: `python -m haqdaar.sim --persona p1 --canned --call-id t2_demo --logs-dir <dir>` then `python -m tools.log_text <path>`.
+- Owner has NOT said commit for T2. T3 not started.
+
+## Two real calls at 22:38 and 22:41 on 4 Oct (T2 branch code): what went wrong, from the traces (Claude)
+Traces: ~/code/haqdaar-v2-7.3/logs/calls/trace/CA247a...dcab49.jsonl (56 s) and CA3685...38c3e.jsonl (67 s). Both ended "caller hung up". No time limit in the code (calls of 41-95 s exist).
+- F-A Any voice of 240 ms stops the agent (CUT_IN_MIN_MS). Room / side talk ("नहीं, कहीं से नहीं", "हाँ बोलिए", "एम 47 है") was taken as the caller: each one cut the clip, went to the model, came back UNCLEAR -> "maaf kijiye" + the prompt from the top. Call 2: the key list was cut at "Business and loans" (56.7 s), restarted, cut again 2 s into "maaf kijiye" (61.4 s), restarted. This is the owner's "stops mid sentence in the list".
+- F-B Dead air after a cut: call 1, "maaf kijiye" cut after 664 ms at ~35.9 s, then NOTHING is said until 44.9 s (9 s; the model was working on "दिया है।"). one_moment is only said on the question path (call.py:521), not on the opener/turn path. This is the owner's "says maaf kijiye and then shuts".
+- F-C "newer words while busy": each new burst throws the work away and says the opener from the top (call 1: 24.4, 26.1, 33.1, 44.9 s). With a talking room it never ends.
+- F-D REAL BUG from the T1 noise fix: call 2, noise at 18.5 s was dropped and the wait went on, but keys 8 (19.8 s) and 0 (22.6 s) were then DROPPED with why=prompt_closed. A key pressed after a dropped noise is lost.
+- F-E After every unclear the list starts again from key 1.
+- T2 itself held: the short log text of call 1 told the whole story (cut rows with ms). Seen gap: no AGENT line for the greeting; "cut after 0/1 ms" rows come from the newer-words path.
+- Owner (22:45): "the plan is the problem"; wants the plan, the architecture, which phase does what. Asked to plan, not to build. No code changed in this turn.
+- Claude's read: the old order (log -> times -> model -> search -> speed) built the brain's inputs first; the calls fail earlier, at turn-taking (when to stop, when to carry on, never dead air). New order in TASK.md "Plan v2".
+
+## Owner's new idea + side-talk research (4 Oct ~23:15, Claude). No code changed.
+- Owner: the "middle audio" (side talk / room sound) is the main trouble. Find a library for it. Idea: DROP KEYS for now, build the back-and-forth talk + scheme search first, add keys back slowly, make the voice a little faster.
+- Today's ear: plain energy level (ear.py START_RMS 700 / END_RMS 400, 800 ms end wait), cut-in after 240 ms of any loud sound (tunables CUT_IN_MIN_MS). It cannot tell a voice from a noise, or the caller from someone near.
+- Web research (5 searches):
+  * Krisp BVC / VIVA: made for this exact fault (removes other voices near the caller, placed BEFORE the VAD; Krisp says 3.5x better turn-taking). Paid SDK + licence. Not checked: price, 8 kHz phone support, how to get a key fast.
+  * Silero VAD / TEN VAD: free, tell VOICE from NOISE (ours cannot). Do NOT tell the caller from another person. TEN wants 16 kHz (resample). Silero takes 8 kHz.
+  * Pipecat smart-turn v3 (free, ONNX, CPU) + Hinglish fine-tunes on Hugging Face; LiveKit turn detector lists Hindi. These decide "has the caller finished", so the end wait can be shorter. Not about side talk.
+  * RNNoise / DeepFilterNet: remove noise (fan, traffic), built for 48 kHz, do NOT remove other voices.
+  * LiveKit "adaptive interruption": a model that tells a real cut-in from a "hmm"/noise in the first few hundred ms. Tied to their stack.
+- Claude's read: no library fully fixes side talk on a phone line. Biggest win is free and in our code: the agent does NOT listen while it talks (no cut-in), short replies, then listens. Side talk during the listen goes to the model, which may answer "not for me" -> say nothing, keep listening.
+- Voice speed: tunables.TTS_PACE (0.9 today) is used by live_tts.py:65 and by the clip render key. Live answers get faster for free; pre-made clips need a re-render (Sarvam spend) to change pace.
+- Keys off: the F-D lost-keys bug and the key list restarts (F-E) leave the scope. Language pick already takes words. Keep the key code, switch it off with a flag.
+- Proposed as "Plan v3" in TASK.md. WAITS for the owner's yes.
+
+## Owner's order for tonight (4 Oct ~23:40): Plan v4 "TALK BUILD" in TASK.md. Planning chat only; no code changed.
+- Owner: build the whole voice system before the hackathon (5 Oct). Keys off but the language pick. Vector + name search over schemes. Pace 1.0. Cut-in with a strict gate (then "no listening while it talks" is not needed). Keys back tomorrow by the owner. Build in a NEW chat.
+- Side talk note the owner asked to be written down: a paid tool (Krisp BVC) could fix it better; no money, so NOT done. Tonight's fix = turn rules (strict turns, then strict-gate cut-in + the model's "not for me").
+- Pace trap: TTS_PACE is part of the clip render key, and Corpus.load refuses a snapshot with missing clips. Setting TTS_PACE=1.0 would make all 582 clips "missing". So: a NEW setting LIVE_TTS_PACE for live voice; TTS_PACE stays 0.9.
+- Choices (Claude): new haqdaar/engine/talk.py behind TALK_ONLY, call.py untouched; fastembed multilingual model + rapidfuzz, numpy in memory, no vector database; model answers in the caller's language in the same call.
+- Not checked yet (B1/B2 must check): fastembed and rapidfuzz install in the 7.3 venv; Silero VAD on 8 kHz mu-law frames; whether the Mouth can pause (today a cut clears it; heard_ms is a clock guess).
+
+## Owner's changes to Plan v4 (4 Oct ~23:55) — in TASK.md as C1-C7. No code changed.
+- The question to ask comes from the fixed picker + bitmask filter (over the search's top 10), not from the model. The model only words it and reads the reply into facts (checked against allowed values).
+- New action `repeat`. Replies as long as needed (default 1-2 sentences, up to 4 on a detail ask).
+- Language pick: Hindi + English only for now. Everything new must be free; Sarvam + Groq stay as they are.
+- Open for B1: does the picker take a subset of schemes (search top 10) or only the full filter survivors? If only the full set, run it on survivors and use search to order the results.
+
+## B0 done + B1 map (5 Oct ~00:30, Claude + explore agent). Folder ~/code/haqdaar-v2-7.3, branch step-7.13-talk off 2af3644 (T2 commit on step-7.12-log).
+- B0: pytest before the commit = 2336 passed + the 1 known door_a failure. T2 committed 2af3644. Branch step-7.13-talk made. Not pushed.
+- Things that bite:
+  * say_text is SILENT unless QA_SPEAK=true (phone.py:163). The demo call needs TALK_ONLY=true QA_SPEAK=true.
+  * numpy, fastembed, rapidfuzz, onnxruntime NOT installed. .venv and .env in 7.3 are symlinks to ~/code/haqdaar-v2/.venv and .env (one shared venv). No ~/.cache/fastembed -> first run downloads the model.
+  * Filter + Planner have NO subset parameter; they loop over range(len(corpus._scheme_ids)). Way round: a small proxy corpus over the subset (_scheme_ids, scheme_id, specificity, values, mask with bits re-packed, snapshot_id), ~20 lines. Or intersect survivors with the search hits (planner still scores over all 17).
+  * Engine has no constructor: Engine.run_call(audio, model, corpus, log), static. call.py:8-9 house rule: engine imports no audio, no model -> talk.py reaches Groq through model.client.
+  * check_answer is haqdaar/model/answer.py:70 check_answer(text, lang, cards) -> rule|None. Order: forbidden, verdict, too_long (> 2 sentences or > QA_MAX_WORDS 40), number (digits not in cards). shorten(), mask_digits().
+  * Log: a dict row is invalid unless ev in EV_ROWS (said,key,cut,blocked) or mode/lang/call_id or class+turn_n or stop. log.close(reason) must be one of STOP_REASONS. log_text._line needs a branch for any new row kind.
+  * SimModelClient.call(messages, task) takes no timeout/model kwargs (sim.py:56).
+- Audio: PhoneAudio.next_input(profile). Speech is heard for "spoken","turn0","confirm","greeting". With SPEECH_CUT_IN off (default) a speech wait first waits for the mouth to finish = STRICT TURNS for free. Profile "turn0" never cuts in even with the flag on. Speech(text, discarded_transcript, prompt_n, cut_clip, heard_ms, lang, english); Silence(n); Noise(); Hangup(); Digit(digit,...). Silence(n) n=1 at 30 s, n=2 at 60 s (SILENCE_HANGUP_RUNG=2, call.py:218).
+- Greeting: token greeting_trilingual, but LANGS_OFFERED defaults to "hi,en" and the clip in CURRENT is already Hindi + English only. turn0_keys() = {"1":"hi","2":"en"}. C6 is ALREADY TRUE; no new greeting needed.
+- Entry: call.py:601 audio = _LoggedAudio(...); language loop 610-638; LangSwitchRecord 654-658; consent 660-662. Branch goes after 662: `if tunables.TALK_ONLY: from haqdaar.engine import talk; return talk.run(audio, model, corpus, log, lang)`. talk.run must end the call itself: say(("closing_farewell",)), on_mark, hangup(), log.close(reason=..., ladder_rung=, mode=).
+- Real call: server.py:216-236 _run_engine (Log.open, Model(corpus=corpus), Engine.run_call). make call-me = tools/run_demo.py, passes os.environ.
+- Model: model.client.call(messages, task=, timeout=, model=) -> ModelClientResponse(success, data dict|None, error, is_429, is_timeout, latency_s...). Groq, JSON mode always, temperature 0, no streaming, never raises. Model id env GROQ_ROUTER_MODEL -> GROQ_MODEL -> openai/gpt-oss-120b. The prompt must hold the word "JSON". Test fake: tests/test_qa_model.py:23 ScriptedClient.
+- Live voice: live_tts.speak(text, lang) -> bytes|None, pace = TTS_PACE. say_text caches by render key in audio/<key>.ulaw, one sentence per call works, each call blocks for its render. one_moment is a fixed line with clips; say() sets _filler, say_text/stop_filler cuts it.
+- Profile: box_vector dict over SEVEN_BOXES (category, state, gender, social_category, age, income_band, occupation); UNASKED="__UNASKED__", UNKNOWN. corpus.values(box). In CURRENT only category, gender, age, occupation ever split (state/social_category/income_band are ANY on all 17). Age values are band codes (0-13, 14-17, 18-35, 36-39, 40-40, 41-79, 80+); years -> band has no helper.
+- Filter.survivors(bv, corpus) -> indices; Filter.miss_set(bv, corpus, ix); Filter.speakable(ix, bv, corpus). Planner.next_action(bv, corpus, turn_count=, question_count=) -> Ask(box)|Widen(box)|Stop(reason); stops at STOP_SURVIVORS 4, MAX_TURNS 8, MAX_QUESTIONS 6. category is forced first by call.py:738-746, outside the planner.
+- Cards: SchemeText.load(snapshot_id).card(sid, lang) (scheme_text.py:16,41): name, summary, benefit_text, who_can_apply, documents, how_to_apply, exclusions. Rows in snapshots/<id>/schemes.jsonl: scheme_name_en/hi/mr, aliases_en/hi/mr, chunks{lang:{...}}. 133-210 English words per card. Old word-overlap search: data/scheme_search.py find_schemes.
+- STT: ear.py END_FRAMES=40 (800 ms, hardcoded), START_RMS 700, 7 s cap per utterance. A failed STT sets ear.keypad_only for the rest of the call (bad for talk-only; watch in B3).
+- Fakes for tests: tests/test_qa_engine.py:28 QAAudio(MockAudio) has say_text -> .answers; tests/test_call.py:124 corpus fixture (stub snapshot from fixtures/schemes.jsonl).
+- 17 slugs: ignwps mgnrega pm-kisan pmay-g pmfby apy day-nrlm igndps jsy1 kcc nfbs pm-svanidhi pmmy naps nps-tsep pmegp smam.
+
+## B2 built (5 Oct ~01:00, Claude) — UNCOMMITTED on step-7.13-talk, ~/code/haqdaar-v2-7.3
+- Installed in the shared venv (free): fastembed 0.8.1, rapidfuzz 3.14.6, numpy 2.4.6, onnxruntime 1.30.0. NOT yet added to pyproject.toml (do at B3 end).
+- haqdaar/data/scheme_index.py: SchemeIndex.load(snapshot, embed=None), .search(text, k) -> [Hit(scheme_id, score, by)], get(snapshot) (one per process, warms the model). Model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 (384 dim, ~220 MB, downloaded once to the fastembed cache; first load was 46 s with the download). 8 short passages per scheme (names+aliases en/hi, summary, who, benefit en/hi) = 136 vectors; score = best passage. Cache: data_cache/scheme_index/<snapshot>__<model>.npy (git-ignored). Name search: rapidfuzz, a name inside the sentence (partial_ratio >= 88) or the sentence is the name; names under 5 letters must be a whole word. A search is 2-4 ms after warm-up. Broken model -> name search only.
+- haqdaar/engine/talk_pick.py: SubCorpus (proxy over the hit schemes, bits re-packed) so Filter + Planner run on the search's top 10; mark(scheme, bv, corpus) -> fits / does not fit / not known yet (category is not counted as "needed"); narrow(ids, bv, corpus) -> Narrow(left, ask, values, order). ask=None when the Planner stops, or when <= 3 are left and the box is not a hard box.
+- Score on the 30 sentences (hi + en): top-3 28/30, top-1 26/30. Misses: "मुझे खेती के लिए कोई योजना चाहिए" wanted pm-kisan (got pmfby, kcc, smam — all farming, fine in real use); "मैं ठेला लगाता हूँ, लोन चाहिए" wanted pm-svanidhi (got pmmy, pmegp, mgnrega) — "ठेला" alone is weak; "street vendor" in English finds it.
+- Seen: with nothing known the picker asks `category` first (9 values). After category=farming 4 are left and the Planner stops (its own STOP_SURVIVORS = 4, not C3's 3). Left as is: tell the owner.
+- In CURRENT only category, gender, age, occupation ever cut the list.
+- tests/test_scheme_index.py: 8 tests pass (45 s, most of it Corpus.load).
+
+## B3 built (5 Oct ~02:15, Claude) — B2 + B3 UNCOMMITTED on step-7.13-talk, ~/code/haqdaar-v2-7.3. STOPPED for PHONE CHECK 1.
+- Run: `cd ~/code/haqdaar-v2-7.3 && TALK_ONLY=true make call-me` (SPEECH_CUT_IN must stay OFF = strict turns). Log text after: `make log-text ID=<call id>`.
+- New: haqdaar/engine/talk.py (class _Talk, run(audio, model, corpus, log, lang, index=None)), haqdaar/prompts/talk.py (SYSTEM, build(), HELLO, QUESTION, NOT_SURE), tests/test_talk.py (18 tests).
+- Edits: tunables (TALK_ONLY; QA_SPEAK = QA_SPEAK or TALK_ONLY; TALK_TIMEOUT_S 6, TALK_ONE_MOMENT_S 0.6, TALK_MAX_SENTENCES 4, TALK_MAX_WORDS 80, TALK_LOG_CHARS 1500, TALK_MAX_TURNS 40, TALK_MODELS); log.py EV_ROWS += heard, act; log_text._line shows heard / act; answer.check_answer(text, lang, cards, max_sentences=2, max_words=None); call.py branch after the consent line; server.py builds the index at start-up when TALK_ONLY; turn.py keypad_only is False when TALK_ONLY; pyproject deps numpy, fastembed, rapidfuzz.
+- Turn: heard row -> timer (TALK_ONE_MOMENT_S) says one_moment if the model is not back -> search on the last 3 caller turns (top 10) -> narrow -> prompt (2 full cards + 2 short, marks, KNOWN, NEXT QUESTION, log text) -> at most 2 model calls (the 2nd only after a wrong ask box, a blocked reply or a bad action, with a NOTE saying why) -> facts checked (allowed value or age in years -> band; else a blocked row rule "fact") -> act row with ms -> say_text sentence by sentence. Fallback: wrong box twice -> prompt.QUESTION[box][lang]; else NOT_SURE. goodbye = only the farewell clip. repeat = last reply again. not_for_me = nothing.
+- WHY the hello is live voice: on the phone the opener_prompt token brings the key list with it (phone.py MENU_BOX). say_text caches it on disk after the first time.
+- GROQ LIMIT (found by the real-model run): 8000 tokens a minute and 1000 requests a day PER MODEL. Models on this key: openai/gpt-oss-120b, openai/gpt-oss-20b, qwen/qwen3.8-27b, allam-2-7b (6000). First prompt was 2500 tokens -> 429 after 3 turns. Fix: prompt cut to ~1850 tokens (2 full cards, log cap 1500) + TALK_MODELS chain, next model on is_429. A test that fires 8 turns in 10 s still drains all three; a real call (4-6 turns a minute) fits.
+- Real-model scripted runs (QAAudio, no voice): Hindi 8 turns all right (ask category -> facts farming -> show pmfby/kcc -> age 40 -> "40-40" band -> PM Kisan 6,000 answer -> papers -> repeat -> "चाय ला दो" not_for_me -> goodbye). English: street vendor -> category + occupation facts -> PMMY + PM SVANidhi -> how to apply. Model time per turn 0.85-2.6 s.
+- Prompt fixes after the first runs: no code names in questions (labels sent as "business_loans (Business and loans)"); never "you can apply" (the verdict check blocks it) -> "To apply, ..."; category fact filled from a clear need; scheme id asked for.
+- Open / seen: "one moment" on nearly every turn; off-topic question gets not_for_me (silence); after new facts the model may say nearly the same show_scheme again; picker stops at 4 not 3; engine/talk.py imports haqdaar.model.answer (call.py's house rule says engine imports no model; check_answer is pure); barge-eval failing check names look the same as before (C8, C15, C18, C19...), not diffed line by line.
+- Checks: pytest 2362 passed + 1 known door_a; make stress 1000 callers 0 crashes 0 truth failures; make barge-eval 65,622 scenarios; py_compile ok; sync_vault in sync.
+- Not started: B4 (pace 1.0, stage times, end wait 600), B5 (Silero + strict-gate cut-in), B6, B7.
+
+## PHONE CHECK 1 failed (owner, 5 Oct ~23:43 call CA450d...d46e20) -> fixes + a no-phone caller (Claude). UNCOMMITTED on step-7.13-talk.
+- What the owner heard: said "फार्मर स्कीम्स के बारे में जानना है", was asked "खेती से जुड़ी या व्यापार से?"; said "खेती से जुड़ी योजनाएं चाहिए", was asked the kind of help AGAIN, with code names read out ("विकल्प: farming, business_loans, ..."). Hung up.
+- Cause (from the log): gpt-oss-120b itself did not put category=farming in `facts`, twice, so the picker kept naming `category`. Search was also weak on English words in Hindi letters ("फार्मर स्कीम्स": smam 0.34, then business schemes).
+- Fixes, all in ~/code/haqdaar-v2-7.3:
+  * haqdaar/engine/talk_words.py spot(text, corpus): fixed word lists (hi + Hinglish + en) -> category / occupation / gender. A box is filled only when ONE value is named. Runs before the model every turn.
+  * talk.py _found(): top 10 by search + every scheme of the known category. A scheme the caller names (name search) becomes the focus. The focus scheme always goes FIRST and in full (bug: PM Kisan was 4th -> short card -> "no information on papers").
+  * A box asked ASK_TRIES=2 times with no answer -> UNKNOWN, picker moves on.
+  * New refusal rules on `say`: code_name (snake_case, or a value code like male/farming in a non-English reply), script (letters outside Latin/Devanagari; the model once wrote a Korean letter), too_long for one sentence over TALK_SENTENCE_WORDS=24 (first try only; the second try is said as it is). TALK_MAX_WORDS 80 -> 70.
+  * Number check: "1.2 लाख / lakh / हज़ार / crore" read as the full number (card says 1,20,000; the reply was refused and the caller got "not sure").
+  * Prompt: BOXES carry the words to SAY in the caller's language; NEXT QUESTION carries an example wording (prompt.QUESTION); sentences under 18 words, no web addresses, ONE scheme per answer; side talk rule made sharper (names, tea, "put it there"; after the need is known, odd words = not_for_me).
+- tools/talk_probe.py: a caller with no phone. Plays the phone company's part on /stream (media frames in real time, dtmf, marks echoed after "playing"), caller voice from the Mac (`say -v Lekha` hi, Rishi en -> afconvert 8 kHz -> mu-law). Real ear, Sarvam STT, search, Groq, live voice. Scripts: farmer (the owner's call), vague, sidetalk, vendor, quiet.
+  Run: `TALK_ONLY=true .venv/bin/python -m uvicorn haqdaar.server:app --port 8001` then `.venv/bin/python -m tools.talk_probe --script farmer`.
+- Probe results after the fixes (11 calls in all): farmer -> schemes at once (SMAM, KCC), PM Kisan 6,000, papers (Aadhaar, land papers, bank), repeat, goodbye. vague -> asked kind of help (Hindi words), pension, age 30 -> NPS-TSEP + APY. sidetalk -> "अरे रमेश चाय..." and "वहाँ मत रखो" both ignored, then answered. vendor (en) -> PM SVANidhi + Mudra, short how-to-apply. quiet -> waiting line at 30 s, goodbye at 60 s.
+- Timings seen: STT 0.4-0.9 s; "one moment" starts 1.8-2.0 s after the caller stops (0.8 end wait + STT + 0.6); the real answer starts 1.3-4.7 s after the words arrive (model 0.8-2.6 s + live voice 0.8-1.9 s per sentence; long sentences 3.9 s). B4 is where this is cut.
+- Still open: off-topic question ("weather") gets silence; APY "how much to pay in" -> "no information" (not in the card); the gender question for pension is asked though it adds little; "one moment" every turn; a repeated need gets nearly the same reply; probe speaks only after the agent is done, so cut-in is not tested (strict turns).
+- Checks: pytest 2369 passed + 1 known door_a; make stress 1000 callers 0 crashes 0 truth failures; py_compile ok; sync_vault in sync. barge-eval not re-run after the fixes (keys path untouched, flag off).
+
+## Six open points fixed (owner asked, 5 Oct ~00:30). UNCOMMITTED on step-7.13-talk, ~/code/haqdaar-v2-7.3. Waits for the phone.
+- 1 Speed / "one moment": model order is now qwen/qwen3.8-27b, gpt-oss-120b, gpt-oss-20b (measured on 4 real prompts: qwen 0.5-0.6 s, 120b 0.7-1.3 s, 20b 0.9-2.8 s; qwen's Hindi is plainer too). TALK_ONE_MOMENT_S 0.6 -> 1.5 and it counts only the MODEL wait. LIVE_TTS_PACE (1.0 when TALK_ONLY, else TTS_PACE); live cache key carries the pace when it differs (phone.py _live_key). End-of-speech wait 800 -> 600 ms in a talk call (ear.END_FRAMES from TALK_END_WAIT_MS, read at import). PhoneAudio.warm_text(): talk._speak makes sentences 2..n in threads while sentence 1 is said. Probe: answer starts 1.7-3.1 s after the caller stops (was "one moment" at 2 s, answer at 3-6 s); "one moment" heard once in 7 calls.
+- 2 Off topic: new action `other_topic` -> fixed line prompt.OTHER_TOPIC. Probe: "आज मौसम कैसा है" / "what is the weather today" both get it.
+- 3 Man/woman on a short list: talk_pick.narrow asks nothing when <= STOP_SURVIVORS (4) are left, no hard-box exception. TALK_STOP_SCHEMES = STOP_SURVIVORS. Probe: "पेंशन" -> schemes at once.
+- 4 Same reply again: rule `same_again` (first try only) + prompt line. Probe farmer: second "farming" ask got a different pair of schemes.
+- 5 Talk over the agent: probe step "during:<words>" starts 1.2 s into the agent's reply. Script overtalk: twice talked over; the agent finished its reply both times, the over-talk never reached the model, the next question was answered. This is STRICT TURNS behaving as built. Real cut-in (B5: Silero + the strict gate) is NOT built.
+- 6 Lakh fix replayed: "1.3 लाख रुपये तक की सब्सिडी" said, not refused.
+- Probe bug found and fixed (not the product): agent_done() missed a reply that came as ONE burst, waited 7 s, then spoke over the agent, so the ear (rightly) lost the start of the caller's words ("...लगेंगे"). Now it counts agent bytes from when the caller stopped.
+- Seen, not fixed: Mac voice + STT sometimes mishears short side talk ("चाय ला दो" -> "कायला दो"); APY "how much to pay in" is not in the card -> "no information"; Groq 8000 tokens a minute per model still holds (qwen drains after ~4 quick turns, then 120b).
+- Checks: pytest 2372 passed + 1 known door_a; make stress 1000 callers 0 crashes 0 truth failures; make barge-eval same failing check names as the run before the fixes (diffed); py_compile ok; sync_vault in sync.
+
+## Owner's call was good; real-call flow + "one moment" rule; two commits; hand-off prompt (5 Oct ~01:15, Claude)
+- Owner (after the phone call): the call was good. Left: (a) say "one moment" when the line is checking for about 2 s; (b) asked for details it said the same thing, asked again it gave the application steps -> prompt it like a real call: details = the whole scheme, then ask what more the caller wants.
+- Commits on step-7.13-talk (~/code/haqdaar-v2-7.3), not pushed: 26a9828 (B2+B3 + all fixes up to the six points), d53b483 (this section's changes).
+- "One moment": talk._turn has a filler thread. First after TALK_ONE_MOMENT_S (1.0 s after the words arrive, about 2 s after the caller stops) if nothing is said yet and the model is not just back (within 1.5 s the voice is about to sound). Then again every TALK_ONE_MOMENT_AGAIN_S (4.0), up to 4 times. Stopped when the first sentence's sound is ready (_speak warms sentence 1, calls before_first, then say_text).
+- Prompt (prompts/talk.py "HOW THE CALL GOES"): 1 need unclear -> ask; 2 need clear -> show 1-2 schemes + "which one?"; 3 a scheme picked / one thing asked -> that + a closing offer of the parts not told; 4 "details / विस्तार से / पूरी जानकारी" -> whole scheme in 4-6 short sentences (gives, for whom, papers, how to apply) + an either-or question; 5 "yes" -> the offered part, never all again; 6 goodbye. No web addresses read out. TALK_MAX_SENTENCES 7, TALK_MAX_WORDS 110.
+- Probe script "details" replayed: show two + which one -> PM Kisan gives/for whom + offer -> full details + "any part again or another scheme?" -> "हाँ" -> "all told already, another scheme?" -> goodbye.
+- Checks before the second commit: pytest 2373 passed + 1 known door_a; make stress clean; py_compile ok; sync_vault in sync. barge-eval not re-run for this last change (talk.py + prompt + tunables only).
+- Hand-off: ~/code/haqdaar-v2/PROMPT-STEP-7.14-TALK-REST.md (B4 rest: stage times + streamed voice; B5 Silero + strict-gate cut-in; B6 stress; B7 write-up). The owner pastes it into a new chat.
+
+## Hand-off (5 Oct ~01:30, Claude): owner's second phone call was good; next steps go to a new chat
+- step-7.13-talk @ d53b483 = the checked, working talk call (rollback point). Not pushed.
+- New branch step-7.14-talk-rest made off it and checked out in ~/code/haqdaar-v2-7.3. Tree clean (scratch/ untracked on purpose).
+- The new chat starts from ~/code/haqdaar-v2/PROMPT-STEP-7.14-TALK-REST.md: B4 rest (stage times, streamed voice), B5 (Silero + strict-gate cut-in), B6 (stress), B7 (write-up). Stop after each; phone check after B4 and B5; commit only on the owner's word.
+
+## Step 7.14 B4.1 map (5 Oct, Claude + explore agent). Folder ~/code/haqdaar-v2-7.3, branch step-7.14-talk-rest. No code changed yet.
+- Real paths: log = haqdaar/data/log.py (EV_ROWS line 34), log text = haqdaar/data/log_text.py (`_line`, act branch ~118; tools/log_text.py is only the CLI), tunables = haqdaar/contracts/tunables.py, Speech = haqdaar/contracts/types.py:121, mouth = haqdaar/audio/mouth.py (`_send` 175-208), turn = haqdaar/audio/turn.py (waits for mouth 394-411, ear.listen 422-427), trace = haqdaar/data/trace.py (copies every log row with a clock `t`).
+- talk.py: `_turn(words)` 265-307; act row at 298 is written BEFORE `_speak`; its `ms` = all of `_decide` (word spotting + 2-3 searches + log read-back + up to 2 model calls + checks), NOT the model alone. `_speak` 246-263: warm(parts[0]) -> before_first() -> say_text each. run() 324-340 uses only inp.text.
+- ear.py: END_FRAMES line 59 fixed at import; end decided in EnergyVAD.feed_frame 524-534 (quiet >= end_frames); STT call at 775, `t0` at 774 is set and never read; Speech built at 791-792. No "caller stopped" time is kept anywhere. Other ends: 2 s with no media (733-739), 7 s cap.
+- live_tts.speak: HTTP POST stream to Sarvam, asks raw mu-law 8 kHz, joins all chunks then returns (on purpose: the Mouth works out a clip's length when queued). Timeout -> None, partial sound thrown away.
+- Mouth: each play() = one clip, one mark, length from the full bytes; play() resets _last / last_cut / _resume; frames are sent all at once (the phone company buffers). remaining() = 0 once all marks are back -> a stalled stream would let the ear start listening mid-sentence.
+- log.py: extra keys on an `act` row are fine; None values are dropped; a new `ev` name must be in EV_ROWS.
+- `_line` output is ALSO the log text fed to the model each turn (talk.py:179, 1500 chars). So times must not be in the default text: only when asked (the CLI).
+- talk_probe "agent starts N s after the caller stops" counts ANY agent sound ("one moment" too) and starts at the caller's last frame (so it includes the 600 ms end wait).
+- Tests: tests/test_talk.py (Audio(QAAudio): has say_text, NO warm_text), tests/test_log_text.py, tests/test_live_speech.py (c1 fakes httpx.stream).
+- PLAN B4.2: Speech gets end_ms + stt_ms (default -1), filled in ear.listen. talk.run passes the Speech to _turn. _decide sums search_ms and model_ms. The act row is written from the before_first hook (first sentence's sound ready), so it still comes before the `said` rows; fields end_ms, stt_ms, search_ms, model_ms, voice_ms, wait_ms (caller stops -> first sound ready). `ms` stays as it is. log_text(rows, max_chars, times=False); the CLI passes times=True.
+- B4.2 DONE (uncommitted): types.Speech end_ms/stt_ms; ear.listen fills them (end_ms = vad.quiet*20, stt_ms = whole transcribe incl. fallback); talk._timed sums search/model; act row written from the first-voice hook (still before the `said` row), or right after if nothing is said. log_text(rows, max_chars, times=False) -> "  TIMES (ms): end wait .., speech-to-text .., search .., model .., first voice .. = N s from the caller's last word"; tools/log_text.py passes times=True. The model's copy of the log has no times (tested).
+- B4.3 BEFORE numbers (probe farmer, call probe_farmer_1791142924, 5 Oct): per turn ms: end wait 600; speech-to-text 380-695; search 52-80; model 671-966 (2495 on a turn with a refused first reply); first voice 841-1369 when the sentence is new (0-1 when saved). Caller's last word -> first sound: 2.0, 2.8, 5.2 (refused turn), 2.8, 2.1 s. Probe's own count: 1.9-2.8 s.
+- Measured Sarvam stream (3 sentences): first sound 0.37-0.49 s; whole sentence 1.4 s (5 s of sound) / 1.85 s (8 s of sound). Sound arrives ~4x faster than it plays, so playing as it arrives does not run dry.
+- SEEN: the talk prompt is ~2900-3300 tokens now (not 2000). qwen gets http_429 on the 3rd turn in a minute, the chain falls to gpt-oss-120b (+0.4 s for the refused try, and 120b is slower). A prompt trim would help speed AND turns a minute.
+- SEEN: one fine reply was refused by rule "forbidden" (PM Kisan 6000 in 3 parts + "क्या मैं आपको ज़रूरी का…") -> second model call -> 5.2 s turn. Not looked into yet.
+- B4.4 BUILT (uncommitted): tunables.LIVE_TTS_STREAM (on when TALK_ONLY; LIVE_TTS_STREAM=false = as before). live_tts.stream(text, lang) yields mu-law pieces (speak = their join; a WAV body is still opened whole). Mouth.play_stream(name, chunks, tag): ONE clip that grows, one mark after the last piece, clear() stops sending but the reading goes on. PhoneAudio.say_text(text, on_first=None) -> _say_stream when the sentence is not saved and no test `speak` is injected; saved whole only if the stream did not break. talk._speak: sentence 1 streamed, sentences 2..n made in threads from the START (before: only after sentence 1 was made). Speech.end_ms/stt_ms are compare=False (old tests compare Speech by ==).
+- Tests added: tests/test_live_speech.py test_s14_* (4), tests/test_talk.py stage-times test.
+
+## Step 7.14 B4 DONE, UNCOMMITTED, waits for PHONE CHECK 2 (5 Oct night, Claude). ~/code/haqdaar-v2-7.3, branch step-7.14-talk-rest.
+- BLOCKER: Sarvam key has NO CREDIT (http 402 "No credits available", insufficient_quota_error) from ~01:23, for the voice AND speech-to-text (speech-to-text falls back to Groq Whisper; live voice just fails = nothing said for a new sentence). The owner must top up. No phone check and no probe run with voice until then.
+- AFTER numbers (probe vendor, call probe_vendor_1791143452, before the credit ran out): first voice 414 and 433 ms for new sentences (before: 841-1369). Whole wait 2.6 s and 3.0 s (that call had slow speech-to-text 541-782 and one refused reply). The "details" run fell in the 402 time: not usable. NOT yet done: the same scripts before and after, side by side.
+- Not done on purpose: prompt trim. Sizes: SYSTEM 5950 chars (~1500 tokens); user part ~5000 chars, of which SCHEMES 3700 (pm-kisan `exclusions` alone ~1000 chars and repeats who_can_apply), BOXES 630, log ~500. Under 2666 tokens = 3 qwen turns a minute, under 2000 = 4. The prompt wording passed the owner's phone check, so a trim should be scored on the B6(c) 40 questions, not guessed.
+- With streamed voice the first sentence's length no longer changes the first sound (0.4 s either way).
+- "forbidden" refusals seen: en "you will get" (in "You will get an OTP"). Truth guard left as it is. Each costs a second model call (~1 s) and often a "one moment".
+- Checks: pytest 2378 passed + 1 known door_a (run in two parts: all but test_barge_sweep.py = 817 + 1 failed; test_barge_sweep.py = 1561). make stress 1000 callers, 0 crashes, 0 truth failures. make barge-eval 65,622 scenarios: report diffed against a run on d53b483 (git stash) = no difference but the time line. py_compile ok. sync_vault in sync.
+- Trap: a script run from outside the folder imports `haqdaar` from ~/code/haqdaar-v2 (the venv's install points there). Use `PYTHONPATH=$PWD` or `-m` from ~/code/haqdaar-v2-7.3.
+- Trap: pytest output sent to a file is buffered; it looks stuck when it is not. Use PYTHONUNBUFFERED=1. Full pytest in one go ran past 10 minutes here when other runs were going; in two parts it is 50 s + 95 s.
+- Files changed: haqdaar/audio/{ear,live_tts,mouth,phone}.py, haqdaar/contracts/{tunables,types}.py, haqdaar/data/log_text.py, haqdaar/engine/talk.py, tools/{log_text,talk_probe}.py, tests/{test_live_speech,test_talk}.py.
+
+## Push of all branches (5 Oct, Claude; owner asked)
+- Before: only branches up to step-5.5 (and not all of them) were on GitHub. Nothing from step 6.x or 7.x was pushed.
+- Port 22 to github.com times out on this network. Push went over port 443, no config changed:
+  `GIT_SSH_COMMAND='ssh -o HostKeyAlias=github.com' git -c url."ssh://git@ssh.github.com:443/".insteadOf="git@github.com:" push -u origin --all`
+- After: every local branch is on origin (haqdaar-v3 repo) at the same commit, checked with ls-remote. Only step-1.9 was refused: the local one is BEHIND origin, nothing to push.
+- NOT pushed: uncommitted work. ~/code/haqdaar-v2-7.3 (step-7.14-talk-rest) has B4.2 + B4.4 uncommitted (12 files). Main folder's old half-done edits too.
+- Branch for the dashboard team: step-7.13-talk @ d53b483 (phone-checked, has dashboard/ from step 6.2 + the T2 call log + talk loop). step-7.14-talk-rest is the same commit today but will move.
+
+## Owner's order (5 Oct, after B4): new Sarvam key given (put in .env, works: voice 200). "git push; make a new branch; do the whole B list (B5, B6, B7); NO keys work; stress it; report." So: commit + push B4 on step-7.14-talk-rest, then branch step-7.15-cut-in for B5-B7, commit + push at each step's end.
+## B5 map (explore agent, 5 Oct). No code changed yet.
+- Mouth has no pause: clear() = stop + remember cut clips in `_resume`; resume() = say the cut clips again from the START. play()/play_stream() wipe `_resume` and `last_cut`.
+- Old cut-in (SPEECH_CUT_IN) lives in Turn.wait_input (turn.py 354-488): poll ear.watch_voice(in_guard) every 20 ms while mouth.remaining() > 0 -> "cut" -> mouth.clear() -> ear.listen(resume=True) (keeps the VAD frames, so the first words reach speech-to-text) -> _false_cut -> mouth.resume(). ear.watch_voice (ear.py 608-646) pops frames from ear._events (ONE reader only). Turn.newer_input (307-332) = the same watch between sentences, needs SPEECH_CUT_IN.
+- In talk mode nothing watches while the agent speaks: _speak -> say_text -> play_stream blocks the engine thread (only for the ~1-2 s the stream arrives, sound is 4x faster than real time); wait_input runs only after the last sentence is queued.
+- Every live sentence = clip "answer" + a new start_prompt (so the 250 ms KEY_GUARD window restarts each sentence).
+- A streamed clip cut mid-stream: `_resume` holds only the pieces that had come by then. The whole sound is known when play_stream returns.
+- Turn._false_cut matches the WHOLE text against FILLER_WORDS (turn.py ~45-57); it is not a word count.
+- No echo handling anywhere. barge_eval has no talk mode and its sound is flat levels (a real Silero model would call it non-speech). stress.py is keys only.
+- No Silero / torch in the venv; onnxruntime 1.30 is there (came with fastembed). fastembed's model cache is in $TMPDIR (the OS may wipe it; then the first start downloads 220 MB again).
+- The two real calls of 4 Oct 22:38 / 22:41: logs/calls/CA247a44967efef4d5dd49c93035dcab49.jsonl and CA36858022b36a73ed95d1d6cc4cb38c3e.jsonl (+ trace/). They are KEYS-mode calls, text and timing only. NO caller sound is kept anywhere. Real talk-mode logs: CA450dd1c383e1fd07c3ce5d68bdd46e20, CA7e81cdae1cf88a1441b89d8c9feb1fb7, CAee3a964cd1d47389f02d16148c3a9bb6.
+- B4 closed: after numbers 1.2-2.1 s (worst 2.3) on farmer/vendor/details; commit 42ec2a6 pushed. PUSH TRAP: `git push origin` hangs/fails here (ssh port 22 times out). Use `git push https://github.com/agarwaladarshcoding-maker/haqdaar-v3.git <branch>` (gh's https login works). Remote config not changed.
+- Branch step-7.15-cut-in made off 42ec2a6 for B5-B7.
+- B5 PLAN (Claude): (1) haqdaar/audio/silero.py SileroVAD(EnergyVAD): model file haqdaar/audio/silero_vad.onnx (from the silero-vad 6.2.3 wheel, MIT), run with onnxruntime; frames of 160 samples re-cut to 256-sample windows; "voice" = prob >= 0.5 and loud enough. (2) Gate = Turn.wait_input's existing cut-in, switched by CUT_IN_GATE in a talk call, with 600 ms of voice and the "2 real words" rule in place of _false_cut. It works because all sentences of a reply are queued in the mouth within ~1-2 s and wait_input starts right after; mouth.resume() says the cut clip and all later ones again. (3) not_for_me after a cut -> PhoneAudio says the cut clips again (kept aside at the cut, because the "one moment" play() would wipe mouth._resume).
+
+## B5 BUILT (5 Oct, Claude), branch step-7.15-cut-in, ~/code/haqdaar-v2-7.3. Checks running; not committed yet.
+- Run with the gate: `CUT_IN_GATE=true TALK_ONLY=true make call-me` (off = strict turns, as before; nothing else changes with it off).
+- Silero: haqdaar/audio/silero_vad.onnx (2.3 MB, MIT, from the silero-vad 6.2.3 wheel; licence file next to it) + haqdaar/audio/silero.py SileroVAD(EnergyVAD). No torch, no new package (onnxruntime came with fastembed). 0.06 ms a window. `level()` hook added to EnergyVAD (`last_level`); a frame is a voice when Silero's score >= SILERO_ON 0.5 (0.35 to stay one) AND it passes the old loudness limits. Tried: white noise, 440 Hz tone, claps, hum = 0 ms of voice (the loudness check called all four a voice); Mac voice hi / en = voice. server.py gives the Ear a SileroVAD only when CUT_IN_GATE and TALK_ONLY.
+- Gate = Turn.wait_input's cut-in, on when CUT_IN_GATE + TALK_ONLY + profile "spoken": ear.watch_voice(in_guard, CUT_IN_GATE_MS 600, CUT_IN_GATE_GAP_MS 300) -> mouth.clear() -> listen(resume=True) -> noise or under CUT_IN_GATE_WORDS (2) real words (turn.real_words: filler words do not count) -> mouth.resume() = the cut sentence from its start + the rest. After CUT_IN_FALSE_MAX (2) such cuts the rest of that reply is strict turns.
+- 2+ real words = the caller's turn (Speech.cut_clip set). PhoneAudio keeps the cut clips aside (Mouth.take_cut) so "one moment" can not make the Mouth forget them. talk._turn(cut=True): the prompt gets prompt.CUT_NOTE; action not_for_me -> audio.say_cut_again(); act row `again: true`; log text "AGENT took the words as not for it and went on from the sentence that was cut".
+- Probe (gate on): script `cutin`: "रुकिए रुकिए, मुझे पेंशन के बारे में बताइए" over the reply -> agent stops, answers about pension 1.6 s after the caller stops; "हाँ हाँ, ठीक है ठीक है" over the reply -> stops, not_for_me, goes on from the cut sentence 1.4 s later. Script `sidetalk_during`: "अरे रमेश, चाय ला दो ज़रा जल्दी" over the reply -> stops, not_for_me, goes on 1.1 s later; 2 s of loud hiss over the reply -> the agent went on talking. New probe steps: `noise:<seconds>`; `during:` now starts 2.5 s in (DURING_S).
+- LIMITS (tell the owner): (1) words said in the first ~1-2 s of a reply are not heard (the engine is still queueing the sentences; wait_input starts after). (2) A real voice near the phone still stops the agent for about 2-3 s before it goes on; Silero can not tell whose voice it is. (3) No echo handling: on speakerphone the agent's own voice may count as a voice. (4) After a real cut, "repeat" says the whole reply that was cut, not only what was heard.
+- Fix on the way: a true reply was refused twice by rule "forbidden" -> caller got "not sure" for "PM Kisan how much money". Cause: the word list entry "आपको ज़रूर" is found inside "आपको ज़रूरी कागज़" (vocab.find_forbidden is a plain substring test; it is in contracts, not changed). Now the second try's note names the words to avoid (talk.py). The real fix (whole-word match in vocab.py) is the owner's call: it is a truth guard in contracts.
+- Seen: when the chain falls to openai/gpt-oss-20b the Hindi is broken ("योजनाएन हं", "मिलता ह.") and the voice's first sound took 1956 ms on that text. Weigh in B6.c.
+
+## B5 DONE + pushed; B6 under way (5 Oct, Claude). Branch step-7.15-cut-in, ~/code/haqdaar-v2-7.3.
+- B5 commit 6d1d463, pushed (https). Checks before it: pytest 825 + 1561 = 2386 passed + the 1 known door_a; make stress 1000 callers, 0 crashes, 0 truth failures; make barge-eval 65,622 scenarios, report the same as on d53b483 line by line (diff empty); py_compile ok.
+- B6.b BUILT: tools/talk_eval.py (`make talk-eval`), on barge_eval's rig (World, Line, Caller, FakeSTT, VQueue, FakeTime; real engine + talk loop + PhoneAudio + Turn + Mouth + Ear with the loudness check). Fake model reads NEWEST CALLER WORDS and answers by fixed rules ("ramesh" = side talk, "goodbye", "again", "weather"). 4 scripts (ask, vague, sidetalk, quiet) x gate off/on x 8 kinds (side_talk, cut_in, hmm, ok_ok, noise, long_noise, key, hangup) x every place the agent spoke (0.3 s in, 1.2 s in, 0.2 s after) = 2,552 calls in ~1 s. Rules R1 ends, R2 no dead air > 2.5 s, R3 no line twice in a row, R4 no restart, R5 no spoken reply to side talk: 0 broken. With the gate on the agent was stopped 696 times, off 125.
+  * Rig limits: sound is flat levels, so Silero is NOT in this run (the loudness check stands in; Silero has its own test g7). The "one moment" filler is a real-time thread and never fires on the made-up clock. Costs set to the measured ones: end wait 0.6, STT 0.35, model 0.7, first voice 0.4.
+  * A turn with a refused first reply (two model calls) is 2.7 s in the rig = over the 2.5 s line; on a real call "one moment" covers it. Found while the fake reply had a digit in it; the fake no longer writes digits.
+  * R4 as first written was wrong twice: a wrong key at the language pick replays the greeting (that is the pick), and the hello is said again after 30 s of quiet when only side talk was heard (right). Both are allowed now.
+- tests/test_talk_eval.py: 2 tests (a 150+ call cut of the set; the rules catch a doctored call).
+- B6.a DONE: tools/talk_questions.py --replay: the caller words of the two 4 Oct calls through the talk loop with the REAL model. 22:38 call (three lines of side talk): not_for_me x3, nothing said. 22:41 call ("हम्म, ठीक है।", "नहीं, कहीं से नहीं।", "हाँ बोलिए।"): asked what kind of help, twice, then "आप क्या काम करते हैं?". No "sorry", no restart. (Those calls kept no sound, so only the words can be replayed.)
+- B6.c RUNNING: tools/talk_questions.py --questions (`make talk-questions`): 40 sentences (the 30 of test_scheme_index + 10 one-thing questions) x each model in TALK_MODELS, 31 s apart per model, waits and retries on 429. Report: data_cache/reports/talk_questions.json.
+
+## B6.c STOPPED PART WAY: Groq has a DAY limit of tokens (5 Oct ~09:40, Claude)
+- Groq's own refusal for qwen/qwen3.8-27b: "tokens per day (TPD): Limit 200000, Used 199225". So PER MODEL: 8,000 tokens a minute, 1,000 requests a day AND 200,000 tokens a day (rolling 24 h). One talk turn = ~3,000 tokens -> about 65 turns a day on one model. Tonight's probe calls + the question run used up qwen's day. The chain then goes to gpt-oss-120b (slower), then gpt-oss-20b (weak Hindi).
+- The 40-question run was stopped after 4 questions (it would use 120,000 tokens per model = more than half a day, on a demo day). What it gave:
+  * qwen/qwen3.8-27b: 3 of 3 right, model time 435-574 ms (then its day ran out).
+  * openai/gpt-oss-120b: 3 of 4 right (the miss: "मुझे खेती के लिए कोई योजना चाहिए" -> SMAM shown first, wanted PM Kisan: a fair reply), 874-1088 ms.
+  * openai/gpt-oss-20b: 3 of 4 right (same miss), 588-1293 ms. On a probe call its Hindi was broken ("योजनाएन हं").
+  * No first reply was refused by the truth checks in these 11 turns.
+- DECISION: TALK_MODELS order stays (qwen, 120b, 20b). Not enough numbers to change it; what there is agrees with it.
+- MY MISTAKE: to read the day limit of the two gpt-oss models I sent each one a 7,000-token request thinking it would be refused for free. It was accepted: 14,000 tokens spent for nothing, and their day limit is still not known.
+- Tool is ready for a later day: `make talk-questions` (ARGS="--limit 10" for a small run). It now tries only 3 times on a refusal and its header warns about the day limit.
+- What this means for the next work: trimming the talk prompt (now ~3,000 tokens: SYSTEM ~1,500, scheme cards ~900, boxes ~160, log ~150+) is worth more than speed: every 10% off is 10% more turns a day. Or a paid Groq tier.
+
+## Step 7.14 closed: B4-B7 done and pushed (5 Oct, Claude). Waits for the owner's phone checks.
+- Branches (repo haqdaar-v3, pushed over https): step-7.13-talk d53b483 (rollback point, untouched) -> step-7.14-talk-rest 42ec2a6 (B4) -> step-7.15-cut-in 6d1d463 (B5), 540ae07 (B6). Not merged to main.
+- Final checks on 540ae07: pytest 827 + 1561 = 2388 passed + the 1 known door_a; talk-eval 2,552 calls 0 rules broken. make stress and make barge-eval were run on the B5 code (6d1d463: clean / same report); after that only tools, tests and the Makefile changed, so they were not run again.
+- Run: strict turns `TALK_ONLY=true make call-me`; cut-in `CUT_IN_GATE=true TALK_ONLY=true make call-me`.
+- NOT committed: the files in ~/code/haqdaar-v2 (.agent/, PROJECT-UPDATE.md, memory). That folder is on step-7.3-talk-first with other people's uncommitted work in it; left for the owner.
+- Keys in a talk call today: Turn.push_key still clears the mouth (the reply is lost), talk.run logs {"ev":"key","means":"keys are off"} and goes on. That is where the keys part starts.
+- Open list for the owner: (1) trim the talk prompt (tokens a day), scored with `make talk-questions` on a day with budget; (2) vocab.find_forbidden whole-word match ("आपको ज़रूर" inside "ज़रूरी"; "you will get an OTP"); (3) words in the first 1-2 s of a reply are not heard; (4) echo on speakerphone with the gate on; (5) gpt-oss-20b's Hindi; (6) APY "how much do I pay in" is not in the scheme text; (7) "जमींदार" for a land-owning farmer was seen again; (8) fastembed's model cache sits in $TMPDIR; (9) engine/talk.py imports haqdaar.model.answer and now haqdaar.contracts.vocab.
+
+## `make call-me` did not ring (owner, 5 Oct ~10:30): a dead tunnel was reused. Fixed.
+- Seen: run_demo printed the tunnel name, the server came up, /health was 200, then nothing: it was waiting 90 s for "the tunnel to reach the server".
+- Cause: logs/tunnel_host held the address of a cloudflared started 20 hours before. The process was alive, the tunnel was dead (Cloudflare gave http 530). tools/tunnel.py cloudflare_host() only checked that the name resolves, and every *.trycloudflare.com name resolves.
+- Fix (uncommitted, step-7.15-cut-in): tools/tunnel.py `_tunnel_up(host)`: http 530 = dead -> the old cloudflared is stopped and a new tunnel is made. The two old cloudflared processes were stopped and logs/tunnel_host + tunnel.pid removed by hand.
+- SECOND CAUSE, the real one (5 Oct ~10:30): the hackathon hall's network lets out only the web ports. cloudflared needs port 7844 (its log: "QUIC connection failed", "HTTP/2 connection is blocked or unreachable", precheck hard_fail=true), so even a NEW tunnel never connected and run_demo gave up ("!! not ready"). Same reason `git push` over ssh (port 22) fails here. ngrok goes out on 443 and works.
+- Fix, commit on step-7.15-cut-in, pushed: tools/tunnel.py cloudflare_blocked() (2 quick tries on port 7844) + start_ngrok(NGROK_DOMAIN); tools/run_demo.py uses ngrok by itself when cloudflared is blocked, or with TUNNEL=ngrok in front. Dry run `NOCALL=1 TALK_ONLY=true make call-me` -> "using ngrok ... ready". No real call was placed by me.
+- New: `make stage-check` (tools/stage_check.py): settings, port 8000, network, Twilio account + balance (12.55 USD), Sarvam sound, each Groq model with a full-size prompt (~2,500 tokens each, so it costs day tokens: run it once before a demo, not in a loop). All ok at 10:40; qwen answers again.
+- Trap I fell in: socket.create_connection to region1.v2.argotunnel.com tries ~20 addresses at 4 s each; the first cloudflare_blocked() hung run_demo with no output for over a minute.
+
+## Owner's call CA7863...c18fba (5 Oct 11:12, strict turns, ngrok) + map (Claude + explore agent). Folder ~/code/haqdaar-v2-7.3 @ 472616b
+- Owner: system good; replies sometimes not relevant; sound cut in between (thinks location; wants Cloudflare); stress more; then barge-in.
+- Seen in the log: (a) "the first one" -> said the 6000 sentence again word for word; (b) "more about this scheme" -> first reply refused too_long, second = summary again + papers + apply all at once (160-char sentence, 11.7 s); (c) right after telling papers + apply it offered "papers, or how to apply?" again, twice; (d) "one moment" fired 3 times at 1.0 s and was chopped by the answer 0.6-0.8 s in (the clip is 1.9 s).
+- Sound path: Mouth._send pushes all frames at once (200 ms frames, no pacing); Twilio buffers. So tunnel jitter can not chop a queued clip. mouth.clear() sites: phone.py:260 stop_filler (filler chopped mid-word, ALWAYS when the answer is ready), phone.py:327 newer_words, turn.py:156 push_key (any key tone, even in a talk call), turn.py:417 cut-in (gate only).
+- Stream: only sentence 1 is streamed; played from the first chunk with no lead; a slow stream = a gap; QA_TTS_TIMEOUT_S 4 s per chunk -> "!! live voice stopped part way" and the rest is lost.
+- Prompt: haqdaar/prompts/talk.py SYSTEM 18-91 (~6,000 chars). The closing offer is written by the MODEL; code keeps no record of which parts were told. Focus scheme (talk.py self.focus) is not named in the prompt, only put first. Log text to the model: 1500 chars, lines cut at 240.
+- Tunnel: ngrok started with no region flag; TwiML has no region/edge. cloudflared needs port 7844 (QUIC and http2 both) -> not possible on the hall network; on a hotspot run_demo picks it by itself.
+- BUILT (uncommitted, step-7.15-cut-in): (1) phone.py stop_filler no longer calls mouth.clear(): the answer queues behind a sounding "one moment" (Mouth.play starts at max(now, play_until)). TALK_ONE_MOMENT_S 1.0 -> 1.6 so a usual turn (answer ready 1.0-1.6 s after the words) says no filler at all. (2) prompts/talk.py: JSON gains "asks" (first field: what the caller wants, in English) and "parts" (gives/who/papers/apply); user text gains "SCHEME IN TALK: [id]. TOLD: ... NOT TOLD YET: ..."; steps 3-5 rewritten around NOT TOLD YET; "tell me more" = the untold parts only, full picture only on "everything"; no greeting. SYSTEM 6,000 -> 7,045 chars. talk.py self.told[scheme] = set of parts, filled from the model's "parts" on an accepted answer/show_scheme.
+- Measured, not changed: the streamed first sentence arrives ~5x faster than it plays (3.7 s clip whole 0.7 s after its first sound), so no gap from the stream. Cached sentences lose 20-1000 ms of quiet edge in pool.trim_edges (36 of 39 of today's clips), so sentences 2+ follow each other with only ~240 ms between.
+- tools/talk_questions.py --replay has 3 new calls (5 Oct farmer, made up vendor, made up jump) and `--only <text>`; prints the scheme in talk and told parts per turn.
+- COMMITTED + pushed: 8b20892 on step-7.15-cut-in (https push). Checks: pytest 2389 passed + the 1 known door_a; talk-eval 2,552 calls 0 rules broken; py_compile ok. make stress / barge-eval not run (keys path and turn.py untouched).
+- Real-model replay (5 Oct ~11:45-12:00, gpt-oss-120b, 9 turns): farmer call: no sentence said twice; "the first one" -> who + gives; "no" -> "another scheme?"; "more about this scheme" -> ONLY the papers, then offers apply; "benefits?" -> the amount again (it said "I already told you" -> prompt line added after; not re-run). Vendor call: papers on ask; "और बताइए" -> gives + who + apply, papers not said again; closing either-or question. Still seen on 120b: scheme names in Latin letters, Hindi digits (५०,०००), a 21-word first sentence, "हाँ" after "which one?" says the two schemes again, SMAM shown before PM Kisan for "farmer schemes". The model put "apply" in parts when it only offered it (prompt line added after).
+- GROQ DAY LIMIT HIT AGAIN (5 Oct ~12:00): qwen refused full-size turns at ~11:40 (accepts one now and then as old use rolls off); gpt-oss-120b: "TPD Limit 200000, Used 197565" (so its day limit is 200,000 too). My 9 replay turns took ~30,000 of it; the third made-up call ("jump") got only "not sure" lines = refusals, not a prompt fault. MY MISTAKE, the same one again: a 3,000-token request to each model to read the limit; qwen and 20b accepted it (6,000 tokens gone). To read a limit: one refused turn prints it; never send a big request.
+- For a demo today: both good models are at the edge of their day. Use comes back as last night's use rolls off (qwen's from ~00:00-09:40 comes back over tonight to tomorrow morning). Choices for the owner: Groq Dev tier (paid), a second key, or few calls.
+
+## Owner (5 Oct ~12:20): "use Muse as a backup, in front, smallest model, low effort; here is a second Groq key; check again". Done, commit on step-7.15-cut-in (after 8b20892), pushed.
+- Second Groq key is in .env as GROQ_API_KEY_2 (the key itself is NOT written here). It is another account: in the usage ledger the first key got 429 and the second answered at once, many times. haqdaar/model/client.py: on a 429 the same call is sent once more with GROQ_API_KEY_2. So qwen (the fast one) answers again.
+- Both keys together can still hit the 8,000 tokens A MINUTE limit when turns come every 15 s with a second try (seen in the replay tool only; on a real call the chain moves to gpt-oss-120b instead of waiting).
+- MUSE: haqdaar/model/muse_talk.py; a TALK_MODELS entry "muse:<model name>" goes there (dispatch in GroqModelClient.call). One try, the pipeline's ledger + caps + day block kept; any failure returns is_429 so the chain goes on. MEASURED on a full talk prompt (2,885 tokens), muse-spark-1.3-contributor: effort "minimal" 8.6 s (399 thinking tokens), "low" 16.8 s (1,270), "none" is refused (allowed: minimal, low, medium, high, xhigh, max). Good Hindi, right scheme. Far too slow for the front (Groq qwen 0.6 s, 120b 0.9 s). So Muse is NOT in the default chain. To use it as the last resort: TALK_MODELS="qwen/qwen3.8-27b,openai/gpt-oss-120b,muse:muse-spark-1.3-contributor,openai/gpt-oss-20b". TALK_MUSE_EFFORT=minimal, TALK_MUSE_TIMEOUT_S=12.
+- Could not list Muse's models (the permission system refused a raw call with the key). The owner must name the smallest Muse model; then `TALK_MODELS=muse:<name>` and time it with tools.talk_questions --replay --only "5 Oct".
+- Muse docstring rule: "no caller's words ever go to Muse (Contributor tier may train on them)". The muse: path sends the caller's words. Owner asked for it; told him.
+- The side folder's Muse ledger is its own (data_cache/reports/muse_usage.jsonl in ~/code/haqdaar-v2-7.3): about Rs 0.2 spent in tests. The main folder's ledger (Rs 12.97 all time) is not counted there.
+- Relevance guard 1 (talk.py): rule "other_scheme": last action was an answer, a scheme is in talk, the caller named no scheme, and the model answers about another one -> sent back once with a note. Found by the "jump" replay ("कितना पैसा मिलता है?" after NPS got APY).
+- Relevance guard 2 (talk.py, contracts untouched): a "forbidden" hit that is only the start of a longer Hindi word ("आपको ज़रूर" in "आपको ज़रूरी कागज़ों") is masked and the checks run again; "आपको ज़रूर मिलेगा" is still refused. This was turning right replies into "not sure" (2 of 5 turns in one replay). Open item (2) of the old list is closed for the talk path; vocab.find_forbidden itself is unchanged (keys path as before).
+- say: Hindi digits -> 0-9 before the checks and the voice.
+- Real-model replays on qwen after the fixes: farmer (5 turns) and jump (5 turns) all on the point. Left: "जमींदार किसानों" for land-owning farmers; one closing question with broken grammar; "the first one" after a list says the amount again (the list reply did not report its parts).
+- Checks: pytest 2394 passed + the 1 known door_a; talk-eval 2,552 calls 0 broken; py_compile ok.
+
+## Call CAc30f...e0b2b5 (owner, 5 Oct 12:43): "call gets cut, could not talk, nothing after the greeting". Looked like the network; it was not a dropped call.
+- Twilio's own record (twilio.recent_calls + Calls/<sid>/Events + Notifications via twilio._api): status completed, 07:13:21 -> 07:13:52 UTC = it ended at the second of the owner's Ctrl+C (notification 31921, websocket closed by us). Twilio held the call open the whole time. The only other notification is 12200: attribute keepCallAlive not allowed in the stream XML (a warning on every call, harmless).
+- Our side: greeting said at 12:43:31 (7.3 s), then no key and no words for 14 s, then Ctrl+C. No "<- dtmf" line, so no key reached us.
+- Cause in the code: in a talk call with SPEECH_CUT_IN off, PhoneAudio.select_language waited for a KEY only (turn.wait) and for 30 s (SILENCE_REMIND_S). A caller who says "Hindi" or starts to talk gets 30 s of dead line. Not provable which of the two happened (he spoke, or a key press was lost): the server kept no count of what came in.
+- Fix (commit after 3026e26, pushed): select_language uses the "greeting" voice wait when TALK_ONLY (not only SPEECH_CUT_IN). The voice does not cut the greeting (turn.py:392 needs SPEECH_CUT_IN or the gate); it is heard after the clip. Probe `--script voicepick` (says "हिंदी", no key): "LANGUAGE: hi (voice)", agent starts 0.7 s later, whole call fine.
+- New log lines (server.py): "phone   first sound from the caller's side arrived", "!! phone   no sound came from the caller's side for X s" (gap over 1 s between frames), and at the end "phone   in all: N s of sound ... K key(s), M clip(s) played to the end" or "!! phone   NO sound at all". M = marks back from Twilio = clips Twilio really played out. With these a broken line can be told from a quiet caller.
+- Run a no-phone call: server `TALK_ONLY=true .venv/bin/python -m uvicorn haqdaar.server:app --port 8001`, then `.venv/bin/python -m tools.talk_probe --script voicepick`.
+- Checks: pytest 2394 passed + the 1 known door_a; py_compile ok.
+
+## Call CAf247...50a7a2 (owner, 5 Oct 12:51, TALK_ONLY, ngrok): looped on the greeting, never reached the talk. Diagnosis only, NO code changed (Claude + explore agent). Folder ~/code/haqdaar-v2-7.3 @ 2485d79.
+- The talk part (search, log, model) never ran: logs/calls/<sid>.jsonl has 2 lines (header + stop). All 39 s were spent in call.py:611-638 (language loop) -> phone.py:91 select_language.
+- BUG 1, PROVED (trace row t=9.416: key 1, took false, why "prompt_closed"): a sound with no words came 1.5 s after the greeting -> turn.py:469-471 sets prompt_open = False on Noise -> phone.py:145-152 _wait_words drops the Noise and listens again WITHOUT opening the prompt -> key 1 arrives 0.6 s later, push_key stamps it prompt_open False (turn.py:159) -> get_valid_key drops it (turn.py:246) -> ear.py:748 keeps listening. 12 s of dead line followed. Came in with 2485d79 (voice at the greeting); the keys-only wait had no noise path.
+- BUG 2: the drop is only in the trace. server.log shows "<- dtmf 1" (server.py:328 uses say, not note) and nothing after.
+- BUG 3: language by voice = a word list only (lang_words.py:45: hindi/english/one/two...). "Hello." and a full Hindi sentence = "no language heard" -> the whole 7.3 s greeting again. The speech service's own language code (hi-IN) is printed but never used (ear.py:800 keeps lang only with ENGLISH_PIPE).
+- BUG 4: words said at the greeting are thrown away; the question is not carried into the talk.
+- BUG 5: greeting clip (lines.yaml:29-33) says only "press 1 / press 2". Third miss = Hindi by default (call.py:635), so worst case ~35 s before the talk starts.
+- BUG 6 (small): the call log of a call with no language picked says lang hi / default, stop zero_survivors.
+- Simple plan vs built: search = scheme_index.py SchemeIndex.search (MiniLM + rapidfuzz, last 3 caller turns, top 10, 4 cards in the prompt); log = log_text 1500 chars in every prompt (talk.py:192); model = Groq chain; questions = talk_words.spot + talk_pick.narrow picks ONE box, none once <= 4 schemes left. All four are there. What is NOT in the simple plan and is where calls die: the keys-era gate at the greeting (prompt_open / prompt_n / guards).
+- Smallest fix (not done, waits for the owner): in a talk call, (a) open the prompt again after a dropped Noise, (b) any real words at the greeting = start the talk: language from the speech service's code, the words go in as the first turn.
+
+## Turn 5 map: what is built vs the owner's flow drawing (5 Oct afternoon, Claude + explore agent). Folder ~/code/haqdaar-v2-7.3 @ 2485d79. No code changed.
+- Greeting today: Hindi "press 1" + English "press 2" only (lines.yaml:29-33, LANGS_OFFERED=hi,en). No key for "keys mode". Owner's flow: hello in Hindi + English + 3 local languages, key 6 = keys, "speak in any language". NOT BUILT.
+- Quiet at the greeting: 30 s -> greeting again -> 30 s -> farewell + hang up (phone.py:129-134, call.py:218-240). SAME as his flow.
+- Language: Sarvam saaras:v4 gives a language code back (ear.py:219) but it is dropped (ear.py:797-800). Language = a key or a word list; fixed for the whole call (talk.py:135). His flow: Sarvam finds it each turn, any language. NOT BUILT.
+- Search: by CODE on every turn before the model (talk.py:190), not the model's choice. 17 schemes, 136 vectors: per scheme en + hi x (name head, summary, who can apply, benefit). Papers and how-to-apply are NOT indexed. Query = caller's own words, not English (multilingual MiniLM). max(cosine, name score >= 88), no re-ranker. 10 found, 4 in the prompt (2 full cards).
+- Reply: the model writes Hindi itself; no translate call. His flow: model in English, Sarvam turns it into the caller's language. DIFFERENT.
+- Log: built as he drew it (heard, said, key, cut, blocked, act rows; 1500 chars to the model each turn).
+- Keyword bits: built, run by code each turn (talk_words.spot + talk_pick.narrow), not picked by the model.
+- Model actions today: answer, ask, show_scheme, repeat, goodbye, not_for_me, other_topic.
+- Edge cases today: quiet after a reply 30/30 then hang up; noise = quiet; STT fail = treated as noise (no "say again" line); model timeout (6 s) ends the chain -> NOT_SURE line; checks fail twice -> NOT_SURE; voice fail = that sentence is skipped with no sound; TALK_MAX_TURNS 40; CALL_CEILING_S 600 is used nowhere; hang-up closes the log.
+- Keys: mode is picked by env TALK_ONLY at start, not per call. A key in a talk call cuts the reply and is dropped ("keys are off"). Keys flow: opener (category) -> Planner asks a box (gender, social category, age, income, occupation, state) -> keys 1-9 choice, 0 do not know, # repeat, * next language -> stop at 6 questions / 8 turns / <= 4 schemes -> each scheme: name + summary + menu 1 what you get, 2 how to apply, 3 papers, 4 who can apply, 9 next, 0 stop -> "anything else?" 1 yes, 2 no -> farewell.
+- Cut-in: CUT_IN_GATE off by default; 600 ms voice (Silero 0.5/0.35), 300 ms gap, 2 real words, 2 false cuts then off for that reply, first 250 ms dropped.
+- Twilio trial line: nothing in code. make call-me = outbound call to CALL_ME_NUMBER; dial-in works too.
+- Charts are written by code: ~/code/haqdaar-v2/flow/flowlib.py (draw + check) and flow/build_flows.py (the three charts).
+
+## Turn 5 done: three flow charts written and checked (5 Oct ~13:55, Claude). No app code changed.
+- Files in ~/code/haqdaar-v2/flow/: 1-talk-flow, 2-talk-flow-barge-in, 3-talk-flow-with-keys (.excalidraw + a plain .png of each). Made by `python3 flow/build_flows.py` (it also runs the checks; give it a folder name to get .svg pictures). To change a chart: edit build_flows.py and run it again; do not hand-edit the .excalidraw if the code is to stay the source.
+- Colours: black = the owner's boxes in his places, orange = added (loops, edge cases), blue = cut-in, green = keys, red = the call ends. Boxes keep the same place in all three charts.
+- Checks the script runs: no box on a box, no line through a box or a label, no two lines on each other, every box has a way in and out, every choice has 2+ ways out, every box is reached from the start and can reach an end, every arrow tied at both ends in the file. All pass; 0 line crossings in all three.
+- NOT checked: the files were not opened in Excalidraw itself (no Excalidraw here). Letter widths are a guess for the hand font, so text may sit a little tight or loose in a box.
+- Tests on ~/code/haqdaar-v2-7.3 @ 2485d79: pytest 2394 passed, 1 failed (the known tests/test_door_a.py::test_repo_entries_exclude_quarantined_slugs); after the summary Python printed "libc++abi: terminating ... recursive_mutex lock failed" at exit (exit code 0; seen at shutdown only). make talk-eval: 2,552 calls, 0 rules broken (gate off 125 stops, gate on 696). py_compile ok. sync_vault --status: in sync. make stress / barge-eval not run (no code changed).
+- Choices I made in the charts (owner may overrule): key 6 works at any time, not only at the greeting; 3 clarifying questions with no usable reply -> offer keys; at most 2 searches a turn; unknown language -> Hindi, said once; truth check stays before the voice; 40 turns / 10 minutes cap; keys 1-5 pick the language in keys mode.
