@@ -236,3 +236,38 @@ def test_place_call_request(monkeypatch: pytest.MonkeyPatch) -> None:
     form = urllib.parse.parse_qs(req.data.decode())
     assert form["To"] == ["+910000000000"]
     assert form["Url"] == ["https://d.example/answer"]
+
+
+def test_place_call_asks_for_a_sound_record_only_when_told(monkeypatch: pytest.MonkeyPatch) -> None:
+    from haqdaar.audio.telephony import place_call
+    import io
+    import urllib.parse
+
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "AC_x")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "tok")
+    monkeypatch.setenv("TWILIO_US_PHONE_NUMBER", "+14240000000")
+    seen = {}
+
+    def fake_open(req):
+        seen["form"] = urllib.parse.parse_qs(req.data.decode())
+        return io.BytesIO(b'{"sid": "CA_new"}')
+
+    monkeypatch.delenv("CALL_RECORD", raising=False)
+    place_call("+910000000000", "https://d.example/answer", fake_open)
+    assert "Record" not in seen["form"]
+    monkeypatch.setenv("CALL_RECORD", "true")
+    place_call("+910000000000", "https://d.example/answer", fake_open)
+    assert seen["form"]["Record"] == ["true"] and seen["form"]["RecordingChannels"] == ["dual"]
+
+
+def test_recording_tool_finds_a_hole_between_sounds() -> None:
+    import math
+    import struct
+
+    from tools.recording import holes
+
+    def tone(ms: int) -> bytes:
+        return b"".join(struct.pack("<h", int(8000 * math.sin(i * 0.5))) for i in range(8 * ms))
+
+    pcm = tone(400) + b"\x00\x00" * (8 * 300) + tone(400) + b"\x00\x00" * (8 * 3000)
+    assert holes(pcm, 8000) == [(0.4, 300)]      # the hole inside; the quiet at the end is not one

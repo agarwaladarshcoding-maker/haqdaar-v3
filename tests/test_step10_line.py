@@ -320,3 +320,22 @@ def test_rebind_says_again_only_what_was_not_played():
     mouth.play([("three", b"\x03" * 800)])       # later sound goes to the new stream
     assert len(old) == sent_before and new[-1]["mark"]["name"].endswith(":three")
     assert mouth.rebind(new.append, "MZ3") == 1  # nothing is lost on a second drop either
+
+
+def test_a_late_piece_of_live_voice_is_logged_as_a_hole() -> None:
+    """5 Oct: a piece of streamed voice that comes after the sound sent so far ran out is a hole
+    the caller hears. The log says how long, and the end time of the clip moves with it."""
+    from haqdaar.audio.mouth import Mouth
+
+    now = [100.0]
+    lines: list[str] = []
+    mouth = Mouth(lambda m: None, "S", clock=lambda: now[0], log=lines.append)
+
+    def pieces():
+        yield b"\xff" * 4000          # 0.5 s of sound
+        now[0] += 0.9                  # the next piece comes 0.4 s after that ran out
+        yield b"\xff" * 4000
+
+    mouth.play_stream("answer", pieces())
+    assert any("ran dry for 400 ms" in x for x in lines), lines
+    assert abs(mouth._play_until - 101.4) < 0.01

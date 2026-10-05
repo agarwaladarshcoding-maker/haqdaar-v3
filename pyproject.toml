@@ -22,6 +22,7 @@ dependencies = [
     "numpy",
     "fastembed",
     "rapidfuzz",
+    "sounddevice",
 ]
 
 [tool.setuptools.packages.find]

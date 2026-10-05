@@ -255,7 +255,32 @@ def place_call(to_number: str, answer_url: str, opener: Any = None) -> str:
         "Url": answer_url,
         "Method": "POST",
     }
+    if os.environ.get("CALL_RECORD", "").strip().lower() in ("1", "true", "yes", "on"):
+        # 5 Oct: the sound cut on the phone while our own log showed none. The line's own record
+        # of the call (caller on one side, us on the other) says on which side of it the cut is.
+        form["Record"] = "true"
+        form["RecordingChannels"] = "dual"
     return _api("Calls.json", form, opener)["sid"]
+
+
+def call_recording(call_sid: str = "") -> tuple[str, bytes]:
+    """The line's own two-sided sound record of a call (the newest one when no id is given), as
+    (call id, WAV bytes). ("", b"") when there is none: the call was not placed with CALL_RECORD."""
+    import os
+    import urllib.request
+
+    path = f"Recordings.json?CallSid={call_sid}&PageSize=1" if call_sid else "Recordings.json?PageSize=1"
+    found = _api(path)["recordings"]
+    if not found:
+        return "", b""
+    sid = os.environ["TWILIO_ACCOUNT_SID"]
+    req = urllib.request.Request(
+        f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Recordings/{found[0]['sid']}.wav?RequestedChannels=2"
+    )
+    auth = base64.b64encode(f"{sid}:{os.environ['TWILIO_AUTH_TOKEN']}".encode()).decode()
+    req.add_header("Authorization", f"Basic {auth}")
+    with urllib.request.urlopen(req) as resp:
+        return found[0]["call_sid"], resp.read()
 
 
 def recent_calls(limit: int = 5) -> list[dict[str, Any]]:

@@ -87,6 +87,16 @@ class Mouth:
         whole = bytearray()
         try:
             for chunk in chunks:
+                dry = 0.0
+                with self._lock:
+                    if self._cleared == generation and whole:
+                        # 5 Oct: the piece came after the sound sent so far ran out: the caller
+                        # heard a hole this long. The clock moves with it, and the log says so.
+                        dry = self._clock() - cs["end"]
+                        if dry > 0.05:
+                            start_t += dry
+                if dry > 0.05:
+                    self._log(f"!! live voice ran dry for {dry * 1000:.0f} ms inside {name} (a hole in the sound)")
                 whole += chunk
                 with self._lock:
                     if self._cleared != generation:

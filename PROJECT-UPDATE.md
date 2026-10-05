@@ -1636,3 +1636,55 @@ yet, because key 6 is not built. Two: the reply now follows the language the cal
 the key pressed at the start. Sarvam finds the language itself on every turn (checked on 6 test
 clips: all right). Very short replies like "haan" keep the last language. The new Sarvam key is in
 the settings file.
+
+**5 Oct, 5:30 pm — the sound cuts, a second look.** No new fault was found inside the app: in the
+last calls it never stopped its own voice, the line never dropped, and Twilio played every clip to
+the end. But the earlier answer ("the hotspot stalls") was too sure. The stall number is timed on
+the laptop, so it cannot tell a slow hotspot from a busy laptop, and a full test run was going on
+this laptop during the two calls that stalled. Three causes are still open: the hotspot, the busy
+laptop, and the long trip from Twilio in the US to the phone in India. For the demo: nothing else
+running on the laptop, a second phone for the hotspot, and `LIVE_TTS_STREAM=false`. A recorded
+call (`CALL_RECORD=true`, then `make recording`) will show which side the holes are on.
+
+**5 Oct, 6:30 pm — talk to it on the Mac; the side work is merged and read.** Your plan is
+built: `make mac-call` lets you talk to the system through the Mac's own microphone and speakers,
+with no Twilio and no phone. It is the same call path as the phone (ear, language, model, search,
+voice, log); only the phone leg is taken out. In a 9 second try the greeting came out of the Mac
+and the call's log was written. Nobody spoke in that try, so the first real talk is yours. Use
+headphones, or the microphone hears the agent's own voice.
+- *The merge.* The three side jobs (Muse's 1.3a, Antigravity's 1.5a, the 1.4a translate guard)
+  are joined on a branch of their own, `phase1-merge`, with no clash. 2,589 tests pass and 2 fail;
+  2,552 scripted talks break no rule.
+- *Why it is not on the main branch yet.* A read of Muse's work found faults a caller would hear:
+  "tell me the farmer scheme" switches the questions off for the whole call; the one word
+  "किसान" is taken as the name of the Kisan Credit Card (this is one of the 2 failing tests);
+  "मांगना" is heard as "mother". Parts of it are written but never called. The model's half of
+  step 1.3 (the prompt) is not started.
+- *Next.* Two prompts are ready to paste: one for Muse (fix those, finish 1.3), one for
+  Antigravity (fix the search by part and the translate guard). They touch different files, so
+  they can run at the same time. When both are back I read them, join them, wire search and
+  translate into the talk, and you check it with one Mac call. Then cut-in starts with a new
+  step 2.0: cut-in tried on the Mac with headphones first.
+- *Not saved to git yet:* the Mac call tool and the call-recording tool. Say "commit".
+
+**5 Oct, 7:00 pm — the Mac call shows the talk; Antigravity's work is read; the photo part is planned.**
+- *The Mac call screen.* `make mac-call` now prints the talk as it goes: what the ear heard (YOU),
+  what the agent says (AGENT), keys, what the agent chose and how long the reply took. It reads
+  the call's own log, so it is what the server really heard. Tested with 10 small tests and a
+  replay of your last Mac call; not yet seen on a live call.
+- *Antigravity's 1.5b and 1.4b.* Its 87 tests pass. The search by part is good enough to join:
+  Hindi words such as "रुपये" now match. But part of the gain on "questions in other words" came
+  from adding the test's own phrases; on 10 fresh questions it scores 6, the same as before.
+  The translate guard is NOT ready: it refuses good Hindi lines ("a loan" -> "एक कर्ज",
+  "18-40 years"), and a caller would then hear English. So for the demo only the search is
+  joined; the talk keeps answering in the caller's language as it does today.
+- *The photo part (new, Phase 4 in the plan).* The call gives a 3-digit code. A person nearby
+  with a smartphone opens a page, types the code and sends a photo. A helper at the laptop sees
+  the photo and the result and presses "call back"; the line rings the caller and says the
+  answer with the scheme that fits. Planned, not built.
+- *One thing to know.* The Groq key has no model that reads pictures. Until you name one, the
+  desk shows the photo and the helper writes the answer.
+- *The next two hours.* Muse finishes 1.3b. Antigravity builds the photo pages (prompt ready).
+  I commit, join the search, do cut-in on the Mac with you, then the code in the call and the
+  call-back, then one whole run. Of the keys phase only key 9 (the photo code) fits.
+- *Not saved to git yet:* the Mac call tool and its screen, the recording tool, the plan.
