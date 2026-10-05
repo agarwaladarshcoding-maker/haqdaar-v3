@@ -19,6 +19,7 @@ import threading
 import time
 from typing import Any, Callable, Optional
 
+from haqdaar.audio.lang_words import language_from_words
 from haqdaar.audio.mouth import Mouth
 from haqdaar.contracts import tunables
 from haqdaar.contracts.types import Digit, Hangup, Input, Noise, Silence, Speech
@@ -139,6 +140,14 @@ class Turn:
     def _sounding(self) -> Optional[tuple[int, str]]:
         return getattr(self._mouth, "sounding", lambda: None)()
 
+    def _talk_ignores(self, digit: str, prompt_name: str) -> bool:
+        """2.4: in a talk call a key the talk does not act on must not stop the voice or answer the
+        prompt. It still comes through and is logged "keys are off". Acted on: key 9 (the photo link),
+        and the language keys while the greeting sounds (any key there works as before)."""
+        if not tunables.TALK_ONLY or prompt_name == "greeting_trilingual":
+            return False
+        return not (tunables.PHOTO_IN_CALL and digit == "9")
+
     # --- socket loop ---------------------------------------------------------------
     def push_key(self, digit: str) -> None:
         """A key arrived. Stop whatever is playing, and stamp the key with prompt_n and time."""
@@ -152,7 +161,8 @@ class Turn:
         last_digit, last_n, last_t = self._push
         repeat = digit == last_digit and self.prompt_n == last_n and (now - last_t) < (tunables.KEY_REPEAT_MS / 1000.0)
         self._push = (digit, self.prompt_n, now)
-        if was_playing and not in_guard and not repeat:
+        stray = self._talk_ignores(digit, sound[1] if sound else self.current_prompt_name)
+        if was_playing and not in_guard and not repeat and not stray:
             cut_clip, heard_ms = self._mouth.clear()
 
         with self._lock:
@@ -277,12 +287,14 @@ class Turn:
                 continue
 
             # Key passed all gate checks! (G1, G9, ok)
+            stray = self._talk_ignores(sk.digit, sk.stamp()[1])
             with self._lock:
                 self._last_key_digit = sk.digit
                 self._last_key_prompt_n = sk.prompt_n
                 self._last_key_t = sk.t
-                self._answered_prompt_n = sk.prompt_n
-                self.prompt_open = False
+                if not stray:   # 2.4: a stray key answered nothing: a key 9 after it in the same reply still counts
+                    self._answered_prompt_n = sk.prompt_n
+                    self.prompt_open = False
 
             self._log_event(
                 event="key",
@@ -387,7 +399,8 @@ class Turn:
             # The caller's voice may stop a playing clip (S1-S7). Never on turn0 (S5).
             # 7.14 (B5) the strict gate of a talk call: more voice is needed to pause the agent,
             # and fewer than CUT_IN_GATE_WORDS real words means it says the cut sentence again.
-            gate = tunables.CUT_IN_GATE and tunables.TALK_ONLY and profile == "spoken"
+            # 2.3: the greeting too: real words over it stop it and are turn 1 (the language pick keeps them).
+            gate = tunables.CUT_IN_GATE and tunables.TALK_ONLY and profile in ("spoken", "greeting")
             cut_in = (
                 ((tunables.SPEECH_CUT_IN and profile != "turn0") or gate)
                 and hasattr(self.ear, "watch_voice")
@@ -438,7 +451,8 @@ class Turn:
                 # as if nothing happened. No turn, no strike, no words lost.
                 if gate:
                     nothing = isinstance(inp, Noise) or (
-                        isinstance(inp, Speech) and real_words(inp.text) < tunables.CUT_IN_GATE_WORDS)
+                        isinstance(inp, Speech) and real_words(inp.text) < tunables.CUT_IN_GATE_WORDS
+                        and not (profile == "greeting" and language_from_words(inp.text)))   # "English" is the pick, not a false cut
                 else:
                     nothing = false_cuts < tunables.CUT_IN_FALSE_MAX and self._false_cut(inp, profile)
                 if (

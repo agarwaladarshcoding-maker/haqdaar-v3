@@ -97,6 +97,13 @@ SCRIPTS: dict[str, list[Any]] = {
     "f_slow": [("say", "i need a scheme for farming", 1.8), ("say", "speak slowly", 1.0),
                ("say", "how much money does it give", 1.6), ("say", "normal speed", 1.0), BYE],
     "f_recap": [("say", "just tell me i am a woman and a farmer", 2.4), ("say", "how much money does it give", 1.6), BYE],
+    # 2.3 / 2.4 / 2.5: words over the greeting, a key mid-reply, "say it again" over the agent. The first item
+    # ("over", seconds into the call, words, seconds, then a language key) is said over the greeting.
+    "g_words": [("over", 0.3, "i need a scheme for farming", 1.5, False), ("say", "how much money does it give", 1.6), BYE],
+    "g_one_word": [("over", 0.3, "ok", 0.9, True), ("say", "i need a scheme for farming", 1.8), BYE],
+    "f_key_mid": [("say", "i need a scheme for farming", 1.8), "5", ("say", "how much money does it give", 1.6), "9", BYE],
+    "f_cut_again": [("say", "i need a scheme for farming", 1.8), ("say", "which papers are needed", 1.4),
+                    ("say", "say that again please", 1.2), BYE],
     "q_three": [("say", "hmm", 0.6), ("say", "hmm", 0.6), ("say", "hmm", 0.6),
                 ("say", "ok", 0.8), BYE],
 }
@@ -106,9 +113,11 @@ KINDS: dict[str, Any] = {
     "cut_in": ("wait tell me about the pension scheme", 1.8),
     "hmm": ("hmm", 0.5),
     "ok_ok": ("ok ok", 1.0),
+    "cut_again": ("wait say that again please", 1.8),
     "noise": ("", 1.2),
     "long_noise": ("", 4.0),
     "key": "5",
+    "key9": "9",
     "hangup": "h",
 }
 SIDE_WORDS = ("ramesh",)
@@ -186,7 +195,11 @@ def run_call(script: str, gate: bool, inject: Optional[Callable[[be.World, be.Ca
     res = be.Result()
     try:
         line, rec = be.Line(world), be.Rec(world)
-        caller = be.Caller(world, [be.lang_key("en")] + SCRIPTS[script])
+        items = list(SCRIPTS[script])
+        over = items.pop(0) if items and items[0][0] == "over" else None
+        # "s": no scripted answer at the greeting, the words over it are the caller's; then the language key if asked
+        first = ["s"] + ([be.lang_key("en")] if over[4] else []) if over else [be.lang_key("en")]
+        caller = be.Caller(world, first + items)
         stt = be.FakeSTT(world, caller)
         clock = lambda: world.now  # noqa: E731
         mouth = Mouth(line.emit, "MZ-talk", clock=clock, log=rec)
@@ -224,6 +237,8 @@ def run_call(script: str, gate: bool, inject: Optional[Callable[[be.World, be.Ca
             return real_lang()
 
         phone.next_input, phone.select_language = next_input, select_language
+        if over:
+            world.at(be.T0 + over[1], lambda: caller.speak(world.now, over[3], over[2]))
         if inject is not None:
             inject(world, caller)
         log = Log.open(call_id=f"talk_{n}", snapshot_id=corp.snapshot_id, logs_dir=str(Path(_TMP.name) / "logs"))
@@ -297,7 +312,8 @@ def check(res: be.Result) -> list[str]:
         ev = row.get("ev")
         if ev == "act" and row.get("action") in SPOKEN:      # side talk alone is not "the caller was heard"
             heard = True
-        if ev == "act" and row.get("action") == "repeat" or row.get("class") == "SILENCE":
+        if ev == "act" and row.get("action") == "repeat" or row.get("class") == "SILENCE" or (
+                ev == "key" and row.get("means") == "send the photo link"):   # key 9 again asks for the same line
             may_repeat = True
         if ev == "said" and row.get("tokens") == ["answer"]:
             text = row.get("text", "")
@@ -356,6 +372,10 @@ def plan(scripts: Optional[list[str]] = None, kinds: Optional[list[str]] = None,
                 times = times[::step][:places]
             for kind in kinds or list(KINDS):
                 for at in times:
+                    # "say it again" before any reply was made has nothing to say again (the talk says nothing: a gap
+                    # that is there with the gate off too, left alone): only from the first reply on.
+                    if kind == "cut_again" and at < min([r["t"] for r in plain.log_rows if r.get("ev") == "act"], default=0.0):
+                        continue
                     cases.append(dict(script=script, gate=gate, kind=kind, at=at, res=None))
     return cases
 

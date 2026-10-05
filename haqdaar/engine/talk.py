@@ -829,8 +829,11 @@ class _Talk:
             if cut and action == "not_for_me" and hasattr(self.audio, "say_cut_again"):
                 stop_filler()                       # not for the agent: it goes on from the cut sentence
                 row["again"] = bool(self.audio.say_cut_again()) or None
+            if cut and action == "repeat" and tunables.CUT_IN_GATE and hasattr(self.audio, "say_cut_again"):
+                stop_filler()                       # 2.5: "say it again" over the agent: from the cut sentence, not the top
+                row["again"] = self.audio.say_cut_again() or None
             if action == "repeat":
-                say = self.last_say
+                say = "" if row.get("again") else self.last_say
             if say:
                 if self._speak(say, first_voice):
                     self.voice_fails = 0
