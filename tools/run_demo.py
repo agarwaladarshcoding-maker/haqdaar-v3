@@ -22,7 +22,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from haqdaar.audio.telephony import place_call, point_number_at
-from tools.tunnel import _resolves, cloudflare_host, start_cloudflare
+from tools.tunnel import _resolves, cloudflare_blocked, cloudflare_host, start_cloudflare, start_ngrok
 
 PORT = 8000
 # Default is the real backend; APP=haqdaar.voice_demo:app works only on the demo-15sep branch.
@@ -58,7 +58,18 @@ def main() -> int:
     to = os.environ.get("TO") or os.environ.get("CALL_ME_NUMBER", "")
     Path("logs").mkdir(exist_ok=True)
 
-    host = cloudflare_host()
+    ngrok = os.environ.get("NGROK_DOMAIN", "")
+    host = ""
+    # 5 Oct: on a network that opens only the web ports cloudflared never connects, and the call
+    # was never placed. Then ngrok is used (it goes out on port 443). TUNNEL=ngrok asks for it.
+    if os.environ.get("TUNNEL") == "ngrok" or (ngrok and cloudflare_blocked()):
+        why = "asked for" if os.environ.get("TUNNEL") == "ngrok" else "this network blocks cloudflared (port 7844)"
+        if start_ngrok(ngrok):
+            host = ngrok
+            print(f"run-demo  using ngrok: {why}", flush=True)
+        else:
+            print(f"run-demo  !! ngrok did not start ({why}); see logs/ngrok.log. Trying cloudflared.", flush=True)
+    host = host or cloudflare_host()
     for attempt in range(3):  # quick-tunnel signup is slow some nights (15 Sep: timed out once)
         if host:
             break
@@ -105,9 +116,11 @@ def main() -> int:
             out = subprocess.run(["curl", "-s", "-m", "5", *pin, f"https://{host}/health"],
                                  capture_output=True, text=True).stdout
             return '"ok"' in out
-        ok = ok and wait_for("the tunnel to reach the server", through_tunnel, 90)
+        ok = ok and wait_for("the tunnel to reach the server", through_tunnel, 90 if host == ngrok else 30)
         if not ok:
-            print("run-demo  !! not ready. Backup: make demo SPEAK=1", flush=True)
+            print("run-demo  !! not ready: the tunnel did not reach the server (logs/cloudflared.log, logs/ngrok.log)."
+                  + ("" if host == ngrok else " Stop this (Ctrl+C) and run again with TUNNEL=ngrok in front.")
+                  + " If that fails too, use a phone hotspot.", flush=True)
         else:
             try:
                 point_number_at(f"https://{host}/answer")

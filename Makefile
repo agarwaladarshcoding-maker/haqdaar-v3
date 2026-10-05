@@ -42,6 +42,10 @@ call:
 call-me:
 	caffeinate -dimsu $(PYTHON) -m tools.run_demo
 
+# 5 Oct: run a few minutes before a demo call. Says what is ready and what is not. Places no call.
+stage-check:
+	$(PYTHON) -m tools.stage_check
+
 sim:
 	$(PYTHON) -m haqdaar.sim $(if $(SNAP),--snapshot $(SNAP),) $(if $(KEYS),--keys "$(KEYS)",)
 

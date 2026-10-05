@@ -23,6 +23,8 @@ LOGS = Path("logs")
 HOST_FILE = LOGS / "tunnel_host"
 PID_FILE = LOGS / "tunnel.pid"
 LOG_FILE = LOGS / "cloudflared.log"
+NGROK_LOG = LOGS / "ngrok.log"
+NGROK_PID = LOGS / "ngrok.pid"
 PORT = 8000
 
 
@@ -49,13 +51,58 @@ def _resolves(host: str, tries: int = 8) -> str:
     return ""
 
 
+def _tunnel_up(host: str) -> bool:
+    """False when Cloudflare itself says the tunnel is gone (http 530). The name of a dead quick
+    tunnel still resolves (5 Oct: a 20-hour-old dead address was reused and no call was placed)."""
+    try:
+        out = subprocess.run(["curl", "-s", "-m", "6", "-o", "/dev/null", "-w", "%{http_code}", f"https://{host}/health"],
+                             capture_output=True, text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        return True     # no answer is not proof: keep it, the caller's own wait will tell
+    return out != "530"
+
+
+def cloudflare_blocked() -> bool:
+    """True when this network does not let cloudflared out. It needs port 7844; some networks
+    (5 Oct, the hackathon hall) open only the web ports, and the tunnel then never connects."""
+    import socket
+
+    try:    # the name has some twenty addresses: two tries of 2 s each are enough to know
+        found = socket.getaddrinfo("region1.v2.argotunnel.com", 7844, socket.AF_INET, socket.SOCK_STREAM)
+    except OSError:
+        return True
+    for *_rest, address in found[:2]:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(2)
+            if s.connect_ex(address) == 0:
+                return False
+    return True
+
+
+def start_ngrok(host: str) -> bool:
+    """Start ngrok on the saved address (it goes out on the web port 443). True: running."""
+    if not host:
+        return False
+    if subprocess.run(["pgrep", "-f", f"ngrok http --url={host}"], capture_output=True).returncode == 0:
+        return True
+    LOGS.mkdir(exist_ok=True)
+    try:
+        proc = subprocess.Popen(["ngrok", "http", f"--url={host}", str(PORT), "--log", "stdout"],
+                                stdout=open(NGROK_LOG, "w"), stderr=subprocess.STDOUT, start_new_session=True)
+    except OSError:
+        return False
+    NGROK_PID.write_text(str(proc.pid))
+    time.sleep(2)
+    return proc.poll() is None
+
+
 def cloudflare_host() -> str:
     """Saved cloudflared address if that cloudflared is still running and its address still
     exists, else "". A quick tunnel can die while the process lives on (15 Sep: dead host
     reused for 2 days); then stop that process so a fresh one starts."""
     if HOST_FILE.exists() and PID_FILE.exists() and _alive(pid := int(PID_FILE.read_text())):
         host = HOST_FILE.read_text().strip()
-        if _resolves(host):
+        if _resolves(host) and _tunnel_up(host):
             return host
         os.kill(pid, 15)
         PID_FILE.unlink()
