@@ -89,6 +89,7 @@ class Turn:
         self._answered_prompt_n: int = -1
         self._stashed_key: Optional[Digit] = None
         self._gap_watch: bool = False   # 7.5: newer_input already started this busy time's voice watch
+        self._ear_on: bool = False      # 2.2: the voice watch began at the reply's first sound
         self._push: tuple[str, int, float] = ("", -1, 0.0)   # the last key that came in: digit, prompt_n, time
         self._keys: "queue.Queue[StampedKey]" = queue.Queue()
         self._lock = threading.Lock()
@@ -349,6 +350,21 @@ class Turn:
         inp = ear.listen(timeout=gap_s, lang=lang, resume=True)
         return inp if isinstance(inp, (Speech, Digit)) else None
 
+    def ear_on(self) -> None:
+        """2.2: a talk reply's first sound goes out. The cut-in gate listens from here, not from when
+        the whole reply is queued: what the caller says over the start of the reply is kept for
+        wait_input instead of being thrown away there. Only with the gate on."""
+        if (
+            not (tunables.CUT_IN_GATE and tunables.TALK_ONLY)
+            or self.ear is None
+            or self.keypad_only
+            or not hasattr(self.ear, "watch_voice")
+        ):
+            return
+        self.ear.drain_media()
+        self.ear.start_watch()
+        self._ear_on = True
+
     def _false_cut(self, inp: Input, profile: str) -> bool:
         """Did the caller's sound stop a clip without being an input? Sound with no words, or a
         listening sound ("hmm", "accha"). Never when speech-to-text broke (the engine must
@@ -378,6 +394,7 @@ class Turn:
     ) -> Input:
         """Wait for input: DTMF digit, spoken audio via Ear, silence, or hangup."""
         self._gap_watch = False
+        early, self._ear_on = self._ear_on, False
         if self.hung_up.is_set():
             self.prompt_open = False
             return Hangup()
@@ -405,7 +422,9 @@ class Turn:
                 ((tunables.SPEECH_CUT_IN and profile != "turn0") or gate)
                 and hasattr(self.ear, "watch_voice")
             )
-            if cut_in:
+            # 2.2: a watch begun at the reply's first sound carries on: its sound is the caller's, not stale.
+            early = early and gate and cut_in
+            if cut_in and not early:
                 self.ear.drain_media()
                 self.ear.start_watch()
             false_cuts = 0
@@ -418,7 +437,9 @@ class Turn:
                     if key is not None:
                         return key
                     if cut_in:
-                        in_guard = self.prompt_start_t > 0 and (
+                        # No guard on an early watch: the guard starts when a sentence is queued, not when
+                        # it sounds, so it would throw away (or start again) voice heard since the reply began.
+                        in_guard = not early and self.prompt_start_t > 0 and (
                             self._clock() - self.prompt_start_t < tunables.KEY_GUARD_MS / 1000.0
                         )
                         heard = (self.ear.watch_voice(in_guard, tunables.CUT_IN_GATE_MS, tunables.CUT_IN_GATE_GAP_MS)

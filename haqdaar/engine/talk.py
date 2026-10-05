@@ -732,6 +732,14 @@ class _Talk:
         if not hasattr(self.audio, "say_text"):
             return True
         parts = _sentences(say)
+        ear_on = getattr(self.audio, "ear_on", None)
+        if ear_on and tunables.CUT_IN_GATE:    # 2.2: listen from the first sound, not once the whole reply is queued
+            then = before_first
+
+            def before_first() -> None:
+                ear_on()
+                if then:
+                    then()
         warm = getattr(self.audio, "warm_text", None)
         stream = bool(warm) and tunables.LIVE_TTS_STREAM    # the first sentence plays as its sound arrives
         ahead = []                              # the later sentences are made while the first is said
