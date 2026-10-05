@@ -107,6 +107,17 @@ def build(level):
     a("question", "l", "cat1", "t", layer="base", label="category 1", lab=(0, 0.6, 0, 0))
     a("question", "b", "cat2", "t", layer="base", label="category 2")
     a("question", "r", "cat3", "t", layer="base", label="category 3", lab=(0, 0.6, 0, 0))
+    n("people", "HOW PEOPLE REALLY TALK (plan 1.3 and 1.8)\n- \"no no, just tell me the scheme\": stop "
+      "asking, show the 2 best, say what the pick is based on\n- \"I do not know\" / \"I will not "
+      "say\": never asked again\n- \"I am NOT a farmer\": the word \"not\" is read\n- \"for my "
+      "mother\": the questions are about her\n- a short name (\"PM Kisan\", \"MNREGA\") is a scheme "
+      "name\n- a scheme we do not hold: \"I do not have that one yet\"\n- two needs at once: one, "
+      "then the other\n- \"the second one\", \"any other?\": from a list the code keeps\n- \"will "
+      "I get it?\": no promise; who it is for, then the ONE thing not known\n- \"did not "
+      "understand\": simpler words, not the same ones\n- \"one minute\": waits up to 2 min\n- is it "
+      "free, are you a person: true fixed lines\n- distress: a kind line and a help-line number "
+      "FIRST, before any question\n- never takes an Aadhaar, bank or OTP number", 2300, top=cat_top - 60,
+      w=460, kind="note", layer="add", align="left")
 
     # ---------------- the model, search, log ----------------
     llm = n("llm", "THE MODEL (LLM)\nReads the system prompt, the log and this turn. Decides the "
@@ -165,7 +176,9 @@ def build(level):
       "- at most 2 searches in one turn\n- 3 "
       "clarifying questions in a row with no usable reply: \"Press 6 to use keys\"\n- 2 quiet "
       "waits in a row: goodbye\n- nothing ready 1.6 s after the caller stops: says \"one moment\"\n"
-      "- 40 turns or 10 minutes: a polite goodbye", XA, top=truth.top, w=420, kind="note",
+      "- 40 turns or 10 minutes: a polite goodbye\n- \"just tell me\" always wins over a question\n"
+      "- off topic 3 times in a row: a polite goodbye\n- \"thanks\" is not goodbye: \"anything else?\" once",
+      XA, top=truth.top, w=420, kind="note",
       layer="add", align="left")
     hear_top = max(convert.bottom + 110, log.bottom + 30, limits.bottom + 100)
     hear = n("hear", "User hears the output", 0, top=hear_top, w=440)

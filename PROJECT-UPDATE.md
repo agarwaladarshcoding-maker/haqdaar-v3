@@ -1498,3 +1498,38 @@ same folder, uncommitted. It waits for the owner's phone check. No money was spe
 - *The charts* now show this: the question is picked by fixed code from the keyword bits, and a
   situation gets up to 3 questions before any scheme is shown.
 - *No app code was changed.* Only files were removed and papers written.
+
+## 5 Oct 2026, evening: the repo made ready for step 1.1; the plan stressed with human-style talk
+
+- *What was asked.* Go through every folder, find what could harm us, clean the repo, stress
+  the plan, and think about how a real person talks ("no no, just tell me the scheme").
+- *No app code was changed.* The rule stands: building starts on "start Phase 1".
+- *Folder check.* Every folder was read. No key or secret is in git. Things that could harm us
+  were found and are now step 1.0 of the plan: the make commands take the one Twilio number
+  away from the fallback folder without asking; the server listens on the whole wifi; the
+  `/stream` door takes anyone as a caller; two test commands spend many Groq tokens.
+- *Cleaned.* 7 old snapshots that nothing used; an empty folder; old compiled files; old agent
+  drafts and old task files (moved to `~/code/haqdaar-old-agent-files`, not deleted, as they
+  are in no git branch). `make talk-questions` now needs `YES=1`.
+- *Human-style talk, run on today's code with no model.* 55 cases are in
+  `fixtures/talk_human.json`. What broke:
+  - "I am NOT a farmer" is taken as a farmer. "I do not want a loan" is taken as a loan.
+  - "PM Kisan", "MNREGA", "KCC", "PM Awas" are not found as scheme names; only the full written
+    name is. So "answer first for a named scheme" can not work yet.
+  - A scheme we do not hold (Ayushman, ration card, Ladli Behna) looks like any loose need.
+  - "My husband was a farmer, I am a widow" makes the caller a farmer.
+  - "For my mother" is not kept; the questions say "your age".
+  - Two needs in one sentence: one is lost.
+  - "One minute, I will get the paper": the line hangs up after about 60 s.
+  - "I do not know" gets the same question a second time. There is no "just tell me".
+- *The plan (added, nothing taken out).* Step 1.0 (safe before the first call). More ways a
+  call can start, and the traps of the greeting, in 1.1. The fixes for the list above in 1.3.
+  A new step 1.8 for follow-up talk: "the second one", "any other?", "will I get it?", "did not
+  understand", "hold on", is it free, a caller in distress, "thanks" is not goodbye.
+- *One thing to know for 1.1.* The greeting is a recorded clip. New greeting words cost a
+  Sarvam render and a new snapshot. So 1.1 is in two parts: the three bugs first (free), the
+  new words after.
+- *The charts* have a new box, "how people really talk", and three more rule lines. All checks pass.
+- *Checks.* 2,385 tests pass, none fail. 2,552 scripted talk calls break no rule.
+- *Left for the owner.* The brain folder and its rule file still call themselves binding (D2,
+  D8). The help-line numbers for a caller in distress must be checked (D5).

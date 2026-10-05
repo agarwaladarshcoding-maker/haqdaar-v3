@@ -9,6 +9,12 @@ Haqdaar is a phone line that tells a caller about government schemes, by talk an
 4. `.agent/TASK.md` and `.agent/NOTES.md`: the task in hand and what was found.
 5. `PROJECT-UPDATE.md`: the story so far, in plain words, newest at the end.
 
+## The first task
+`PLAN.md` step 1.0 (small safety guards), then 1.1 part A (the three bugs at the greeting; no
+cost). The traps of 1.1, with file and line, are in `.agent/NOTES.md` under "STEP 1.1 traps".
+`fixtures/talk_human.json` holds 55 cases of how people really talk, for steps 1.3 and 1.8.
+Note: `make call-me` here moves the Twilio number to this folder, away from the fallback.
+
 ## Where the code is
 - Folder `~/code/haqdaar-v2`, branch `v5-clean`. Work here.
 - `~/code/haqdaar-v2-7.3` holds the code as it was before the clean-up (branch

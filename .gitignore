@@ -20,13 +20,10 @@ haqdaar-v2-brain/.obsidian/workspace*.json
 brain/.obsidian/workspace*.json
 !haqdaar/audio/
 !fixtures/audio/
-voice_demo_clips/
 .claude/settings.local.json
-
-# dashboard (Next.js)
-dashboard/.next/
-dashboard/next-env.d.ts
-dashboard/tsconfig.tsbuildinfo
 
 # third-party design skill (MIT, 3 MB of lookup data): installed locally, not kept in git
 .claude/skills/ui-ux-pro-max/
+
+# tools/pace_samples and tools/barge_eval write here
+scratch/

@@ -22,12 +22,55 @@ sentence was not taken as Hindi; the words said there were thrown away. That is 
 
 ## 2. Phase 1: the talk flow (chart 1)
 
+### 1.0 Safe before the first call (added 5 Oct evening, from the folder audit; about an hour)
+Small guards, no change to what the caller hears. Each was found by reading; see NOTES.
+- `make call-me` and `make run` point the ONE Twilio number at this folder with no question
+  asked. From then on the fallback folder gets no calls. Print which folder holds the number
+  and ask once.
+- The server listens on every network (0.0.0.0). Change to this computer only (127.0.0.1); both
+  tunnels still reach it.
+- `/stream` takes any connection as a call: check that it is Twilio's, and use the 10 minute cap
+  (also in 1.6). Take out the open `/tone` test route and the open `/docs` pages.
+- `make stage-check` sends about 2,500 tokens to each model just before a call: make it a few words.
+  `make ear-check` is live by default: make it offline by default.
+- `make pipeline-scrape` deletes a scheme's saved pages when one fetch fails: `make backup` first.
+- Dead bits to cut while there: `TURN0_KEYS` (phone.py:50), the `voice_demo` branch in
+  run_demo.py, 4 settings no code reads, the `WORK.md` pointer in types.py:41.
+- Done this turn already: 7 old snapshots removed, `make talk-questions` needs `YES=1`,
+  `scratch/` is ignored, junk files cleared.
+
 ### 1.1 The greeting door
 - Keys stay open after a noise with no words.
 - Any real words at the greeting start the talk. They are kept as turn 1.
 - New greeting: hello in Hindi, English and 3 set languages (a setting, not from the phone
   number), then "speak in any language". Keep it near 15 s.
 - Check: no-phone probe scripts (says "Hindi"; a noise then key 1; a full Hindi question). Phone check.
+- Added 5 Oct evening, more ways a call can start (each gets a probe script):
+  - The caller says only "hello?" or "haan?": not a need. Say the short "tell me what you need" line, not the whole greeting again.
+  - The caller asks a full question at the greeting ("PM Kisan mein kitna milta hai"): it is turn 1 and is answered; no "which language" step.
+  - The caller speaks a language the voice does not have: reply in Hindi and say so once (the full rule is 1.2).
+  - Nobody speaks, only room sound or a TV: the quiet rule runs (30 s, greeting once more, 30 s, goodbye). Room sound must not reset the 30 s.
+  - An answering machine or the trial-line message: no words meant for us for 60 s = hang up; never talk for 10 minutes to a machine.
+  - The tests that pin today's greeting are changed in the same step, not left red.
+- Added from the audit, traps in this step (file and line for each are in NOTES):
+  - The greeting is a RECORDED clip. New words need a paid render and a new snapshot
+    (`make render YES=1 SNAP=snapshots/CURRENT`, then `make snapshot`). So 1.1 goes in two
+    parts. Part A, no cost: the three bugs (keys stay open, any words start the talk, words
+    kept as turn 1). Phone check. Part B, on the owner's word: the new greeting words (D3 first).
+  - One setting (`LANGS_OFFERED`) sets the greeting parts, the keys and the languages that can
+    be picked. Five hellos with two pickable languages needs a setting of its own.
+  - The code knows three languages only (the `Lang` type, the log check, three voices). A
+    greeting may NAME more; picking more is 1.2.
+  - The talk loop has no way to take first words, and says its own hello after the greeting
+    (two hellos, written in two files). Give it the first words; then it skips its hello.
+  - The pick-a-language step has 5 copies (the app, the sim, two test rigs, test fakes). All
+    change together.
+  - Words said WHILE the greeting plays are thrown away today (that is 2.3). Say so in the
+    phone check: wait for the greeting to end.
+  - The call viewer and talk-eval read the log line of the language pick and the clip's name.
+    Keep both as they are.
+  - About 10 test files pin today's greeting; two of them pin the very thing 1.1 removes
+    ("words that name no language ask again").
 
 ### 1.2 Language from Sarvam, on every turn
 - Use the language code the speech service already sends back. Under 3 words, or no code: keep
@@ -62,6 +105,41 @@ category has more than 4. So "my crops died" jumps straight to a list of schemes
   tests on a made-up set of 100 schemes; new talk-eval scripts. Then 10 real-model turns
   (about 30,000 tokens) on the owner's word. Phone check.
 
+#### 1.3 additions (5 Oct evening): what a no-model run of human-style talk showed
+The cases are in `fixtures/talk_human.json` (55 cases, each with what the line must do and what
+it does today). The run is in NOTES. These are added to 1.3; nothing above is taken out.
+- **Short names of schemes, first.** "Answer first for a named scheme" can not work today: only
+  the full written name is found by name. "पीएम किसान", "मनरेगा", "केसीसी", "pm awas", "स्वनिधि"
+  are not. Add a list of the names people say (short forms, letters, Hindi and Latin) for each
+  scheme, kept next to the scheme data so 100 schemes can carry theirs.
+- **A scheme we do not hold.** "आयुष्मान", "राशन कार्ड", "लाडली बहना" look like a loose need today
+  and would get questions. Add a list of well-known schemes we do not hold; the line says "I do
+  not have that one yet" and names the kinds it does have. So there are FOUR kinds of turn: a
+  scheme we hold, a scheme we do not hold, a straight question, a situation.
+- **The word "not".** "मैं किसान नहीं हूँ" sets farmer today; "मुझे लोन नहीं चाहिए" sets loans. The
+  word spotter must skip a word that has "नहीं / नही / मत / not / no / don't" right by it. And the
+  model may take a fact away (a `not` list in its reply), which it can not do today.
+- **"Just tell me."** "नहीं नहीं, बस योजना बता दो", "सीधे बताओ", "just tell me": a word list in
+  code plus a model flag. Asking stops for the rest of the call; the 2 best left are shown, with
+  one clause on what the pick is based on ("from what you told me, a farmer in Maharashtra").
+  The only time a question comes back: the caller asks "will I get it?" (see 1.8).
+- **"I do not know" / "I will not say."** The box is set to not known at once and never asked
+  again (today it is asked a second time). "Why do you ask?" gets one sentence of reason and the
+  question once more.
+- **An answer to another question** (asked age, told the state): the fact is taken and the age
+  question does not count as asked.
+- **Who the help is for.** "for my mother", "my son", "my husband": the questions are then about
+  that person ("what is her age?"). Another person's work is not the caller's ("my husband was a
+  farmer"). A new person in the same call clears age, gender and work; state and social group stay.
+- **Two needs in one sentence.** Take the newest or the first named, keep the other in a short
+  list, and come back to it: "you also asked about a house".
+- **A new need.** The search runs on the new words only (today the last 3 turns are joined), the
+  scheme in talk is dropped, and facts that came from the old need's words are checked again.
+- **A corrected fact** ("not 26, 62") builds the list again from all schemes of the need.
+- **Vague answers** ("बुज़ुर्ग हूँ", "थोड़ी ज़मीन है"): no guess; one yes-or-no question ("above 60?").
+- **Distress comes before any question** (see 1.8).
+- Check: the "by code" cases of `fixtures/talk_human.json` become pytest cases with no model.
+
 ### 1.4 English in the middle
 - Speech service in translate mode gives English words and the language in one call. The model
   reads and writes English. The truth check runs on the English. Sarvam translate turns the
@@ -91,6 +169,41 @@ category has more than 4. So "my crops died" jumps straight to a list of schemes
 - talk-eval scripts for every new path, pytest, py_compile. Phone check. Commit and push on the
   owner's word.
 
+### 1.8 Follow-up talk, like a person (added 5 Oct evening; done before 1.7 closes the phase)
+After the first answer a real caller does not ask clean questions. Each line below is a group in
+`fixtures/talk_human.json`. Fixed code does what it can; the model does the wording.
+- **What was named, kept by code.** A list of the schemes named in the last reply, in order, and
+  of all schemes named in the call. "दूसरा वाला" is the second of the last reply. "और कोई?" shows
+  only schemes not yet named; when none are left the line says so.
+- **Going back.** "वो पहले वाली": the first scheme again; its told parts are remembered.
+- **Two schemes side by side.** "किसमें ज़्यादा पैसा": one sentence each, numbers from the papers.
+  Never "this one is better for you". The "other scheme" guard lets a second scheme through
+  only when it is one of the two last named.
+- **"Will I get it?"** No promise, as today. The line says who the scheme is for, then the picker
+  runs on THAT ONE scheme and asks the one thing it depends on that is not known. When all is
+  known: "it is for X; you told me Y". The owner decides the exact words (D6).
+- **Say it another way.** "समझ नहीं आया": shorter and simpler, not the same sentences (new action
+  `simpler`). "कितना बोला?": only the number sentence. "धीरे बोलो": slower voice for the rest of the call.
+- **Hold on.** "एक मिनट रुको": new action `hold`; "take your time", then quiet for up to 2 minutes
+  before the quiet rule starts. Today two quiet spells end the call at about 60 s.
+- **"Hello? Can you hear me?"** is for us: "yes, I can hear you", then the last question again.
+- **A sentence in two halves.** A 1 or 2 word start with no sense waits for the rest (the ear's
+  end-of-speech wait is longer for it). Full fix is with the ear work in Phase 2.
+- **Trust, fixed lines.** "Is it free?", "are you the government?", "are you a person?", "let me
+  talk to a person": true, fixed lines. A caller who starts to read out an Aadhaar, bank or OTP
+  number is stopped at once; the digits never reach the log (they are masked today).
+- **What the line can not do.** Fill a form, send an SMS, check a payment: said plainly, with
+  where to go.
+- **Distress.** Words of giving up on life, or a death in the house: a fixed kind line with a
+  help-line number comes first, by a code word list, before any question. Then the schemes only
+  if the caller wants. The owner picks the number (D5).
+- **Off topic three times in a row:** a polite goodbye.
+- **"Thanks" is not goodbye:** "anything else?" once; goodbye on the next no, bye or quiet.
+- **Guard on cost:** all of this must fit one model call a turn and the 3,000 token turn. New
+  actions are added to the one prompt; no second prompt.
+- Check: one talk-eval script per group; the "by code" cases in pytest; 10 real-model turns on
+  the owner's word; phone check with the owner playing a rude, a slow and a confused caller.
+
 ## 3. Phase 2: cut-in (chart 2)
 - 2.1 Phone check of the gate as built (`CUT_IN_GATE=true`). Costs nothing; do it first.
 - 2.2 Ear on from the first sound of a reply.
@@ -116,6 +229,16 @@ category has more than 4. So "my crops died" jumps straight to a list of schemes
 - **Language guess on short words:** keep the last language.
 - **A long five-language greeting:** short hellos; cut-in at the greeting comes in Phase 2.
 - **A demo today:** `~/code/haqdaar-v2-7.3` is left as it was (branch `step-7.15-cut-in`).
+- **Too many questions drive the caller away** (added 5 Oct evening): at most 3, never the same
+  one twice after "I do not know", and "just tell me" always wins.
+- **Fixed word lists grow wild** (not, just tell me, hold on, distress, short names): each list
+  lives in one file, has its own test, and is checked in Hindi, Marathi and English. They must
+  hold for 100 schemes: the lists are about how people talk, not about one scheme, except the
+  short names, which sit with each scheme's data.
+- **The prompt grows past the Groq limit:** count the tokens of the prompt in a test; the new
+  actions may add no more than 400 tokens.
+- **A new action the model picks wrongly** (hold instead of goodbye): each new action gets
+  talk-eval scripts with the near-miss sentences, before the phone check.
 
 ## 6. For the owner to decide
 - D1. English in the middle for Hindi too, or only for other languages (after the 1.4 numbers).
@@ -124,6 +247,16 @@ category has more than 4. So "my crops died" jumps straight to a list of schemes
 - D3. Which 3 local languages the greeting names (clips exist for Marathi).
 - D4. Should the greeting say "for keys, press 6" from Phase 1, or only when it works (Phase 3)?
   The plan says Phase 3.
+
+- D5. (added 5 Oct evening) The help-line number said to a caller in distress. Proposed: Kisan
+  Call Centre 1800-180-1551 and Tele-MANAS 14416. Please check both numbers before they go in.
+- D6. The words for "will I get it?". Proposed: "This scheme is for <who>. You told me <fact>."
+  and never "you will get it" or "you will not get it".
+- D8. `.agents/rules/haqdaar-brain.md` tells every agent the brain folder is "binding" and
+  `AGENTS.md` names `sync_vault.py` as the build check. Both clash with this plan. They are your
+  rule files, so they were left. Goes with D2: keep the brain as old background, or drop it.
+- D7. Follow-up talk (1.8): build it right after 1.3, or after 1.5 as numbered? The cases that
+  are fixed code (the word "not", short names, "just tell me", "I do not know") are in 1.3 now.
 
 ## 7. Checks, every step
 ```

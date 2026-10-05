@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls calls-ui sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock barge-eval log-text
+.PHONY: run call calls calls-ui sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me ear-check model-bakeoff muse-status muse-block muse-unblock barge-eval log-text stage-check door-a-check qa-check qa-router-check talk-eval talk-questions
 
 test:
 	$(PYTHON) -m pytest
@@ -176,4 +176,5 @@ talk-eval:
 
 # Step 7.14 (B6): 40 real questions through the real model, per model in TALK_MODELS (Groq only; ~25 min).
 talk-questions:
+	@if [ "$(YES)" != "1" ]; then echo "talk-questions spends about 120,000 Groq tokens a model (the day limit is 200,000). Run: make talk-questions YES=1"; exit 1; fi
 	$(PYTHON) -m tools.talk_questions --questions $(ARGS)
