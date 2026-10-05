@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from haqdaar import net
 from haqdaar.contracts import tunables
 
-TARGET_CODES = {"hi": "hi-IN", "mr": "mr-IN"}
+TARGET_CODES = {"hi": "hi-IN", "mr": "mr-IN", "gu": "gu-IN", "ta": "ta-IN"}
 
 
 class AnswerTranslator:
