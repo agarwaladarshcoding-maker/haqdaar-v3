@@ -68,3 +68,9 @@ Facts from the run (snapshot CURRENT, 17 schemes; kinds: farming 4, business_loa
 - PLAN.md: new section 0 (how the work is cut + the gate after every phase); 1.0 got "the line stays smooth"; 1.1 got the greeting words (hi, mr, en; draft, to be OK'd before the paid render) and "key 6 works at the greeting"; distress keeps a kind sentence, no number; section 6 lists closed decisions; open: D1, D9 (where the server runs).
 - Charts: greeting box and its note changed to match; distress line changed. All checks pass.
 - pytest 2385 passed; talk-eval 0 broken.
+
+## Turn 9 (5 Oct night)
+- Owner: greeting = Hindi, English, Marathi + 2 more of Mumbai / Maharashtra (he named none; picked Gujarati + Tamil, a setting; Urdu has no Sarvam voice as far as I know and is served by Hindi). Draft Gujarati and Tamil words are in PLAN 1.1; NOT checked by a speaker. 5 languages = about 20 s.
+- Owner: every language (Hindi and English too) goes through Sarvam to English and back. D1 closed. Written at the top of PLAN 1.4.
+- Owner: keep the cloud-server path in the plan and say how to set it up -> PLAN section 8. (His sentence was garbled by dictation; this is my reading of it.)
+- Only PLAN.md and the charts changed; chart checks pass. pytest not run again (no code or test changed since the 2385-pass run of turn 8).

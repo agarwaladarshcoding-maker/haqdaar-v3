@@ -38,7 +38,7 @@ def build(level):
     start = n("start", "Call comes in from my phone number", 0, top=0, w=420, kind="start")
     twilio = n("twilio", "Twilio free-trial line plays. The caller presses any key to clear it. "
                "It can not be switched off on a trial account.", 0, top=start.bottom + 100, w=520)
-    greet = n("greet", "GREETING, short (about 12 s)\nIn Hindi, Marathi and English, each says: \"Welcome to "
+    greet = n("greet", "GREETING, short\nIn Hindi, English, Marathi, Gujarati and Tamil, each says: \"Welcome to "
               "Haqdaar. Speak in English or your own language. For keys, press 6.\"",
               0, top=twilio.bottom + 80, w=520)
     speaks = n("speaks", "Speaks?", 0, top=greet.bottom + 80, kind="diamond", w=200)
@@ -55,8 +55,8 @@ def build(level):
 
     n("tw_note", "No key pressed: Twilio ends the call by itself. A paid Twilio account has no "
       "such line.", -820, cy=twilio.cy, w=380, kind="note", layer="add")
-    n("greet_note", "For now the languages of Pune, Maharashtra: Hindi, Marathi, English (a "
-      "setting). Later: picked from the place of the caller's number.", -820, cy=greet.cy, w=380,
+    n("greet_note", "For now Hindi, English, Marathi + 2 more of Mumbai and Maharashtra: "
+      "Gujarati, Tamil (a setting). Later: picked from the place of the caller's number.", -820, cy=greet.cy, w=380,
       kind="note", layer="add")
 
     a("start", "b", "twilio", "t", layer="base", label="6296399690")

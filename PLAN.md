@@ -81,6 +81,17 @@ Small guards, no change to what the caller hears. Each was found by reading; see
   - Hindi: "हक़दार में आपका स्वागत है। हिंदी, अंग्रेज़ी या अपनी भाषा में बोलिए। बटन के लिए 6 दबाइए।"
   - Marathi: "हक्कदार मध्ये आपले स्वागत आहे. मराठी, इंग्रजी किंवा तुमच्या भाषेत बोला. बटणांसाठी 6 दाबा."
   - English: "Welcome to Haqdaar. Speak in English or your own language. For keys, press 6."
+- **Owner, later the same night: five languages.** Hindi, English, Marathi and two more spoken
+  in Mumbai and Maharashtra. Picked: Gujarati and Tamil (the next most spoken there that the
+  Sarvam voice can speak; Urdu speakers are served by the Hindi line). The two are a setting,
+  one line to change. Draft words, to be checked by a speaker before the paid render:
+  - Gujarati: "હકદારમાં આપનું સ્વાગત છે. ગુજરાતી, અંગ્રેજી કે તમારી ભાષામાં બોલો. બટન માટે 6 દબાવો."
+  - Tamil: "ஹக்தாரில் உங்களை வரவேற்கிறோம். தமிழ், ஆங்கிலம் அல்லது உங்கள் மொழியில் பேசுங்கள். பொத்தான்களுக்கு 6 ஐ அழுத்துங்கள்."
+  - Length: five times about 4 s is about 20 s, over the 12 s aim. Until cut-in at the greeting
+    (2.3) is built the caller must wait for the end. If 20 s feels long on the phone: Gujarati
+    and Tamil say only "welcome, speak in your own language" (about 2 s each, 16 s in all).
+  - The code knows three languages today. In 1.1 the greeting only NAMES Gujarati and Tamil;
+    hearing and answering in them comes with 1.2 (language each turn) and 1.4 (translate).
 - **Key 6 must work the day the greeting says it.** So the small part of 3.1 and 3.2 moves
   here: key 6 at the greeting starts the keys path that is already built. Key 6 in the middle
   of a talk, and going back from keys to talk, stay in Phase 3.
@@ -181,6 +192,13 @@ it does today). The run is in NOTES. These are added to 1.3; nothing above is ta
 - Check: the "by code" cases of `fixtures/talk_human.json` become pytest cases with no model.
 
 ### 1.4 English in the middle
+- **Owner, 5 Oct night (closes D1): ONE path for every language, Hindi and English too.** The
+  caller's words always go through Sarvam and come out as English; the model works in English
+  only; the reply always goes back through Sarvam translate into the caller's language. No
+  "direct" way is kept for Hindi. For a caller who speaks English the reply is already English,
+  so the translate-back step has nothing to do and is skipped; the speech step is the same.
+  The time is still measured against today (1.2 to 2.1 s to the first sound) and told to the
+  owner, but it no longer decides the path.
 - Speech service in translate mode gives English words and the language in one call. The model
   reads and writes English. The truth check runs on the English. Sarvam translate turns the
   reply into the caller's language; numbers and scheme names must come out unchanged, or the
@@ -286,7 +304,9 @@ background, the rest and its rule file removed; nothing in it is binding). D3 (H
 English; by place later). D4 (the greeting says "press 6" from Phase 1, and key 6 works at the
 greeting from 1.1). D5 (dropped: no help-line number). D6 (agreed as proposed). D7 (1.8 is
 built right after 1.3).
-**Open:** D1, and new: D9. Where the server runs so the line is smooth: a phone hotspot for now
+**Closed later the same night:** D1 (every language goes through English, Hindi and English too; see 1.4). D3 again (five languages: Hindi, English, Marathi, Gujarati, Tamil).
+**Open:** D9 only (the owner wants the cloud path kept in the plan; steps are in section 8).
+Older wording: D1, and new: D9. Where the server runs so the line is smooth: a phone hotspot for now
 (free), or a small cloud server in Mumbai (costs a little each month, no tunnel, no hall wifi).
 The older text of each decision is kept below.
 
@@ -315,3 +335,21 @@ python3 flow/build_flows.py          # only if a chart changed
 python3 -m py_compile <changed files>
 ```
 `make stress` and `make barge-eval` when the keys path or `turn.py` is touched.
+
+## 8. The cloud server in Mumbai (kept as a path; not built; owner's word needed to spend)
+Why: no laptop, no tunnel, no hall wifi in the call. Twilio talks to a server that sits near
+Sarvam's and Twilio's Indian ends. One caller at a time needs only a small machine.
+What the owner sets up (about 30 minutes, once):
+1. An account at a cloud with a Mumbai region (AWS `ap-south-1`, or DigitalOcean / Google Cloud
+   Mumbai). Smallest machine with 2 GB of memory, Ubuntu 24.04. About Rs 500 to 1,000 a month.
+2. A web name for it (any cheap domain, or a free sub-name), pointed at the machine's address.
+   Twilio needs `https` and `wss`, so a real name with a certificate is needed.
+3. Give the agent ssh access (a key), or run the set-up script yourself.
+What the agent then does (a step of its own, after Phase 1's gate):
+4. A set-up script: Python 3.11, the repo, the audio clips and the snapshot, `.env` copied by
+   hand (never through git), Caddy in front for the certificate, the server as a service that
+   starts again by itself.
+5. Twilio's number pointed at `https://<name>/answer`. `make call-me` gets a `HOST=` way that
+   skips the tunnel.
+6. The line report of 1.0 is compared: laptop on a hotspot against the cloud server, five calls each.
+Until then: a phone hotspot or wired net, not the hall wifi.

@@ -1550,3 +1550,14 @@ same folder, uncommitted. It waits for the owner's phone check. No money was spe
 - *A gate after every phase.* All tests, five phone calls from a fixed list, the logs read, the
   cost counted. No next phase with a red line.
 - *Checks.* 2,385 tests pass. 2,552 scripted talk calls break no rule. Charts pass.
+
+## 5 Oct 2026, late night: three more answers from the owner
+
+- *Greeting in five languages:* Hindi, English, Marathi and two more spoken in Mumbai and
+  Maharashtra. Gujarati and Tamil were picked; it is one setting to change. Five languages
+  take about 20 s, so a shorter line for the two new ones is offered in the plan.
+- *One path for every language.* Hindi and English too: the caller's words become English, the
+  model works in English, the reply is translated back by Sarvam.
+- *The cloud server in Mumbai* stays in the plan as a path, with the set-up steps (section 8).
+  Nothing is bought or built.
+- Only the plan and the charts changed. The chart checks pass.
