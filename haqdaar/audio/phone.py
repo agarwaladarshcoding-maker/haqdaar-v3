@@ -380,6 +380,11 @@ class PhoneAudio:
                 self._log("<- newer words while busy")
         return self._newer is not None
 
+    def ear_on(self) -> None:
+        """2.2: the first sound of a reply goes out now: the cut-in gate listens from here."""
+        if hasattr(self.turn, "ear_on"):
+            self.turn.ear_on()
+
     def say_cut_again(self) -> bool:
         """7.14 (B5): the words that cut the agent were not for it. Say the cut sentence again from
         its start, and what was to come after it. False: nothing was cut."""
