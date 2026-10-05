@@ -66,6 +66,8 @@ Small guards, no change to what the caller hears. Each was found by reading; see
     again", not silence.
   - The real fix is the place: a phone hotspot or wired net instead of the hall wifi for now; a
     small cloud server in Mumbai later (D9).
+  - Owner, 5 Oct late: the hotspot it is; no cloud server. So the network test before a call and
+    the connect-again path matter most: a hotspot can dip.
 - Done this turn already: 7 old snapshots removed, `make talk-questions` needs `YES=1`,
   `scratch/` is ignored, junk files cleared.
 
@@ -87,6 +89,9 @@ Small guards, no change to what the caller hears. Each was found by reading; see
   one line to change. Draft words, to be checked by a speaker before the paid render:
   - Gujarati: "હકદારમાં આપનું સ્વાગત છે. ગુજરાતી, અંગ્રેજી કે તમારી ભાષામાં બોલો. બટન માટે 6 દબાવો."
   - Tamil: "ஹக்தாரில் உங்களை வரவேற்கிறோம். தமிழ், ஆங்கிலம் அல்லது உங்கள் மொழியில் பேசுங்கள். பொத்தான்களுக்கு 6 ஐ அழுத்துங்கள்."
+  - **Owner's choice (5 Oct, late): Gujarati and Tamil are right, and they say the SHORT line**
+    ("welcome, speak in your own language", about 2 s each). Hindi, English and Marathi say the
+    full line. About 16 s in all. The full Gujarati and Tamil drafts above are kept, not used.
   - Length: five times about 4 s is about 20 s, over the 12 s aim. Until cut-in at the greeting
     (2.3) is built the caller must wait for the end. If 20 s feels long on the phone: Gujarati
     and Tamil say only "welcome, speak in your own language" (about 2 s each, 16 s in all).
@@ -305,7 +310,8 @@ English; by place later). D4 (the greeting says "press 6" from Phase 1, and key 
 greeting from 1.1). D5 (dropped: no help-line number). D6 (agreed as proposed). D7 (1.8 is
 built right after 1.3).
 **Closed later the same night:** D1 (every language goes through English, Hindi and English too; see 1.4). D3 again (five languages: Hindi, English, Marathi, Gujarati, Tamil).
-**Open:** D9 only (the owner wants the cloud path kept in the plan; steps are in section 8).
+**Closed (5 Oct, late): D9. A phone hotspot. No money is spent on a server; section 8 is NOT taken and is kept only as a record.**
+Older wording: **Open:** D9 only (the owner wants the cloud path kept in the plan; steps are in section 8).
 Older wording: D1, and new: D9. Where the server runs so the line is smooth: a phone hotspot for now
 (free), or a small cloud server in Mumbai (costs a little each month, no tunnel, no hall wifi).
 The older text of each decision is kept below.
@@ -336,7 +342,8 @@ python3 -m py_compile <changed files>
 ```
 `make stress` and `make barge-eval` when the keys path or `turn.py` is touched.
 
-## 8. The cloud server in Mumbai (kept as a path; not built; owner's word needed to spend)
+## 8. The cloud server in Mumbai: NOT TAKEN (owner, 5 Oct late: no money on this; the line runs on a phone hotspot)
+Kept as a record only. Do not build it and do not bring it up again unless the owner asks.
 Why: no laptop, no tunnel, no hall wifi in the call. Twilio talks to a server that sits near
 Sarvam's and Twilio's Indian ends. One caller at a time needs only a small machine.
 What the owner sets up (about 30 minutes, once):

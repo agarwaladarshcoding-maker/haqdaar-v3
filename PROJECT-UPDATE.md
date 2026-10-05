@@ -1561,3 +1561,9 @@ same folder, uncommitted. It waits for the owner's phone check. No money was spe
 - *The cloud server in Mumbai* stays in the plan as a path, with the set-up steps (section 8).
   Nothing is bought or built.
 - Only the plan and the charts changed. The chart checks pass.
+
+## 5 Oct 2026, late: two last choices
+
+- *Greeting:* Gujarati and Tamil are right. They say a short "welcome, speak in your own
+  language"; Hindi, English and Marathi say the full line. About 16 s in all.
+- *Network:* a phone hotspot. No cloud server; no money is spent on it.

@@ -74,3 +74,4 @@ Facts from the run (snapshot CURRENT, 17 schemes; kinds: farming 4, business_loa
 - Owner: every language (Hindi and English too) goes through Sarvam to English and back. D1 closed. Written at the top of PLAN 1.4.
 - Owner: keep the cloud-server path in the plan and say how to set it up -> PLAN section 8. (His sentence was garbled by dictation; this is my reading of it.)
 - Only PLAN.md and the charts changed; chart checks pass. pytest not run again (no code or test changed since the 2385-pass run of turn 8).
+- Turn 10 (5 Oct late): owner OK'd Gujarati + Tamil with the SHORT line (16 s); hotspot, no cloud server (PLAN section 8 = not taken, D9 closed). Another session has step 1.0 in hand in this folder: this turn touched PLAN.md only.
