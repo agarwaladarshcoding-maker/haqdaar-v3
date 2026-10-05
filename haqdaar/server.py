@@ -282,6 +282,8 @@ async def stream_endpoint(websocket: WebSocket) -> None:
             outbox.emit({"event": "_close"})
             outbox.close()
 
+    # What came in from the phone, so a quiet call can be told from a broken line afterwards.
+    came = {"frames": 0, "bytes": 0, "keys": 0, "marks": 0, "last": 0.0, "t0": 0.0}
     try:
         while True:
             event = parse_event(await websocket.receive_text())
@@ -313,11 +315,22 @@ async def stream_endpoint(websocket: WebSocket) -> None:
                     daemon=True,
                 ).start()
             elif isinstance(event, MediaEvent) and turn is not None:
+                now = time.monotonic()
+                if not came["frames"]:
+                    came["t0"] = now
+                    note("phone   first sound from the caller's side arrived")
+                elif now - came["last"] > 1.0:
+                    note(f"!! phone   no sound came from the caller's side for {now - came['last']:.1f} s")
+                came["frames"] += 1
+                came["bytes"] += len(event.payload_bytes)
+                came["last"] = now
                 turn.push_media(event.payload_bytes)
             elif isinstance(event, DtmfEvent) and turn is not None:
+                came["keys"] += 1
                 say(f"<- dtmf {event.digit}")
                 turn.push_key(event.digit)
             elif isinstance(event, MarkEvent) and mouth is not None:
+                came["marks"] += 1
                 mouth.on_mark(event.name)
             elif isinstance(event, StopEvent):
                 note("stop    caller hung up")
@@ -336,4 +349,9 @@ async def stream_endpoint(websocket: WebSocket) -> None:
             await asyncio.wait_for(writer, timeout=2)
         except Exception:
             pass
+        if came["frames"]:
+            say(f"phone   in all: {came['bytes'] / 8000:.1f} s of sound from the caller's side over "
+                f"{came['last'] - came['t0']:.1f} s, {came['keys']} key(s), {came['marks']} clip(s) played to the end")
+        elif mouth is not None:
+            say("!! phone   NO sound at all came from the caller's side")
         say("socket  closed")

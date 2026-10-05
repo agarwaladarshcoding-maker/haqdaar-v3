@@ -34,6 +34,8 @@ QUIET = b"\xff" * FRAME          # mu-law silence
 VOICES = {"hi": "Lekha", "en": "Rishi"}
 
 SCRIPTS: dict[str, tuple[str, list[str]]] = {
+    # the language is SAID, no key at all (5 Oct 12:43: a caller who spoke at the greeting got a quiet line)
+    "voicepick": ("hi", ["say:हिंदी", "say:मुझे खेती की योजना चाहिए", "say:ठीक है धन्यवाद, बस इतना ही"]),
     # the owner's call of 5 Oct, word for word
     "farmer": ("hi", ["key:1", "say:मेरे को फार्मर स्कीम्स के बारे में जानना है", "say:मेरे को खेती से जुड़ी योजनाएं चाहिए",
                       "say:पीएम किसान में कितना पैसा मिलता है", "say:इसके लिए कौन से कागज़ लगेंगे",

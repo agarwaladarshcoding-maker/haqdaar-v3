@@ -94,7 +94,9 @@ class PhoneAudio:
         (Silence, Hangup, a wrong key, words that name no language): the engine asks again,
         so no language is ever picked for a caller who did not pick one."""
         self.say(("greeting_trilingual",))
-        if tunables.SPEECH_CUT_IN and hasattr(self.turn, "wait_input"):
+        # A talk call hears the language by voice too (a caller who came to talk says "Hindi" and
+        # then waits; with keys only the line stayed quiet for 30 s and looked dead, 5 Oct 12:43).
+        if (tunables.SPEECH_CUT_IN or tunables.TALK_ONLY) and hasattr(self.turn, "wait_input"):
             # No language is chosen yet, so the speech service is told none and finds it itself.
             heard = self._wait_words(profile="greeting", lang="")
             if isinstance(heard, Speech):
