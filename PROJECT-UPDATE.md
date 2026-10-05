@@ -1763,3 +1763,55 @@ headphones, or the microphone hears the agent's own voice.
   No real model and no Mac call has run on this code yet.
 - Left of step 1.8: slower voice, trust lines ("is it free?", "are you a person?"), stopping a caller
   who reads out an Aadhaar or OTP number, distress, three off-topic turns, "thanks" is not goodbye.
+
+## 5 Oct, late night: the photo comes into the call; the second half of follow-up talk
+
+**Added**
+- The photo is now part of the talk call. The agent offers it by words: when the caller asks to send a
+  photo, or names a need one can see (a spoiled crop, a fallen house, a sick animal). The link goes by
+  SMS only when the caller says yes, or presses 9. No yes, no SMS. One link a call.
+- The caller's number is kept in memory for that call only, to send the SMS. It is never written to a
+  log. A Mac call has no number, so there the SMS goes to the owner's own phone and the link is shown on
+  the Mac screen.
+- The answer to a photo opens the next call: "This is Haqdaar. I looked at your photo", then what was
+  found. A photo that could not be read gets "please send it again: in daylight, close, steady", and the
+  same link works again.
+- The talk keeps a list of every language the caller spoke in the call (four at most).
+- The second half of follow-up talk (step 1.8 part B). Once in a call, before the first answer, the
+  agent says the caller's details back in one sentence and then gives the answer, in the same reply.
+  "Speak slowly" slows the voice for the rest of the call. Fixed true lines for "is it free?", "are you
+  the government?", "are you a person?", "let me talk to a person". A caller who starts to read out an
+  Aadhaar, bank or OTP number is stopped, and the digits are not kept. Plain lines for what the line can
+  not do (fill a form, check a payment, send details by SMS). Words of pain get one kind sentence first.
+  Three off-topic turns in a row end the call politely. A bare "thanks" gets "anything else?" and does
+  not end the call.
+- Two more prompts for Antigravity: `.agent/PROMPT-antigravity-desk-4.md` (the helper's desk made
+  simple, usable by keys alone, and the read going on by itself) and
+  `.agent/PROMPT-antigravity-callback-5.md` (a small tool that places the call-back by itself).
+
+**Changed**
+- Antigravity's photo page, desk and Muse reader are now joined into `v5-clean` (they were on their own
+  branch).
+- One fault of the first build was found on reading and fixed: a photo that shows damage was treated as
+  a bad photo. Now a photo is bad only when the reader is unsure, saw nothing, or was the stand-in.
+- The text of a photo answer is written in English by the desk; the call now sends it through the
+  translate step for a caller of another language.
+- The plan said in one place that key 6 works at the greeting. It does not; the line is corrected.
+
+**Found, not changed**
+- In a talk call every key but 9 is ignored, yet a stray key still chops the reply that is playing.
+  The fix is in work with the cut-in steps.
+- Plain `make call-me` is not a talk call (it runs the old questions path). The talk on the phone is
+  `TALK_ONLY=true make call-me`.
+- ngrok points at the call server (port 8000). The photo link needs it on port 8002, with
+  `PHOTO_BASE_URL` set to the ngrok address.
+- The full talk check now takes over 30 minutes (about 15,000 scripted calls).
+
+**What the project can do now**
+- In a talk call a caller can be offered a photo link, get it by SMS on a yes, send photos, and hear the
+  answer at the start of the next call. Checked by tests only: 3,042 passed in the side folder (1 known
+  failure from that folder's data). No real SMS has gone out from a call, no real model and no Mac call
+  has run on this code yet.
+- The call-back is not placed by itself yet: the answer waits for the next call.
+- Phase 1 is being closed by a second session (English in the middle, all languages, the final checks).
+  Cut-in steps are in work in their own folder.

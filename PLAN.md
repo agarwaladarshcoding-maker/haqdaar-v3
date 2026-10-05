@@ -243,6 +243,7 @@ it does today). The run is in NOTES. These are added to 1.3; nothing above is ta
   owner's word.
 
 ### 1.8 Follow-up talk, like a person (added 5 Oct evening; done before 1.7 closes the phase)
+PART B BUILT 5 Oct ~23:30 (tests only, no real call yet): the details are said back once and then the answer; slower voice; trust lines; the Aadhaar / OTP stop; what the line can not do; distress; off topic three times; "thanks" is not goodbye. LEFT: a sentence in two halves (ear work, Phase 2).
 PART A DONE 5 Oct ~22:30 (848715e): what was named, going back, side by side, "will I get it", say it
 another way (not the slower voice), hold on, "can you hear me". PART B LEFT: slower voice, two halves,
 trust lines, what the line can not do, distress, off topic three times, "thanks" is not goodbye.
@@ -380,6 +381,7 @@ Steps:
 - 4.1 The case store and the pages (new files only, no call code). Antigravity.
   `haqdaar/photo/cases.py`, `haqdaar/photo/reader.py`, `tools/photo_desk.py`, `make photo-desk`,
   tests. Prompt: `.agent/PROMPT-antigravity-photo.md`.
+- 4.2 + 4.3 BUILT 5 Oct ~23:30 (tests only). The agent offers the photo by words (the caller asks, or names a need one can see); the link goes only on a yes or key 9; the number is kept in memory for the call only; a Mac call texts CALL_ME_NUMBER. The answer opens the NEXT call (`haqdaar/photo/in_call.py`); a bad photo gets "send a clearer one" and the same link. LEFT: placing the call-back by itself (`.agent/PROMPT-antigravity-callback-5.md`), the page showing all spoken languages (Antigravity pass 3), a real SMS from a call.
 - 4.2 In the call: photo word list, key 9 in a talk call, the fixed line, the case, the SMS.
   The caller's number is taken at `/answer` (the server keeps only a hash of it today). A new
   provider function `send_sms`. Claude.
@@ -412,6 +414,7 @@ Workers: Claude and Antigravity. The file sets do not cross.
 5. Antigravity, after 4.1: the translate guard's fix pass (number words on both sides, "18-40",
    phone numbers, Tamil names, the time limit) with a set of 100 real reply lines. Only then
    is 1.4 wired.
+   (6 is BUILT 5 Oct ~23:30, see 4b.)
 6. Claude: 4.2 + 4.3 (photo words and key 9 in the call, the SMS, the call-back).
 7. Owner: 2.0, cut-in on the Mac with headphones; Claude fixes what the trace shows (2.2-2.5).
 8. 1.7 close of Phase 1: all checks, five phone calls, push.
@@ -460,6 +463,7 @@ The older text of each decision is kept below.
 - D2. `haqdaar-v2-brain/`, `source-docs/` and `sync_vault.py` were kept on this branch. Say the
   word and they go.
 - D3. Which 3 local languages the greeting names (clips exist for Marathi).
+- Note on D4 (5 Oct night): key 6 is NOT built anywhere yet, and the greeting does not say "press 6". It comes with Phase 3 (3.2).
 - D4. Should the greeting say "for keys, press 6" from Phase 1, or only when it works (Phase 3)?
   The plan says Phase 3.
 
