@@ -10,16 +10,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
-from haqdaar.contracts import tunables
 from haqdaar.contracts.types import SEVEN_BOXES, UNASKED, UNKNOWN, Ask
 from haqdaar.engine import planner
 from haqdaar.engine.filter import Filter
 
-# C3: stop asking and show schemes when few remain. The owner said 3; the picker's own setting is
-# STOP_SURVIVORS (4) and the model is shown 4 schemes, so 4 it is. On a short list nothing is asked,
-# not even man / woman (phone check 5 Oct: "pension" was asked "man or woman?", which added little):
-# each scheme carries its mark instead, and the model says who a scheme is for.
-TALK_STOP_SCHEMES = tunables.STOP_SURVIVORS
+# 1.3a: stop asking at 2 or fewer left in talk. The keys path keeps the
+# picker's own STOP_SURVIVORS (4). On a short list nothing is asked, not even
+# man / woman: each scheme carries its mark instead.
+TALK_STOP_SCHEMES = 2
 
 FITS = "fits"
 DOES_NOT_FIT = "does not fit"
@@ -104,7 +102,7 @@ def narrow(scheme_ids: Sequence[str], box_vector: Mapping[str, Any], corpus: Any
     left = tuple(sub.scheme_id(n) for n in surv)
     if len(left) <= TALK_STOP_SCHEMES:
         return Narrow(left, None)
-    action = planner.next_action(box_vector, sub)
+    action = planner.next_action(box_vector, sub, stop_survivors=TALK_STOP_SCHEMES)
     if not isinstance(action, Ask):
         return Narrow(left, None)
     rest = [

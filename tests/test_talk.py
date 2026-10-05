@@ -340,11 +340,13 @@ def test_the_same_reply_is_not_said_twice_in_a_row(call):
     assert [r["rule"] for r in rows if r.get("ev") == "blocked"] == ["same_again"]
 
 
-def test_a_short_list_is_shown_with_no_man_or_woman_question(corpus):
+def test_a_two_scheme_list_is_shown_with_no_man_or_woman_question(corpus):
+    # 1.3a: talk stops asking at 2 or fewer left (was 4 or fewer). A short
+    # list is shown with marks, not even man / woman.
     from haqdaar.contracts.types import SEVEN_BOXES, UNASKED
     from haqdaar.engine import talk_pick
     bv = {**{b: UNASKED for b in SEVEN_BOXES}, "category": "pension"}
-    got = talk_pick.narrow(["apy", "nps-tsep", "ignwps", "igndps", "nfbs", "pm-kisan"], bv, corpus)
+    got = talk_pick.narrow(["apy", "ignwps"], bv, corpus)
     assert got.ask is None and "ignwps" in got.left
 
 

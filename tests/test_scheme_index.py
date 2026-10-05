@@ -95,18 +95,30 @@ def test_vague_need_gets_the_pickers_question(index, corpus):
     assert got.order[0] == got.ask
 
 
-def test_three_turns_of_facts_narrow_to_three_or_fewer(index, corpus):
+def test_answers_narrow_until_nothing_left_to_ask(index, corpus):
+    """1.3a: answering the picker's boxes converges to ask=None: at 2 or fewer
+    left, or earlier when no box cuts the list (here occupation=farmer still
+    leaves smam, which asks nothing, so it stops at 3)."""
     hits = [h.scheme_id for h in index.search("I need some help from the government", 10)]
     bv = _blank()
     answers = {"category": "farming", "occupation": "farmer", "gender": "male", "age": "18-35"}
-    for _ in range(3):
+    rounds = 0
+    for _ in range(6):
         got = talk_pick.narrow(hits, bv, corpus)
         if got.ask is None:
             break
         bv[got.ask] = answers.get(got.ask, corpus.values(got.ask)[0])
+        rounds += 1
     got = talk_pick.narrow(hits, bv, corpus)
-    assert 1 <= len(got.left) <= talk_pick.TALK_STOP_SCHEMES
     assert got.ask is None
+    assert 1 <= len(got.left)
+    assert rounds <= 3  # at most 3 questions, then show schemes
+
+
+def test_two_left_is_shown_with_no_question(corpus):
+    """1.3a: stop asking at 2 or fewer left in talk (keys keep 4)."""
+    got = talk_pick.narrow(["pm-kisan", "kcc"], _blank(), corpus)
+    assert got.ask is None and len(got.left) == 2
 
 
 def test_subcorpus_filter_matches_the_full_filter(corpus):
