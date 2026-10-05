@@ -7,6 +7,8 @@ SPEECH_CUT_IN off). One turn:
   ({action, say, facts, scheme, ask_box}) -> facts checked -> truth checks -> live voice -> log.
 Which profile question to ask is the picker's choice, not the model's (owner's change C1).
 One caller at a time. No "model is down" handling: a failed call says the "not sure" line.
+Step 1.6: a model that fails hands over to the next one; a reply the voice could not say is tried
+once more; the call says goodbye by itself before the server's cap closes the line.
 """
 from __future__ import annotations
 
@@ -18,6 +20,7 @@ from typing import Any, Optional
 from haqdaar.contracts import tunables, vocab
 from haqdaar.contracts.log_schema import (
     STOP_LE_4_SURVIVORS,
+    STOP_MAX_TURNS,
     STOP_NO_SPLIT,
     STOP_ZERO_SURVIVORS,
     TurnLogRecord,
@@ -42,6 +45,8 @@ _HINDI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
 SILENCE_HANGUP_RUNG = 2  # T1: no reply twice in a row -> goodbye
 _SENTENCE_GAP = re.compile(r"(?<=[.!?।])\s+")
 _SHORT_PIECE = 12        # "Rs." and such are not a sentence of their own
+CAP_MARGIN_S = 60        # 1.6: goodbye this long before CALL_CEILING_S (the server's clock starts at the greeting)
+VOICE_FAILS_HANGUP = 2   # 1.6: this many replies in a row with no voice -> goodbye
 
 
 _BIG = {"हज़ार": 1_000, "हजार": 1_000, "thousand": 1_000, "लाख": 100_000, "lakh": 100_000, "lakhs": 100_000,
@@ -80,10 +85,10 @@ def _age_band(value: str, corpus: Any) -> Optional[str]:
     return None
 
 
-def _counts_as_asked(ask_box: str, filled: set[str]) -> bool:
-    """1.3b (A): every question the line asks counts, except when the turn
-    answered another box (asked age, told the state: the age ask is free)."""
-    return not any(box != ask_box for box in filled)
+def _free_ask(last_asked: str, changed: set[str]) -> bool:
+    """1.3 (A): every question the line asks counts. One is given back: the caller answered
+    another box than the one asked last (asked age, told the state: the age ask was free)."""
+    return bool(last_asked) and bool(changed) and last_asked not in changed
 
 
 # "will I get it" after "just tell me": one question may come back (1.8 owns
@@ -121,12 +126,17 @@ def _call(model: Any, messages: list[dict[str, str]]) -> Optional[dict]:
     resp = None
     try:
         # Each Groq model has its own tokens-a-minute limit: on "too many requests" try the next one.
+        # 1.6: the same on a time-out or any other failure, while the time of two calls is not used up.
+        t0 = time.monotonic()
         for name in [m.strip() for m in tunables.TALK_MODELS.split(",") if m.strip()] or [""]:
             try:
                 resp = client.call(messages, task="talk", timeout=tunables.TALK_TIMEOUT_S, model=name or None)
             except TypeError:       # the sim's client takes no timeout / model
                 resp = client.call(messages, "talk")
-            if not getattr(resp, "is_429", False):
+                break
+            if getattr(resp, "success", False):
+                break
+            if not getattr(resp, "is_429", False) and time.monotonic() - t0 >= 2 * tunables.TALK_TIMEOUT_S:
                 break
     except Exception:
         return None
@@ -163,6 +173,10 @@ class _Talk:
         self._new_need = False  # 1.3b (P2.4): the newest words name another need
         self._will_now = False  # 1.3b (P3.4): "will I get it" after just-tell: one question back
         self._will_used = False
+        self._people: set[str] = set()  # the "for my mother" sentences already acted on
+        self._refunded = False  # 1.3 (A): one ask given back a turn, not one a model try
+        self.voice_fails = 0    # 1.6: replies in a row the voice could not say
+        self.t0 = time.monotonic()      # 1.6: the talk's start, for the goodbye before the cap
         self.turn_n = 0
 
     # --- the fixed part: search -> filter -> picker ---
@@ -234,7 +248,10 @@ class _Talk:
         # The clear words first, by fixed code (a real call showed the model can miss "farmer schemes").
         known0 = {b: v for b, v in self.bv.items() if v != UNASKED}
         cat0 = self.bv.get("category")
-        if talk_words.new_person(words):            # 1.3b (P2.6): help for another person now;
+        self._refunded = False
+        who = talk_words.other_person(words)        # 1.3b (P2.6): help for another person now;
+        if who and who not in self._people:         # once for each person, not on every "for my mother"
+            self._people.add(who)
             for box in ("age", "gender", "occupation"):  # age, gender and work are theirs, not ours
                 self.bv[box] = UNASKED
                 self.asked.pop(box, None)
@@ -287,11 +304,18 @@ class _Talk:
                 note = "action must be one of: " + ", ".join(prompt.ACTIONS)
                 continue
             filled = _take_facts(data.get("facts"), self.bv, self.corpus, self.log, self.turn_n)
-            for box in data.get("not") or []:       # 1.3b (P3.3): the model takes facts away
-                if box in SEVEN_BOXES and self.bv.get(box) != UNASKED:
+            nots = data.get("not")                  # 1.3b (P3.3): the model takes facts away
+            for box in nots if isinstance(nots, list) else []:
+                if isinstance(box, str) and box in SEVEN_BOXES and self.bv.get(box) != UNASKED:
                     self.bv[box] = UNASKED
-            if data.get("just_tell"):               # 1.3b (P3.3): no more questions this call
+            if data.get("just_tell") is True:       # 1.3b (P3.3): no more questions this call
                 self.just_tell = True
+            if not self._refunded and _free_ask(self.last_asked, set(spot_filled) | set(filled)):
+                self._refunded = True               # 1.3 (A): they answered another box
+                if self.asked.get(self.last_asked, 0) <= 1:
+                    self.asked.pop(self.last_asked, None)
+                else:
+                    self.asked[self.last_asked] -= 1
             for box, n in self.asked.items():      # asked twice, still no answer: stop asking it
                 if n >= ASK_TRIES and self.bv.get(box) == UNASKED:
                     self.bv[box] = UNKNOWN
@@ -376,10 +400,7 @@ class _Talk:
             if self.focus and action in ("answer", "show_scheme") and isinstance(parts, list):
                 self.told.setdefault(self.focus, set()).update(p for p in parts if p in prompt.PARTS)
             if action == "ask" and ask_box:
-                # 1.3b (A): every question asked counts, except when the turn
-                # answered another box (the age ask is free).
-                if _counts_as_asked(ask_box, filled):
-                    self.asked[ask_box] = self.asked.get(ask_box, 0) + 1
+                self.asked[ask_box] = self.asked.get(ask_box, 0) + 1   # 1.3 (A): every ask counts
                 self.last_asked = ask_box
                 if self._will_now:
                     self._will_used = True
@@ -403,10 +424,11 @@ class _Talk:
         return "answer", prompt.NOT_SURE.get(self.lang, prompt.NOT_SURE["en"])
 
     # --- the mouth ---
-    def _speak(self, say: str, before_first: Any = None) -> None:
-        """`before_first` is called when the first sentence's sound is ready, just before it is said."""
+    def _speak(self, say: str, before_first: Any = None) -> bool:
+        """`before_first` is called when the first sentence's sound is ready, just before it is said.
+        False: the voice gave no sound for any sentence, even on a second try (1.6)."""
         if not hasattr(self.audio, "say_text"):
-            return
+            return True
         parts = _sentences(say)
         warm = getattr(self.audio, "warm_text", None)
         stream = bool(warm) and tunables.LIVE_TTS_STREAM    # the first sentence plays as its sound arrives
@@ -418,13 +440,28 @@ class _Talk:
             warm(parts[0])
         if before_first and not stream:
             before_first()
+        said = 0
         for n, sentence in enumerate(parts):
             if n and ahead:
                 ahead[n - 1].join(timeout=tunables.QA_TTS_TIMEOUT_S)
-            if stream and n == 0:
-                self.audio.say_text(sentence, on_first=before_first)
-            else:
-                self.audio.say_text(sentence)
+            for _again in (0, 1):                   # 1.6: the voice failed: one more try
+                if stream and n == 0:
+                    ok = self.audio.say_text(sentence, on_first=before_first)
+                else:
+                    ok = self.audio.say_text(sentence)
+                if ok is not False or self._gone() or self._newer():
+                    break
+            said += ok is not False
+        return bool(said) or not parts or self._gone() or self._newer()
+
+    def _gone(self) -> bool:
+        turn = getattr(self.audio, "turn", None)
+        return bool(turn is not None and turn.hung_up.is_set())
+
+    def _newer(self) -> bool:
+        """The caller spoke again while the reply was made: it is dropped on purpose, not a voice fault."""
+        newer = getattr(self.audio, "newer_words", None)
+        return bool(newer()) if callable(newer) else False
 
     def _turn(self, words: str, end_ms: int = -1, stt_ms: int = -1, cut: bool = False) -> str:
         """`cut`: the caller said these words while the agent was talking, and it stopped (B5)."""
@@ -486,7 +523,14 @@ class _Talk:
             if action == "repeat":
                 say = self.last_say
             if say:
-                self._speak(say, first_voice)
+                if self._speak(say, first_voice):
+                    self.voice_fails = 0
+                else:                               # 1.6: never silence: a recorded line asks again
+                    self.voice_fails += 1
+                    self.log.write({"ev": "blocked", "rule": "voice_failed", "question": "", "text": say})
+                    stop_filler()
+                    if self.voice_fails < VOICE_FAILS_HANGUP:
+                        self.audio.say(("unclear_prompt",))
                 self.last_say = say
             if "ev" in row:                         # nothing was said (or no voice on this audio)
                 self.log.write(dict(row))
@@ -515,6 +559,10 @@ class _Talk:
         while True:
             if self.turn_n >= tunables.TALK_MAX_TURNS:
                 return self._end(farewell=True)
+            if time.monotonic() - self.t0 >= tunables.CALL_CEILING_S - CAP_MARGIN_S:
+                return self._end(farewell=True, reason=STOP_MAX_TURNS)   # 1.6: goodbye before the cap
+            if self.voice_fails >= VOICE_FAILS_HANGUP:
+                return self._end(farewell=True, reason=STOP_NO_SPLIT)    # 1.6: the voice is down
             inp = self.audio.next_input(profile="spoken")
             if isinstance(inp, Hangup):
                 return self._end(farewell=False, reason=STOP_ZERO_SURVIVORS)

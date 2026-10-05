@@ -47,12 +47,21 @@ MARKERS: tuple[str, ...] = ("योजना", "लोन", "scheme", "schemes",
 
 _ASCII_WORD = re.compile(r"^[a-z ]+$")
 _DEVA = r"\u0900-\u097F"
-_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
+# Vowel signs (matras) are marks, not letters: `\w` drops them, which cut
+# "केसीसी" and "किसी से" to the same bare letters. They stay in the words.
+_PUNCT = re.compile(r"[^\w\s\u0900-\u097F]", re.UNICODE)
+_SAME = str.maketrans({"\u0901": "\u0902", "\u200c": None, "\u200d": None, "\u093c": None})
 
 
 def _norm(text: str) -> str:
-    """Same cut as the name search: punctuation out, lowercased, words apart."""
-    return " ".join(_PUNCT.sub(" ", str(text).lower()).split())
+    """Same cut as the name search: punctuation out, lowercased, words apart.
+    Vowel signs kept; nukta, chandrabindu and ZWJ/ZWNJ spellings made equal."""
+    text = str(text).lower().translate(_SAME)
+    return " ".join(_PUNCT.sub(" ", text).split())
+
+
+def norm(text: str) -> str:
+    return _norm(text)
 
 
 def needs_marker(name: str) -> bool:

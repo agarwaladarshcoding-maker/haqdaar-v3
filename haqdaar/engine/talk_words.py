@@ -23,7 +23,7 @@ WORDS: dict[str, dict[str, tuple[str, ...]]] = {
                         "training", "skill", "skills"),
         "health": ("इलाज", "अस्पताल", "बीमारी", "बीमार", "दवा", "हेल्थ", "स्वास्थ्य", "health", "hospital", "treatment",
                    "sick"),
-        "housing": ("मकान", "आवास", "घर", "घर बना", "पक्का घर", "house", "housing", "home"),
+        "housing": ("मकान", "आवास", "घर", "घर बना", "पक्का घर", "ghar", "house", "housing", "home"),
         "pension": ("पेंशन", "पेन्शन", "बुढ़ापा", "बुढ़ापे", "pension", "old age"),
         "education": ("पढ़ाई", "छात्रवृत्ति", "स्कॉलरशिप", "शिक्षा", "education", "scholarship", "study"),
         "women_children": ("गर्भवती", "डिलीवरी", "प्रसव", "स्वयं सहायता समूह", "pregnant", "delivery", "self help group"),
@@ -56,7 +56,7 @@ _ASCII = re.compile(r"^[a-z' ]+$")
 # come after the word ("किसान नहीं"), the English ones before ("not a farmer").
 # 1.3b: Latin "nahi / nahin / mat" count too ("main kisan nahi hoon").
 NEGATORS = frozenset({"नहीं", "नही", "न", "मत", "not", "no", "don't", "dont",
-                      "nahi", "nahin", "mat"})
+                      "nahi", "nahin", "mat", "नाही", "नको", "nako", "naahi"})
 # Tokens that may sit between the negator and the word without breaking it.
 _FILLERS = frozenset({"a", "an", "the", "to", "एक", "ही", "भी"})
 # "I do not want a loan": the negator scopes over what comes after want/need.
@@ -70,22 +70,25 @@ _TOK = re.compile(r"[a-z']+|[\u0900-\u097f]+")
 _SELF_START = frozenset({"मैं", "मै", "मी", "main", "mein", "i", "i'm", "im"})
 # 1.3b: "I have no X" is a need, not a no ("मेरे पास नौकरी नहीं है",
 # "मुझे लोन नहीं मिला"). Only "I am not X" / "I do not want X" takes X away.
-_HAVE = frozenset({"पास", "have", "has", "had"})
-_GOT = frozenset({"मिला", "मिली", "मिले", "get", "got"})
+_HAVE = frozenset({"पास", "paas", "pas", "have", "has", "had"})
+_GOT = frozenset({"मिला", "मिली", "मिले", "मिलती", "मिलता", "मिलते", "get", "got"})
+# "घर नहीं है" / "ghar nahi hai": a negator then है is "there is none".
+_IS = frozenset({"है", "हैं", "hai", "hain"})
 # 1.3b: words said FOR someone ("मेरी माँ के लिए", "for my mother") keep that
 # person's gender and work; plain narration about them does not.
-_FOR = frozenset({"लिए", "हेतु", "वास्ते", "for", "साठी"})
+_FOR = frozenset({"लिए", "हेतु", "वास्ते", "for", "साठी", "liye"})
 
 # Bare "घर" is two things: "a house" (a housing need) and "at home" (a place).
 # With a locative right after it ("घर में कोई कमाने वाला नहीं") it is the
 # place, not the need, and the turn stays a situation. ("घर के लिए" still
 # counts: लिए makes it the thing wanted.)
-_HOME_POST = frozenset({"में", "पर", "का", "की", "के", "से", "तक", "वाला", "वाले", "वाली"})
+_HOME_POST = frozenset({"में", "पर", "का", "की", "के", "से", "तक", "वाला", "वाले", "वाली",
+                        "mein", "me", "par", "ka", "ki", "ke", "se"})
 _HOME_WANT = frozenset({"लिए", "हेतु", "वास्ते"})
 
 
 def _kept(word: str, toks: list[str], at: int) -> bool:
-    if word != "घर":
+    if word not in ("घर", "ghar"):
         return True
     nxt = toks[at + 1] if at + 1 < len(toks) else ""
     if nxt not in _HOME_POST:
@@ -99,6 +102,7 @@ def _kept(word: str, toks: list[str], at: int) -> bool:
 OTHER_PEOPLE = frozenset({
     "husband", "wife", "mother", "father", "son", "daughter", "brother", "sister",
     "mom", "dad",
+    "bhai", "behen", "pati", "patni", "beta", "beti", "maa", "pita", "papa", "baap",
     "पति", "पत्नी", "माँ", "मां", "माता", "माताजी", "पिता", "पिताजी",
     "बेटा", "बेटी", "बेटे", "भाई", "बहन", "मम्मी", "पापा",
     "आई", "वडील", "भाऊ", "बहीण", "मुलगा", "मुलगी", "नवरा", "बायको",
@@ -179,6 +183,12 @@ def _negated_at(toks: list[str], at: int, span: int) -> bool:
     return False
 
 
+# "किसान नहीं है" is a no about someone, not a lack: work words never take the है rule.
+_WORK_TOKENS = frozenset(
+    t for words in WORDS["occupation"].values() for w in words for t in _TOK.findall(w.lower())
+) | frozenset({"किसान", "शेतकरी", "kisan", "farmer"})
+
+
 def _lacked_at(toks: list[str], at: int, span: int) -> bool:
     """1.3b: the negated word is a need, not a no. "मेरे पास नौकरी नहीं है",
     "I have no job" (have + no by it), "मुझे लोन नहीं मिला" (no + got)."""
@@ -188,9 +198,12 @@ def _lacked_at(toks: list[str], at: int, span: int) -> bool:
             continue
         tok = toks[i]
         if tok in _HAVE:
-            if tok == "पास" or (i < at and at - i <= 3 and any(
+            if tok in ("पास", "paas", "pas") or (i < at and at - i <= 3 and any(
                     t in NEGATORS for t in toks[i + 1:at])):
                 return True
+        if tok in _IS and i > 0 and toks[i - 1] in NEGATORS and not (
+                set(toks[at:at + span]) & _WORK_TOKENS):
+            return True
         if tok in _GOT and any(
                 toks[n] in NEGATORS for n in range(max(0, i - 1), min(len(toks), i + 2))
                 if n != i):
@@ -305,11 +318,27 @@ def _person_filter(text: str, out: dict[str, list[str]]) -> dict[str, list[str]]
 _SAATHI_PEOPLE = ("आई", "वडील", "भाऊ", "बहीण", "मुलगा", "मुलगी", "नवरा", "बायको")
 
 
+_SELF_FOR = frozenset({"मेरे", "अपने", "खुद", "mere", "apne", "me", "myself", "माझ्या", "स्वतः"})
+
+
+def other_person(text: str) -> str:
+    """1.3b: who the help is for, when it is someone else ("for my mother",
+    "मेरी माँ के लिए", "माझ्या आईसाठी"): the person word, else "". The person must
+    stand by the "for" word, so "भाई, मेरे लिए योजना बताओ" names no one."""
+    toks = _toks(" " + str(text).lower() + " ")
+    for i, tok in enumerate(toks):
+        for p in _SAATHI_PEOPLE:
+            if p in tok and tok != p:
+                return p
+        if tok not in _FOR:
+            continue
+        if i and toks[i - 1] in _SELF_FOR or toks[i + 1:i + 2] in (["me"], ["myself"]):
+            continue
+        for near in toks[max(0, i - 2):i] + toks[i + 1:i + 3]:
+            if near in OTHER_PEOPLE:
+                return near
+    return ""
+
+
 def new_person(text: str) -> bool:
-    """1.3b: the help is for someone else now ("for my mother",
-    "मेरी माँ के लिए", "माझ्या आईसाठी"). The talk then asks about them."""
-    lowered = " " + str(text).lower() + " "
-    if not any(_has(lowered, w) for w in _FOR):
-        return False
-    toks = _toks(lowered)
-    return any(t in OTHER_PEOPLE or any(p in t for p in _SAATHI_PEOPLE) for t in toks)
+    return bool(other_person(text))

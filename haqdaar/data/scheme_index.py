@@ -37,13 +37,24 @@ class Hit:
 
 
 def _norm(text: str) -> str:
-    return " ".join(_PUNCT.sub(" ", str(text).lower()).split())
+    return scheme_names.norm(text)
 
 
 def _contains(hay: list[str], needle: list[str]) -> bool:
     """The needle's whole words standing in a row in the haystack."""
     return bool(needle) and any(
         hay[i:i + len(needle)] == needle for i in range(len(hay) - len(needle) + 1))
+
+
+def _marked_beside(hay: list[str], needle: list[str]) -> bool:
+    """A marker word (योजना / लोन / scheme / loan) right before or after the name."""
+    n = len(needle)
+    for i in range(len(hay) - n + 1):
+        if hay[i:i + n] == needle:
+            near = hay[i - 1:i] + hay[i + n:i + n + 1]
+            if scheme_names.has_marker(near):
+                return True
+    return False
 
 
 def _rows(snapshot_id: str) -> tuple[str, list[dict[str, Any]]]:
@@ -167,14 +178,14 @@ class SchemeIndex:
         # scheme / loan next to it. A short name is the whole name people say,
         # never one common word of it.
         qtoks = _norm(text).split()
-        marked = scheme_names.has_marker(qtoks)
         out: list[float] = []
         for names in self._names:
             hit = False
             for name in names:
                 ntoks = name.split()
-                if ntoks and _contains(qtoks, ntoks) and not (
-                        scheme_names.needs_marker(name) and not marked):
+                if ntoks and _contains(qtoks, ntoks) and (
+                        not scheme_names.needs_marker(name)
+                        or _marked_beside(qtoks, ntoks)):
                     hit = True
                     break
             out.append(1.0 if hit else 0.0)

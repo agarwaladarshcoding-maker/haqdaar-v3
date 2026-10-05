@@ -195,10 +195,19 @@ class PhoneAudio:
         remaining = getattr(self.mouth, "remaining", None)
         deadline = time.monotonic() + (remaining() if callable(remaining) else 0.0) + gap
         left = gap
+        ear = getattr(self.turn, "ear", None)
+        asked = 0
         while True:
+            failures = getattr(ear, "failures", 0)
             heard = self.turn.wait_input(left, profile=profile, lang=lang)
             if not isinstance(heard, Noise):
                 return heard
+            if tunables.TALK_ONLY and asked < 2 and getattr(ear, "failures", 0) > failures:
+                # 1.6: the caller spoke and the speech service failed: ask again, never silence.
+                asked += 1
+                self._log("<- words not read (speech service failed): asking again")
+                self.say(("unclear_prompt",))
+                deadline = time.monotonic() + (remaining() if callable(remaining) else 0.0) + gap
             left = deadline - time.monotonic()
             self._log(f"<- noise, no words ({profile})")
             if left <= 0.05:

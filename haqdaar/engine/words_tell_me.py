@@ -6,6 +6,13 @@ Hindi, Marathi, English. Pure: no model, no I/O.
 """
 from __future__ import annotations
 
+from types import SimpleNamespace
+
+from haqdaar.engine import talk_words
+
+# Every box value counts as allowed: only "is any need or work word said" matters.
+_ANY = SimpleNamespace(values=lambda box: talk_words.WORDS.get(box, {}))
+
 # The whole phrase must be in the turn (every entry has 2+ words, or a
 # distinctive spelling, so a plain substring is enough).
 # 1.3b: a plain "tell me about X" ("मुझे किसान योजना बता दो") is NOT here:
@@ -14,6 +21,10 @@ JUST_TELL_ME: tuple[str, ...] = (
     # Hindi
     "बस योजना बता दो",
     "बस बता दो",
+    "बस बताइए",
+    "सीधे बताइए",
+    "bas bata do",
+    "seedha batao",
     "सीधे बताओ",
     "सीधा बताओ",
     "सवाल मत पूछो",
@@ -44,7 +55,9 @@ def is_just_tell_me(text: str) -> bool:
     if any(phrase in lowered for phrase in JUST_TELL_ME):
         return True
     # Bare "tell me (a scheme)" only with no topic named ("कोई भी योजना बता
-    # दो"), never "X योजना बता दो" / "X योजना सांगा".
-    if "योजना बता दो" in lowered and "कोई" in lowered:
-        return True
-    return "योजना सांगा" in lowered and "कोणत" in lowered
+    # दो"), never "X योजना बता दो" / "X योजना सांगा". A need or work word
+    # ("कोई किसान योजना बता दो") is a topic: the caller wants that kind.
+    if not ("योजना बता दो" in lowered and "कोई" in lowered
+            or "योजना सांगा" in lowered and "कोणत" in lowered):
+        return False
+    return not talk_words.spot_all(text, _ANY)

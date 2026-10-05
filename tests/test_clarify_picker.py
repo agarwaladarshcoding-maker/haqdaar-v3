@@ -110,12 +110,17 @@ def _decide(corpus, tmp_path, name, words, reply, **known):
 
 
 def test_answer_to_another_question_does_not_count(corpus, tmp_path):
-    """Asked age, told the state: the state is taken, the age ask is free."""
-    t = _decide(corpus, tmp_path, "otherbox", "I am from Maharashtra",
-                {"action": "ask", "say": "What kind of help do you need?",
-                 "ask_box": "category", "facts": {"state": "MAHARASHTRA"}, "scheme": ""})
+    """Asked age, told the state: the state is taken, the age ask is free. The new question
+    counts (the read of 1.3b: before, the new ask was the one left out, so the cap never fired)."""
+    log = Log.open("otherbox", corpus.snapshot_id, logs_dir=str(tmp_path))
+    reply = {"action": "ask", "say": "What kind of help do you need?",
+             "ask_box": "category", "facts": {"state": "MAHARASHTRA"}, "scheme": ""}
+    t = _Talk(SimpleNamespace(), SimpleNamespace(client=_Client([reply])), corpus, log, "en", Index())
+    t.heard, t.stage = ["I am from Maharashtra"], {}
+    t.asked, t.last_asked = {"age": 1}, "age"
+    t._decide("I am from Maharashtra")
     assert t.bv["state"] == "MAHARASHTRA"
-    assert t.asked == {}
+    assert t.asked == {"category": 1}
 
 
 def test_answer_to_the_asked_box_counts(corpus, tmp_path):
@@ -129,13 +134,14 @@ def test_answer_to_the_asked_box_counts(corpus, tmp_path):
 
 
 def test_question_count_rule(corpus, tmp_path):
-    """1.3b (A): every question the line asks counts, except when the turn
-    answered another box (asked age, told the state: the age ask is free)."""
-    from haqdaar.engine.talk import _counts_as_asked
-    assert _counts_as_asked("occupation", set())
-    assert _counts_as_asked("occupation", {"occupation"})
-    assert not _counts_as_asked("age", {"state"})
-    assert not _counts_as_asked("age", {"age", "state"})
+    """1.3 (A): every question the line asks counts. One is given back when the
+    caller answered another box than the one asked last (asked age, told the state)."""
+    from haqdaar.engine.talk import _free_ask
+    assert not _free_ask("", {"state"})             # nothing was asked
+    assert not _free_ask("age", set())              # no answer at all: the ask counts
+    assert not _free_ask("age", {"age"})            # answered: the ask counts
+    assert not _free_ask("age", {"age", "state"})
+    assert _free_ask("age", {"state"})              # asked age, told the state
 
 
 def test_three_unanswered_questions_then_schemes(corpus, tmp_path):

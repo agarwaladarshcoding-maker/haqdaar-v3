@@ -228,7 +228,7 @@ def test_one_moment_when_the_model_is_slow(call, monkeypatch):
 
 
 def test_a_failed_model_call_gives_the_not_sure_line_and_keys_are_ignored(call):
-    audio, client, rows = call([Digit("5"), Speech("what is PM Kisan")], [None])
+    audio, client, rows = call([Digit("5"), Speech("what is PM Kisan")], [None] * 3)   # 1.6: every model of the chain
     assert " ".join(audio.answers) == prompt.NOT_SURE["en"]
     assert [r["means"] for r in rows if r.get("ev") == "key" and r["key"] == "5"] == ["keys are off"]
 
