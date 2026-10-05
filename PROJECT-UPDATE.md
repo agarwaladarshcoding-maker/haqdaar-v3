@@ -1815,3 +1815,30 @@ headphones, or the microphone hears the agent's own voice.
 - The call-back is not placed by itself yet: the answer waits for the next call.
 - Phase 1 is being closed by a second session (English in the middle, all languages, the final checks).
   Cut-in steps are in work in their own folder.
+
+## 5 Oct, past midnight: cut-in steps join; the photo page passes join
+
+**Added**
+- Cut-in, three steps, behind the same switch as before (`CUT_IN_GATE=true`; off by default). Real words
+  said over the greeting stop it and are answered as the first turn. A caller who cuts a reply and asks
+  to hear it again gets the cut sentence and the rest, not the whole reply. The call log lists the
+  sentences that were not said.
+- Antigravity's photo page passes 3 and 4 are joined: the page shows its words in every language the
+  caller spoke, the desk works by keys alone, and a read photo goes on to the call-back by itself.
+
+**Changed**
+- In a talk call a stray key no longer chops the reply that is playing. Key 9 still stops it, to send
+  the photo link. This holds with cut-in off and on.
+
+**Found, not changed**
+- "The ear is on from the first sound of a reply" (step 2.2) is not built. The talk makes the whole reply
+  before it listens; changing that needs a bigger change to the talk loop and the sound path.
+- One desk test of the photo page fails about one run in four on this busy laptop (a timing fault).
+- One scripted call in about 3,000 broke the dead-air rule, only with cut-in on, at the Aadhaar-stop
+  line after a long noise. The call's timeline shows the agent spoke at once; it looks like a fault of
+  the measure. Not proved.
+
+**What the project can do now**
+- A talk call runs with cut-in off (as before) and with cut-in on. Full tests in the main folder: 3,080
+  passed, 0 failed. Scripted checks: no new red row. No real call has been made with cut-in on, and no
+  real call on any of tonight's code.

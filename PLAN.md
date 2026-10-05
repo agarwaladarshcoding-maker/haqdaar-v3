@@ -304,6 +304,7 @@ system on the Mac itself: the Mac's microphone in, the Mac's speakers or headpho
   It reads the call's own log, so nothing under `haqdaar/` changed. `--plain` for no colour.
 
 ## 3. Phase 2: cut-in (chart 2)
+- BUILT 5 Oct night (tests and scripted checks only; flag `CUT_IN_GATE` still off by default): 2.3 (real words over the greeting stop it and are turn 1), 2.4 (a stray key no longer stops the voice in a talk call; key 9 does), 2.5 (the words that cut a reply and ask "say it again" get the cut sentence and the rest; the cut row lists what was not said). NOT built: 2.2. The talk makes and queues the whole reply before it listens (`talk.py` `_speak`, `turn.py` drain + 250 ms guard), so "ear on from the first sound" needs the talk loop and the sound path on two threads. 2.0, 2.1 and 2.6 are the owner's calls.
 - 2.0 (added 5 Oct ~18:00) Cut-in on the Mac first. One Mac call with headphones and
   `CUT_IN_GATE=true`: talk over a reply, cough, stay quiet, talk over the greeting. Costs no
   phone time and has no phone-leg noise, so what goes wrong is our gate and nothing else. Read
