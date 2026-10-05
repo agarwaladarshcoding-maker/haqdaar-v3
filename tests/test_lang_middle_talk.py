@@ -49,7 +49,8 @@ def run(corpus, tmp_path, monkeypatch):
 
     def go(lang, words, replies):
         n.append(1)
-        audio, client = QAAudio([Speech(words)] + [Hangup()], lang), Client(replies)
+        said = [words] if isinstance(words, str) else words
+        audio, client = QAAudio([Speech(w) for w in said] + [Hangup()], lang), Client(replies)
         log = Log.open(f"lang_{len(n)}", corpus.snapshot_id, logs_dir=str(tmp_path))
         talk.run(audio, SimpleNamespace(client=client), corpus, log, lang, Index())
         return audio, client, log_text.read_rows(log.path)
@@ -126,3 +127,13 @@ def test_an_unknown_code_is_still_hindi():
 def test_indic_digits_count_as_numbers_for_the_guard():
     for six in ("৬০০০", "૬૦૦૦", "੬੦੦੦", "୬୦୦୦", "௬௦௦௦", "౬౦౦౦", "೬೦೦೦", "൬൦൦൦", "६०००"):
         assert middle._numbers(f"Rs {six}") == [6000.0], six
+
+
+def test_the_same_reply_is_not_said_twice_with_the_pipe_on(run, monkeypatch):
+    """Hindi in the pipe: last_say holds Hindi, the model writes English; the repeat must still be caught."""
+    monkeypatch.setattr(tunables, "ENGLISH_PIPE", True)
+    one = _say("There are schemes for farmers.")
+    audio, _client, rows = run("hi", ["farming schemes", "farming schemes please"],
+                               [one, one, _say("Kisan Credit Card is one more.")])
+    assert [r["rule"] for r in rows if r.get("ev") == "blocked"] == ["same_again"]
+    assert audio.answers[-1] == "[hi] Kisan Credit Card is one more."

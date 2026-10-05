@@ -1848,3 +1848,10 @@ headphones, or the microphone hears the agent's own voice.
 - Cut-in 2.2 is partly built: with the gate on, the ear listens from the first sound of a reply. The voice still stops only after the whole reply is queued (about 0.8 s lag in scripted calls).
 - The flaky photo desk test and the false dead-air report are fixed (both were faults of the test and the measure, not of the call).
 - Full tests: 3,106 passed, 0 failed. Talk-eval on 4 scripts: 0 broken. No real call yet on any of this.
+
+**6 Oct, noon: languages checked with real Sarvam**
+- Real calls to Sarvam, all 11 languages (hi, mr, en, bn, gu, kn, ml, od, pa, ta, te): each one translates, speaks and is heard back right. Sarvam can also translate 12 more (as, ne, ur, sa, mai, kok, sd, ks, doi, mni, brx, sat) but has no voice for them: it asks for beta access. So 11 is the limit today, set by Sarvam, not by our code.
+- Fixed: the number-and-name check threw away most sentences in bn, kn, ml, od, pa, ta, te that named a scheme, and said them in English. It now finds the name by its sound and knows the number words (thousand, lakh, crore) of those languages. The numbers may now come in any order (Hindi puts the verb last). On 60 live sentence checks 56 pass; the rest fall back to English, never wrong text.
+- Fixed: "same reply twice" was never caught in Hindi/Marathi when English is in the middle.
+- Not built, on purpose: the full stop of step 2.2. A cough would lose the sentences not yet queued. The Mac call will show if the lag matters.
+- Full tests: 3,117 passed.

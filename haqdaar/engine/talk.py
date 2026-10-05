@@ -161,6 +161,7 @@ class _Talk:
         self.bv: dict[str, Any] = {b: UNASKED for b in SEVEN_BOXES}
         self.heard: list[str] = []      # the caller's turns, oldest first
         self.last_say = ""
+        self.last_work = ""                     # the same reply in the model's English: last_say is the caller's language
         self.focus = ""                 # the scheme the talk is about now
         self.told: dict[str, set[str]] = {}  # scheme -> the parts of it already said (prompt.PARTS)
         self.shown: set[str] = set()    # schemes an answer of this call was about (going back to one is allowed)
@@ -679,7 +680,7 @@ class _Talk:
             if not rule and _try == 0 and any(
                     len(s.split()) > tunables.TALK_SENTENCE_WORDS for s in _sentences(say)):
                 rule = "too_long"
-            if not rule and _try == 0 and say == self.last_say:
+            if not rule and _try == 0 and say and say in (self.last_say, self.last_work):
                 rule = "same_again"
             if not rule and _OTHER_SCRIPT.search(say):
                 rule = "script"
@@ -733,6 +734,7 @@ class _Talk:
                     self._will_used = True
             else:
                 self.last_asked = ""
+            self.last_work = say
             if work != self.lang and self.lang in NATIVE:   # 1.4: the checked English reply, in the caller's
                 say = self._to_caller(say)                  # language; the fixed lines added below are theirs
             if action in ("answer", "show_scheme") and self.more_needs and say:

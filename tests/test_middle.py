@@ -82,8 +82,19 @@ GUARD_CASES = [
     ("PM Kisan and MGNREGA help.", "पीएम किसान और मनरेगा मदद करते हैं।", "hi", True),
     ("You must be 60 or older.", "உங்களுக்கு ௬௦ வயது வேண்டும்.", "ta", True),
     ("You get Rs 100 and Rs 200.", "आपको 100 और 200 मिलते हैं।", "hi", True),
-    # Point 4: swapped numbers fail
-    ("You get Rs 100 and Rs 200.", "आपको 200 और 100 मिलते हैं।", "hi", False),
+    # Order of the numbers is free (the verb comes last in Hindi, Tamil ...); the numbers must be the same
+    ("You get Rs 100 and Rs 200.", "आपको 200 और 100 मिलते हैं।", "hi", True),
+    ("Rs 5,000 a month after age 60.", "60 साल के बाद हर महीने 5,000 रुपये।", "hi", True),
+    ("You get Rs 100 and Rs 200.", "आपको 100 और 300 मिलते हैं।", "hi", False),
+    # Other Sarvam languages: units, a letter stuck to the digits, a name by its sound
+    ("You can borrow 2 lakh.", "நீங்கள் 2 லட்சம் ரூபாய் வரை பெறலாம்.", "ta", True),
+    ("You can borrow 2 lakh.", "మీరు 2 లక్షల రూపాయల వరకు తీసుకోవచ్చు.", "te", True),
+    ("You get Rs 6,000.", "உங்களுக்கு ரூ6,000 கிடைக்கும்.", "ta", True),
+    ("You get Rs 6,000.", "ನಿಮಗೆ 6 ಸಾವಿರ ರೂಪಾಯಿ ಸಿಗುತ್ತದೆ.", "kn", True),
+    ("PM Kisan gives help.", "പി.എം. കിസാൻ സഹായം നൽകുന്നു.", "ml", True),
+    ("PM Kisan gives help.", "పీఎం కిసాన్ సహాయం ఇస్తుంది.", "te", True),
+    ("PM Kisan gives help.", "প্রধানমন্ত্রী আবাস যোজনা সাহায্য দেয়।", "bn", False),
+    ("KCC gives a loan.", "ঋণ দেওয়া হয়।", "bn", False),
     # Point 4: number repetition fails
     ("You get Rs 100 and Rs 100.", "आपको 100 मिलते हैं।", "hi", False),
     ("You get Rs 100 and Rs 200.", "आपको 100 मिलते हैं।", "hi", False),

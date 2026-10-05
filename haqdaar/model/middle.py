@@ -47,6 +47,13 @@ UNITS: dict[str, int] = {
     "करोड": 10_000_000,
     "crore": 10_000_000,
     "crores": 10_000_000,
+    # The same three units in the other Sarvam languages (bn gu kn ml od pa ta te)
+    "হাজার": 1_000, "હજાર": 1_000, "ಸಾವಿರ": 1_000, "ആയിരം": 1_000, "ହଜାର": 1_000, "ਹਜ਼ਾਰ": 1_000,
+    "ஆயிரம்": 1_000, "వేలు": 1_000, "వేల": 1_000,
+    "লক্ষ": 100_000, "લાખ": 100_000, "ಲಕ್ಷ": 100_000, "ലക്ഷം": 100_000, "ଲକ୍ଷ": 100_000, "ਲੱਖ": 100_000,
+    "லட்சம்": 100_000, "లక్షలు": 100_000, "లక్ష": 100_000,
+    "কোটি": 10_000_000, "કરોડ": 10_000_000, "ಕೋಟಿ": 10_000_000, "കോടി": 10_000_000, "କୋଟି": 10_000_000,
+    "ਕਰੋੜ": 10_000_000, "கோடி": 10_000_000, "కోటి": 10_000_000,
 }
 
 WORDS: dict[str, int] = {
@@ -79,9 +86,9 @@ _WORDS_PAT = "|".join(re.escape(w) for w in sorted(WORDS.keys(), key=len, revers
 _UNIT_WORDS_PAT = "|".join(re.escape(w) for w in sorted(_ALL_UNIT_WORDS.keys(), key=len, reverse=True))
 
 _COMBINED_NUM = re.compile(
-    rf"(?P<num_unit>(?<!\w)(?:(?P<nu_val>\d+(?:\.\d+)?)|(?P<nu_word>{_UNIT_WORDS_PAT}))\s*(?P<unit>{_UNITS_PAT})\b)|"
+    rf"(?P<num_unit>(?<![A-Za-z0-9_])(?:(?P<nu_val>\d+(?:\.\d+)?)|(?P<nu_word>{_UNIT_WORDS_PAT}))\s*(?P<unit>{_UNITS_PAT})(?![A-Za-z]))|"
     rf"(?P<ordinal>\b(?P<ord_val>\d+)(?:st|nd|rd|th)\b)|"
-    rf"(?P<number>(?<!\w)\d+(?:,\d+)*(?:\.\d+)?(?!\w))|"
+    rf"(?P<number>(?<![A-Za-z0-9_])\d+(?:,\d+)*(?:\.\d+)?(?!\w))|"
     rf"(?P<word>(?<!\w)(?P<w_val>{_WORDS_PAT})(?!\w))",
     re.I | re.UNICODE,
 )
@@ -289,6 +296,44 @@ def scheme_names() -> list[dict]:
         return []
 
 
+# Chillu letters of Malayalam: no place in the shared block layout, mapped by hand.
+_CHILLU = {"\u0d7a": "\u0923", "\u0d7b": "\u0928", "\u0d7c": "\u0930", "\u0d7d": "\u0932", "\u0d7e": "\u0933"}
+# Sounds that Indian scripts (and Sarvam's spelling of a name) write in more than one way: folded into one.
+_FOLD = {ord(a): b for a, b in (
+    ("ख", "क"), ("ग", "क"), ("घ", "क"), ("ज", "स"), ("झ", "स"), ("छ", "स"), ("च", "स"),
+    ("ठ", "ट"), ("ड", "ट"), ("ढ", "ट"), ("द", "त"), ("ध", "त"), ("थ", "त"),
+    ("ब", "प"), ("भ", "प"), ("फ", "प"), ("श", "स"), ("ष", "स"), ("ळ", "ल"),
+    ("ऱ", "र"), ("ऴ", "ल"))}
+
+
+def _skeleton(text: str, nasals: bool = True) -> str:
+    """The consonant sounds of a word in any Indic script (Bengali ... Malayalam), written the same way,
+    so a scheme name in Hindi can be found in its Bengali or Telugu spelling. Vowels are left out: they
+    are what the scripts and Sarvam's spelling differ in most."""
+    out: list[str] = []
+    for ch in str(text):
+        o = ord(ch)
+        ch = _CHILLU.get(ch, ch)
+        o = ord(ch)
+        if 0x0980 <= o <= 0x0D7F:                 # the blocks sit 0x80 apart in the same order as Devanagari
+            o = 0x0900 + (o & 0x7F)
+        if not nasals and o in (0x0902, 0x0901, 0x0919, 0x091E, 0x0923, 0x0928, 0x092E, 0x0929):
+            continue                              # n, m or an anusvara: each script and each name spells them its own way
+        if 0x0915 <= o <= 0x0939 or 0x0958 <= o <= 0x095F:
+            out.append(chr(o).translate(_FOLD))
+    return "".join(out)
+
+
+def _skeleton_names(norm_out: str, hindi_names: list[str]) -> bool:
+    """Is one of the names (Devanagari only; "yojana" left out, every name has it) said in the text, by sound?"""
+    names = [" ".join(w for w in n.split() if w != "योजना") for n in hindi_names if not re.search("[A-Za-z]", n)]
+    for nasals in (True, False):                  # exact first, then with the nasals left out of both sides
+        out = _skeleton(norm_out, nasals)
+        if any(len(sk) >= 3 and sk in out for sk in (_skeleton(n, nasals) for n in names)):
+            return True
+    return False
+
+
 def _matches_name(norm_text: str, name: str) -> bool:
     name_norm = _norm(name)
     if not name_norm:
@@ -300,7 +345,9 @@ def guard_ok(en: str, out: str, lang: str, names: list[dict] | None = None) -> b
     """Fixed guard for one sentence pair. True means the output may be spoken.
     Checks amounts/numbers in order, and scheme name consistency.
     """
-    if _numbers(en) != _numbers(out):
+    # The same numbers, same count. Not the same order: Hindi, Tamil and the rest put the verb last,
+    # so "Rs 5,000 a month after age 60" comes out as "after age 60 ... Rs 5,000" and is right.
+    if sorted(_numbers(en)) != sorted(_numbers(out)):
         return False
 
     if names is None:
@@ -318,6 +365,9 @@ def guard_ok(en: str, out: str, lang: str, names: list[dict] | None = None) -> b
 
         target_names = own_en + [_norm(n) for n in item.get(want, []) if _norm(n)]
         out_names_scheme = any(_matches_name(norm_out, n) for n in target_names)
+        # The name by sound, from the Hindi names: the only way for bn kn ml od pa te, which have no name list.
+        if not out_names_scheme and lang not in ("en", "hi"):
+            out_names_scheme = _skeleton_names(norm_out, [_norm(n) for n in item.get("hi", [])])
         if not out_names_scheme:
             return False
 
