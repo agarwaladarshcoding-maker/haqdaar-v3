@@ -57,6 +57,18 @@ SCRIPTS: dict[str, list[Any]] = {
     "sidetalk": [("say", "i need help to build a house", 1.8), ("say", "arre ramesh bring the tea", 1.5),
                  ("say", "how do i apply for it", 1.4), BYE],
     "quiet": [("say", "i need a scheme for farming", 1.8), "s", ("say", "how much money does it give", 1.6), "s", "s"],
+    # 1.3b: clarify-first flows (each must keep the rules with the wired kinds).
+    "q_situation": [("say", "my crops died", 1.5), ("say", "i grow wheat", 1.2), BYE],
+    "q_named": [("say", "pm kisan", 1.0), ("say", "how much money does it give", 1.6), BYE],
+    "q_notheld": [("say", "ayushman card मिलेगा क्या", 1.8), BYE],
+    "q_justtell": [("say", "i need some scheme", 1.2), ("say", "just tell me", 1.0),
+                   ("say", "ok", 0.8), BYE],
+    "q_dontknow": [("say", "i need some scheme", 1.2), ("say", "i do not know", 1.0),
+                   ("say", "ok", 0.8), BYE],
+    "q_two": [("say", "खेती और घर दोनों के लिए कुछ है क्या", 2.0), ("say", "ok", 0.8), BYE],
+    "q_newneed": [("say", "मुझे पेंशन चाहिए", 1.2), ("say", "मुझे लोन चाहिए", 1.2), BYE],
+    "q_three": [("say", "hmm", 0.6), ("say", "hmm", 0.6), ("say", "hmm", 0.6),
+                ("say", "ok", 0.8), BYE],
 }
 # One more thing the caller's side does: (text, seconds), or a key, or a hang-up.
 KINDS: dict[str, Any] = {

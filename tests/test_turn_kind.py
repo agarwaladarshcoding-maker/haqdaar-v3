@@ -35,3 +35,11 @@ def test_four_kinds_are_told_apart():
     assert talk_kind.kind("my husband was a farmer", idx) == "situation"
     assert talk_kind.kind("मैं किसान हूँ", idx) == "situation"
     assert talk_kind.kind("पैसे की तंगी है", idx) == "situation"
+
+
+def test_marathi_kaa_inside_hindi_is_no_question():
+    """1.3b (J): "का" (of) inside a Hindi sentence is not a question word."""
+    assert not talk_kind.is_question("मेरे पति का देहांत हो गया")
+    assert talk_kind.kind("मेरे पति का देहांत हो गया", _index()) == "situation"
+    # Sentence-final "का" still asks (Marathi "will you come?").
+    assert talk_kind.is_question("तुम्ही येणार का")

@@ -23,7 +23,7 @@ welfare schemes and answer questions about them. You talk like a kind, plain-spo
 about the caller until the caller says it.
 
 Reply with ONE JSON object and nothing else:
-{"asks": "...", "action": "...", "say": "...", "parts": [], "facts": {}, "scheme": "", "ask_box": ""}
+{"asks": "...", "action": "...", "say": "...", "parts": [], "facts": {}, "not": [], "just_tell": false, "scheme": "", "ask_box": ""}
 
 asks: fill this FIRST. In a few plain English words, what does the caller want right now? Read the NEWEST \
 CALLER WORDS together with YOUR last sentence in the CALL LOG: "yes", "no", "the first one", "that one", \
@@ -37,7 +37,8 @@ action is one of:
 "ask_box". Ask it in natural spoken words and offer at most five of the choices, in everyday words \
 (use the "say:" words given in BOXES, never the code names like business_loans or male). Never make up your own question about the caller. If NEXT QUESTION is "none", do not ask about the caller at all.
     (b) the caller's words themselves were not understood (broken or unclear words): leave "ask_box" empty \
-and ask them, in a normal way, to say what they need.
+and ask them, in a normal way, to say what they need. Your own question is for newest words not \
+understood at all, at most once a call.
 - "show_scheme": tell the caller the one or two schemes from SCHEMES that match best, each with one short line \
 on what it gives. Put the first scheme's id in "scheme". Use this when NEXT QUESTION is "none", or when the \
 caller asks which schemes there are.
@@ -56,6 +57,9 @@ names from BOXES, values must be one of that box's allowed values, written exact
 years as a number. "category" is the kind of help the caller wants: fill it whenever the need is clear from \
 their words (a loan for a shop or cart = business_loans, crops = farming). If the caller told you nothing new, \
 use {}. Fill facts in every action where the caller said some.
+
+"not" takes back boxes the caller took back ("not 26" -> ["age"]). [] if none. "just_tell" is true \
+when the caller says to stop asking and just tell ("just tell me", "no more questions"). false if not.
 
 scheme: for "answer" and "show_scheme", the id (the name in square brackets) of the scheme your reply is about.
 
@@ -84,6 +88,20 @@ offered several, give the first one in NOT TOLD YET. If every part is told, do n
 what they would like to know. The caller says no after your offer -> do not tell it; ask if they want another \
 scheme.
 6. The caller is done -> "goodbye".
+
+WHILE A NEXT QUESTION STANDS (a situation or a loose remark):
+1. Ask it and list no schemes. Say it in {lang}, tied to what was said in one short clause \
+("Sorry about your crop. Do you own the land?"). The CODE picks the box: never ask about another box here.
+2. "Why do you ask?" gets one sentence of reason, then the question once more.
+3. A vague answer ("old", "a little land"): never guess; ask one yes-or-no question ("above 60?").
+4. Help for someone else ("for my mother"): the questions are about THEM ("what is her age?").
+5. A caller in distress gets one kind sentence first, before any question. Never give a help-line number.
+6. No scheme held for the need (SCHEMES empty): say so plainly. Name no scheme that does not fit.
+
+AFTER "JUST TELL ME" ("just_tell" true): show the 2 best left, each saying what the pick is based on \
+("from what you told me, a farmer"). Ask nothing more in that call, unless the caller asks if they will \
+get it ("will I get it?", "मिलेगा क्या?"): then one question may come back.
+
 SCHEME IN TALK names the scheme the talk is about now, with its TOLD and NOT TOLD YET parts. "this scheme", \
 "it", "इस योजना" mean that scheme. Do not tell a TOLD part again unless the caller asks for that part; then just tell it, and never say \
 "I already told you".
@@ -151,6 +169,37 @@ NOT_SURE = {
     "hi": "मुझे इसकी पक्की जानकारी नहीं है। कृपया दूसरे शब्दों में फिर से पूछिए।",
     "mr": "मला याची खात्री नाही. कृपया दुसऱ्या शब्दांत पुन्हा विचारा.",
 }
+
+# 1.3b: fixed words said by code (never by the model).
+NOT_HELD_SAY = {
+    "en": "I do not have that one yet.",
+    "hi": "यह योजना मेरे पास अभी नहीं है।",
+    "mr": "ती योजना माझ्याकडे अजून नाही.",
+}
+HELP_WITH = {
+    "en": "I can help with {kinds}.",
+    "hi": "मैं इनमें मदद कर सकती हूँ: {kinds}।",
+    "mr": "मी यामध्ये मदत करू शकते: {kinds}.",
+}
+ALSO_ASKED = {
+    "en": "You also asked about {kind}.",
+    "hi": "आपने {kind} के बारे में भी पूछा था।",
+    "mr": "तुम्ही {kind} बद्दलही विचारले होते.",
+}
+
+
+def kind_say(value: Any, lang: str) -> str:
+    """The everyday words for a kind of help, in the caller's language."""
+    label = (vocab.LABELS.get(value) or {}).get(lang) or (vocab.LABELS.get(value) or {}).get("en")
+    return str(label or value)
+
+
+def not_held_say(lang: str, kinds: list[str]) -> str:
+    """1.3b (P2.2): "I do not have that one yet", then the kinds of help the
+    line does have. No questions, no schemes that do not fit."""
+    kinds_said = ", ".join(kind_say(k, lang) for k in kinds)
+    return (NOT_HELD_SAY.get(lang, NOT_HELD_SAY["en"]) + " "
+            + HELP_WITH.get(lang, HELP_WITH["en"]).format(kinds=kinds_said))
 
 
 def _named(value: Any, lang: str) -> str:

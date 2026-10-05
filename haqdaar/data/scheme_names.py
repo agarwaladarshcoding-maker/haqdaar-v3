@@ -8,45 +8,66 @@ The snapshot rows carry the written names + aliases; what callers actually say
 match scores a short sentence against a long name low. So each scheme carries
 its short names here, next to the scheme data: the name search reads them by
 scheme id, so 100 schemes can carry theirs the same way.
-Pure: no model, no I/O.
+Step 1.3b: the lists live in fixtures/scheme_short_names.json (fixtures, not
+the snapshot folder: one source for every snapshot, always on disk for tests,
+no snapshot-version copies to keep in step). This module stays the only reader.
+Pure: no model; the one file read happens at import.
 """
 from __future__ import annotations
 
+import json
 import re
+from pathlib import Path
+
+
+def _load() -> dict:
+    try:
+        path = Path(__file__).resolve().parents[2] / "fixtures" / "scheme_short_names.json"
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+_DATA = _load()
 
 # scheme id -> short spoken forms (bare names, letters, Hindi and Latin).
 SHORT_NAMES: dict[str, tuple[str, ...]] = {
-    "pm-kisan": ("पीएम किसान", "pm kisan", "किसान सम्मान निधि", "kisan samman nidhi"),
-    "mgnrega": ("मनरेगा", "mgnrega", "नरेगा", "nrega"),
-    "kcc": ("केसीसी", "kcc"),
-    "pmay-g": ("pm awas", "pmay", "पीएम आवास", "आवास योजना", "pm awas yojana"),
-    "pmfby": ("pmfby", "पीएमएफबीवाई", "फसल बीमा", "fasal bima", "crop insurance"),
-    "apy": ("apy", "अटल पेंशन", "atal pension"),
-    "day-nrlm": ("nrlm", "आजीविका मिशन", "आजीविका", "livelihood mission"),
-    "ignwps": ("ignwps", "विधवा पेंशन", "widow pension"),
-    "igndps": ("igndps", "दिव्यांग पेंशन", "विकलांग पेंशन", "disability pension"),
-    "jsy1": ("jsy", "जेएसवाई", "जननी सुरक्षा", "janani suraksha"),
-    "nfbs": ("nfbs", "पारिवारिक लाभ", "family benefit"),
-    "pm-svanidhi": ("स्वनिधि", "svanidhi", "पीएम स्वनिधि", "pm svanidhi"),
-    "pmmy": ("pmmy", "मुद्रा", "mudra", "मुद्रा लोन", "mudra loan", "मुद्रा योजना", "mudra yojana"),
-    "naps": ("naps", "अप्रेंटिसशिप", "apprenticeship"),
-    "nps-tsep": ("व्यापारी पेंशन", "trader pension", "traders pension"),
-    "pmegp": ("pmegp", "रोजगार सृजन", "employment generation"),
-    "smam": ("smam", "एसएमएएम", "कृषि मशीनरी", "कृषि यंत्र"),
-}
+    key: tuple(names) for key, names in _DATA.get("short_names", {}).items()}
 
 # Well-known schemes we do NOT hold: canonical id -> words that name it.
 # A turn naming one of these is its own kind of turn ("I do not have that one
 # yet"), not a situation to ask questions about. Kept here, next to SHORT_NAMES.
 NOT_HELD: dict[str, tuple[str, ...]] = {
-    "ayushman": ("आयुष्मान", "ayushman", "आयुष्मान भारत", "ayushman bharat"),
-    "ration_card": ("राशन कार्ड", "ration card", "राशन", "ration"),
-    "ladli_behna": ("लाडली बहना", "ladli behna", "लाड़ली बहना", "ladli bahan"),
-    "ujjwala": ("उज्ज्वला", "ujjwala", "उज्ज्वला योजना", "ujjwala yojana"),
-}
+    key: tuple(names) for key, names in _DATA.get("not_held", {}).items()}
+
+# A short name that is also a common word ("मुद्रा", "आजीविका"): it only names
+# its scheme with योजना / लोन / scheme / loan next to it.
+NEEDS_MARKER: tuple[str, ...] = tuple(_DATA.get("needs_marker", ()))
+MARKERS: tuple[str, ...] = ("योजना", "लोन", "scheme", "schemes", "loan", "loans")
 
 _ASCII_WORD = re.compile(r"^[a-z ]+$")
 _DEVA = r"\u0900-\u097F"
+_PUNCT = re.compile(r"[^\w\s]", re.UNICODE)
+
+
+def _norm(text: str) -> str:
+    """Same cut as the name search: punctuation out, lowercased, words apart."""
+    return " ".join(_PUNCT.sub(" ", str(text).lower()).split())
+
+
+def needs_marker(name: str) -> bool:
+    """A normalized name that is also a common word: no match without a marker."""
+    return _norm(name) in {_norm(w) for w in NEEDS_MARKER}
+
+
+def has_marker(query_words: list[str]) -> bool:
+    """A योजना / लोन / scheme / loan word standing whole in the query words."""
+    for marker in MARKERS:
+        seq = _norm(marker).split()
+        if any(query_words[i:i + len(seq)] == seq
+               for i in range(len(query_words) - len(seq) + 1)):
+            return True
+    return False
 
 
 def short_names_for(scheme_id: str) -> tuple[str, ...]:
