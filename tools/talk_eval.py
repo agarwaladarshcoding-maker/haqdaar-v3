@@ -21,6 +21,7 @@ Run:  python -m tools.talk_eval            (all calls, a short report)
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import tempfile
 from pathlib import Path
@@ -39,6 +40,7 @@ from haqdaar.data import scheme_index
 from haqdaar.data.corpus import Corpus
 from haqdaar.data.log import Log
 from haqdaar.engine.call import Engine
+from haqdaar.photo import in_call
 from haqdaar.prompts import talk as prompt
 from tools import barge_eval as be
 
@@ -74,6 +76,27 @@ SCRIPTS: dict[str, list[Any]] = {
     "f_follow": [("say", "i need a scheme for farming", 1.8), ("say", "the second one", 1.0),
                  ("say", "i did not understand", 1.2), ("say", "how much did you say", 1.4),
                  ("say", "any other", 1.0), BYE],
+    # 4.2: the photo link by fixed code (the SMS is faked in run_call).
+    "f_photo_yes": [("say", "i need a scheme for farming", 1.8), ("say", "can i send a photo", 1.4),
+                    ("say", "yes", 0.6), BYE],
+    "f_photo_no": [("say", "i need a scheme for farming", 1.8), ("say", "can i send a photo", 1.4),
+                   ("say", "no", 0.6), BYE],
+    "f_photo_key": [("say", "i need a scheme for farming", 1.8), "9", "9", BYE],
+    # 1.8 (B): trust lines, a long number, what the line can not do, distress, off topic x3, thanks, pace, recap.
+    "f_trust": [("say", "i need a scheme for farming", 1.8), ("say", "is it free", 1.0),
+                ("say", "are you the government", 1.2), ("say", "are you a machine", 1.0),
+                ("say", "let me talk to a person", 1.4), BYE],
+    "f_number": [("say", "i need a scheme for farming", 1.8), ("say", "my aadhaar number is one two three four five six", 3.0),
+                 ("say", "1234 5678 9012", 2.0), BYE],
+    "f_cannot": [("say", "i need a scheme for farming", 1.8), ("say", "fill the form for me", 1.2),
+                 ("say", "check my payment", 1.2), ("say", "send me the details by sms", 1.6), BYE],
+    "f_distress": [("say", "my husband passed away", 1.4), ("say", "i need a scheme for farming", 1.8), BYE],
+    "f_offtopic3": [("say", "i need a scheme for farming", 1.8), ("say", "what is the weather", 1.2),
+                    ("say", "the weather in pune", 1.2), ("say", "weather tomorrow", 1.2)],
+    "f_thanks": [("say", "i need a scheme for farming", 1.8), ("say", "thanks", 0.8), ("say", "no", 0.6)],
+    "f_slow": [("say", "i need a scheme for farming", 1.8), ("say", "speak slowly", 1.0),
+               ("say", "how much money does it give", 1.6), ("say", "normal speed", 1.0), BYE],
+    "f_recap": [("say", "just tell me i am a woman and a farmer", 2.4), ("say", "how much money does it give", 1.6), BYE],
     "q_three": [("say", "hmm", 0.6), ("say", "hmm", 0.6), ("say", "hmm", 0.6),
                 ("say", "ok", 0.8), BYE],
 }
@@ -148,11 +171,13 @@ def run_call(script: str, gate: bool, inject: Optional[Callable[[be.World, be.Ca
     if _TMP is None:
         _TMP = tempfile.TemporaryDirectory(prefix="talk_eval_")
     corp = corpus()
-    flags = dict(TALK_ONLY=True, QA_SPEAK=True, CUT_IN_GATE=gate, SPEECH_CUT_IN=False, LIVE_TTS_STREAM=False,
+    flags = dict(TALK_ONLY=True, PHOTO_IN_CALL=True, QA_SPEAK=True, CUT_IN_GATE=gate, SPEECH_CUT_IN=False, LIVE_TTS_STREAM=False,
                  QA_ENABLED=False, SILENCE_REMIND_S=REMIND_S, SILENCE_HANGUP_S=HANGUP_S)
     saved = {k: getattr(tunables, k) for k in flags}
     saved_time = (turn_mod.time, ear_mod.time, phone_mod.time)
-    saved_index = scheme_index.get
+    saved_index, saved_sms, saved_photo = scheme_index.get, in_call._sms, os.environ.get("PHOTO_DIR")
+    in_call._sms = lambda to, text: "SM_fake"      # no network: the SMS is faked
+    os.environ["PHOTO_DIR"] = str(Path(_TMP.name) / "photo")
     for k, v in flags.items():
         setattr(tunables, k, v)
     world = be.World()
@@ -220,7 +245,11 @@ def run_call(script: str, gate: bool, inject: Optional[Callable[[be.World, be.Ca
             pass
     finally:
         turn_mod.time, ear_mod.time, phone_mod.time = saved_time
-        scheme_index.get = saved_index
+        scheme_index.get, in_call._sms = saved_index, saved_sms
+        if saved_photo is None:
+            os.environ.pop("PHOTO_DIR", None)
+        else:
+            os.environ["PHOTO_DIR"] = saved_photo
         for k, v in saved.items():
             setattr(tunables, k, v)
     return res
@@ -228,7 +257,8 @@ def run_call(script: str, gate: bool, inject: Optional[Callable[[be.World, be.Ca
 
 # --- the rules -------------------------------------------------------------------------
 
-SPOKEN = ("answer", "ask", "show_scheme", "other_topic", "repeat", "hold", "hear", "simpler")
+SPOKEN = ("answer", "ask", "show_scheme", "other_topic", "repeat", "hold", "hear", "simpler",
+          "photo_offer", "photo_link", "photo_no", "number", "trust", "cannot", "thanks", "pace")
 
 
 def check(res: be.Result) -> list[str]:
@@ -245,7 +275,7 @@ def check(res: be.Result) -> list[str]:
 
     said_texts = {s["t1"]: s for s in res.said}
     for row in rows:
-        if row.get("ev") != "act":
+        if row.get("ev") != "act" or row.get("by") == "key":     # a key has no last word to measure from
             continue
         before = [t1 for t1 in said_texts if t1 <= row["t"]]
         if not before:

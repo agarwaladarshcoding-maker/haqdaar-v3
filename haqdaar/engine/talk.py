@@ -28,10 +28,11 @@ from haqdaar.contracts.log_schema import (
 from haqdaar.contracts.types import SEVEN_BOXES, UNASKED, UNKNOWN, Digit, Hangup, Silence, Speech
 from haqdaar.data import chunk_index, log_text, scheme_index
 from haqdaar.data.scheme_text import SchemeText
-from haqdaar.engine import talk_follow, talk_kind, talk_pick, talk_words, words_no_answer, words_tell_me
+from haqdaar.engine import talk_follow, talk_kind, talk_pick, talk_trust, talk_words, words_no_answer, words_tell_me
 from haqdaar.engine.filter import Filter
 from haqdaar.model import middle
 from haqdaar.model.answer import check_answer, mask_digits
+from haqdaar.photo import in_call
 from haqdaar.prompts import talk as prompt
 
 SEARCH_K = 10            # C1: the picker works on the search's top 10
@@ -191,6 +192,17 @@ class _Talk:
         self._proof_ids: Optional[list[str]] = None  # 1.5: schemes whose WHOLE cards are the answer check's proof
         self._sent_ids: list[str] = []  # 1.5: schemes whose parts the last prompt held
         self._chunks_said = False       # 1.5: the fall-back to whole cards is logged once a call
+        self.langs_spoken: list[str] = [lang]   # 4.2: the languages the caller spoke, first use first, at most 4
+        self.offered = False            # 4.2: the photo link was offered in this call (once)
+        self.offer_open = False         # 4.2: the last reply made the offer: this turn's yes / no answers it
+        self.before_offer = ""          # 4.2: what was said before the offer, for the question after a "no"
+        self.sent: Optional[dict[str, Any]] = None   # 4.2: the link that went out in this call
+        self.thanks_open = False        # 1.8 (B): "thanks" got "anything else?": the next no / thanks / quiet ends the call
+        self.off_n = 0                  # 1.8 (B): off-topic turns in a row
+        self.recapped = False           # 1.8 (B): the details were said back once in this call
+        self._recap = False             # 1.8 (B): this turn's reply said them back (for the log)
+        self._distress = False          # 1.8 (B): this turn's words are pain: one kind sentence goes first
+        self.age_say = ""               # 1.8 (B): the age as the caller said it (the box holds only the band)
 
     # --- the fixed part: search -> filter -> picker ---
     def _help_kinds(self) -> list[str]:
@@ -310,8 +322,54 @@ class _Talk:
         self.hold_until = time.monotonic() + tunables.TALK_HOLD_S
         return "hold", prompt.HOLD.get(self.lang, prompt.HOLD["en"])
 
+    def _note_lang(self) -> None:
+        if self.lang not in self.langs_spoken and len(self.langs_spoken) < 4:
+            self.langs_spoken.append(self.lang)
+
+    def _photo_row(self, what: str, res: Optional[dict[str, Any]] = None) -> None:
+        """One row, never the number."""
+        res = res or {}
+        self.log.write({"ev": "photo", "what": what, "token": res.get("token", ""), "link": res.get("link", ""),
+                        "sms": bool(res.get("sent")), "langs": list(self.langs_spoken)})
+
+    def _photo_link(self) -> tuple[str, str]:
+        """Yes, or key 9: send the link. Once a call: the second time nothing is sent."""
+        if self.sent is not None:
+            return "photo_link", prompt.PHOTO["already"].get(self.lang, prompt.PHOTO["already"]["en"])
+        res = in_call.send_link(self.lang, self.langs_spoken, getattr(self.audio, "caller_number", ""))
+        self._photo_row("link" if res["sent"] else "no_sms", res)
+        if not res["sent"]:                         # nothing went out: a second try may send
+            return "photo_link", prompt.PHOTO["no_sms"].get(self.lang, prompt.PHOTO["no_sms"]["en"])
+        self.sent = res
+        return "photo_link", prompt.PHOTO["sent"].get(self.lang, prompt.PHOTO["sent"]["en"])
+
+    def _photo_early(self, words: str) -> Optional[tuple[str, str]]:
+        """4.2: the photo offer, by fixed words. An open offer is answered, or closed, by this turn."""
+        answering, self.offer_open = self.offer_open, False
+        if answering and talk_follow.yes(words):
+            return self._photo_link()
+        if answering and talk_follow.no(words):
+            asks = [s for s in _sentences(self.before_offer) if "?" in s]
+            return "photo_no", prompt.PHOTO["ok"].get(self.lang, prompt.PHOTO["ok"]["en"]) + (" " + asks[-1] if asks else "")
+        if talk_follow.photo_ask(words):
+            if self.sent is not None:
+                return "photo_link", prompt.PHOTO["already"].get(self.lang, prompt.PHOTO["already"]["en"])
+            self.offered, self.offer_open, self.before_offer = True, True, self.last_say
+            self._photo_row("offer")
+            return "photo_offer", prompt.PHOTO["offer"].get(self.lang, prompt.PHOTO["offer"]["en"])
+        return None
+
     def _early(self, words: str) -> Optional[tuple[str, str]]:
         """1.8: replies made by code alone, with no model call."""
+        if talk_trust.read_out(words):                    # a long number: never an answer, never kept
+            return "number", prompt.NUMBER.get(self.lang, prompt.NUMBER["en"])
+        answering, self.thanks_open = self.thanks_open, False
+        if answering and (talk_follow.no(words) or talk_trust.no_more(words) or talk_trust.thanks(words)):
+            return "goodbye", ""                          # "anything else?" was answered with no more
+        if tunables.PHOTO_IN_CALL:
+            photo = self._photo_early(words)
+            if photo is not None:
+                return photo
         if talk_follow.hold(words):
             return self._hold()
         if self.last_say and talk_follow.hear(words):     # mid-call "hello? can you hear me?"
@@ -322,7 +380,53 @@ class _Talk:
             nums = [s for s in _sentences(self.last_say) if re.search(r"\d", s)]
             if nums:
                 return "answer", " ".join(nums)
+        pace = talk_trust.pace(words)
+        if pace:                                          # slower (or normal) voice for the rest of the call
+            self.audio.pace = tunables.TALK_SLOW_PACE if pace == "slow" else 0.0
+            line = prompt.PACE[pace].get(self.lang, prompt.PACE[pace]["en"])
+            return "pace", line + (" " + self.last_say if pace == "slow" and self.last_say else "")
+        kind = talk_trust.trust(words, self._about_scheme(words))
+        if kind:
+            return "trust", prompt.TRUST[kind].get(self.lang, prompt.TRUST[kind]["en"])
+        kind = talk_trust.cannot(words)
+        if kind:
+            return "cannot", prompt.CANNOT[kind].get(self.lang, prompt.CANNOT[kind]["en"])
+        if talk_trust.thanks(words):                      # "thanks" is not goodbye: once, then the next no / bye / quiet
+            self.thanks_open = True
+            return "thanks", prompt.THANKS.get(self.lang, prompt.THANKS["en"])
         return None
+
+    def _about_scheme(self, words: str) -> bool:
+        """A scheme named, or a need said: "is the insurance free" is about a scheme, not about the line."""
+        try:
+            hits = self.index.search(words, 1)
+        except Exception:
+            hits = []
+        return bool(hits and getattr(hits[0], "by", "") == "name") or bool(
+            talk_words.spot_all(words, self.corpus).get("category"))
+
+    def _recap_facts(self) -> list[str]:
+        """What the caller told us, in plain English, for the one sentence said back (1.8 B)."""
+        said: list[str] = []
+        for box in ("gender", "age", "occupation", "state", "social_category", "income_band", "category"):
+            value = self.bv.get(box)
+            if value in (UNASKED, UNKNOWN, None, "ANY", ""):
+                continue
+            label = prompt.kind_say(value, "en")
+            if box == "age":
+                years = self.age_say if _age_band(self.age_say, self.corpus) == value else ""
+                said.append(f"age {years or value}")
+            elif box == "category":
+                said.append(f"needs help with {label.lower()}")
+            elif box == "state":
+                said.append(f"lives in {label if value == 'MAHARASHTRA' else label.lower()}")
+            elif box == "social_category":
+                said.append(f"{label} category")
+            elif box == "income_band":
+                said.append(f"income band {label}")
+            else:
+                said.append(label.lower())
+        return said
 
     def _found(self) -> list[str]:
         """Search's top 10 on the last three caller turns, plus every scheme of the kind of help
@@ -359,9 +463,11 @@ class _Talk:
 
     def _decide(self, words: str, cut: bool = False) -> tuple[str, str]:
         """(action, say). At most two model calls: the second only after a refused first reply."""
+        self._recap = self._distress = False
         early = self._early(words)
         if early is not None:
             return early
+        self._distress = talk_trust.distress(words)
         self._pair, self._others = [], None
         follow = [prompt.FOLLOW["simpler"]] if talk_follow.simpler(words) else []
         if talk_follow.how_much(words):
@@ -420,6 +526,8 @@ class _Talk:
             follow.append(prompt.FOLLOW["side"].format(a=self._pair[0], b=self._pair[1]))
         if self._will_get:
             follow.append(prompt.FOLLOW["will_ask" if nar.ask else "will_known"].format(sid=self.focus))
+        if self._distress:
+            follow.append(prompt.FOLLOW["distress"])
         note = " ".join([note, *follow]).strip()
         if self.turn_kind == talk_kind.NOT_HELD_SCHEME:  # 1.3b (P2.2): fixed words, no questions
             self.last_asked = ""
@@ -431,7 +539,15 @@ class _Talk:
                 and self.bv.get(nar.ask) == UNASKED):
             self.bv[nar.ask] = UNKNOWN            # 1.3b (C): only the box just asked about
             nar, cards = self._state(ids)
+        keep: list[str] = [prompt.FOLLOW["distress"]] if self._distress else []
+        said_back = self._recap_facts()
+        recap = bool(not self.recapped and not nar.ask and len(said_back) >= 2)
+        if recap:                                   # 1.8 (B): the answer comes after the details are said back, once
+            keep.append(prompt.FOLLOW["recap"].format(facts=", ".join(said_back)))
+            note = " ".join([note, keep[-1]]).strip()
         for _try in (0, 1):
+            if _try and keep:                       # a refused reply is tried again with the same asks
+                note = " ".join([note, *keep]).strip()
             known = {b: v for b, v in self.bv.items() if v != UNASKED}
             self._sent_ids = [sid for sid, _m, _t in cards]
             data = self._timed("model", _call, self.model, prompt.build(
@@ -455,6 +571,9 @@ class _Talk:
                 self.log.write({"ev": "blocked", "rule": "fact", "question": "", "text": f"gender = {facts.get('gender')}"})
                 facts = {k: v for k, v in facts.items() if k != "gender"}
             filled = _take_facts(facts, self.bv, self.corpus, self.log, self.turn_n)
+            if isinstance(facts, dict) and facts.get("age") not in (None, "") \
+                    and _age_band(str(facts["age"]).strip(), self.corpus) == self.bv.get("age"):
+                self.age_say = str(facts["age"]).strip()
             nots = data.get("not")                  # 1.3b (P3.3): the model takes facts away
             for box in nots if isinstance(nots, list) else []:
                 if isinstance(box, str) and box in SEVEN_BOXES and self.bv.get(box) != UNASKED:
@@ -489,6 +608,9 @@ class _Talk:
                 return action, ""               # goodbye: the farewell clip is the only thing said
             if action == "other_topic":         # fixed words; the model does not write this one
                 self.last_asked = ""
+                self.off_n += 1
+                if self.off_n >= tunables.TALK_OFF_TOPIC_END:   # 1.8 (B): the third in a row: a polite goodbye
+                    return "goodbye", prompt.OFF_TOPIC_END.get(self.lang, prompt.OFF_TOPIC_END["en"])
                 return action, prompt.OTHER_TOPIC.get(self.lang, prompt.OTHER_TOPIC["en"])
             if action == "hold":                # 1.8: fixed words; the question being asked stays open
                 return self._hold()
@@ -587,6 +709,14 @@ class _Talk:
                 extra = self.more_needs.pop(0)      # 1.3b (P2.3): "you also asked about a house"
                 say = say + " " + prompt.ALSO_ASKED.get(
                     self.lang, prompt.ALSO_ASKED["en"]).format(kind=prompt.kind_say(extra, self.lang))
+            if (tunables.PHOTO_IN_CALL and action in ("answer", "show_scheme") and say and not self.offered
+                    and talk_follow.photo_seen(words)):     # 4.2: a need one can see: the offer, once a call
+                self.offered, self.offer_open, self.before_offer = True, True, say
+                self._photo_row("offer")
+                say = say + " " + prompt.PHOTO["seen"].get(self.lang, prompt.PHOTO["seen"]["en"])
+            self.off_n = 0                          # 1.8 (B): a turn on topic
+            if recap and action in ("answer", "show_scheme") and say:
+                self.recapped = self._recap = True
             return action, say
         if wrong_ask and nar.ask:                   # C1: the picker's question, in fixed words
             self.asked[nar.ask] = self.asked.get(nar.ask, 0) + 1
@@ -639,8 +769,9 @@ class _Talk:
         """`cut`: the caller said these words while the agent was talking, and it stopped (B5)."""
         self.turn_n += 1
         self.stage = {}
-        self.heard.append(words)
-        self.log.write({"ev": "heard", "text": mask_digits(words)})
+        shown = talk_trust.mask(words)          # 1.8 (B): a number being read out is never kept
+        self.heard.append(shown)
+        self.log.write({"ev": "heard", "text": mask_digits(shown)})
         t0 = time.monotonic()
         lock = threading.Lock()
         done = threading.Event()                # the reply has started to sound, or there is none
@@ -671,12 +802,18 @@ class _Talk:
             action, say = self._decide(words, cut)
             if action in ("answer", "ask", "show_scheme"):
                 self.last_action = action
+                if self._distress and say:          # 1.8 (B): one kind sentence first, then the rest
+                    say = prompt.DISTRESS.get(self.lang, prompt.DISTRESS["en"]) + " " + say
             back[0] = time.monotonic()
             row: dict[str, Any] = {
                 "ev": "act", "action": action, "scheme": self.focus, "ms": int((back[0] - t0) * 1000),
                 "end_ms": end_ms if end_ms >= 0 else None, "stt_ms": stt_ms if stt_ms >= 0 else None,
                 "search_ms": int(self.stage.get("search", 0.0) * 1000),
                 "model_ms": int(self.stage.get("model", 0.0) * 1000)}
+            if self._recap:
+                row["recap"] = True
+            if self._distress and action in ("answer", "ask", "show_scheme"):
+                row["distress"] = True
 
             def first_voice() -> None:
                 """The first sentence's sound is ready: the stage times are whole, the row is written."""
@@ -703,7 +840,7 @@ class _Talk:
                     stop_filler()
                     if self.voice_fails < VOICE_FAILS_HANGUP:
                         self.audio.say(("unclear_prompt",))
-                if action not in ("hold", "hear"):  # 1.8: "repeat" and the next "hello?" go back to the question
+                if action not in ("hold", "hear", "photo_offer", "photo_link", "photo_no", "number", "trust", "cannot", "thanks", "pace"):  # 1.8: "repeat" and the next "hello?" go back to the question
                     self.last_say = say
             if "ev" in row:                         # nothing was said (or no voice on this audio)
                 self.log.write(dict(row))
@@ -722,12 +859,42 @@ class _Talk:
             reason = STOP_LE_4_SURVIVORS if 0 < len(self.left) <= tunables.STOP_SURVIVORS else STOP_NO_SPLIT
         self.log.close(reason=reason, ladder_rung=0, mode="voice")
 
+    def _fixed(self, action: str, say: str) -> None:
+        """A line said by code outside a turn (a key, the call-back). Like hold / hear it leaves last_say alone."""
+        self.log.write({"ev": "act", "action": action, "scheme": self.focus, "ms": 0, "by": "key"})
+        if not self._speak(say):
+            self.log.write({"ev": "blocked", "rule": "voice_failed", "question": "", "text": say})
+
+    def _call_back(self, back: dict[str, Any]) -> None:
+        """4.3: a photo was read since the last call: it is the first thing said, before the caller is waited for."""
+        self.lang = back["lang"]
+        if hasattr(self.audio, "language"):
+            self.audio.language = self.lang         # the voice, and the language each turn starts from
+        self._note_lang()
+        bad = back["bad"]
+        say = prompt.PHOTO["bad" if bad else "back"].get(self.lang, prompt.PHOTO["bad" if bad else "back"]["en"])
+        if not bad:
+            text = back["say"]                      # the desk's text is English
+            if self.lang != "en" and tunables.PHOTO_BACK_TRANSLATE:
+                try:                                # a refused or failed sentence comes back in English
+                    text = " ".join(o.text for o in middle.reply_in(text, self.lang)) or text
+                except Exception:
+                    pass
+            say += " " + text
+        self._photo_row("bad" if bad else "back", {"token": back["token"]})
+        self._speak(say)
+        self.last_say = say
+        in_call.done(back["token"], bad)
+
     def run(self, first_words: str = "") -> None:
+        back = in_call.pending() if tunables.PHOTO_IN_CALL else None
+        if back:
+            self._call_back(back)
         if first_words:
             # The caller already asked at the greeting: answer that, with no second hello.
             if self._turn(first_words) == "goodbye":
                 return self._end(farewell=True)
-        else:
+        elif not back:
             self._speak(prompt.HELLO.get(self.lang, prompt.HELLO["en"]))
         while True:
             if self.turn_n >= tunables.TALK_MAX_TURNS:
@@ -744,11 +911,18 @@ class _Talk:
                 if time.monotonic() < self.hold_until:  # 1.8: "hold on": the quiet rule has not started
                     self._held_n = inp.n
                     continue
+                if self.thanks_open:                    # 1.8 (B): "anything else?" and quiet: goodbye
+                    return self._end(farewell=True, reason=STOP_ZERO_SURVIVORS)
                 if inp.n - self._held_n >= SILENCE_HANGUP_RUNG:
                     return self._end(farewell=True, reason=STOP_ZERO_SURVIVORS)
                 self.audio.say(("waiting_for_reply",))
                 if not self.last_say:
                     self._speak(prompt.HELLO.get(self.lang, prompt.HELLO["en"]))
+                continue
+            if isinstance(inp, Digit) and tunables.PHOTO_IN_CALL and inp.digit == "9":
+                self.log.write({"ev": "key", "key": inp.digit, "means": "send the photo link"})
+                self.offer_open = False
+                self._fixed(*self._photo_link())
                 continue
             if isinstance(inp, Digit):          # keys are off in talk mode
                 self.log.write({"ev": "key", "key": inp.digit, "means": "keys are off"})
@@ -758,6 +932,7 @@ class _Talk:
             self._held_n, self.hold_until = 0, 0.0   # words came: the hold is over
             if tunables.LANG_EACH_TURN:     # 1.2: the caller's last turn set the language
                 self.lang = getattr(self.audio, "language", self.lang)
+                self._note_lang()
             if self._turn(inp.text.strip(), inp.end_ms, inp.stt_ms, bool(inp.cut_clip)) == "goodbye":
                 return self._end(farewell=True)
 

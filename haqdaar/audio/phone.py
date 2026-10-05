@@ -52,6 +52,8 @@ ALWAYS_SAY: frozenset[str] = frozenset({"closing_farewell"})
 
 
 class PhoneAudio:
+    pace = 0.0   # 1.8 (B): the caller asked for another voice speed; 0 is LIVE_TTS_PACE (a class default: some tests skip __init__)
+
     def __init__(
         self,
         corpus: Any,
@@ -79,6 +81,7 @@ class PhoneAudio:
         self._speak = speak   # text, lang -> mu-law bytes or None; live Sarvam when not given
         self.language: Lang = "hi"
         self.first_words = ""   # words said at the greeting that start the talk: its first turn
+        self.caller_number = ""  # the person's number, in memory for this call only (never logged)
         self._silence = 0
         self._token_clips: dict[str, list[str]] = {}   # token -> names of the clips it played
         self._filler = False   # 7.4: "one_moment" was said and not yet stopped
@@ -239,7 +242,7 @@ class PhoneAudio:
         if audio is None and tunables.LIVE_TTS_STREAM and self._speak is None:
             return self._say_stream(text, lang, key, t0, on_first)
         if audio is None:
-            audio = (self._speak or live_tts.speak)(text, lang)
+            audio = self._voice(text, lang)
         self._log(
             f"-> live say answer ({len(text)} chars, {time.monotonic() - t0:.1f} s, "
             f"{'cached' if cached else 'rendered' if audio else 'failed'})"
@@ -260,7 +263,7 @@ class PhoneAudio:
     def _say_stream(self, text: str, lang: str, key: str, t0: float, on_first: Any) -> bool:
         """7.14: say a new sentence as its sound arrives. The first sound goes out about half a
         second in; the rest comes faster than it plays. The whole sound is saved when it all came."""
-        chunks = live_tts.stream(text, lang)
+        chunks = live_tts.stream(text, lang, pace=self.pace) if self.pace else live_tts.stream(text, lang)
         try:
             head = next(chunks, b"")
         except Exception:
@@ -294,9 +297,16 @@ class PhoneAudio:
 
     def _live_key(self, text: str, lang: str) -> str:
         """The cache key of a live sentence. A live pace other than the clips' pace gets its own key."""
-        if tunables.LIVE_TTS_PACE != tunables.TTS_PACE:
-            return compute_render_key(f"{text}|pace={tunables.LIVE_TTS_PACE}", lang)
+        pace = self.pace or tunables.LIVE_TTS_PACE
+        if pace != tunables.TTS_PACE:
+            return compute_render_key(f"{text}|pace={pace}", lang)
         return compute_render_key(text, lang)
+
+    def _voice(self, text: str, lang: str) -> Any:
+        """The sound of a live sentence, at the caller's pace when one was asked for."""
+        if self._speak is None and self.pace:
+            return live_tts.speak(text, lang, pace=self.pace)
+        return (self._speak or live_tts.speak)(text, lang)
 
     def warm_text(self, text: str) -> None:
         """7.13: make a sentence's sound ahead of time (the talk loop does this for the 2nd, 3rd
@@ -308,7 +318,7 @@ class PhoneAudio:
             text = live_tts.clean(text, lang)
             key = self._live_key(text, lang)
             if text and self._saved_answer(key) is None:
-                audio = (self._speak or live_tts.speak)(text, lang)
+                audio = self._voice(text, lang)
                 if audio:
                     self._save_answer(key, audio)
         except Exception as e:

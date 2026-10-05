@@ -263,6 +263,14 @@ def place_call(to_number: str, answer_url: str, opener: Any = None) -> str:
     return _api("Calls.json", form, opener)["sid"]
 
 
+def send_sms(to_number: str, text: str, opener: Any = None) -> str:
+    """Send one text message from the line's own number. Returns the message SID."""
+    import os
+
+    form = {"To": to_number, "From": os.environ["TWILIO_US_PHONE_NUMBER"], "Body": text}
+    return _api("Messages.json", form, opener)["sid"]
+
+
 def call_recording(call_sid: str = "") -> tuple[str, bytes]:
     """The line's own two-sided sound record of a call (the newest one when no id is given), as
     (call id, WAV bytes). ("", b"") when there is none: the call was not placed with CALL_RECORD."""

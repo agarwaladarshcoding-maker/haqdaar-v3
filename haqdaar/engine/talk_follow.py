@@ -50,6 +50,41 @@ HOLD_TOKENS = 5
 HEAR = ("can you hear me", "do you hear me", "are you there", "आवाज़ आ रही", "आवाज आ रही", "आवाज़ सुनाई",
         "सुनाई दे रहा", "सुनाई दे रही", "सुन रहे हो", "सुन रही हो", "सुन रहे हैं", "आप हैं", "ऐकू येत", "ऐकू येतंय",
         "ऐकतोय", "ऐकताय")
+# 4.2: the caller wants to send or show a photo: a word for photo next to a word for send / show / take
+# (matched by the start of the word: bhej, bhejun, bhejna), or one of the short "I can show you" forms.
+PHOTO_WORDS = ("photo", "photos", "foto", "pic", "pics", "picture", "pictures", "tasveer", "tasvir", "फोटो", "फ़ोटो",
+               "फोटू", "फ़ोटू", "तस्वीर", "छवि")
+PHOTO_VERBS = ("send", "show", "take", "upload", "bhej", "dikha", "dikhaun", "pathav", "pathva", "dakhav", "khich", "kheench",
+               "भेज", "दिखा", "दिखाऊ", "पाठव", "दाखव", "खींच", "खिंच", "काढ")
+SHOW_YOU = ("dikha sakta hoon", "dikha sakti hoon", "dikha sakta hu", "dikha doon", "दिखा सकता हूँ", "दिखा सकता हूं",
+            "दिखा सकती हूँ", "दिखा सकती हूं", "दिखा दूं", "दिखा दूँ", "दाखवू शकतो", "दाखवू शकते", "दाखवू का",
+            "can i show you", "can i show it", "let me show you", "i can show you")
+# 4.2: a need one can SEE. Short and exact: no bare "house" or "crop".
+PHOTO_SEEN = ("my crop is spoiled", "my crop is ruined", "my crop is damaged", "my crop is destroyed", "my crop died",
+              "my crops are spoiled", "my crops are ruined", "my crops are damaged", "my crops died", "crop got spoiled",
+              "crop got damaged", "crops got damaged", "crop failed", "crops failed", "insects on my crop",
+              "insects in my crop", "pests on my crop", "pests in my crop", "pest attack", "worms on my crop",
+              "house fell", "house collapsed", "house is damaged", "house got damaged", "house was damaged",
+              "my house broke", "roof fell", "roof collapsed", "wall fell", "wall collapsed",
+              "cow is sick", "buffalo is sick", "goat is sick", "my animal is sick", "my cow died", "my buffalo died",
+              "my goat died", "my animal died", "cow is dead", "buffalo is dead",
+              "field is flooded", "fields are flooded", "field got flooded", "water in my field", "flood in my field",
+              "फसल खराब", "फसल ख़राब", "फसल बर्बाद", "फसल सूख गई", "फसल सड़ गई", "फसल में कीड़े", "फसल में कीड़ा",
+              "फसल में कीट", "घर गिर गया", "घर गिर गई", "घर गिरा", "घर टूट गया", "मकान गिर गया", "मकान टूट गया", "छत गिर गई",
+              "छत गिर गयी", "गाय बीमार", "भैंस बीमार", "बकरी बीमार", "जानवर बीमार", "गाय मर गई", "भैंस मर गई",
+              "बकरी मर गई", "जानवर मर गया", "खेत में पानी भर", "खेत डूब", "खेत में बाढ़",
+              "fasal kharab", "fasal barbad", "fasal mein keede", "ghar gir gaya", "ghar toot gaya", "gaay beemar",
+              "bhains beemar", "janwar beemar", "khet mein pani bhar",
+              "पीक खराब", "पीक वाया गेले", "पिकावर कीड", "पिकाला कीड", "घर पडले", "घर पडलं", "घर कोसळले",
+              "भिंत पडली", "छप्पर पडले", "गाय आजारी", "म्हैस आजारी", "शेळी आजारी", "जनावर आजारी", "गाय मेली",
+              "म्हैस मेली", "जनावर मेले", "शेतात पाणी साचले", "शेतात पाणी भरले")
+# Short answers (at most YES_NO_TOKENS words). A no word wins: "no, not now" is a no.
+YES = ("yes", "yeah", "yep", "ok", "okay", "sure", "please", "send it", "go ahead", "do it", "haan", "han", "haa", "ji",
+       "ji haan", "theek hai", "bhej do", "bhejiye", "bhejo", "हाँ", "हां", "हा", "हाँ जी", "हां जी", "जी", "जी हाँ",
+       "जी हां", "ठीक है", "भेज दो", "भेज दीजिए", "भेजिए", "भेजो", "होय", "हो", "ठीक आहे", "पाठवा", "पाठव")
+NO = ("no", "nope", "nah", "no thanks", "not now", "don't", "dont", "nahi", "nahin", "nai", "mat", "नहीं", "नही", "ना",
+      "मत", "रहने दो", "रहने दीजिए", "नको", "नाही", "नका", "राहू दे")
+YES_NO_TOKENS = 4
 HELLO_WORDS = frozenset({"hello", "hallo", "हैलो", "हेलो", "हॅलो", "हलो"})
 HEAR_TOKENS = 8
 
@@ -107,3 +142,21 @@ def hear(words: str) -> bool:
     if not toks or len(toks) > HEAR_TOKENS:
         return False
     return all(t in HELLO_WORDS for t in toks) or _has(words, HEAR)
+
+
+def photo_ask(words: str) -> bool:
+    toks = _TOK.findall(str(words).lower())
+    near = any(t in PHOTO_WORDS for t in toks) and any(t.startswith(v) for t in toks for v in PHOTO_VERBS)
+    return near or _has(words, SHOW_YOU)
+
+
+def photo_seen(words: str) -> bool:
+    return _has(words, PHOTO_SEEN)
+
+
+def no(words: str) -> bool:
+    return len(_TOK.findall(str(words).lower())) <= YES_NO_TOKENS and _has(words, NO)
+
+
+def yes(words: str) -> bool:
+    return len(_TOK.findall(str(words).lower())) <= YES_NO_TOKENS and not no(words) and _has(words, YES)

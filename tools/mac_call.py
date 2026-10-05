@@ -155,6 +155,10 @@ def show(row: dict) -> tuple[str, str] | None:
         return "AGENT", (row.get("text") or "") + (f"   [{en}]" if en and en != row.get("text") else "")
     if ev == "key":
         return "KEY", f"{row.get('key')}  ({row.get('means')})" if row.get("means") else str(row.get("key"))
+    if ev == "photo":
+        what = {"offer": "link offered", "link": "link sent", "no_sms": "no SMS went out", "back": "call-back, photo read",
+                "bad": "call-back, photo not clear"}.get(row.get("what"), str(row.get("what")))
+        return "", f"PHOTO {what}" + (f": {row['link']}" if row.get("link") else "")
     if ev == "act":
         parts = [f"{name} {secs(row[k])}" for name, k in (("ear", "stt_ms"), ("search", "search_ms"),
                  ("model", "model_ms"), ("voice", "voice_ms")) if row.get(k)]

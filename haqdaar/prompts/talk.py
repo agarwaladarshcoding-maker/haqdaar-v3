@@ -179,6 +179,131 @@ HEAR = {
     "mr": "हो, मला तुमचा आवाज ऐकू येत आहे.",
 }
 
+# 4.2 / 4.3: the photo link and the call-back, fixed words like HOLD / HEAR. The Marathi and Hindi are
+# not checked by a speaker. "SEEN" is added by code to the end of one reply, once a call.
+PHOTO = {
+    "offer": {
+        "en": "I can send a link to your phone by SMS. You take a photo there and send it. Then I call you back and "
+              "tell you what I found. Shall I send it? Say yes, or press 9.",
+        "hi": "मैं आपके फ़ोन पर एसएमएस से एक लिंक भेज सकती हूँ। आप वहाँ फ़ोटो खींचकर भेज दीजिए। फिर मैं आपको वापस फ़ोन "
+              "करके बताऊँगी कि मुझे क्या दिखा। क्या मैं लिंक भेजूँ? हाँ बोलिए, या 9 दबाइए।",
+        "mr": "मी तुमच्या फोनवर एसएमएसने एक लिंक पाठवू शकते. तिथे तुम्ही फोटो काढून पाठवा. मग मी तुम्हाला परत फोन करून "
+              "मला काय दिसले ते सांगेन. मी लिंक पाठवू का? हो म्हणा, किंवा 9 दाबा.",
+    },
+    "sent": {
+        "en": "I have sent the link to your phone. Open it, take the photo and press send. I will call you back. "
+              "You can ask me more now, or hang up.",
+        "hi": "मैंने आपके फ़ोन पर लिंक भेज दिया है। उसे खोलिए, फ़ोटो खींचिए और भेज दीजिए। मैं आपको वापस फ़ोन करूँगी। "
+              "अभी आप मुझसे और पूछ सकते हैं, या फ़ोन रख सकते हैं।",
+        "mr": "मी तुमच्या फोनवर लिंक पाठवली आहे. ती उघडा, फोटो काढा आणि पाठवा. मी तुम्हाला परत फोन करेन. "
+              "आता तुम्ही मला आणखी विचारू शकता, किंवा फोन ठेवू शकता.",
+    },
+    "no_sms": {
+        "en": "I could not send the message to this phone.",
+        "hi": "मैं इस फ़ोन पर संदेश नहीं भेज पाई।",
+        "mr": "मला या फोनवर संदेश पाठवता आला नाही.",
+    },
+    "ok": {"en": "All right.", "hi": "ठीक है।", "mr": "ठीक आहे."},
+    "already": {
+        "en": "The link is already sent.",
+        "hi": "लिंक पहले ही भेजा जा चुका है।",
+        "mr": "लिंक आधीच पाठवली आहे.",
+    },
+    "seen": {
+        "en": "If you like, you can also send me a photo of it. Shall I send a link by SMS?",
+        "hi": "चाहें तो उसकी एक फ़ोटो मुझे भेज सकते हैं। क्या मैं एसएमएस से लिंक भेजूँ?",
+        "mr": "हवे असल्यास त्याचा एक फोटो तुम्ही मला पाठवू शकता. मी एसएमएसने लिंक पाठवू का?",
+    },
+    "back": {
+        "en": "This is Haqdaar. I looked at your photo.",
+        "hi": "यह हक़दार है। मैंने आपकी फ़ोटो देखी।",
+        "mr": "हे हक्कदार आहे. मी तुमचा फोटो पाहिला.",
+    },
+    "bad": {
+        "en": "This is Haqdaar. I could not see your photo well. Please send it again: in daylight, close, and steady. "
+              "The same link works.",
+        "hi": "यह हक़दार है। मुझे आपकी फ़ोटो ठीक से नहीं दिखी। कृपया फिर से भेजिए: दिन की रोशनी में, पास से, और हाथ "
+              "स्थिर रखकर। वही लिंक चलेगा।",
+        "mr": "हे हक्कदार आहे. मला तुमचा फोटो नीट दिसला नाही. कृपया पुन्हा पाठवा: दिवसाच्या उजेडात, जवळून आणि हात "
+              "स्थिर ठेवून. तीच लिंक चालेल.",
+    },
+}
+
+# 1.8 (B): fixed true lines about the line itself, said by code with no model call. The Hindi and Marathi
+# are not checked by a speaker. None of them is an answer: they leave last_say alone.
+TRUST = {
+    "free": {
+        "en": "This call is free of charge from our side, and I never ask for money. The schemes are from the government.",
+        "hi": "हमारी तरफ़ से यह कॉल मुफ़्त है, और मैं कभी पैसे नहीं माँगती। योजनाएँ सरकार की हैं।",
+        "mr": "आमच्या बाजूने हा कॉल मोफत आहे, आणि मी कधीही पैसे मागत नाही. योजना सरकारच्या आहेत.",
+    },
+    "government": {
+        "en": "No. I am Haqdaar, a helper that tells you about government schemes. I am not a government office.",
+        "hi": "नहीं। मैं हक़दार हूँ, एक सहायक जो आपको सरकारी योजनाओं के बारे में बताती है। मैं कोई सरकारी दफ़्तर नहीं हूँ।",
+        "mr": "नाही. मी हक्कदार आहे, सरकारी योजनांबद्दल सांगणारी एक मदतनीस. मी सरकारी कार्यालय नाही.",
+    },
+    "person": {
+        "en": "I am a computer voice, not a person.",
+        "hi": "मैं एक कंप्यूटर की आवाज़ हूँ, कोई इंसान नहीं।",
+        "mr": "मी संगणकाचा आवाज आहे, माणूस नाही.",
+    },
+    "to_person": {
+        "en": "There is no person on this line now. I can tell you where to go for the scheme.",
+        "hi": "इस लाइन पर अभी कोई इंसान नहीं है। योजना के लिए कहाँ जाना है, यह मैं बता सकती हूँ।",
+        "mr": "या लाईनवर आत्ता कोणीही माणूस नाही. योजनेसाठी कुठे जायचे ते मी सांगू शकते.",
+    },
+}
+CANNOT = {
+    "form": {
+        "en": "I can not fill a form or see your payment from here. For that, go to the office or the centre named for "
+              "the scheme; I can tell you which papers to take.",
+        "hi": "मैं यहाँ से फ़ॉर्म नहीं भर सकती और आपका भुगतान नहीं देख सकती। उसके लिए योजना में बताए दफ़्तर या केंद्र पर "
+              "जाइए; कौन से कागज़ ले जाने हैं, यह मैं बता सकती हूँ।",
+        "mr": "मी इथून फॉर्म भरू शकत नाही आणि तुमचे पेमेंट पाहू शकत नाही. त्यासाठी योजनेत सांगितलेल्या कार्यालयात किंवा "
+              "केंद्रात जा; कोणती कागदपत्रे न्यायची ते मी सांगू शकते.",
+    },
+    "sms": {
+        "en": "I can not send the details by SMS. I can say them again slowly.",
+        "hi": "मैं विवरण एसएमएस से नहीं भेज सकती। मैं उन्हें धीरे-धीरे फिर से बोल सकती हूँ।",
+        "mr": "मी तपशील एसएमएसने पाठवू शकत नाही. मी ते हळूहळू पुन्हा सांगू शकते.",
+    },
+}
+CANNOT["payment"] = CANNOT["form"]
+NUMBER = {
+    "en": "Please do not tell me that number. I do not need your Aadhaar, bank or OTP number, and you should not tell "
+          "it to anyone on the phone.",
+    "hi": "कृपया वह नंबर मुझे मत बताइए। मुझे आपका आधार, बैंक या ओटीपी नंबर नहीं चाहिए, और फ़ोन पर यह किसी को "
+          "भी न बताइए।",
+    "mr": "कृपया तो नंबर मला सांगू नका. मला तुमचा आधार, बँक किंवा ओटीपी नंबर नको आहे, आणि फोनवर तो कोणालाही सांगू नका.",
+}
+DISTRESS = {
+    "en": "I am sorry to hear that. I am here, and we can take this slowly.",
+    "hi": "यह सुनकर मुझे दुख हुआ। मैं यहीं हूँ, और हम आराम से बात कर सकते हैं।",
+    "mr": "हे ऐकून मला वाईट वाटले. मी इथेच आहे, आणि आपण निवांत बोलू शकतो.",
+}
+OFF_TOPIC_END = {
+    "en": "I can only help with government schemes. Thank you for calling.",
+    "hi": "मैं सिर्फ़ सरकारी योजनाओं में मदद कर सकती हूँ। कॉल करने के लिए धन्यवाद।",
+    "mr": "मी फक्त सरकारी योजनांमध्ये मदत करू शकते. कॉल केल्याबद्दल धन्यवाद.",
+}
+THANKS = {
+    "en": "You are welcome. Anything else?",
+    "hi": "आपका स्वागत है। और कुछ?",
+    "mr": "आपले स्वागत आहे. आणखी काही?",
+}
+PACE = {
+    "slow": {
+        "en": "All right, I will speak slowly.",
+        "hi": "ठीक है, मैं धीरे बोलूँगी।",
+        "mr": "ठीक आहे, मी हळू बोलेन.",
+    },
+    "normal": {
+        "en": "All right, I will speak at the normal speed.",
+        "hi": "ठीक है, मैं सामान्य गति से बोलूँगी।",
+        "mr": "ठीक आहे, मी नेहमीच्या गतीने बोलेन.",
+    },
+}
+
 # 1.8: a line added to the NOTE of the one turn that needs it (never to the fixed prompt).
 FOLLOW = {
     "move": "The caller means [{sid}], a scheme you named before. Answer about it.",
@@ -193,6 +318,10 @@ FOLLOW = {
                   "told me (what the caller said)\" in two short sentences.",
     "simpler": 'The caller did not understand. Use action "simpler": your last point in simpler, shorter words.',
     "how_much": "The caller asks how much you said. Say only the sentence with the number, nothing else.",
+    "recap": "First say back, in ONE short sentence, what the caller told you: {facts}. Then give the answer to "
+             "their problem in the same reply. Do not ask \"is that right?\" and do not ask a new question in this reply.",
+    "distress": "The caller is in pain and a kind sentence was already said. Ask no list of questions. At most one "
+                "gentle question, or the schemes if the caller asked. Say no help-line number.",
 }
 
 NOT_SURE = {

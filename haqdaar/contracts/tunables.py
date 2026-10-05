@@ -54,7 +54,16 @@ TALK_MODELS: str = os.environ.get("TALK_MODELS", "qwen/qwen3.8-27b,openai/gpt-os
 TALK_MUSE_EFFORT: str = os.environ.get("TALK_MUSE_EFFORT", "minimal")
 TALK_MUSE_TIMEOUT_S: float = float(os.environ.get("TALK_MUSE_TIMEOUT_S", 12.0))
 TALK_HOLD_S: float = float(os.environ.get("TALK_HOLD_S", 120.0))   # 1.8: "hold on": the quiet rule does not start for this long
+TALK_SLOW_PACE: float = float(os.environ.get("TALK_SLOW_PACE", 0.8))   # 1.8 (B): the voice pace after "speak slowly" (LIVE_TTS_PACE is 1.0)
+TALK_OFF_TOPIC_END: int = int(os.environ.get("TALK_OFF_TOPIC_END", 3))   # 1.8 (B): this many off-topic turns in a row end the call politely
 TALK_END_WAIT_MS: int =int(os.environ.get("TALK_END_WAIT_MS", 600))        # quiet that ends the caller's turn in a talk call (keys call: 800)
+# 4.2 / 4.3: in a talk call the agent may offer an SMS link for a photo, and the answer to a photo
+# opens the next call. Off: none of it runs (key 9 is "keys are off" again).
+PHOTO_IN_CALL: bool = os.environ.get("PHOTO_IN_CALL", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
+PHOTO_PENDING_S: float = float(os.environ.get("PHOTO_PENDING_S", 1800.0))   # a call-back waiting longer than this is dropped
+PHOTO_SURE_MIN: float = float(os.environ.get("PHOTO_SURE_MIN", 0.4))        # the reader was less sure than this: a bad photo
+# The desk writes the call-back text in English: it goes through the translate step (1.4) for another language.
+PHOTO_BACK_TRANSLATE: bool = os.environ.get("PHOTO_BACK_TRANSLATE", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
 QA_MAX_PER_CALL: int = int(os.environ.get("QA_MAX_PER_CALL", 5))
 QA_MAX_SCHEMES: int = int(os.environ.get("QA_MAX_SCHEMES", 4))
 QA_TIMEOUT_S: float = float(os.environ.get("QA_TIMEOUT_S", 4.0))

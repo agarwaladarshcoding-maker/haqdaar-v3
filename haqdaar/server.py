@@ -87,6 +87,9 @@ def release_call() -> None:
 # call id -> sha256 of the caller's number, from /answer until that call's stream starts.
 _CALLER_HASH: dict[str, str] = {}
 _CALLER_HASH_TS: dict[str, float] = {}
+# call id -> the raw number of the PERSON, same life as the hash. In memory only: never in a log row,
+# the trace or stdout. The talk needs it to send the photo link by SMS.
+_CALLER_NUMBER: dict[str, str] = {}
 
 
 def _prune_caller_hashes(max_age_s: float = 300.0) -> None:
@@ -95,6 +98,7 @@ def _prune_caller_hashes(max_age_s: float = 300.0) -> None:
     for k in stale:
         _CALLER_HASH.pop(k, None)
         _CALLER_HASH_TS.pop(k, None)
+        _CALLER_NUMBER.pop(k, None)
 
 
 def caller_hash(number: str) -> str:
@@ -140,6 +144,8 @@ async def answer(request: Request) -> Response:
     if call_id:
         _CALLER_HASH[call_id] = caller_hash(form.get("From", ""))
         _CALLER_HASH_TS[call_id] = time.monotonic()
+        # "outbound-api": we placed the call, so the person is the one we rang (To), not From.
+        _CALLER_NUMBER[call_id] = form.get("To", "") if form.get("Direction", "") == "outbound-api" else form.get("From", "")
     say("answer  line picked up, sent stream XML")
     return Response(content=_stream_twiml(), media_type="text/xml")
 
@@ -452,6 +458,7 @@ async def stream_endpoint(websocket: WebSocket) -> None:
                 audio = PhoneAudio(corpus, pool, mouth, turn, close=hang_up, log=note, trace=trace)
                 number_hash = _CALLER_HASH.pop(call_id, "")
                 _CALLER_HASH_TS.pop(call_id, None)
+                audio.caller_number = _CALLER_NUMBER.pop(call_id, "")
                 _LINE = line
                 say(f"start   call ..{call_id[-6:]}")
 

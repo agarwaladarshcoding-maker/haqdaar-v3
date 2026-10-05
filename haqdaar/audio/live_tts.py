@@ -47,9 +47,10 @@ def _as_ulaw(body: bytes) -> bytes:
     return body
 
 
-def stream(text: str, lang: str, code: str = "") -> Iterator[bytes]:
+def stream(text: str, lang: str, code: str = "", pace: float = 0.0) -> Iterator[bytes]:
     """One text in one language -> 8 kHz mu-law, piece by piece as Sarvam sends it (7.14).
-    Raises on a failure or past QA_TTS_TIMEOUT_S. Nothing to say: yields nothing. Costs Sarvam money per call."""
+    Raises on a failure or past QA_TTS_TIMEOUT_S. Nothing to say: yields nothing. Costs Sarvam money per call.
+    `pace`: the caller asked for another speed (1.8 B); 0 is LIVE_TTS_PACE."""
     deadline = time.monotonic() + tunables.QA_TTS_TIMEOUT_S
     load_dotenv(BASE_DIR / ".env")
     key = os.environ.get("SARVAM_API_KEY", "")
@@ -62,7 +63,7 @@ def stream(text: str, lang: str, code: str = "") -> Iterator[bytes]:
         "target_language_code": code or TTS_LANG[lang],
         "speaker": tunables.TTS_SPEAKERS.get(lang, tunables.TTS_SPEAKERS["hi"]),
         "model": tunables.TTS_MODEL,
-        "pace": tunables.LIVE_TTS_PACE,
+        "pace": pace or tunables.LIVE_TTS_PACE,
         "speech_sample_rate": tunables.SAMPLE_RATE,
         "output_audio_codec": "mulaw",
     }
@@ -90,10 +91,10 @@ def stream(text: str, lang: str, code: str = "") -> Iterator[bytes]:
         yield wav_to_ulaw(b"".join(wav))
 
 
-def speak(text: str, lang: str, code: str = "") -> Optional[bytes]:
+def speak(text: str, lang: str, code: str = "", pace: float = 0.0) -> Optional[bytes]:
     """One text in one language -> 8 kHz mu-law bytes, or None. Costs Sarvam money per call."""
     try:
-        body = b"".join(stream(text, lang, code))
+        body = b"".join(stream(text, lang, code, pace))
         return body or None
     except Exception:
         return None
