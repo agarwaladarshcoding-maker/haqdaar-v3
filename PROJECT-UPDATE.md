@@ -99,6 +99,49 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+
+### 5 Oct, ~21:00: search by part is in the talk; the faults of the last Mac call are fixed; SMS and Muse photo tried
+- *Added.* The talk now gives the model the top 5 pieces of the schemes, not whole cards. The
+  prompt is about 450 tokens smaller a turn. Way back: `TALK_CHUNKS=false`.
+- *Fixed, from the Mac call about a 70-year-old mother.* It no longer states a fact nobody said
+  (widow): it asks, or says "if she is a widow". "My father is alive" no longer moves the talk
+  to the father. The caller's own numbers (70) are no longer blocked. Going back to a scheme
+  told earlier in the call is allowed. "My mother is ill, I need a loan" takes the loan. The
+  "we do not hold that scheme" line now has Gujarati and Tamil words (no speaker has checked them).
+- *Tried.* One SMS with a link from our US number reached the owner's checked phone (Twilio says
+  delivered). Muse read a test photo in 5 seconds for under 1 paisa.
+- *Changed in the plan.* Muse reads the photo, any photo, not only crops.
+- *Checks.* 2,769 tests passed; the 1 that failed is the old data gap of the side folder and
+  passes in the main folder. Talk check: 6,840 calls, 0 rules broken. No real-model run, no
+  Mac call on this code yet. The cut-in check was not run.
+- *Not done.* The line holds no old-age pension scheme (17 schemes; pensions are widow,
+  disability, Atal). Antigravity's photo page is built but not joined: it still needs the
+  old-phone rules and the Muse reader (`.agent/PROMPT-antigravity-photo-2.md`).
+- *Saved.* Branch `v5-clean`, commit e946c06, pushed.
+
+### 5 Oct, ~20:00 — Muse's and Antigravity's work joined and fixed; step 1.6; the photo plan changed
+**Added**
+- Step 1.6. The call no longer goes silent when a part fails. If a model fails, the next one
+  answers. If the voice gives no sound, it is tried once more; then the line says "please say
+  it again"; if that happens twice in a row the call ends with the goodbye. If the speech
+  service fails on what you said, the line says "please say it again". The call says goodbye
+  by itself one minute before the 10 minute limit.
+- Muse's "clarify first" (1.3b) is now in the main branch: a situation gets a question first,
+  a named scheme is answered first, a scheme we do not hold is said plainly, "just tell me"
+  stops the questions.
+**Changed**
+- A read of Muse's work found faults; seven are fixed (two could crash or switch questions off
+  by mistake; the question count never reached its limit; "for my mother" wiped the age every
+  time; "किसी से पूछो" was taken as "KCC"; Marathi "नाही / नको"; "कोई किसान योजना" was taken as
+  "just tell me"). Two are left (see PLAN 4c, point 4).
+- The photo part: no code any more. The line sends an SMS with a link; the page knows the
+  number, takes up to 6 photos, one send button. The model that reads photos is not ours to
+  build; we build the plug for it. Plan section 4b and Antigravity's prompt are rewritten.
+**What it can do now**
+- All of the above is checked by tests only (numbers in the chat report). It has NOT been
+  tried on a call yet. Search by part and translate are in the code but nothing calls them.
+- Nothing is pushed to GitHub.
+
 ### 5 Oct 2026 — Talks more like a real call; work is committed; a prompt for the rest is ready
 - **Your call was good.** Two things you asked for are built.
 - **"One moment".** It is said when the line has been checking for about 2 s, and again every 4 s while it still checks.

@@ -230,6 +230,13 @@ it does today). The run is in NOTES. These are added to 1.3; nothing above is ta
 - Model time-out: go to the next model (today the chain stops).
 - Voice fails: one more try, then a recorded "please call again" and hang up.
 - 10 minute cap with a polite goodbye (the setting exists and is used nowhere).
+- BUILT 5 Oct ~20:00 (commit 29930e1), checked by tests, not yet on a call:
+  a model that fails in any way hands over to the next one (no new model once the time of two
+  calls is used up); a sentence with no voice is tried once more; a reply with no voice at all
+  gets the recorded "please say it again", and two such replies in a row end the call with the
+  goodbye; the talk says goodbye 60 s before the 10 minute cap; a failed speech call gets
+  "please say it again". Left open: the recorded "please call again" line does not exist (a
+  new clip is a paid render, on the owner's word); until then the goodbye clip is used.
 
 ### 1.7 Close Phase 1
 - talk-eval scripts for every new path, pytest, py_compile. Phone check. Commit and push on the
@@ -342,6 +349,7 @@ The flow, box by box:
 7. The line calls the caller. The call opens with the answer in the caller's language, not the
    greeting. After it the caller can talk as in any call.
 
+CHANGED 5 Oct ~20:00 (owner): the reader is Muse, for any photo. `PHOTO_READER=auto` picks Muse when its key is set (`.agent/PROMPT-antigravity-photo-2.md`). The lines below are the older word.
 The reader is NOT ours to build (owner, ~19:30). The team is finding a model made for crops
 now, and others later. It runs on a computer of ours ("local"), with a Muse API as the backup.
 Our part is the plug: `PHOTO_READER=stand-in | http | muse`. `http` posts the photos to
@@ -386,27 +394,25 @@ Steps:
 - Not in this phase: WhatsApp, many helpers, a queue of cases, photos of papers (Aadhaar and
   such: private, not taken).
 
-## 4c. The next two hours (5 Oct ~19:00 to ~21:00), who does what
-Three workers side by side; the file sets do not cross.
-- Muse: finishes 1.3b in `~/code/haqdaar-v2-1.3` (already running).
-- Antigravity: step 4.1 in a new folder `~/code/haqdaar-v2-photo`, prompt in
-  `.agent/PROMPT-antigravity-photo.md`. New files only.
-- Claude, in this order:
-  1. 0:00 Commit what is loose here (Mac call + its screen, recording tool, plan).
-  2. 0:10 Merge 1.5b; wire search by part into the talk on `phase1-merge`. Translate (1.4) is NOT
-     wired for the demo: the read of a4bb9f2 found the guard refuses good Hindi lines ("a loan"
-     -> "एक कर्ज", "18-40 years"), so a caller would hear English. The talk keeps answering in the
-     caller's language straight from the model, as it does today. The guard gets a fix pass later.
-  3. 0:40 Step 2.0: the owner makes one Mac call with headphones and `CUT_IN_GATE=true`. Claude
-     reads the trace and fixes what the gate got wrong (2.2 to 2.4 as the call shows).
-  4. 1:00 Read and merge 1.3b when Muse is done. Steps 4.2 + 4.3 (code in the call, call-back).
-  5. 1:20 Read Antigravity's 4.1, join it.
-  6. 1:35 Step 4.5, the whole run, by the owner. Fix what breaks.
-  7. 1:50 Full tests, talk-eval, commit, tag the demo.
-- Keys in these two hours: only key 9 (the photo code) in a talk call. The rest of Phase 3
-  (3.1 to 3.6) does not fit in two hours and is not started.
-- What can slip: if 1.3b is late, the demo runs on v5-clean + 1.5b + 1.4b without it. If the
-  gate is bad on the Mac call, cut-in stays off for the demo and photo goes first.
+## 4c. The next steps (written 5 Oct ~20:00; takes the place of "the next two hours")
+Done on 5 Oct evening: 1.9 (Mac call + its screen), 1.3a + 1.3b (clarify first, with the fixes
+from its read), 1.5a + 1.5b and 1.4a + 1.4b in the branch (called by nothing yet), 1.6.
+Workers: Claude and Antigravity. The file sets do not cross.
+1. Owner: one Mac call on this commit (`make mac-call`, headphones). A situation ("my crops
+   died"), a named scheme ("PM Kisan"), "just tell me", "for my mother".
+2. DONE 5 Oct ~21:00 (e946c06, flag TALK_CHUNKS). Claude: wire search by part (1.5) into the talk: the top 5 chunks go to the model, not whole
+   cards. Check: 30-set stays at 28, prompt size, 10 real-model turns on the owner's word.
+3. Antigravity: step 4.1, the photo page and the desk (`.agent/PROMPT-antigravity-photo.md`).
+4. FAULTS DONE 5 Oct ~21:00 (e946c06, with four more from a Mac call); 1.8 is left. Claude: the two faults of 1.3 still open (a need said about another person; the not-held
+   line for Gujarati and Tamil), then 1.8 follow-up talk (hold on, say it simpler, the second
+   one, will I get it).
+5. Antigravity, after 4.1: the translate guard's fix pass (number words on both sides, "18-40",
+   phone numbers, Tamil names, the time limit) with a set of 100 real reply lines. Only then
+   is 1.4 wired.
+6. Claude: 4.2 + 4.3 (photo words and key 9 in the call, the SMS, the call-back).
+7. Owner: 2.0, cut-in on the Mac with headphones; Claude fixes what the trace shows (2.2-2.5).
+8. 1.7 close of Phase 1: all checks, five phone calls, push.
+9. Phase 3 keys (3.1-3.6). Then the reader plug is filled when the team has its model (4.4).
 
 ## 5. Risks, and what guards each
 - **Groq day limit** (200,000 tokens a model, about 65 turns): real-model test runs stay small
@@ -458,11 +464,15 @@ The older text of each decision is kept below.
   are fixed code (the word "not", short names, "just tell me", "I do not know") are in 1.3 now.
 
 **Open (5 Oct ~18:50), for Phase 4:**
-- D10. CLOSED (owner, 5 Oct ~19:30): the reader is not ours to build. A crop model first, run on
-  our own computer; a Muse API as the backup. We build only the plug (4b).
-- D11. Taken as said: crop photos first, other kinds later. Not papers.
-- D12. Who gets the SMS and the call-back on the Twilio trial: only a checked number, so the demo
-  uses the owner's own phone. Still open: does an SMS from the US number reach it (one try).
+- D10. CLOSED again (owner, 5 Oct ~20:00): Muse reads the photo. Simple, shows the idea, any photo
+  (crop, house, field, animal), not only crops. Tried: Muse read a test picture in 5.3 s for under
+  1 paisa. The photo goes to Muse (its Contributor tier may train on it). The `http` plug stays for
+  a local model later.
+- D11. Changed with D10: any photo of a need, not only crops. Not papers.
+- D12. Who gets the SMS and the call-back on the Twilio trial: only a checked number (today one:
+  the owner's, ...9690). TRIED 5 Oct 20:10: an SMS with a link from the US number was delivered to
+  it (Twilio's word; 8.3 US cents each, balance 10.56 USD). Another phone must be checked in the
+  Twilio console first, or the account paid up. The link needs an open address (PHOTO_BASE_URL).
 
 ## 7. Checks, every step
 ```
