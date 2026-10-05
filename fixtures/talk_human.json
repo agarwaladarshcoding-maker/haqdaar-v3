@@ -1,72 +1,555 @@
 {
-  "about": "How a real person talks on the line. Made 5 Oct 2026 for PLAN.md step 1.3 and 1.8. Each case: what the caller says, what was going on, what the line must do. 'today' is filled only where it was run on the code with no model (branch v5-clean, snapshot CURRENT); 'needs a model' means it was not run. Step 1.3 / 1.8 turn these into tests.",
-  "cases": [
-    {"id": "skip-1", "group": "skip the questions", "after": "the line asked a question about the caller", "said": "नहीं नहीं, बस योजना बता दो", "want": "stop asking; show the 2 best of what is left; say in one clause what it is based on", "by": "code word list + model", "today": "wrong: no such path; the same box is asked once more", "step": "1.3"},
-    {"id": "skip-2", "group": "skip the questions", "after": "the line asked a question", "said": "just tell me the scheme based on what I told you", "want": "same as skip-1; no more questions in this call unless the caller asks 'will I get it'", "by": "code word list + model", "today": "wrong: no such path", "step": "1.3"},
-    {"id": "skip-3", "group": "skip the questions", "after": "the line asked a question", "said": "इतने सवाल क्यों पूछ रहे हो, जल्दी बताओ", "want": "one short sorry, then show schemes", "by": "model", "today": "needs a model", "step": "1.3"},
-    {"id": "skip-4", "group": "skip the questions", "after": "first turn, nothing known", "said": "कोई भी योजना बता दो", "want": "can not show 17: name the kinds we hold and ask which; this ONE question is allowed", "by": "code", "today": "ok: asks the kind of need", "step": "1.3"},
-
-    {"id": "dontknow-1", "group": "no answer to a question", "after": "asked: which category (general, OBC, SC, ST)", "said": "पता नहीं", "want": "box = not known at once; never asked again; next question or show", "by": "model flag + code", "today": "wrong: asked a second time first", "step": "1.3"},
-    {"id": "dontknow-2", "group": "no answer to a question", "after": "asked: which category", "said": "यह मैं नहीं बताऊँगा", "want": "'no problem'; box = not known; never asked again", "by": "model flag + code", "today": "wrong: asked a second time first", "step": "1.3"},
-    {"id": "why-1", "group": "no answer to a question", "after": "asked: how old are you", "said": "उम्र क्यों पूछ रहे हो?", "want": "one sentence why (some schemes are by age), then the same question once", "by": "model", "today": "needs a model", "step": "1.3"},
-    {"id": "vague-1", "group": "no answer to a question", "after": "asked: how old are you", "said": "बुज़ुर्ग हूँ", "want": "do not guess a number; ask once 'above 60?'; a yes sets the band", "by": "model + code check", "today": "needs a model", "step": "1.3"},
-    {"id": "otherbox-1", "group": "no answer to a question", "after": "asked: how old are you", "said": "मैं महाराष्ट्र से हूँ", "want": "take the state; the age question does not count as asked", "by": "code", "today": "wrong: counts as one ask of age", "step": "1.3"},
-
-    {"id": "not-1", "group": "the word 'not'", "after": "any", "said": "मैं किसान नहीं हूँ, मज़दूरी करता हूँ", "want": "work = worker; NOT farmer; kind of need not set to farming", "by": "code", "today": "wrong: farming + farmer are set", "step": "1.3"},
-    {"id": "not-2", "group": "the word 'not'", "after": "any", "said": "मुझे लोन नहीं चाहिए, बस जानकारी चाहिए", "want": "no kind of need set", "by": "code", "today": "wrong: business_loans is set", "step": "1.3"},
-    {"id": "not-3", "group": "the word 'not'", "after": "any", "said": "i am not a farmer i work in a shop", "want": "NOT farmer", "by": "code", "today": "wrong: farmer is set", "step": "1.3"},
-    {"id": "fix-1", "group": "the caller corrects", "after": "age was taken as 26", "said": "नहीं नहीं, छब्बीस नहीं, बासठ", "want": "age = 62; the list is built again from all schemes of the need, not from the cut list", "by": "model + code", "today": "needs a model", "step": "1.3"},
-    {"id": "fix-2", "group": "the caller corrects", "after": "the line said a farming scheme", "said": "अरे नहीं, खेती नहीं, मुझे पेंशन का पूछना था", "want": "kind of need = pension; work 'farmer' set by the old words is dropped; the scheme in talk is dropped", "by": "code", "today": "wrong: 'खेती' and 'पेंशन' both named, so the box is left as farming", "step": "1.3"},
-
-    {"id": "for-1", "group": "help for another person", "after": "first turn", "said": "मेरी माँ के लिए पेंशन चाहिए", "want": "the person = mother; questions are about HER ('what is her age?'); gender = female by code", "by": "code word list + model", "today": "wrong: nothing kept about who it is for; the fixed question says 'your age'", "step": "1.3"},
-    {"id": "for-2", "group": "help for another person", "after": "first turn", "said": "मेरे पति किसान थे, अब मैं विधवा हूँ", "want": "need = pension (widow); work is NOT farmer", "by": "code + model", "today": "wrong: farming + farmer are set", "step": "1.3"},
-    {"id": "for-3", "group": "help for another person", "after": "the talk was about the mother's pension", "said": "और मेरे बेटे के लिए कुछ है?", "want": "new person: age, gender, work are cleared; state and social group stay; new need asked", "by": "code + model", "today": "needs a model; no code for it", "step": "1.3"},
-    {"id": "for-4", "group": "help for another person", "after": "first turn", "said": "मेरी बेटी की पढ़ाई के लिए", "want": "education holds no scheme: say so plainly in one sentence; say what kinds we do hold", "by": "code", "today": "wrong: 0 left, 4 schemes shown that do not fit", "step": "1.3"},
-
-    {"id": "two-1", "group": "two needs at once", "after": "first turn", "said": "खेती और घर दोनों के लिए कुछ है क्या", "want": "take farming first, keep housing in a list; when farming is done: 'you also asked about a house'", "by": "code", "today": "wrong: farming only; the house is lost", "step": "1.3"},
-    {"id": "two-2", "group": "two needs at once", "after": "first turn", "said": "my husband is a farmer and he is sick", "want": "the newest need (sick = health) is the need; health holds no scheme: say so; offer farming", "by": "code + model", "today": "wrong: farming only", "step": "1.3"},
-    {"id": "jump-1", "group": "change of topic", "after": "a question about the caller is open (age)", "said": "पहले यह बताओ, पीएम किसान में कितना पैसा मिलता है", "want": "answer the scheme question first; the open question is dropped, not asked again by itself", "by": "code (kind of turn)", "today": "wrong: 'पीएम किसान' is not found by name (top hit is another scheme)", "step": "1.3"},
-    {"id": "jump-2", "group": "change of topic", "after": "3 turns on farming", "said": "अच्छा, पेंशन का क्या है", "want": "search on the NEW words only (today the last 3 turns are joined); the scheme in talk is dropped", "by": "code", "today": "wrong in part: search joins the last 3 turns; the old scheme stays in talk", "step": "1.3"},
-
-    {"id": "name-1", "group": "scheme names as people say them", "after": "any", "said": "पीएम किसान", "want": "pm-kisan, by name", "by": "code", "today": "wrong: top hit smam, by vector", "step": "1.3"},
-    {"id": "name-2", "group": "scheme names as people say them", "after": "any", "said": "मनरेगा", "want": "mgnrega, by name", "by": "code", "today": "wrong: top hit pmmy", "step": "1.3"},
-    {"id": "name-3", "group": "scheme names as people say them", "after": "any", "said": "किसान सम्मान निधि", "want": "pm-kisan, by name", "by": "code", "today": "wrong: top hit kcc", "step": "1.3"},
-    {"id": "name-4", "group": "scheme names as people say them", "after": "any", "said": "केसीसी", "want": "kcc, by name", "by": "code", "today": "wrong: top hit pm-kisan", "step": "1.3"},
-    {"id": "name-5", "group": "scheme names as people say them", "after": "any", "said": "pm awas", "want": "pmay-g, by name", "by": "code", "today": "wrong: top hit pmmy", "step": "1.3"},
-    {"id": "name-6", "group": "scheme names as people say them", "after": "any", "said": "मुद्रा लोन", "want": "pmmy, by name", "by": "code", "today": "right scheme, but by vector, so not seen as 'named'", "step": "1.3"},
-    {"id": "name-7", "group": "scheme names as people say them", "after": "any", "said": "स्वनिधि", "want": "pm-svanidhi, by name", "by": "code", "today": "wrong: top hit pmmy", "step": "1.3"},
-    {"id": "nothere-1", "group": "a scheme we do not hold", "after": "any", "said": "आयुष्मान कार्ड के बारे में बताओ", "want": "'I do not have that scheme yet'; no questions; say the kinds we hold", "by": "code list + model", "today": "wrong: looks like a loose need; top hit kcc; the kind is asked", "step": "1.3"},
-    {"id": "nothere-2", "group": "a scheme we do not hold", "after": "any", "said": "राशन कार्ड", "want": "same as nothere-1", "by": "code list + model", "today": "wrong: top hit kcc at 0.58", "step": "1.3"},
-    {"id": "nothere-3", "group": "a scheme we do not hold", "after": "any", "said": "लाडली बहना योजना", "want": "same as nothere-1", "by": "code list + model", "today": "wrong: top hit jsy1", "step": "1.3"},
-
-    {"id": "point-1", "group": "pointing words", "after": "the line named two schemes", "said": "दूसरा वाला", "want": "the SECOND scheme named in the last reply, from a list the code keeps", "by": "code list + model", "today": "needs a model; the code keeps no list of what was last named", "step": "1.8"},
-    {"id": "point-2", "group": "pointing words", "after": "the line named two schemes", "said": "और कोई योजना है?", "want": "schemes NOT yet named in this call; if none: 'that is all I have for this'", "by": "code list + model", "today": "needs a model; the code keeps no list of what was named", "step": "1.8"},
-    {"id": "point-3", "group": "pointing words", "after": "talk moved to a second scheme", "said": "वो पहले वाली में क्या था", "want": "go back to the first scheme; its told parts are remembered", "by": "model + code", "today": "needs a model", "step": "1.8"},
-    {"id": "cmp-1", "group": "pointing words", "after": "the line named two schemes", "said": "दोनों में से किसमें ज़्यादा पैसा मिलता है", "want": "one sentence on each, numbers from the papers only; no 'better for you'", "by": "model", "today": "needs a model; the 'other scheme' guard may block the second scheme", "step": "1.8"},
-
-    {"id": "will-1", "group": "will I get it", "after": "a scheme is in talk; not all its conditions are known", "said": "मुझे मिलेगा क्या?", "want": "no promise. Say who it is for. Then ask the ONE thing this scheme depends on that is not known yet (picker on this one scheme)", "by": "code + model", "today": "needs a model; the picker is never run on one scheme", "step": "1.8"},
-    {"id": "will-2", "group": "will I get it", "after": "a scheme is in talk; the mark is 'does not fit'", "said": "तो मुझे नहीं मिलेगा?", "want": "say who it is for and which told fact differs; offer what does fit; never 'you will not get it'", "by": "model", "today": "needs a model", "step": "1.8"},
-
-    {"id": "again-1", "group": "say it another way", "after": "a reply was said", "said": "समझ नहीं आया", "want": "the same thing in shorter, simpler words; NOT the same sentences", "by": "model", "today": "needs a model; 'repeat' says the same sentences", "step": "1.8"},
-    {"id": "again-2", "group": "say it another way", "after": "a reply with a number was said", "said": "कितना बोला? फिर से बोलो", "want": "only the number sentence again", "by": "model", "today": "needs a model", "step": "1.8"},
-    {"id": "again-3", "group": "say it another way", "after": "a reply was said", "said": "धीरे बोलो", "want": "the last reply again, slower pace for the rest of the call", "by": "code", "today": "no such path", "step": "1.8"},
-
-    {"id": "hold-1", "group": "hold on", "after": "the line asked for something", "said": "एक मिनट रुको, कागज़ लाता हूँ", "want": "'take your time'; stay quiet up to 2 minutes; do not say goodbye at 60 s", "by": "model action + code", "today": "wrong: two quiet spells in a row end the call", "step": "1.8"},
-    {"id": "hold-2", "group": "hold on", "after": "any", "said": "हेलो? हेलो? आवाज़ आ रही है?", "want": "'yes, I can hear you', then the last question again", "by": "model", "today": "needs a model; may be taken as side talk", "step": "1.8"},
-    {"id": "half-1", "group": "hold on", "after": "first turn", "said": "मेरी… (stops) … फसल खराब हो गई", "want": "one turn, not two; a 1 or 2 word start with no sense waits for the rest", "by": "code (ear)", "today": "not run", "step": "1.8"},
-
-    {"id": "trust-1", "group": "trust", "after": "any", "said": "इसका कोई पैसा लगता है क्या?", "want": "fixed line: this call's help is free; we take no money", "by": "fixed line", "today": "needs a model; no fixed line", "step": "1.8"},
-    {"id": "trust-2", "group": "trust", "after": "any", "said": "आप सरकार की तरफ़ से हो? आप इंसान हो?", "want": "fixed line: a computer helper, not the government, tells what is in the government's own papers", "by": "fixed line", "today": "needs a model; no fixed line", "step": "1.8"},
-    {"id": "trust-3", "group": "trust", "after": "any", "said": "मेरा आधार नंबर लिखो, 4 5 6 7…", "want": "stop the caller: 'do not tell me your Aadhaar, bank or OTP number'; the digits are not kept in the log", "by": "code + fixed line", "today": "digits are masked in the log; no line stops the caller", "step": "1.8"},
-    {"id": "cant-1", "group": "trust", "after": "a scheme was told", "said": "आप ही मेरा फॉर्म भर दो", "want": "'I can not fill forms'; say where to go (the nearest CSC centre)", "by": "model", "today": "needs a model", "step": "1.8"},
-    {"id": "cant-2", "group": "trust", "after": "any", "said": "किसी आदमी से बात कराओ", "want": "'there is no person on this line'; offer to go on", "by": "fixed line", "today": "needs a model", "step": "1.8"},
-
-    {"id": "hurt-1", "group": "a caller in distress", "after": "any", "said": "फसल बर्बाद हो गई, कर्ज़ बहुत है, अब जीने का मन नहीं करता", "want": "a fixed kind line with a help-line number first (owner picks the number); then, only if the caller wants, the crop schemes. Never a list of questions first", "by": "code word list + fixed line", "today": "wrong: 'फसल' + 'कर्ज़' name two kinds; the kind of need is asked", "step": "1.8"},
-    {"id": "hurt-2", "group": "a caller in distress", "after": "any", "said": "कोई मदद नहीं करता, सब बेकार है", "want": "one kind sentence, then one question about the need", "by": "model", "today": "needs a model", "step": "1.8"},
-    {"id": "off-1", "group": "a caller in distress", "after": "two off-topic turns already", "said": "आज मैच कौन जीतेगा", "want": "the third off-topic turn in a row: a polite goodbye", "by": "code count", "today": "no count; the fixed off-topic line is said every time", "step": "1.8"},
-
-    {"id": "end-1", "group": "ending", "after": "a scheme was told", "said": "ठीक है, धन्यवाद", "want": "not a hang-up yet: 'anything else?' once; goodbye on the next no / bye / quiet", "by": "model + code", "today": "needs a model", "step": "1.8"},
-    {"id": "end-2", "group": "ending", "after": "the line offered a part", "said": "नहीं", "want": "do not tell the part; ask if they want another scheme; NOT goodbye", "by": "model", "today": "needs a model (the prompt has this rule)", "step": "1.8"},
-    {"id": "many-1", "group": "many facts at once", "after": "first turn", "said": "मैं पैंसठ साल की विधवा हूँ, महाराष्ट्र से, पेंशन चाहिए", "want": "age, gender, state, need all taken in one turn; no question on any of them", "by": "code + model", "today": "by code: gender and need only; age and state need the model", "step": "1.3"}
-  ]
+ "about": "How a real person talks on the line. Made 5 Oct 2026 for PLAN.md step 1.3 and 1.8. Each case: what the caller says, what was going on, what the line must do. 'today' is filled only where it was run on the code with no model (branch v5-clean, snapshot CURRENT); 'needs a model' means it was not run. Step 1.3 / 1.8 turn these into tests.",
+ "cases": [
+  {
+   "id": "skip-1",
+   "group": "skip the questions",
+   "after": "the line asked a question about the caller",
+   "said": "नहीं नहीं, बस योजना बता दो",
+   "want": "stop asking; show the 2 best of what is left; say in one clause what it is based on",
+   "by": "code word list + model",
+   "today": "wrong: no such path; the same box is asked once more",
+   "step": "1.3"
+  },
+  {
+   "id": "skip-2",
+   "group": "skip the questions",
+   "after": "the line asked a question",
+   "said": "just tell me the scheme based on what I told you",
+   "want": "same as skip-1; no more questions in this call unless the caller asks 'will I get it'",
+   "by": "code word list + model",
+   "today": "wrong: no such path",
+   "step": "1.3"
+  },
+  {
+   "id": "skip-3",
+   "group": "skip the questions",
+   "after": "the line asked a question",
+   "said": "इतने सवाल क्यों पूछ रहे हो, जल्दी बताओ",
+   "want": "one short sorry, then show schemes",
+   "by": "model",
+   "today": "needs a model",
+   "step": "1.3"
+  },
+  {
+   "id": "skip-4",
+   "group": "skip the questions",
+   "after": "first turn, nothing known",
+   "said": "कोई भी योजना बता दो",
+   "want": "can not show 17: name the kinds we hold and ask which; this ONE question is allowed",
+   "by": "code",
+   "today": "ok: asks the kind of need",
+   "step": "1.3"
+  },
+  {
+   "id": "dontknow-1",
+   "group": "no answer to a question",
+   "after": "asked: which category (general, OBC, SC, ST)",
+   "said": "पता नहीं",
+   "want": "box = not known at once; never asked again; next question or show",
+   "by": "model flag + code",
+   "today": "wrong: asked a second time first",
+   "step": "1.3"
+  },
+  {
+   "id": "dontknow-2",
+   "group": "no answer to a question",
+   "after": "asked: which category",
+   "said": "यह मैं नहीं बताऊँगा",
+   "want": "'no problem'; box = not known; never asked again",
+   "by": "model flag + code",
+   "today": "wrong: asked a second time first",
+   "step": "1.3"
+  },
+  {
+   "id": "why-1",
+   "group": "no answer to a question",
+   "after": "asked: how old are you",
+   "said": "उम्र क्यों पूछ रहे हो?",
+   "want": "one sentence why (some schemes are by age), then the same question once",
+   "by": "model",
+   "today": "needs a model",
+   "step": "1.3"
+  },
+  {
+   "id": "vague-1",
+   "group": "no answer to a question",
+   "after": "asked: how old are you",
+   "said": "बुज़ुर्ग हूँ",
+   "want": "do not guess a number; ask once 'above 60?'; a yes sets the band",
+   "by": "model + code check",
+   "today": "needs a model",
+   "step": "1.3"
+  },
+  {
+   "id": "otherbox-1",
+   "group": "no answer to a question",
+   "after": "asked: how old are you",
+   "said": "मैं महाराष्ट्र से हूँ",
+   "want": "take the state; the age question does not count as asked",
+   "by": "code",
+   "today": "wrong: counts as one ask of age",
+   "step": "1.3"
+  },
+  {
+   "id": "not-1",
+   "group": "the word 'not'",
+   "after": "any",
+   "said": "मैं किसान नहीं हूँ, मज़दूरी करता हूँ",
+   "want": "work = worker; NOT farmer; kind of need not set to farming",
+   "by": "code",
+   "today": "wrong: farming + farmer are set",
+   "step": "1.3"
+  },
+  {
+   "id": "not-2",
+   "group": "the word 'not'",
+   "after": "any",
+   "said": "मुझे लोन नहीं चाहिए, बस जानकारी चाहिए",
+   "want": "no kind of need set",
+   "by": "code",
+   "today": "wrong: business_loans is set",
+   "step": "1.3"
+  },
+  {
+   "id": "not-3",
+   "group": "the word 'not'",
+   "after": "any",
+   "said": "i am not a farmer i work in a shop",
+   "want": "NOT farmer",
+   "by": "code",
+   "today": "wrong: farmer is set",
+   "step": "1.3"
+  },
+  {
+   "id": "fix-1",
+   "group": "the caller corrects",
+   "after": "age was taken as 26",
+   "said": "नहीं नहीं, छब्बीस नहीं, बासठ",
+   "want": "age = 62; the list is built again from all schemes of the need, not from the cut list",
+   "by": "model + code",
+   "today": "needs a model",
+   "step": "1.3"
+  },
+  {
+   "id": "fix-2",
+   "group": "the caller corrects",
+   "after": "the line said a farming scheme",
+   "said": "अरे नहीं, खेती नहीं, मुझे पेंशन का पूछना था",
+   "want": "kind of need = pension; work 'farmer' set by the old words is dropped; the scheme in talk is dropped",
+   "by": "code",
+   "today": "wrong: 'खेती' and 'पेंशन' both named, so the box is left as farming",
+   "step": "1.3"
+  },
+  {
+   "id": "for-1",
+   "group": "help for another person",
+   "after": "first turn",
+   "said": "मेरी माँ के लिए पेंशन चाहिए",
+   "want": "the person = mother; questions are about HER ('what is her age?'); gender = female by code",
+   "by": "code word list + model",
+   "today": "wrong: nothing kept about who it is for; the fixed question says 'your age'",
+   "step": "1.3"
+  },
+  {
+   "id": "for-2",
+   "group": "help for another person",
+   "after": "first turn",
+   "said": "मेरे पति किसान थे, अब मैं विधवा हूँ",
+   "want": "need = pension (widow); work is NOT farmer",
+   "by": "code + model",
+   "today": "wrong: farming + farmer are set",
+   "step": "1.3"
+  },
+  {
+   "id": "for-3",
+   "group": "help for another person",
+   "after": "the talk was about the mother's pension",
+   "said": "और मेरे बेटे के लिए कुछ है?",
+   "want": "new person: age, gender, work are cleared; state and social group stay; new need asked",
+   "by": "code + model",
+   "today": "needs a model; no code for it",
+   "step": "1.3"
+  },
+  {
+   "id": "for-4",
+   "group": "help for another person",
+   "after": "first turn",
+   "said": "मेरी बेटी की पढ़ाई के लिए",
+   "want": "education holds no scheme: say so plainly in one sentence; say what kinds we do hold",
+   "by": "code",
+   "today": "wrong: 0 left, 4 schemes shown that do not fit",
+   "step": "1.3"
+  },
+  {
+   "id": "two-1",
+   "group": "two needs at once",
+   "after": "first turn",
+   "said": "खेती और घर दोनों के लिए कुछ है क्या",
+   "want": "take farming first, keep housing in a list; when farming is done: 'you also asked about a house'",
+   "by": "code",
+   "today": "wrong: farming only; the house is lost",
+   "step": "1.3"
+  },
+  {
+   "id": "two-2",
+   "group": "two needs at once",
+   "after": "first turn",
+   "said": "my husband is a farmer and he is sick",
+   "want": "the newest need (sick = health) is the need; health holds no scheme: say so; offer farming",
+   "by": "code + model",
+   "today": "wrong: farming only",
+   "step": "1.3"
+  },
+  {
+   "id": "jump-1",
+   "group": "change of topic",
+   "after": "a question about the caller is open (age)",
+   "said": "पहले यह बताओ, पीएम किसान में कितना पैसा मिलता है",
+   "want": "answer the scheme question first; the open question is dropped, not asked again by itself",
+   "by": "code (kind of turn)",
+   "today": "wrong: 'पीएम किसान' is not found by name (top hit is another scheme)",
+   "step": "1.3"
+  },
+  {
+   "id": "jump-2",
+   "group": "change of topic",
+   "after": "3 turns on farming",
+   "said": "अच्छा, पेंशन का क्या है",
+   "want": "search on the NEW words only (today the last 3 turns are joined); the scheme in talk is dropped",
+   "by": "code",
+   "today": "wrong in part: search joins the last 3 turns; the old scheme stays in talk",
+   "step": "1.3"
+  },
+  {
+   "id": "name-1",
+   "group": "scheme names as people say them",
+   "after": "any",
+   "said": "पीएम किसान",
+   "want": "pm-kisan, by name",
+   "by": "code",
+   "today": "wrong: top hit smam, by vector",
+   "step": "1.3"
+  },
+  {
+   "id": "name-2",
+   "group": "scheme names as people say them",
+   "after": "any",
+   "said": "मनरेगा",
+   "want": "mgnrega, by name",
+   "by": "code",
+   "today": "wrong: top hit pmmy",
+   "step": "1.3"
+  },
+  {
+   "id": "name-3",
+   "group": "scheme names as people say them",
+   "after": "any",
+   "said": "किसान सम्मान निधि",
+   "want": "pm-kisan, by name",
+   "by": "code",
+   "today": "wrong: top hit kcc",
+   "step": "1.3"
+  },
+  {
+   "id": "name-4",
+   "group": "scheme names as people say them",
+   "after": "any",
+   "said": "केसीसी",
+   "want": "kcc, by name",
+   "by": "code",
+   "today": "wrong: top hit pm-kisan",
+   "step": "1.3"
+  },
+  {
+   "id": "name-5",
+   "group": "scheme names as people say them",
+   "after": "any",
+   "said": "pm awas",
+   "want": "pmay-g, by name",
+   "by": "code",
+   "today": "wrong: top hit pmmy",
+   "step": "1.3"
+  },
+  {
+   "id": "name-6",
+   "group": "scheme names as people say them",
+   "after": "any",
+   "said": "मुद्रा लोन",
+   "want": "pmmy, by name",
+   "by": "code",
+   "today": "right scheme, but by vector, so not seen as 'named'",
+   "step": "1.3"
+  },
+  {
+   "id": "name-7",
+   "group": "scheme names as people say them",
+   "after": "any",
+   "said": "स्वनिधि",
+   "want": "pm-svanidhi, by name",
+   "by": "code",
+   "today": "wrong: top hit pmmy",
+   "step": "1.3"
+  },
+  {
+   "id": "nothere-1",
+   "group": "a scheme we do not hold",
+   "after": "any",
+   "said": "आयुष्मान कार्ड के बारे में बताओ",
+   "want": "'I do not have that scheme yet'; no questions; say the kinds we hold",
+   "by": "code list + model",
+   "today": "wrong: looks like a loose need; top hit kcc; the kind is asked",
+   "step": "1.3"
+  },
+  {
+   "id": "nothere-2",
+   "group": "a scheme we do not hold",
+   "after": "any",
+   "said": "राशन कार्ड",
+   "want": "same as nothere-1",
+   "by": "code list + model",
+   "today": "wrong: top hit kcc at 0.58",
+   "step": "1.3"
+  },
+  {
+   "id": "nothere-3",
+   "group": "a scheme we do not hold",
+   "after": "any",
+   "said": "लाडली बहना योजना",
+   "want": "same as nothere-1",
+   "by": "code list + model",
+   "today": "wrong: top hit jsy1",
+   "step": "1.3"
+  },
+  {
+   "id": "point-1",
+   "group": "pointing words",
+   "after": "the line named two schemes",
+   "said": "दूसरा वाला",
+   "want": "the SECOND scheme named in the last reply, from a list the code keeps",
+   "by": "code list + model",
+   "today": "needs a model; the code keeps no list of what was last named",
+   "step": "1.8"
+  },
+  {
+   "id": "point-2",
+   "group": "pointing words",
+   "after": "the line named two schemes",
+   "said": "और कोई योजना है?",
+   "want": "schemes NOT yet named in this call; if none: 'that is all I have for this'",
+   "by": "code list + model",
+   "today": "needs a model; the code keeps no list of what was named",
+   "step": "1.8"
+  },
+  {
+   "id": "point-3",
+   "group": "pointing words",
+   "after": "talk moved to a second scheme",
+   "said": "वो पहले वाली में क्या था",
+   "want": "go back to the first scheme; its told parts are remembered",
+   "by": "model + code",
+   "today": "needs a model",
+   "step": "1.8"
+  },
+  {
+   "id": "cmp-1",
+   "group": "pointing words",
+   "after": "the line named two schemes",
+   "said": "दोनों में से किसमें ज़्यादा पैसा मिलता है",
+   "want": "one sentence on each, numbers from the papers only; no 'better for you'",
+   "by": "model",
+   "today": "needs a model; the 'other scheme' guard may block the second scheme",
+   "step": "1.8"
+  },
+  {
+   "id": "will-1",
+   "group": "will I get it",
+   "after": "a scheme is in talk; not all its conditions are known",
+   "said": "मुझे मिलेगा क्या?",
+   "want": "no promise. Say who it is for. Then ask the ONE thing this scheme depends on that is not known yet (picker on this one scheme)",
+   "by": "code + model",
+   "today": "needs a model; the picker is never run on one scheme",
+   "step": "1.8"
+  },
+  {
+   "id": "will-2",
+   "group": "will I get it",
+   "after": "a scheme is in talk; the mark is 'does not fit'",
+   "said": "तो मुझे नहीं मिलेगा?",
+   "want": "say who it is for and which told fact differs; offer what does fit; never 'you will not get it'",
+   "by": "model",
+   "today": "needs a model",
+   "step": "1.8"
+  },
+  {
+   "id": "again-1",
+   "group": "say it another way",
+   "after": "a reply was said",
+   "said": "समझ नहीं आया",
+   "want": "the same thing in shorter, simpler words; NOT the same sentences",
+   "by": "model",
+   "today": "needs a model; 'repeat' says the same sentences",
+   "step": "1.8"
+  },
+  {
+   "id": "again-2",
+   "group": "say it another way",
+   "after": "a reply with a number was said",
+   "said": "कितना बोला? फिर से बोलो",
+   "want": "only the number sentence again",
+   "by": "model",
+   "today": "needs a model",
+   "step": "1.8"
+  },
+  {
+   "id": "again-3",
+   "group": "say it another way",
+   "after": "a reply was said",
+   "said": "धीरे बोलो",
+   "want": "the last reply again, slower pace for the rest of the call",
+   "by": "code",
+   "today": "no such path",
+   "step": "1.8"
+  },
+  {
+   "id": "hold-1",
+   "group": "hold on",
+   "after": "the line asked for something",
+   "said": "एक मिनट रुको, कागज़ लाता हूँ",
+   "want": "'take your time'; stay quiet up to 2 minutes; do not say goodbye at 60 s",
+   "by": "model action + code",
+   "today": "wrong: two quiet spells in a row end the call",
+   "step": "1.8"
+  },
+  {
+   "id": "hold-2",
+   "group": "hold on",
+   "after": "any",
+   "said": "हेलो? हेलो? आवाज़ आ रही है?",
+   "want": "'yes, I can hear you', then the last question again",
+   "by": "model",
+   "today": "needs a model; may be taken as side talk",
+   "step": "1.8"
+  },
+  {
+   "id": "half-1",
+   "group": "hold on",
+   "after": "first turn",
+   "said": "मेरी… (stops) … फसल खराब हो गई",
+   "want": "one turn, not two; a 1 or 2 word start with no sense waits for the rest",
+   "by": "code (ear)",
+   "today": "not run",
+   "step": "1.8"
+  },
+  {
+   "id": "trust-1",
+   "group": "trust",
+   "after": "any",
+   "said": "इसका कोई पैसा लगता है क्या?",
+   "want": "fixed line: this call's help is free; we take no money",
+   "by": "fixed line",
+   "today": "needs a model; no fixed line",
+   "step": "1.8"
+  },
+  {
+   "id": "trust-2",
+   "group": "trust",
+   "after": "any",
+   "said": "आप सरकार की तरफ़ से हो? आप इंसान हो?",
+   "want": "fixed line: a computer helper, not the government, tells what is in the government's own papers",
+   "by": "fixed line",
+   "today": "needs a model; no fixed line",
+   "step": "1.8"
+  },
+  {
+   "id": "trust-3",
+   "group": "trust",
+   "after": "any",
+   "said": "मेरा आधार नंबर लिखो, 4 5 6 7…",
+   "want": "stop the caller: 'do not tell me your Aadhaar, bank or OTP number'; the digits are not kept in the log",
+   "by": "code + fixed line",
+   "today": "digits are masked in the log; no line stops the caller",
+   "step": "1.8"
+  },
+  {
+   "id": "cant-1",
+   "group": "trust",
+   "after": "a scheme was told",
+   "said": "आप ही मेरा फॉर्म भर दो",
+   "want": "'I can not fill forms'; say where to go (the nearest CSC centre)",
+   "by": "model",
+   "today": "needs a model",
+   "step": "1.8"
+  },
+  {
+   "id": "cant-2",
+   "group": "trust",
+   "after": "any",
+   "said": "किसी आदमी से बात कराओ",
+   "want": "'there is no person on this line'; offer to go on",
+   "by": "fixed line",
+   "today": "needs a model",
+   "step": "1.8"
+  },
+  {
+   "id": "hurt-1",
+   "group": "a caller in distress",
+   "after": "any",
+   "said": "फसल बर्बाद हो गई, कर्ज़ बहुत है, अब जीने का मन नहीं करता",
+   "want": "one kind sentence first, never a list of questions; then the crop schemes if the caller wants. No help-line number is said (owner, 5 Oct)",
+   "by": "code word list + model",
+   "today": "wrong: 'फसल' + 'कर्ज़' name two kinds; the kind of need is asked",
+   "step": "1.8"
+  },
+  {
+   "id": "hurt-2",
+   "group": "a caller in distress",
+   "after": "any",
+   "said": "कोई मदद नहीं करता, सब बेकार है",
+   "want": "one kind sentence, then one question about the need",
+   "by": "model",
+   "today": "needs a model",
+   "step": "1.8"
+  },
+  {
+   "id": "off-1",
+   "group": "a caller in distress",
+   "after": "two off-topic turns already",
+   "said": "आज मैच कौन जीतेगा",
+   "want": "the third off-topic turn in a row: a polite goodbye",
+   "by": "code count",
+   "today": "no count; the fixed off-topic line is said every time",
+   "step": "1.8"
+  },
+  {
+   "id": "end-1",
+   "group": "ending",
+   "after": "a scheme was told",
+   "said": "ठीक है, धन्यवाद",
+   "want": "not a hang-up yet: 'anything else?' once; goodbye on the next no / bye / quiet",
+   "by": "model + code",
+   "today": "needs a model",
+   "step": "1.8"
+  },
+  {
+   "id": "end-2",
+   "group": "ending",
+   "after": "the line offered a part",
+   "said": "नहीं",
+   "want": "do not tell the part; ask if they want another scheme; NOT goodbye",
+   "by": "model",
+   "today": "needs a model (the prompt has this rule)",
+   "step": "1.8"
+  },
+  {
+   "id": "many-1",
+   "group": "many facts at once",
+   "after": "first turn",
+   "said": "मैं पैंसठ साल की विधवा हूँ, महाराष्ट्र से, पेंशन चाहिए",
+   "want": "age, gender, state, need all taken in one turn; no question on any of them",
+   "by": "code + model",
+   "today": "by code: gender and need only; age and state need the model",
+   "step": "1.3"
+  }
+ ]
 }

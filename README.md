@@ -17,5 +17,4 @@ TALK_ONLY=true make call-me        # ring the owner's phone
 - `tests/`, `tools/`, `fixtures/`: checks, helper tools, test data.
 - `snapshots/`, `data_cache/`: the scheme data the app reads.
 - `flow/`: the flow charts and the script that draws and checks them.
-- `haqdaar-v2-brain/`, `source-docs/`, `sync_vault.py`: the older design vault (Obsidian) and
-  the tool that keeps it in step with its source files. `python3 sync_vault.py --status`.
+- `docs/old-design/`: five design papers from September. Background only; `PLAN.md` wins.

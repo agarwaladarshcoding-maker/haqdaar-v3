@@ -38,8 +38,8 @@ def build(level):
     start = n("start", "Call comes in from my phone number", 0, top=0, w=420, kind="start")
     twilio = n("twilio", "Twilio free-trial line plays. The caller presses any key to clear it. "
                "It can not be switched off on a trial account.", 0, top=start.bottom + 100, w=520)
-    greet = n("greet", "GREETING\n\"Hello, welcome to Haqdaar\" in Hindi, English and the 3 main "
-              "languages of the caller's place.\n\"Speak in any language. For keys, press 6.\"",
+    greet = n("greet", "GREETING, short (about 12 s)\nIn Hindi, Marathi and English, each says: \"Welcome to "
+              "Haqdaar. Speak in English or your own language. For keys, press 6.\"",
               0, top=twilio.bottom + 80, w=520)
     speaks = n("speaks", "Speaks?", 0, top=greet.bottom + 80, kind="diamond", w=200)
     row_a = speaks.cy + 170
@@ -55,8 +55,8 @@ def build(level):
 
     n("tw_note", "No key pressed: Twilio ends the call by itself. A paid Twilio account has no "
       "such line.", -820, cy=twilio.cy, w=380, kind="note", layer="add")
-    n("greet_note", "Place not known from the number: Hindi, English + the 3 languages set in "
-      "the settings. Keep the whole greeting short (about 15 s).", -820, cy=greet.cy, w=380,
+    n("greet_note", "For now the languages of Pune, Maharashtra: Hindi, Marathi, English (a "
+      "setting). Later: picked from the place of the caller's number.", -820, cy=greet.cy, w=380,
       kind="note", layer="add")
 
     a("start", "b", "twilio", "t", layer="base", label="6296399690")
@@ -115,8 +115,8 @@ def build(level):
       "then the other\n- \"the second one\", \"any other?\": from a list the code keeps\n- \"will "
       "I get it?\": no promise; who it is for, then the ONE thing not known\n- \"did not "
       "understand\": simpler words, not the same ones\n- \"one minute\": waits up to 2 min\n- is it "
-      "free, are you a person: true fixed lines\n- distress: a kind line and a help-line number "
-      "FIRST, before any question\n- never takes an Aadhaar, bank or OTP number", 2300, top=cat_top - 60,
+      "free, are you a person: true fixed lines\n- distress: one kind sentence FIRST, "
+      "never a list of questions\n- never takes an Aadhaar, bank or OTP number", 2300, top=cat_top - 60,
       w=460, kind="note", layer="add", align="left")
 
     # ---------------- the model, search, log ----------------

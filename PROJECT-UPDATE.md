@@ -1533,3 +1533,20 @@ same folder, uncommitted. It waits for the owner's phone check. No money was spe
 - *Checks.* 2,385 tests pass, none fail. 2,552 scripted talk calls break no rule.
 - *Left for the owner.* The brain folder and its rule file still call themselves binding (D2,
   D8). The help-line numbers for a caller in distress must be checked (D5).
+
+## 5 Oct 2026, night: the owner's answers written into the plan
+
+- *The brain folder.* Only five design papers were kept, in `docs/old-design/`, as background.
+  The rest, its sync tool and the rule file that called it "binding" were removed. No code used them.
+- *The greeting.* Short, about 12 s: Hindi, Marathi and English each say "welcome to Haqdaar,
+  speak in English or your own language, for keys press 6". Key 6 will work at the greeting
+  from step 1.1, so the greeting does not promise what is not there. Languages by the place of
+  the caller's number come later.
+- *No help-line number.* Dropped. A caller in distress gets one kind sentence, then help.
+- *"Will I get it?"* The line says who the scheme is for and what the caller told it. Never yes or no.
+- *A smooth line.* New part of step 1.0: measure each call, test the network before ringing,
+  keep connections open, connect again if the line drops. The real fix is a better network
+  place (a hotspot now, a small cloud server later).
+- *A gate after every phase.* All tests, five phone calls from a fixed list, the logs read, the
+  cost counted. No next phase with a red line.
+- *Checks.* 2,385 tests pass. 2,552 scripted talk calls break no rule. Charts pass.

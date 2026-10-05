@@ -7,6 +7,22 @@ The charts in `flow/` are the design. This file is the order of work.
   After each step: run the checks, the owner tries it on the phone, stop and report.
 - Older plans (v2, v4) are dropped. They are in git on branch `step-7.3-talk-first`.
 
+## 0. How the work is cut (owner's answers of 5 Oct night are in here)
+- **Phase 1, talk (chart 1), 9 steps:** 1.0 safe and smooth line, 1.1 greeting door, 1.2 language
+  each turn, 1.3 clarify first, 1.8 follow-up talk, 1.4 English in the middle, 1.5 search,
+  1.6 edge cases, 1.7 close. (1.8 is built right after 1.3: it is the same part of the code.)
+- **Phase 2, cut-in (chart 2), 6 steps.** **Phase 3, keys (chart 3), 6 steps.**
+- **Later, not planned yet:** greeting languages picked from the place of the caller's number;
+  100+ schemes; an Indian phone number.
+- **After every step:** the checks of section 7 and one phone call by the owner.
+- **After every phase, the whole system is checked before the next one starts (the gate):**
+  1. `pytest`, `make talk-eval`, `make stress`, `make barge-eval`: all clean.
+  2. Five phone calls by the owner from a fixed list: a named scheme; a situation; a rude
+     "just tell me" caller; a quiet caller; one call in each of Hindi, English and Marathi.
+  3. The logs of those five calls are read: no dead air over 2 s, no cut sound, no wrong fact.
+  4. Token and rupee count of the phase. The result is written in `PROJECT-UPDATE.md`.
+  A phase is not closed with a red line in this list.
+
 ## 1. Where we stand (5 Oct, code = branch `step-7.15-cut-in`, commit 2485d79)
 
 The shares are a rough guess, not a count.
@@ -36,6 +52,20 @@ Small guards, no change to what the caller hears. Each was found by reading; see
 - `make pipeline-scrape` deletes a scheme's saved pages when one fetch fails: `make backup` first.
 - Dead bits to cut while there: `TURN0_KEYS` (phone.py:50), the `voice_demo` branch in
   run_demo.py, 4 settings no code reads, the `WORK.md` pointer in types.py:41.
+- **The line stays smooth (owner, 5 Oct night: no cuts from the network).** The call runs
+  phone -> Twilio -> tunnel -> this laptop -> Sarvam and Groq. A weak wifi cuts it in three places.
+  - Measure first: each call's log gets a "line report" (longest gap in the caller's sound, how
+    far ahead our sound was sent, slowest Sarvam and Groq reply, why the line closed).
+  - Before a call, `make call-me` tests the network (tunnel, Sarvam, Groq: one tiny request
+    each) and says "weak network" instead of ringing.
+  - Sarvam and Groq: connections are kept open between turns; one quick second try on a
+    network error; "one moment" covers the wait (built).
+  - Our sound is sent to Twilio ahead of time (built), so a short stall is not heard.
+  - If the line to the laptop drops in a call: Twilio is told to connect again and the talk goes
+    on from the same log, within 60 s. If it can not: a recorded "the line dropped, please call
+    again", not silence.
+  - The real fix is the place: a phone hotspot or wired net instead of the hall wifi for now; a
+    small cloud server in Mumbai later (D9).
 - Done this turn already: 7 old snapshots removed, `make talk-questions` needs `YES=1`,
   `scratch/` is ignored, junk files cleared.
 
@@ -44,6 +74,16 @@ Small guards, no change to what the caller hears. Each was found by reading; see
 - Any real words at the greeting start the talk. They are kept as turn 1.
 - New greeting: hello in Hindi, English and 3 set languages (a setting, not from the phone
   number), then "speak in any language". Keep it near 15 s.
+- **Owner, 5 Oct night (this is the greeting to build).** Three languages for now, those of
+  Pune, Maharashtra: Hindi, Marathi, English. Each says the same three short things: welcome to
+  Haqdaar; speak in English or your own language; for keys press 6. About 4 s each, 12 s in all.
+  Draft words, to be OK'd before the paid render:
+  - Hindi: "हक़दार में आपका स्वागत है। हिंदी, अंग्रेज़ी या अपनी भाषा में बोलिए। बटन के लिए 6 दबाइए।"
+  - Marathi: "हक्कदार मध्ये आपले स्वागत आहे. मराठी, इंग्रजी किंवा तुमच्या भाषेत बोला. बटणांसाठी 6 दाबा."
+  - English: "Welcome to Haqdaar. Speak in English or your own language. For keys, press 6."
+- **Key 6 must work the day the greeting says it.** So the small part of 3.1 and 3.2 moves
+  here: key 6 at the greeting starts the keys path that is already built. Key 6 in the middle
+  of a talk, and going back from keys to talk, stay in Phase 3.
 - Check: no-phone probe scripts (says "Hindi"; a noise then key 1; a full Hindi question). Phone check.
 - Added 5 Oct evening, more ways a call can start (each gets a probe script):
   - The caller says only "hello?" or "haan?": not a need. Say the short "tell me what you need" line, not the whole greeting again.
@@ -137,7 +177,7 @@ it does today). The run is in NOTES. These are added to 1.3; nothing above is ta
   scheme in talk is dropped, and facts that came from the old need's words are checked again.
 - **A corrected fact** ("not 26, 62") builds the list again from all schemes of the need.
 - **Vague answers** ("बुज़ुर्ग हूँ", "थोड़ी ज़मीन है"): no guess; one yes-or-no question ("above 60?").
-- **Distress comes before any question** (see 1.8).
+- **A caller in distress gets a kind sentence before any question** (see 1.8).
 - Check: the "by code" cases of `fixtures/talk_human.json` become pytest cases with no model.
 
 ### 1.4 English in the middle
@@ -181,7 +221,7 @@ After the first answer a real caller does not ask clean questions. Each line bel
   only when it is one of the two last named.
 - **"Will I get it?"** No promise, as today. The line says who the scheme is for, then the picker
   runs on THAT ONE scheme and asks the one thing it depends on that is not known. When all is
-  known: "it is for X; you told me Y". The owner decides the exact words (D6).
+  known: "it is for X; you told me Y". Words as in D6 (agreed).
 - **Say it another way.** "समझ नहीं आया": shorter and simpler, not the same sentences (new action
   `simpler`). "कितना बोला?": only the number sentence. "धीरे बोलो": slower voice for the rest of the call.
 - **Hold on.** "एक मिनट रुको": new action `hold`; "take your time", then quiet for up to 2 minutes
@@ -194,9 +234,9 @@ After the first answer a real caller does not ask clean questions. Each line bel
   number is stopped at once; the digits never reach the log (they are masked today).
 - **What the line can not do.** Fill a form, send an SMS, check a payment: said plainly, with
   where to go.
-- **Distress.** Words of giving up on life, or a death in the house: a fixed kind line with a
-  help-line number comes first, by a code word list, before any question. Then the schemes only
-  if the caller wants. The owner picks the number (D5).
+- **Distress.** Words of giving up on life, or a death in the house: one kind sentence first,
+  never a list of questions; then the schemes if the caller wants. (Owner, 5 Oct night: no
+  help-line number is said. It was dropped.)
 - **Off topic three times in a row:** a polite goodbye.
 - **"Thanks" is not goodbye:** "anything else?" once; goodbye on the next no, bye or quiet.
 - **Guard on cost:** all of this must fit one model call a turn and the 3,000 token turn. New
@@ -241,6 +281,15 @@ After the first answer a real caller does not ask clean questions. Each line bel
   talk-eval scripts with the near-miss sentences, before the phone check.
 
 ## 6. For the owner to decide
+**Closed on 5 Oct night:** D2 + D8 (the brain folder: five papers kept in `docs/old-design/` as
+background, the rest and its rule file removed; nothing in it is binding). D3 (Hindi, Marathi,
+English; by place later). D4 (the greeting says "press 6" from Phase 1, and key 6 works at the
+greeting from 1.1). D5 (dropped: no help-line number). D6 (agreed as proposed). D7 (1.8 is
+built right after 1.3).
+**Open:** D1, and new: D9. Where the server runs so the line is smooth: a phone hotspot for now
+(free), or a small cloud server in Mumbai (costs a little each month, no tunnel, no hall wifi).
+The older text of each decision is kept below.
+
 - D1. English in the middle for Hindi too, or only for other languages (after the 1.4 numbers).
 - D2. `haqdaar-v2-brain/`, `source-docs/` and `sync_vault.py` were kept on this branch. Say the
   word and they go.

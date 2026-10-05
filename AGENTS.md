@@ -19,9 +19,9 @@ Work in `~/code/haqdaar-v2` (the Documents copy is in iCloud and hangs).
 - State assumptions and proceed; only stop to ask if proceeding would clearly be wrong direction.
 - Never claim a test passed, a build succeeded, or a file was written without having actually run it and seen the output. If you can't verify, say so plainly.
 - Before declaring done: re-read `.agent/TASK.md` and confirm every item is actually complete, then run whatever the project's test/lint command is:
-  - Test: `pytest`
-  - Build / Sync Status: `python3 sync_vault.py --status` (and `python3 sync_vault.py --sync` if updating vault sources)
-  - Lint / Syntax Check: `python3 -m py_compile sync_vault.py`
+  - Test: `.venv/bin/python -m pytest -q`
+  - Talk check: `make talk-eval`
+  - Lint / Syntax Check: `python3 -m py_compile <the files you changed>`
 
 ## Output style
 - No preamble, no "Great question", no restating my request back to me.
