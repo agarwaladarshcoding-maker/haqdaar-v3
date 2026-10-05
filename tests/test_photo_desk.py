@@ -431,12 +431,14 @@ def test_desk_page_has_viewport(tmp_path):
 
 
 def test_photo_auto_on_and_off(tmp_path):
-    real_thread = threading.Thread
     def sync_thread(target=None, args=(), **kwargs):
-        t = real_thread(target=target, args=args, **kwargs)
+        # Run the work here and hand back a stand-in whose start() does nothing.
+        # A real Thread would run the target a second time in the background,
+        # which raced the asserts: its set_finding put the state back to "read",
+        # and after the env patch ended it looked in the wrong folder.
         if target:
             target(*args)
-        return t
+        return mock.Mock()
 
     # 1. PHOTO_AUTO=true: good finding
     with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path), "PHOTO_AUTO": "true"}), \

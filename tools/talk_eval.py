@@ -293,6 +293,11 @@ def check(res: be.Result) -> list[str]:
         if row.get("ev") != "act" or row.get("by") == "key":     # a key has no last word to measure from
             continue
         before = [t1 for t1 in said_texts if t1 <= row["t"]]
+        if not row.get("end_ms"):
+            # Words that came in as a cut-in clip are acted on while they are still being said (end_ms is 0): the
+            # act row comes before their end, so measuring from the last words that ended earlier (a noise over
+            # the reply before) counts the caller's own speech as dead air.
+            before += [s["t1"] for s in res.said if s["t0"] <= row["t"] < s["t1"]]
         if not before:
             continue
         t1 = max(before)
