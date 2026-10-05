@@ -25,6 +25,7 @@ from typing import Any, Callable, Iterable, Optional
 from haqdaar.audio import live_tts
 from haqdaar.audio.lang_words import NAMES, is_bare_greeting, language_from_code, language_from_words
 from haqdaar.audio.lines import MENU_KEYS
+from haqdaar.data.pipeline.texts import LANGS as RECORDED_LANGS
 from haqdaar.audio.mouth import Clip, Mouth
 from haqdaar.audio.turn import HANGUP, Turn, real_words
 from haqdaar.contracts import tunables
@@ -498,7 +499,9 @@ class PhoneAudio:
             keys = self.corpus.chunks(sid, self.language)
             ix = SCHEME_CHUNKS.index(section) if section in SCHEME_CHUNKS else -1
             return self._clip(token, keys[ix] if 0 <= ix < len(keys) else "")
-        lang = "all" if token == "greeting_trilingual" else self.language
+        # Recorded clips exist in Hindi, Marathi and English only: a caller in another Sarvam
+        # language hears the English clip ("one moment", the goodbye), never silence.
+        lang = "all" if token == "greeting_trilingual" else self.language if self.language in RECORDED_LANGS else "en"
         clips = self._clip(token, self.corpus.audio(token, lang))
         if not clips and token in STAND_IN:
             return self._clips(STAND_IN[token])

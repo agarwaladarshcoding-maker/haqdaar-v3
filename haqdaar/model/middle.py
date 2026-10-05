@@ -4,7 +4,7 @@ Reply half of English in the middle (step 1.4a + 1.4b). English reply in, caller
 language out, one sentence at a time so the voice can start on the first.
 
 - "en": each sentence comes back as it is, no network call.
-- hi, mr, gu, ta: each sentence goes through AnswerTranslator (sarvam-translate:v1).
+- every other Sarvam language: each sentence goes through AnswerTranslator (sarvam-translate:v1).
 - Any other code: one item with the text "not supported", marked failed.
 - Fixed guard on every sentence, no model: numbers and units must match both ways in order,
   and a scheme name in the English must come out unchanged or in the target tongue.
@@ -23,16 +23,18 @@ from dataclasses import dataclass
 from typing import Iterator, Optional, Sequence
 import unicodedata
 
-from haqdaar.model.translate import AnswerTranslator
+from haqdaar.model.translate import TARGET_CODES, AnswerTranslator
 
 logger = logging.getLogger(__name__)
 
-LANGS = ("hi", "mr", "gu", "ta")
+LANGS = tuple(TARGET_CODES)
 
 _SENTENCE_GAP = re.compile(r"(?<=[.!?।])\s+")
 _SHORT_PIECE = 12
 
-_TO_LATIN = str.maketrans("०१२३४५६७८९૦૧૨૩૪૫૬૭૮૯௦௧௨௩௪௫௬௭௮௯", "0123456789" * 3)
+# The digits of every Indic script Sarvam may write (Devanagari to Malayalam: each block has 0-9 at
+# offset 0x66, Tamil included), so "৬০০০" in Bengali counts as 6000 for the guard.
+_TO_LATIN = str.maketrans({chr(base + 0x66 + d): str(d) for base in range(0x0900, 0x0D80, 0x80) for d in range(10)})
 
 UNITS: dict[str, int] = {
     "हज़ार": 1_000,

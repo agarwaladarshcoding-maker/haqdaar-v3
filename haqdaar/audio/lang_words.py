@@ -20,6 +20,16 @@ NAMES: dict[Lang, tuple[str, ...]] = {
     "hi": ("hindi", "hindee", "हिंदी", "हिन्दी"),
     "mr": ("marathi", "marati", "मराठी"),
     "en": ("english", "inglish", "angrezi", "angrazi", "ingrezi", "अंग्रेजी", "अँग्रेजी", "इंग्रजी", "इंग्लिश", "इंग्लीश"),
+    # The other Sarvam languages. Only an offered language is ever picked by its name; being here
+    # lets a talk call follow a caller into it (1.2) and start a talk in it at the greeting.
+    "bn": ("bengali", "bangla", "बंगाली", "বাংলা"),
+    "gu": ("gujarati", "गुजराती", "ગુજરાતી"),
+    "kn": ("kannada", "कन्नड़", "ಕನ್ನಡ"),
+    "ml": ("malayalam", "मलयालम", "മലയാളം"),
+    "od": ("odia", "oriya", "उड़िया", "ओड़िया", "ଓଡ଼ିଆ"),
+    "pa": ("punjabi", "panjabi", "पंजाबी", "ਪੰਜਾਬੀ"),
+    "ta": ("tamil", "तमिल", "தமிழ்"),
+    "te": ("telugu", "तेलुगु", "తెలుగు"),
 }
 
 # The key numbers, by position in LANGS_OFFERED. Only counted in a very short reply ("two",
@@ -60,8 +70,8 @@ def language_from_words(text: str) -> Lang | None:
 
 
 # The code the speech service sends back ("hi-IN", "mr-IN", "en-IN"): the language of a caller who
-# spoke at the greeting without naming one. The code knows three languages; any other code, or
-# none, is Hindi.
+# spoke at the greeting without naming one. Any Sarvam language in NAMES is kept; any other code,
+# or none, is Hindi.
 def language_from_code(code: str) -> Lang:
     lang = (code or "").strip().lower().split("-")[0]
     return lang if lang in NAMES else "hi"  # type: ignore[return-value]

@@ -38,10 +38,11 @@ import httpx
 from dotenv import load_dotenv
 
 from haqdaar.contracts import tunables
+from haqdaar.contracts.types import SARVAM_CODES
 from haqdaar.data.pipeline.texts import LANGS, TRILINGUAL_ORDER, Text, all_texts
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
-TTS_LANG = {"hi": "hi-IN", "mr": "mr-IN", "en": "en-IN"}
+TTS_LANG = SARVAM_CODES   # the live voice speaks every Sarvam language; the recorded clips stay hi / mr / en (texts.LANGS)
 RANGE_BOXES = ("age", "income_band")
 ULAW_SILENCE = b"\xff"
 

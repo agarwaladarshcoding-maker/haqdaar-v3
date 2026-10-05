@@ -13,7 +13,13 @@ from haqdaar.contracts import tunables
 RenderKey = str
 ValueCode = str
 BoxId = str
-Lang = Literal["en", "hi", "mr"]
+Lang = Literal["en", "hi", "mr", "bn", "gu", "kn", "ml", "od", "pa", "ta", "te"]
+# Every language Sarvam hears, translates and speaks: our code -> Sarvam's code. The ONE list:
+# the ear, the translate step and the live voice all read it. A new Sarvam language is one line here.
+SARVAM_CODES: dict[str, str] = {
+    "hi": "hi-IN", "mr": "mr-IN", "en": "en-IN", "bn": "bn-IN", "gu": "gu-IN", "kn": "kn-IN",
+    "ml": "ml-IN", "od": "od-IN", "pa": "pa-IN", "ta": "ta-IN", "te": "te-IN",
+}
 LangSource = Literal["keypad", "voice", "default"]
 
 # Special markers

@@ -44,7 +44,7 @@ import httpx
 
 from haqdaar import net
 from haqdaar.contracts import tunables
-from haqdaar.contracts.types import Digit, Hangup, Input, Noise, Silence, Speech
+from haqdaar.contracts.types import SARVAM_CODES, Digit, Hangup, Input, Noise, Silence, Speech
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -62,11 +62,7 @@ END_FRAMES: int = (tunables.TALK_END_WAIT_MS // 20) if tunables.TALK_ONLY else 4
 MAX_UTTERANCE_FRAMES: int = 350 # 7.0 s maximum utterance
 PRE_ROLL_FRAMES: int = 15      # 300 ms pre-speech buffer
 
-SARVAM_LANG: dict[str, str] = {
-    "hi": "hi-IN",
-    "mr": "mr-IN",
-    "en": "en-IN",
-}
+SARVAM_LANG: dict[str, str] = dict(SARVAM_CODES)
 
 GROQ_LANG_MAP: dict[str, str] = {
     "hindi": "hi-IN",
@@ -78,6 +74,7 @@ GROQ_LANG_MAP: dict[str, str] = {
     "hi-in": "hi-IN",
     "en-in": "en-IN",
     "mr-in": "mr-IN",
+    **{code.lower(): code for code in SARVAM_CODES.values()},
 }
 
 
