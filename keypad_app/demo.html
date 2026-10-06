@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Haqdaar phone demo</title>
+<style>
+:root{--bd:#33404c;--lcd:#8ca886;--fg:#122013;--btn:#2b3640;--bfg:#e0e6ed;--act:#465766;--gold:#e59410}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#e0e6ed;font-family:monospace;display:flex;flex-direction:column;align-items:center;height:100vh;overflow:hidden;justify-content:center;padding:6px 4px}
+h1{font-size:13px;letter-spacing:1px;color:#788b9c;margin-bottom:10px}
+.chassis{width:280px;background:linear-gradient(180deg,#28333e,#151b22);border-radius:26px 26px 32px 32px;padding:8px 8px 12px;border:3px solid var(--bd);box-shadow:0 12px 30px rgba(0,0,0,.85)}
+.ear{width:46px;height:4px;background:#090d11;border-radius:3px;margin:0 auto 4px}
+.bezel{background:#080c0f;padding:4px;border-radius:8px;border:2px solid #182027}
+.screen{width:240px;height:320px;background:var(--lcd);color:var(--fg);font-size:11px;font-weight:700;position:relative;overflow:hidden;border:1px solid #779273}
+.bar{height:18px;border-bottom:1px solid var(--fg);display:flex;justify-content:space-between;align-items:center;padding:0 4px;font-size:9px}
+#home{height:100%;display:flex;flex-direction:column}
+.clock{font-size:40px;font-weight:900;text-align:center;margin-top:34px}
+.date{text-align:center;font-size:10px;margin-bottom:22px}
+.note{margin:0 8px;background:var(--fg);color:var(--lcd);border-radius:6px;padding:8px;font-size:10px;line-height:1.35;display:none}
+.note.on{display:block;animation:ring .5s 3}
+.note b{display:block;font-size:11px;margin-bottom:3px}
+@keyframes ring{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.soft{margin-top:auto;border-top:1px solid var(--fg);display:flex;justify-content:space-between;padding:2px 6px;font-size:9px}
+#msg{display:none;height:100%;align-items:center;justify-content:center;text-align:center;padding:14px;font-size:12px;font-weight:900}
+#web{display:none;height:100%;flex-direction:column}
+#web .bar{background:var(--fg);color:var(--lcd)}
+iframe{border:0;background:#fff;display:block;pointer-events:none}
+#sc{pointer-events:none}
+#site{width:240px;height:298px}
+#app{display:none;width:242px;height:322px;margin:-1px}
+#web .bar{height:22px;gap:4px;background:#e8eaed;color:#202124;border-bottom:1px solid #bbb;font-weight:400}#web .bar b{background:#fff;border-radius:10px;padding:1px 6px;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:9px;font-weight:400}
+.pad{margin-top:8px;display:flex;flex-direction:column;gap:5px}
+.nav{display:flex;justify-content:space-between;align-items:center}
+button{cursor:pointer;font-family:inherit}
+.s-btn{width:56px;height:26px;background:var(--btn);color:var(--bfg);border:1px solid var(--bd);border-radius:6px;font-size:9px;font-weight:bold}
+.s-btn.end{background:#6b2b2b}
+.dpad{width:92px;height:70px;display:grid;grid-template-columns:28px 34px 28px;grid-template-rows:20px 28px 20px;background:#12171c;border-radius:10px;border:1px solid #28333e;padding:1px}
+.d-b{background:#232d36;color:#94a6b8;border:none;font-size:9px}
+.d-b:active{background:var(--gold);color:#000}
+.du{grid-column:2;grid-row:1}.dd{grid-column:2;grid-row:3}.dl{grid-column:1;grid-row:2}.dr{grid-column:3;grid-row:2}
+.dok{grid-column:2;grid-row:2;background:var(--gold);color:#111;font-weight:900;font-size:11px}
+.s-btn.call{background:#1f6b35}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
+.k{height:30px;background:var(--btn);border:1px solid var(--bd);border-radius:6px;color:var(--bfg);font-size:13px;font-weight:900}
+.k:active,.s-btn:active{background:var(--act)}
+.tools{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:300px}
+.tools button{background:#18212b;color:#c8d3de;border:1px solid var(--bd);border-radius:6px;padding:7px 10px;font-size:11px}
+#data.on{background:#1f5a2f;color:#fff}#data.off{background:#6b2b2b;color:#fff}
+.hint{margin-top:10px;font-size:10px;color:#6b7884;text-align:center;max-width:300px;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="stage" style="display:flex;flex-direction:column;align-items:center">
+<h1>HAQDAAR KISAN PHONE · DEMO</h1>
+<div class="chassis">
+  <div class="ear"></div>
+  <div class="bezel"><div class="screen" id="sc">
+    <div id="home">
+      <div class="bar"><span id="net">|||| 4G</span><span id="clk">12:00</span><span>[===]</span></div>
+      <div class="clock" id="big">12:00</div><div class="date" id="date"></div>
+      <div class="note" id="note"><b>&#9993; 1 NEW SMS · HAQDAAR</b><span id="txt"></span></div>
+      <div class="soft"><span id="sl">MENU</span><span>[OK] OPEN</span></div>
+    </div>
+    <div id="msg"></div>
+    <div id="web"><div class="bar"><span>&#128274;</span><b id="url"></b></div><iframe id="site"></iframe></div>
+    <iframe id="app"></iframe>
+  </div></div>
+  <div class="pad">
+    <div class="nav"><button class="s-btn" data-k="SoftLeft">&#9644;</button><div class="dpad"><button class="d-b du" data-k="ArrowUp">&#9650;</button><button class="d-b dl" data-k="ArrowLeft">&#9664;</button><button class="d-b dok" data-k="Enter">OK</button><button class="d-b dr" data-k="ArrowRight">&#9654;</button><button class="d-b dd" data-k="ArrowDown">&#9660;</button></div><button class="s-btn" data-k="SoftRight">&#9644;</button></div>
+    <div class="nav"><button class="s-btn call" data-k="Enter">&#9990;</button><button class="s-btn end" data-k="End">&#9990;</button></div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+<div class="tools">
+  <button id="data" class="on">MOBILE DATA: ON</button>
+  <button id="again">New SMS</button>
+  <button id="home-btn">Home</button>
+</div>
+<div class="hint">The line sends the SMS; it shows here as on a real phone. Press OK to open it. The screen does not take touch, only the keys.<br>Data ON: the link opens like a website. Pick the photo, then Add / Delete / Send.<br>Data OFF: the link cannot open, the Haqdaar app opens and sends the photo by SMS.</div>
+</div>
+<script>
+(function(){
+  function $(i){return document.getElementById(i);}
+  var q=new URLSearchParams(location.search),link=q.get('link')||'',data=q.get('data')!=='0',mode='home';
+  var okLink=/^https?:\/\/[^\/]+\/p\/[A-Za-z0-9]+$/.test(link);
+  var TEXT='Haqdaar: send your photo here: '+link+' No internet? Open the Haqdaar app.';
+  var actx;function beep(f,d){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();var o=actx.createOscillator(),g=actx.createGain();o.frequency.value=f;g.gain.value=.05;o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+d);}catch(e){}}
+  function clock(){var d=new Date(),h=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);$('clk').innerText=h;$('big').innerText=h;$('date').innerText=d.toDateString();}
+  setInterval(clock,20000);clock();
+  function show(m){mode=m;['home','msg','web','app'].forEach(function(i){$(i).style.display=(i===m?(i==='home'||i==='web'?'flex':(i==='msg'?'flex':'block')):'none');});}
+  function net(){$('net').innerText=data?'|||| 4G':'|||| NO DATA';$('data').className=data?'on':'off';$('data').innerText='MOBILE DATA: '+(data?'ON':'OFF');}
+  function arrive(){if(!okLink){$('txt').innerText='';$('note').className='note';return;}$('txt').innerText=TEXT.slice(0,92)+'..';$('note').className='note on';beep(1000,.12);setTimeout(function(){beep(1300,.12);},180);}
+  function open(){
+    if(mode!=='home'||!okLink)return;beep(900,.05);
+    if(data){$('url').innerText=link.replace(/^https?:\/\//,'');$('site').src='index.html?embed=1&web='+encodeURIComponent(link);show('web');}
+    else{$('msg').innerHTML='NO INTERNET<br>The link cannot open.<br><br>Opening the Haqdaar app...';show('msg');
+      setTimeout(function(){$('app').src='index.html?embed=1&api='+encodeURIComponent(link.replace(/\/p\/[^\/]+$/,'/sms'));show('app');},1400);}
+  }
+  function home(){$('site').src='about:blank';$('app').src='about:blank';show('home');}
+  function key(k){
+    beep(700,.03);
+    if(k==='End'||k==='Escape'){home();return;}
+    if(mode==='home'){if(k==='Enter'||k==='SoftLeft'||k==='5')open();return;}
+    if(mode==='app'||mode==='web')$(mode==='app'?'app':'site').contentWindow.postMessage({hqkey:k},location.origin);
+  }
+  var g=$('grid');['1','2','3','4','5','6','7','8','9','*','0','#'].forEach(function(c){var b=document.createElement('button');b.className='k';b.innerText=c;b.dataset.k=c;g.appendChild(b);});
+  document.querySelectorAll('[data-k]').forEach(function(b){b.onclick=function(){key(b.dataset.k);};});
+  $('data').onclick=function(){data=!data;net();};
+  $('again').onclick=function(){home();arrive();};$('home-btn').onclick=home;
+  window.addEventListener('keydown',function(e){var k=e.key;if(['Enter','Escape','1','2','3','4','5','6','7','8','9','0','*','#','Backspace','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].indexOf(k)>-1){e.preventDefault();key(k==='Backspace'?'Backspace':k);}});
+  function fit(){var s=$('stage');s.style.zoom=1;var h=s.scrollHeight+12;s.style.zoom=Math.min(1,innerHeight/h);}
+  window.addEventListener('resize',fit);fit();
+  net();show('home');setTimeout(arrive,1200);if(q.get('open'))setTimeout(open,2400);
+})();
+</script>
+</body>
+</html>
