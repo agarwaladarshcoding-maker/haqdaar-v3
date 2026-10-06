@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls calls-ui keypad-ui photo-desk photo-back sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me mac-call ear-check model-bakeoff muse-status muse-block muse-unblock barge-eval log-text stage-check door-a-check qa-check qa-router-check talk-eval talk-questions
+.PHONY: run call calls calls-ui keypad-ui photo-desk photo-back full full-stop sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me mac-call ear-check model-bakeoff muse-status muse-block muse-unblock barge-eval log-text stage-check door-a-check qa-check qa-router-check talk-eval talk-questions
 
 test:
 	$(PYTHON) -m pytest
@@ -57,6 +57,22 @@ call-me:
 # 5 Oct: talk to the system on this Mac (mic and speakers), no phone, no Twilio. Use headphones. PORT=8001 by default.
 mac-call:
 	$(PYTHON) -m tools.mac_call --serve --port $(or $(PORT),8001)
+
+# Everything at once for a Mac call: the photo desk (8002 / 8003, SMS door on) and the phone page (8080) are
+# started if they are not up, then the call. They stay up after the call, so the photo can come in and the
+# next `make full` opens with the answer. `make full-stop` stops them. Logs: logs/photo-desk.log, logs/keypad-ui.log.
+full:
+	@mkdir -p logs; \
+	lsof -ti tcp:8002 >/dev/null || { SMS_DOOR=true nohup $(PYTHON) -m tools.photo_desk > logs/photo-desk.log 2>&1 & echo "started the photo desk  (page 8002, desk http://127.0.0.1:8003)"; }; \
+	lsof -ti tcp:8080 >/dev/null || { nohup $(PYTHON) -m http.server 8080 --directory keypad_app > logs/keypad-ui.log 2>&1 & echo "started the phone page  (8080)"; }; \
+	sleep 2; \
+	lsof -ti tcp:8002 >/dev/null || echo "!! the photo desk did not start: see logs/photo-desk.log"; \
+	lsof -ti tcp:8080 >/dev/null || echo "!! the phone page did not start: see logs/keypad-ui.log"; \
+	$(PYTHON) -m tools.mac_call --serve --port $(or $(PORT),8001)
+
+full-stop:
+	@pkill -f "tools.photo_desk" && echo "photo desk stopped" || echo "photo desk was not running"; \
+	pkill -f "http.server 8080 --directory keypad_app" && echo "phone page stopped" || echo "phone page was not running"
 
 # 5 Oct: run a few minutes before a demo call. Says what is ready and what is not. Places no call.
 stage-check:
