@@ -1966,5 +1966,35 @@ headphones, or the microphone hears the agent's own voice.
 - Call-back (owner's call: "I am not sure if it is an Aadhaar card", photo of chocolates, the call-back only said "a screenshot of a chocolate pack"). Two causes. One: the first thing said in a call-back was a fixed line from the photo desk; no model looked at it. Two: of the first call only the last lines were kept, and those were all our own fixed lines (the offer, "press 9", goodbye), so the caller's question was lost.
 - Now the first call is kept up to the photo offer, and the opening of the call-back is written by the model from the first call and the photo read. On the owner's own case the real model now says: "यह आधार कार्ड नहीं है। तस्वीर में चॉकलेट का एक पैकेट दिख रहा है।" Also tried: a real Aadhaar read ("Yes, this is an Aadhaar card"), a form ("No, the form is not filled right, the bank field is empty"), no question asked (only what the photo shows).
 - If the model gives nothing, the old fixed line is said, so the call-back never goes silent.
-- Not tried: a real call-back heard with a mic after this fix. Nothing is committed yet on branch cut-in-fix.
+- Not tried: a real call-back heard with a mic after this fix.
 - The photo desk and phone page were stopped so that the next `make full` starts them with the new reader.
+
+## 6 Oct, about 11:00: the caller can ask for a language in words (branch lang-switch-tool)
+
+**Added.** A caller can now say "explain this in Hindi", "Marathi mein bolo", "can you speak Tamil" and the
+agent changes its language. The talk model decides: when the caller's words name a language, the model is
+told it may switch, and it adds `"lang": "hi"` to its answer. That same reply is already said in the new
+language, and the call stays in it.
+
+**Changed.** Before, the language followed only what the ear heard, so a request made in English stayed
+English. Now an asked language is held: the ear's guess does not move it back on the next turn. Asking for
+another language in words moves it again. "Say that again in Hindi" says the last reply in Hindi.
+
+**Safe side.** The model's choice is taken only if the caller named that language in this turn. A mention
+alone ("I studied in a Hindi school") does not switch. Works for all 11 Sarvam languages.
+
+**Checked.** 10 new tests. Real model (Groq), translate faked: 5 of 5 cases right (en -> hi, hi -> en,
+en -> mr, hi -> ta, and a mention that must not switch). Full pytest 3251 passed, 1 failed
+(test_door_a quarantined slugs: fails in this side folder without the change too). talk-eval: 1355 calls,
+0 broken rules. **Not checked:** a real phone call with the real voice.
+
+**Later the same day.** The first build did not offer the switch when `ENGLISH_PIPE=false` and the caller spoke
+Hindi or Marathi (there the model writes Hindi itself, and translate only goes from English). Now a turn that
+names another language is always worked in English, so the ask works in both modes. Full pytest 3252 passed,
+1 failed (the same old test_door_a one). Checked with the fake model only.
+
+## 6 Oct, about 12:20: the language ask and the cut-in work are now together in v5-full
+- Joined: the cut-in fix, the fuller photo read, the call-back that answers what was asked, and the language ask in words ("explain this in Hindi"). All of it is in branch v5-full now, so `make full` uses it.
+- Checked: full tests on the joined code, 3293 passed. Not checked: a real call with a mic on the joined code.
+- Not pushed to GitHub yet.
+- Also looked for software that keeps only the caller's voice when other people talk nearby. Found, not tried: Krisp (paid), ai-coustics Voice Focus (30 days free), Hush (free, open). Nothing is wired in.
