@@ -99,6 +99,21 @@ None for Phase 4 core engine. Live phone dial checks and field tests remain with
 
 ## 3 · Log — newest first
 
+### 6 Oct, late: the half-English reply, the real cause found and fixed
+- *Found.* The Mac call said "One is ..." and "Another is ..." in English. The cause was not the
+  time limit (translate took 3.6 s of 4 s). The number check read Hindi "एक" and "दूसरी" as the
+  amounts 1 and 2, did not find them in the English, and threw the sentence away.
+- *Fixed.* A lone "one / two" word no longer fails a sentence. Digits and amounts are as strict as
+  before. Marathi "साठी" (for) is no longer read as 60: this was sending most Marathi sentences
+  to English. English "three" now matches Hindi "तीन". A sentence that times out is not tried a
+  second time, so one stuck sentence holds the reply 3 s, not 6 s.
+- *Checked.* 29 number-and-name cases and 21 slow / failed / wrong-text cases with a stand-in
+  Sarvam: all right. Real Sarvam: Hindi and Marathi 34 of 34 sentences in the language, about 1 s
+  a reply. The other 8 languages: about 9 in 10; the rest stay English (a scheme name spelled in a
+  way the check does not know). Full tests 3,134 pass. Talk check 944 calls, 0 broken.
+- *Measured.* Sarvam refuses after about 85 translate requests in a minute. A call is far under it.
+- *Not done.* No phone or Mac call yet with this fix. Not committed.
+
 
 ### 5 Oct, ~21:00: search by part is in the talk; the faults of the last Mac call are fixed; SMS and Muse photo tried
 - *Added.* The talk now gives the model the top 5 pieces of the schemes, not whole cards. The
@@ -1861,3 +1876,41 @@ headphones, or the microphone hears the agent's own voice.
 - Found: most of the photo path is in the code already. Four things are new. Nothing is built yet; the plan waits for the owner's yes.
 - Later the same night: the owner set it straight. No internet question. The link goes out and the line hangs up; the photo comes by the web page, or by the keypad SMS app when there is no data; after that both go the same way.
 - The team mate's branch `keypad-sms-uploader` was found on GitHub. The plan for Muse is in `.agent/PROMPT-muse-phase4.md` (7 steps). Branch `merge-phase-4` is made. Nothing is built.
+- The owner's last word on the plan: field workers put the app on the phones; a photo is at most 10 SMS; the SMS door is a show for now (shown, not sent). The plan file is changed to match and is ready for Muse.
+
+## 6 Oct, about 4 in the morning: a look at Muse's photo work (Phase 4)
+- Muse has done step 1 (the keypad SMS code is brought in) and has written step 2 (the call ends after the link). Steps 3 to 7 are not started. Nothing is committed.
+- Step 2 reads right and its tests pass (60 passed when I ran the two test files).
+- It is slow because it runs the full talk check after every step. That check takes about 45 minutes and does not test the hang-up at all.
+- Small gaps are written in `.agent/NOTES.md`. None of them is a wrong turn.
+
+## 6 Oct, morning: Phase 4 steps 2, 3 and 4 built (Claude, in the side folder merge-phase-4)
+- The call ends after the link is sent (step 2). The no-internet door works on the server (step 3): a stand-in route takes the SMS pieces, joins them, and the photo goes the same way as from the web page.
+- Step 4: the keypad app shrinks the photo so it fits in 10 SMS, shows each SMS going and the line's answer. On 5 real photos all came out at 10 SMS or fewer. The photo is then a thumbnail (about 80 x 60), so whether the reader can use it is still open.
+- New: on a Mac call the link is shown in the terminal and opens in the browser at the photo page (no SMS sent).
+- Nothing is committed. Phase 3 in the main folder is not touched.
+
+## 6 Oct, morning: Phase 4 steps 4 to 7 built (side folder merge-phase-4)
+- A phone demo page (`keypad_app/demo.html`, `make keypad-ui`): the keypad phone gets the SMS as a notification. Click it: data ON opens the photo page like a browser, data OFF opens the Haqdaar keypad app, which sends the photo as SMS pieces. On a Mac call the link shows in the terminal and the demo opens by itself.
+- The line can ring the caller back by itself (`make photo-back`). The call-back knows the first call and what the photo shows, in two separate blocks for the model.
+- Both doors tested end to end with fakes. Full tests: 3,151 passed, 1 known failure (test_door_a, a data gap in side folders). Talk check was still running at the time of writing.
+- Not done: a real second call and a real Muse read of a thumbnail photo. Those need the owner's yes. Nothing is committed.
+
+## 6 Oct, night: the translate report checked; Phase 3 (keys) built
+- The report on the English-middle fix was checked against the code. It holds, but for one hole: "two hectares" said as "एक हेक्टेयर" (and "one" as "दो") passed the number check. Closed: only "one", "एक" and "दूसरा / दूसरी" may stand alone now. "two", "दो", "दोन" are checked like any number.
+- Phase 3 is built in the main folder. In one call the caller can now move between talk and keys:
+  - Key 6 in the talk, or at the greeting, goes to keys. What the talk already knows is kept, so only what is still open is asked.
+  - A full sentence (2 words or more) while the keys questions run goes back to talk. Answers given by key are kept. This can go back and forth any number of times.
+  - After 3 questions with no usable reply the line says once: "You can also answer with the keys. Press 6 for keys." (English, Hindi, Marathi.)
+  - Language keys at the greeting of a talk call: 1 Hindi, 2 English, 3 Marathi, 4 Gujarati, 5 Tamil.
+  - The Hindi, English and Marathi greeting lines now end with "for keys, press 6". The first call makes 3 small new voice renders.
+- Switch: `KEYS_IN_TALK=false` turns all of it off. A plain keys server is not changed.
+- Checks: full tests 3,149 passed; talk check on the 3 new mixed scripts and `ask`, 5,750 calls, 0 rules broken; stress 1,000 callers, 0 crashes, 0 truth failures; cut-in check 65,622 scenarios, the same red rows as before, no new one.
+- Not done: no Mac or phone call yet. A sentence said during the scheme read-out or "anything else" in the keys part does not go to talk yet (only the questions do). A caller in Gujarati or Tamil hears the keys part in Hindi. Nothing is committed.
+
+## 6 Oct, night: first Mac call read; fixes; code committed and pushed
+- The call showed: an English speaker was answered in Hindi for three turns (the speech service called the English "Hindi"); one 3-word turn was heard as Punjabi and would have switched the whole reply to Punjabi; the Hindi used the woman's form for the caller ("आप क्या काम करती हैं"); a scheme was said as the letters "PMMY"; an answer began by saying the caller's words back.
+- Changed: the system prompt got 3 short rules (no words about the caller that change with sex; say a scheme by its full name; start an answer with what was asked). A language other than Hindi, Marathi or English is now followed only when it is heard twice in a row.
+- Not fixed: the English speaker called "Hindi" on the first turns. The speech service gives no other hint. Idea if it keeps happening: after the first turn, ask once "Hindi or English?" or let the caller's first words in English-looking text win.
+- Not proved: that the model keeps the 3 new rules. A real call shows it.
+- Tests 3,150 passed; talk check 944 calls, 0 broken. English-middle fix and Phase 3 (keys) are committed with this.

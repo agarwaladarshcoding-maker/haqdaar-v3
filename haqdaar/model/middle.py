@@ -6,7 +6,7 @@ language out, one sentence at a time so the voice can start on the first.
 - "en": each sentence comes back as it is, no network call.
 - every other Sarvam language: each sentence goes through AnswerTranslator (sarvam-translate:v1).
 - Any other code: one item with the text "not supported", marked failed.
-- Fixed guard on every sentence, no model: numbers and units must match both ways in order,
+- Fixed guard on every sentence, no model: numbers and units must match both ways (any order),
   and a scheme name in the English must come out unchanged or in the target tongue.
 - A failed sentence gets one more try. A still-failed sentence, a time-out, or a
   network error comes back marked failed and returns the English sentence, never wrong text.
@@ -22,6 +22,7 @@ import time
 from dataclasses import dataclass
 from typing import Iterator, Optional, Sequence
 import unicodedata
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
 from haqdaar.model.translate import TARGET_CODES, AnswerTranslator
@@ -83,14 +84,16 @@ EN_UNIT_WORDS: dict[str, int] = {
 _ALL_UNIT_WORDS = {**WORDS, **EN_UNIT_WORDS}
 
 _UNITS_PAT = "|".join(re.escape(u) for u in sorted(UNITS.keys(), key=len, reverse=True))
-_WORDS_PAT = "|".join(re.escape(w) for w in sorted(WORDS.keys(), key=len, reverse=True))
 _UNIT_WORDS_PAT = "|".join(re.escape(w) for w in sorted(_ALL_UNIT_WORDS.keys(), key=len, reverse=True))
 
+# The bare-word part: English one..ten count too ("in three parts" -> "तीन भागों में"), and a vowel sign
+# or virama next to the word means it is part of a longer word ("व्यवसायासाठी" is not "साठ" = 60; Python's
+# \w does not see those marks).
 _COMBINED_NUM = re.compile(
     rf"(?P<num_unit>(?<![A-Za-z0-9_])(?:(?P<nu_val>\d+(?:\.\d+)?)|(?P<nu_word>{_UNIT_WORDS_PAT}))\s*(?P<unit>{_UNITS_PAT})(?![A-Za-z]))|"
     rf"(?P<ordinal>\b(?P<ord_val>\d+)(?:st|nd|rd|th)\b)|"
     rf"(?P<number>(?<![A-Za-z0-9_])\d+(?:,\d+)*(?:\.\d+)?(?!\w))|"
-    rf"(?P<word>(?<!\w)(?P<w_val>{_WORDS_PAT})(?!\w))",
+    rf"(?P<word>(?<![\w\u0900-\u097F])(?P<w_val>{_UNIT_WORDS_PAT})(?![\w\u0900-\u097F]))",
     re.I | re.UNICODE,
 )
 
@@ -171,15 +174,16 @@ def deva_to_ta(text: str) -> str:
     return "".join(DEVA_TO_TAMIL.get(ch, ch) for ch in text)
 
 
-def _numbers(text: str) -> list[float]:
-    """Every amount and number in the text in order of appearance.
+def _number_tokens(text: str, en_words: bool = True) -> list[tuple[float, bool]]:
+    """Every amount and number in the text in order of appearance, each with "is a free word"
+    (one of _FREE_WORDS, with no digit and no unit).
     Understands units (lakh, crore, thousand, हज़ार), number words,
     Indian comma groups, ordinals (2nd, दूसरा), and phone numbers without dashes.
     """
     t = text.translate(_TO_LATIN)
     # Strip dashes between digits (e.g. phone numbers 9876-543-210)
     t = re.sub(r"(?<=\d)-(?=\d)", "", t)
-    tokens: list[float] = []
+    tokens: list[tuple[float, bool]] = []
     for m in _COMBINED_NUM.finditer(t):
         if m.group("num_unit"):
             val_str = m.group("nu_val")
@@ -188,15 +192,41 @@ def _numbers(text: str) -> list[float]:
             else:
                 v = float(_ALL_UNIT_WORDS[m.group("nu_word").lower()])
             u = UNITS[m.group("unit").lower()]
-            tokens.append(round(v * u, 4))
+            tokens.append((round(v * u, 4), False))
         elif m.group("ordinal"):
-            tokens.append(float(m.group("ord_val")))
+            tokens.append((float(m.group("ord_val")), False))
         elif m.group("number"):
             s = m.group("number").replace(",", "")
-            tokens.append(float(s))
+            tokens.append((float(s), False))
         elif m.group("word"):
-            tokens.append(float(WORDS[m.group("w_val").lower()]))
+            word = m.group("w_val").lower()
+            if en_words or word not in EN_UNIT_WORDS:
+                tokens.append((float(_ALL_UNIT_WORDS[word]), word in _FREE_WORDS))
     return tokens
+
+
+def _numbers(text: str) -> list[float]:
+    """Every amount and number in the text in order of appearance."""
+    return [v for v, _ in _number_tokens(text)]
+
+
+# "One is PM Kisan" -> "एक है ...", "Another is ..." -> "दूसरा है ...", "a ration card" -> "एक राशन कार्ड":
+# these words with no partner on the other side are grammar, not an amount (Mac call, 6 Oct).
+# "two", "दो", "दोन" are NOT here: "two hectares" -> "एक हेक्टेयर" must fail.
+_FREE_WORDS = frozenset({"one", "एक", "दूसरा", "दूसरी", "दुसरा", "दुसरे"})
+
+
+def _same_numbers(en: str, out: str, lang: str = "hi") -> bool:
+    """The same numbers on both sides, in any order. A left-over free word (_FREE_WORDS) is let through.
+    English "three" counts only for Hindi and Marathi: the number words of the other languages are not known."""
+    words = lang in ("hi", "mr")
+    a, b = _number_tokens(en, words), _number_tokens(out, words)
+    left, right = Counter(v for v, _ in a), Counter(v for v, _ in b)
+    for extra, side in ((left - right, a), (right - left, b)):
+        free = Counter(v for v, is_free in side if is_free)
+        if any(n > free[v] for v, n in extra.items()):
+            return False
+    return True
 
 
 def scheme_names() -> list[dict]:
@@ -348,7 +378,7 @@ def guard_ok(en: str, out: str, lang: str, names: list[dict] | None = None) -> b
     """
     # The same numbers, same count. Not the same order: Hindi, Tamil and the rest put the verb last,
     # so "Rs 5,000 a month after age 60" comes out as "after age 60 ... Rs 5,000" and is right.
-    if sorted(_numbers(en)) != sorted(_numbers(out)):
+    if not _same_numbers(en, out, lang):
         return False
 
     if names is None:
@@ -386,7 +416,7 @@ def _reply_timeout() -> float:
     try:
         return float(os.environ.get("MIDDLE_REPLY_TIMEOUT_S", "6.0"))
     except ValueError:
-        return 4.0
+        return 6.0
 
 
 def reply_in(reply_en: str, lang: str) -> Iterator[Out]:
@@ -425,6 +455,7 @@ def reply_in(reply_en: str, lang: str) -> Iterator[Out]:
                 if time.monotonic() - total_start >= total_timeout:
                     break
                 got = None
+                tried = time.monotonic()
                 try:
                     if translator is not None:
                         got = translator.translate(sent, lang)
@@ -433,6 +464,8 @@ def reply_in(reply_en: str, lang: str) -> Iterator[Out]:
                 if got and got.strip() and guard_ok(sent, got, lang, names):
                     text, ok = got, True
                     break
+                if time.monotonic() - tried >= _timeout() - 0.1:
+                    break                         # a time-out is not tried again: the whole reply would wait twice as long
         except Exception:
             text, ok = sent, False
         return Out(text=text if ok else sent, ok=ok, ms=int((time.monotonic() - start) * 1000))

@@ -168,8 +168,17 @@ class PhoneAudio:
         if tunables.LANG_EACH_TURN and isinstance(inp, Speech) and real_words(inp.text) >= 3:
             heard = (inp.lang or "").strip().lower().split("-")[0]
             if heard in NAMES and heard != self.language:
-                self._log(f"<- voice: language {self.language} -> {heard}")
-                self.language = heard  # type: ignore[assignment]
+                # hi / mr / en switch at once. Any other language needs the same guess twice in a row:
+                # a 3-word English turn was heard as Punjabi and the whole reply came out in it (6 Oct).
+                if heard in ("hi", "mr", "en") or getattr(self, "_guess", "") == heard:
+                    self._log(f"<- voice: language {self.language} -> {heard}")
+                    self.language = heard  # type: ignore[assignment]
+                    self._guess = ""
+                else:
+                    self._guess = heard
+                    self._log(f"<- voice: language {heard}? kept {self.language} (once is not enough)")
+            else:
+                self._guess = ""
         return inp
 
     def _listen_lang(self) -> str:

@@ -85,6 +85,31 @@ def _log_key(log: Log, digit: Any, means: str) -> None:
         pass
 
 
+def _to_keys(audio: Any, log: Log) -> str:
+    """3.1: the call goes into its keys part (key 6, or the greeting's key 6). Gives back the language the
+    caller had: a language with no recorded clips is spoken to in Hindi here (the keys path says recorded
+    clips only), and `_to_talk` puts the caller's own language back."""
+    from haqdaar.engine import talk
+    had = getattr(audio, "language", "hi")
+    log.write({"ev": "mode", "to": "keys"})
+    turn = getattr(audio, "turn", None)
+    if turn is not None:
+        turn.keys_mode = True
+    if had not in talk.RECORDED_LANGS and hasattr(audio, "language"):
+        audio.language = "hi"
+    return had
+
+
+def _to_talk(audio: Any, log: Log, lang: str) -> None:
+    """3.3: words in the keys part: the call goes back to talk, in the language the caller had."""
+    log.write({"ev": "mode", "to": "talk"})
+    turn = getattr(audio, "turn", None)
+    if turn is not None:
+        turn.keys_mode = False
+    if hasattr(audio, "language"):
+        audio.language = lang
+
+
 def _answer_means(log: Log, corpus: Any, box: str, digit: str) -> str:
     """Meaning of a key on a question box: the value it picks, or off the menu."""
     try:
@@ -612,6 +637,7 @@ class Engine:
         # a miss, and only the third one falls back to Hindi. Words that name no language
         # (7.5) are a miss too: not silence, so they never hang the caller up.
         wrong_keys = 0
+        to_keys = False
         while True:
             if hasattr(audio, "select_language"):
                 inp = audio.select_language()
@@ -633,6 +659,12 @@ class Engine:
                 return
             if isinstance(inp, Digit) and inp.digit in tunables.turn0_keys():
                 lang, lang_source = tunables.turn0_keys()[inp.digit], "keypad"
+                break
+            if isinstance(inp, Digit) and inp.digit == tunables.KEYS_KEY and tunables.TALK_ONLY and tunables.KEYS_IN_TALK:
+                # 3.2: key 6 at the greeting: no language was picked, so Hindi, and the call starts in keys.
+                lang, lang_source = "hi", "default"
+                _log_key(log, inp.digit, "go to keys")
+                to_keys = True
                 break
             if isinstance(inp, Digit):
                 _log_key(log, inp.digit, "not on the menu")
@@ -665,14 +697,28 @@ class Engine:
         if tunables.CONSENT_LINE:
             audio.say(("consent_notice",))
 
-        # --- 2b. Talk only (7.13): no keys after the language pick. The keys path below is untouched.
+        # --- 2b. Talk (7.13): the call starts in talk. The keys path below is untouched, unless the caller
+        # goes to keys (3.1): key 6 hands the answers so far back here, and the call goes on below as keys.
+        carried: Optional[dict[str, Any]] = None
+        talk_t0 = time.monotonic()
         if tunables.TALK_ONLY:
             from haqdaar.engine import talk
-            return talk.run(audio, model, corpus, log, lang, first_words=getattr(audio, "first_words", ""))
+            if not to_keys:
+                carried = talk.run(audio, model, corpus, log, lang, first_words=getattr(audio, "first_words", ""),
+                                   t0=talk_t0)
+                if not isinstance(carried, dict):
+                    return
+                to_keys = True
+        # 3.3: in the keys part of a call that can talk, words go back to talk (the questioning loop only).
+        can_talk = to_keys and tunables.KEYS_IN_TALK and getattr(model, "client", None) is not None
+        if to_keys:
+            talk_lang = _to_keys(audio, log)
 
         # --- 3. Mode Initialization ---
         # Keypad-only mode is entered when model is None or keypad-only requested
-        if (
+        if to_keys:
+            mode = "keypad_only"    # no "keypad_only_mode" line: it says the caller cannot be heard
+        elif (
             model is None
             or getattr(model, "keypad_only", False)
             or getattr(audio, "keypad_only", False)
@@ -686,6 +732,8 @@ class Engine:
 
         # Mutable call state
         box_vector: dict[str, Any] = {b: UNASKED for b in SEVEN_BOXES}
+        if carried:
+            box_vector.update(carried)  # what the talk learned stays; only the UNASKED boxes are asked
         # T18 §3: in keypad-only mode, a closed set that will not fit a keypad menu drops to UNKNOWN
         # up front. This is a cardinality test, never a hard-coded box: on the
         # production corpus `state` has 36 values and drops; on fixtures it has
@@ -693,7 +741,7 @@ class Engine:
         if mode == "keypad_only":
             for _b in SEVEN_BOXES:
                 _vals = corpus.values(_b)
-                if _vals and len(_vals) > tunables.KEYPAD_CARDINALITY_MAX:
+                if _vals and len(_vals) > tunables.KEYPAD_CARDINALITY_MAX and box_vector[_b] == UNASKED:
                     box_vector[_b] = UNKNOWN
                     log.write(TurnLogRecord(
                         turn_n=0,
@@ -797,7 +845,7 @@ class Engine:
                     else:
                         prompt_id = f"keypad_{box}"
                     audio.say((prompt_id,))
-                    inp = audio.next_input(profile="normal")
+                    inp = audio.next_input(profile="spoken" if can_talk else "normal")
                 else:
                     if box == "category":
                         prompt_id = "opener_prompt" if opener_menu else "opener_short_prompt"
@@ -899,6 +947,17 @@ class Engine:
                 elif isinstance(inp, Speech):
                     silence_ladder = 0
                     transcript = getattr(inp, "text", "") or ""
+                    if can_talk and talk.real_words(transcript) >= 2:
+                        # 3.3: a sentence in the keys part: back to talk with the answers so far; the words
+                        # are turn 1 there. One word or noise falls through and is discarded as before.
+                        _to_talk(audio, log, talk_lang)
+                        got = talk.run(audio, model, corpus, log, talk_lang, first_words=transcript,
+                                       bv=box_vector, t0=talk_t0)
+                        if not isinstance(got, dict):
+                            return
+                        box_vector.update(got)      # what the talk learned; the next pass asks what is left
+                        talk_lang = _to_keys(audio, log)
+                        continue
                     if is_box_keypad or model is None:
                         # A Speech input in keypad-only mode is a caller talking to a
                         # menu. It is not free text to the Engine: it spends a cap turn

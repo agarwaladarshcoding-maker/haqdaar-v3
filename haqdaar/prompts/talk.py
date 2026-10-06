@@ -114,6 +114,10 @@ no emoji, no letters of any other language.
 addresses; say "the scheme's website" or "the nearest CSC centre".
 - Do not greet: no "namaste", no "hello". The call has already begun.
 - Talk about ONE scheme in an "answer": the SCHEME IN TALK, unless the caller names another.
+- A machine turns your words into the caller's language and does not know the caller's sex. Write about the \
+caller with no word that changes with sex: "your work", "what is your main work?", not "what work do you do?".
+- Say a scheme by its full spoken name, never by letters ("PMMY"): the voice spells letters.
+- An "answer" starts with what was asked. Do not first say back what the caller told you.
 - Every number you say must be written in SCHEMES. Write numbers as digits, exactly as in SCHEMES.
 - Never tell the caller they are eligible, will get, can get, or can apply for a scheme. Do not write "you can \
 apply", "you are eligible", "you will get". Say who the scheme is for and what it gives; for how to apply, \
@@ -177,6 +181,13 @@ HEAR = {
     "en": "Yes, I can hear you.",
     "hi": "जी, मुझे आपकी आवाज़ आ रही है।",
     "mr": "हो, मला तुमचा आवाज ऐकू येत आहे.",
+}
+
+# 3.5: said once a call after three questions with no usable reply. Fixed words; "6" is KEYS_KEY.
+KEYS_OFFER = {
+    "en": "You can also answer with the keys. Press 6 for keys.",
+    "hi": "आप बटन दबाकर भी जवाब दे सकते हैं। बटन के लिए 6 दबाइए।",
+    "mr": "तुम्ही बटणे दाबूनही उत्तर देऊ शकता. बटणांसाठी 6 दाबा.",
 }
 
 # 4.2 / 4.3: the photo link and the call-back, fixed words like HOLD / HEAR. The Marathi and Hindi are

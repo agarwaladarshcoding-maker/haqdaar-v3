@@ -264,7 +264,7 @@ def test_prompt_carries_the_situation_block_and_new_fields():
     assert '"not": []' in prompt.SYSTEM and '"just_tell": false' in prompt.SYSTEM
     assert "at most once a call" in prompt.SYSTEM
     added = len(prompt.SYSTEM.split()) - 1390
-    assert added * 1.3 <= 350, added
+    assert added * 1.3 <= 450, added      # 6 Oct: 350 -> 450 for three rules (no sex-marked words, spoken names, first sentence)
     msgs = prompt.build("en", "", {}, {"category": ("farming",)}, "category",
                         ["category"], [], "my crops died")
     assert "NEXT QUESTION: category" in msgs[1]["content"]

@@ -65,6 +65,8 @@ def real_words(text: str) -> int:
 
 
 class Turn:
+    keys_mode: bool = False   # 3.1: the call is in its keys part: every key works as in a keys call
+
     def __init__(
         self,
         mouth: Mouth,
@@ -144,10 +146,11 @@ class Turn:
     def _talk_ignores(self, digit: str, prompt_name: str) -> bool:
         """2.4: in a talk call a key the talk does not act on must not stop the voice or answer the
         prompt. It still comes through and is logged "keys are off". Acted on: key 9 (the photo link),
-        and the language keys while the greeting sounds (any key there works as before)."""
-        if not tunables.TALK_ONLY or prompt_name == "greeting_trilingual":
+        the keys key (6, goes to keys), and the language keys while the greeting sounds (any key there
+        works as before). In the keys part of a call no key is stray."""
+        if not tunables.TALK_ONLY or self.keys_mode or prompt_name == "greeting_trilingual":
             return False
-        return not (tunables.PHOTO_IN_CALL and digit == "9")
+        return not ((tunables.PHOTO_IN_CALL and digit == "9") or (tunables.KEYS_IN_TALK and digit == tunables.KEYS_KEY))
 
     # --- socket loop ---------------------------------------------------------------
     def push_key(self, digit: str) -> None:

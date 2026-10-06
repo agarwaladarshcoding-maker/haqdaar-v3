@@ -98,6 +98,30 @@ GUARD_CASES = [
     # Point 4: number repetition fails
     ("You get Rs 100 and Rs 100.", "आपको 100 मिलते हैं।", "hi", False),
     ("You get Rs 100 and Rs 200.", "आपको 100 मिलते हैं।", "hi", False),
+    # Mac call, 6 Oct: "One is ..." / "Another is ..." stayed English, "एक" / "दूसरी" were read as amounts.
+    # A bare one / two word with no partner is grammar. A digit or an amount is still strict.
+    ("One is Pradhan Mantri Mudra Yojana for small business loans.", "एक है प्रधानमंत्री मुद्रा योजना, छोटे व्यवसाय ऋण के लिए।", "hi", True),
+    ("Another is PM Kisan for farmers.", "दूसरी है पीएम किसान, किसानों के लिए।", "hi", True),
+    ("Another is PM Kisan for farmers.", "एक और है पीएम किसान, किसानों के लिए।", "hi", True),
+    ("Do you have a ration card?", "क्या आपके पास एक राशन कार्ड है?", "hi", True),
+    ("PM Kisan gives Rs 6,000 a year.", "पीएम किसान एक साल में 6,000 रुपये देता है।", "hi", True),
+    ("You may get two schemes.", "आपको दो योजनाएं मिल सकती हैं।", "hi", True),
+    ("PM Kisan gives Rs 6,000 a year in three parts.", "पीएम किसान तीन भागों में 6,000 रुपये प्रति वर्ष देता है।", "hi", True),
+    ("You get 2 hectares.", "आपको एक हेक्टेयर मिलता है।", "hi", False),
+    ("You get 2 hectares.", "आपको हेक्टेयर मिलता है।", "hi", False),
+    ("PM Kisan helps farmers.", "पीएम किसान किसानों की तीन बार मदद करता है।", "hi", False),
+    ("PM Kisan helps farmers.", "पीएम किसान किसानों को 2 बार मदद करता है।", "hi", False),
+    ("PM Kisan gives Rs 6,000 a year.", "पीएम किसान साल में तीन हज़ार दो सौ रुपये देता है।", "hi", False),
+    # a counted "two" / "दो" is an amount: a swap with "one" / "एक" is refused
+    ("Land of up to two hectares is covered.", "एक हेक्टेयर तक की ज़मीन आती है।", "hi", False),
+    ("Only one child is covered.", "केवल दो बच्चे आते हैं।", "hi", False),
+    ("Two daughters are covered.", "एक मुलगी येते.", "mr", False),
+    ("Two daughters are covered.", "दोन मुली येतात.", "mr", True),
+    # Marathi "साठी" (for) is not "साठ" (60): a vowel sign after the word means a longer word
+    ("Yes, there are schemes for business.", "होय, व्यवसायासाठी योजना आहेत.", "mr", True),
+    ("You must be 60.", "तुमचे वय साठ हवे.", "mr", True),
+    # "three" as a word in a language whose number words are not known: not held against the sentence
+    ("PM Kisan gives Rs 6,000 a year in three parts.", "పీఎం కిసాన్ సంవత్సరానికి 6,000 రూపాయలు మూడు విడతలుగా ఇస్తుంది.", "te", True),
 ]
 
 
@@ -272,3 +296,45 @@ def test_whole_reply_timeout(monkeypatch):
     # Beyond the 0.05s total limit, sentences are refused with original English text
     assert outs[-1].ok is False
     assert outs[-1].text == "Third is 300."
+
+
+def test_sentences_go_at_once_and_come_back_in_order(monkeypatch):
+    """Four sentences of 0.3 s each take about 0.3 s, not 1.2 s, and the order is the reply's order."""
+    delays = {"Yes": 0.3, "One": 0.05, "Ano": 0.2, "Whi": 0.1}
+    monkeypatch.setenv("SARVAM_API_KEY", "test-key")
+    says = {"Yes": "हाँ, योजनाएँ हैं।", "One": "एक है पीएम किसान।", "Ano": "दूसरी है मनरेगा।", "Whi": "आप कौन सी सुनना चाहते हैं?"}
+
+    def post(url, *, timeout, **kw):
+        key = kw["json"]["input"][:3]
+        time.sleep(delays[key])
+        return _Resp(says[key])
+
+    monkeypatch.setattr(net, "post", post)
+    t0 = time.monotonic()
+    outs = list(reply_in("Yes, there are schemes. One is PM Kisan. Another is MGNREGA. Which one do you want to hear?", "hi"))
+    assert time.monotonic() - t0 < 0.8
+    assert [o.ok for o in outs] == [True] * 4
+    assert [o.text for o in outs] == [says[k] for k in ("Yes", "One", "Ano", "Whi")]
+
+
+def test_a_time_out_is_not_tried_again(monkeypatch):
+    """One stuck sentence holds the reply for one time-out, not two; the others still come in Hindi."""
+    monkeypatch.setenv("SARVAM_API_KEY", "test-key")
+    monkeypatch.setenv("MIDDLE_TIMEOUT_S", "0.3")
+    calls = []
+
+    def post(url, *, timeout, **kw):
+        text = kw["json"]["input"]
+        calls.append(text)
+        if text.startswith("One"):
+            time.sleep(timeout)
+            raise httpx.TimeoutException("slow")
+        return _Resp("हाँ, योजनाएँ हैं।")
+
+    monkeypatch.setattr(net, "post", post)
+    t0 = time.monotonic()
+    outs = list(reply_in("Yes, there are schemes. One is PM Kisan.", "hi"))
+    assert time.monotonic() - t0 < 0.55
+    assert [o.ok for o in outs] == [True, False]
+    assert outs[1].text == "One is PM Kisan."
+    assert calls.count("One is PM Kisan.") == 1

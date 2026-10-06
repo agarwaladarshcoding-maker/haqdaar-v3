@@ -30,8 +30,21 @@ def test_short_turn_or_unknown_language_keeps_the_last_one(monkeypatch):
     phone._follow_language(Speech(text="मला शेतकरी योजना हवी आहे", lang=""))          # no code came back
     phone._follow_language(Speech(text="मला शेतकरी योजना हवी आहे", lang="xx-IN"))     # not a Sarvam language
     assert phone.language == "mr"
-    phone._follow_language(Speech(text="મને ખેડૂત યોજના જોઈએ છે", lang="gu-IN"))      # 1.4: every Sarvam language is followed
+    gu = Speech(text="મને ખેડૂત યોજના જોઈએ છે", lang="gu-IN")
+    phone._follow_language(gu)                                                         # one guess outside hi / mr / en: not enough
+    assert phone.language == "mr"
+    phone._follow_language(gu)                                                         # 1.4: every Sarvam language is followed, on the second
     assert phone.language == "gu"
+
+
+def test_one_odd_guess_between_two_turns_does_not_switch(monkeypatch):
+    """6 Oct: a 3-word English turn was heard as Punjabi and the reply came out in Punjabi."""
+    monkeypatch.setattr(tunables, "LANG_EACH_TURN", True)
+    phone = _phone("en")
+    phone._follow_language(Speech(text="did the call", lang="pa-IN"))
+    phone._follow_language(Speech(text="tell me the papers needed", lang="en-IN"))
+    phone._follow_language(Speech(text="did the call", lang="pa-IN"))
+    assert phone.language == "en"
 
 
 def test_switch_off_keeps_the_picked_language(monkeypatch):

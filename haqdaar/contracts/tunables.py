@@ -45,6 +45,12 @@ TALK_SENTENCE_WORDS: int = int(os.environ.get("TALK_SENTENCE_WORDS", 24))   # a 
 TALK_LOG_CHARS: int = int(os.environ.get("TALK_LOG_CHARS", 1500))           # how much of the call log the model reads
 TALK_MAX_TURNS: int = int(os.environ.get("TALK_MAX_TURNS", 40))             # a talk call always ends
 TALK_MAX_QUESTIONS: int = int(os.environ.get("TALK_MAX_QUESTIONS", 3))   # 1.3a: at most 3 questions a talk call
+# 3.1 / 3.2 / 3.3 (Phase 3): keys and talk switch inside one call. In a talk call key KEYS_KEY goes to keys
+# with the answers so far; words in the keys part go back to talk. Off: key 6 is "keys are off" again.
+KEYS_IN_TALK: bool = os.environ.get("KEYS_IN_TALK", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
+KEYS_KEY: str = os.environ.get("KEYS_KEY", "6")
+# 3.5: this many questions in a talk call with no usable reply: the line says "press 6 for keys", once a call.
+TALK_KEYS_OFFER_AFTER: int = int(os.environ.get("TALK_KEYS_OFFER_AFTER", 3))
 # 1.5: the model is shown the top 5 PARTS of schemes (search by part), not whole scheme cards. False: whole
 # cards, as before. The quick way back if a live call gets worse.
 TALK_CHUNKS: bool = os.environ.get("TALK_CHUNKS", "true").strip().lower() in ("1", "true", "yes", "on")
@@ -97,9 +103,17 @@ LANGS_OFFERED: tuple[str, ...] = tuple(
 )
 
 
+# 3.4: the keys of the five-language greeting of a talk call, in the order it speaks them.
+TALK_LANG_KEYS: tuple[str, ...] = tuple(
+    l.strip() for l in os.environ.get("TALK_LANG_KEYS", "hi,en,mr,gu,ta").split(",") if l.strip()
+)
+
+
 def turn0_keys() -> dict[str, str]:
-    """Greeting key -> language, from LANGS_OFFERED as it is now."""
-    return {str(i + 1): lang for i, lang in enumerate(LANGS_OFFERED)}
+    """Greeting key -> language, from LANGS_OFFERED as it is now. A talk call that says the
+    five-language greeting uses TALK_LANG_KEYS instead: key 1 is the first language it speaks."""
+    langs = TALK_LANG_KEYS if TALK_ONLY and GREETING_FIVE else LANGS_OFFERED
+    return {str(i + 1): lang for i, lang in enumerate(langs)}
 
 
 KEY_REPEAT_MS: int = int(os.environ.get("KEY_REPEAT_MS", 300))
@@ -183,13 +197,21 @@ LIVE_TTS_PACE: float = float(os.environ.get("LIVE_TTS_PACE", 1.0 if TALK_ONLY el
 # turn of 3 or more real words in Hindi, Marathi or English makes that the language of the reply.
 LANG_EACH_TURN: bool = os.environ.get("LANG_EACH_TURN", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
 # 1.1 part B (5 Oct): the greeting of a talk call, said by the live voice and kept on disk after
-# the first call. (Sarvam language code, words.) Gujarati and Tamil say the short line. "For keys
-# press 6" is NOT said: key 6 is not built yet. Any line that fails: the recorded greeting is said.
+# the first call. (Sarvam language code, words.) Gujarati and Tamil say the short line. Hindi, Marathi
+# and English add "for keys, press 6" when KEYS_IN_TALK is on (a changed line is rendered once, on the
+# first call). Any line that fails: the recorded greeting is said.
 GREETING_FIVE: bool = os.environ.get("GREETING_FIVE", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
+_FOR_KEYS = {"hi": "बटन के लिए {} दबाएँ।", "en": "For keys, press {}.", "mr": "बटणांसाठी {} दाबा."}
+
+
+def _with_keys(lang: str, text: str) -> str:
+    return f"{text} {_FOR_KEYS[lang].format(KEYS_KEY)}" if KEYS_IN_TALK else text
+
+
 GREETING_LINES: tuple[tuple[str, str], ...] = (
-    ("hi-IN", "हक़दार में आपका स्वागत है। अपनी भाषा में बोलिए।"),
-    ("en-IN", "Welcome to Haqdaar. Speak in English or your own language."),
-    ("mr-IN", "हक्कदार मध्ये आपले स्वागत आहे. तुमच्या भाषेत बोला."),
+    ("hi-IN", _with_keys("hi", "हक़दार में आपका स्वागत है। अपनी भाषा में बोलिए।")),
+    ("en-IN", _with_keys("en", "Welcome to Haqdaar. Speak in English or your own language.")),
+    ("mr-IN", _with_keys("mr", "हक्कदार मध्ये आपले स्वागत आहे. तुमच्या भाषेत बोला.")),
     ("gu-IN", "હકદારમાં સ્વાગત છે. તમારી ભાષામાં બોલો."),
     ("ta-IN", "ஹக்தார் வரவேற்கிறது. உங்கள் மொழியில் பேசுங்கள்."),
 ) + ((

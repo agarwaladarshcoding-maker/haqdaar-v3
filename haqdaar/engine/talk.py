@@ -17,6 +17,7 @@ import threading
 import time
 from typing import Any, Optional
 
+from haqdaar.audio.turn import real_words  # noqa: F401  (call.py reaches it here: it imports no audio module)
 from haqdaar.contracts import tunables, vocab
 from haqdaar.contracts.log_schema import (
     STOP_LE_4_SURVIVORS,
@@ -27,6 +28,7 @@ from haqdaar.contracts.log_schema import (
 )
 from haqdaar.contracts.types import SEVEN_BOXES, UNASKED, UNKNOWN, Digit, Hangup, Silence, Speech
 from haqdaar.data import chunk_index, log_text, scheme_index
+from haqdaar.data.pipeline.texts import LANGS as RECORDED_LANGS  # noqa: F401  (the languages with recorded clips; call.py reads it here)
 from haqdaar.data.scheme_text import SchemeText
 from haqdaar.engine import talk_follow, talk_kind, talk_pick, talk_trust, talk_words, words_no_answer, words_tell_me
 from haqdaar.engine.filter import Filter
@@ -154,11 +156,16 @@ def _rows(log: Any) -> list[dict[str, Any]]:
 
 
 class _Talk:
-    def __init__(self, audio: Any, model: Any, corpus: Any, log: Any, lang: str, index: Any) -> None:
+    def __init__(self, audio: Any, model: Any, corpus: Any, log: Any, lang: str, index: Any,
+                 bv: Optional[dict[str, Any]] = None, t0: Optional[float] = None) -> None:
         self.audio, self.model, self.corpus, self.log, self.lang = audio, model, corpus, log, lang
         self.index = index if index is not None else scheme_index.get(corpus.snapshot_id)
         self.texts = SchemeText.load(corpus.snapshot_id)
-        self.bv: dict[str, Any] = {b: UNASKED for b in SEVEN_BOXES}
+        # 3.3: back from the keys part: the answers given there (by key) are known here.
+        self.bv: dict[str, Any] = dict(bv) if bv else {b: UNASKED for b in SEVEN_BOXES}
+        self.no_reply = 0               # 3.5: questions asked that got no usable reply
+        self.back = bv is not None      # 3.3: back from the keys part: the hello was said long ago, never again
+        self.keys_offered = self.back   # 3.5: once a call; a caller who has been in keys knows them
         self.heard: list[str] = []      # the caller's turns, oldest first
         self.last_say = ""
         self.last_work = ""                     # the same reply in the model's English: last_say is the caller's language
@@ -187,7 +194,7 @@ class _Talk:
         self._people: set[str] = set()  # the "for my mother" sentences already acted on
         self._refunded = False  # 1.3 (A): one ask given back a turn, not one a model try
         self.voice_fails = 0    # 1.6: replies in a row the voice could not say
-        self.t0 = time.monotonic()      # 1.6: the talk's start, for the goodbye before the cap
+        self.t0 = t0 if t0 is not None else time.monotonic()    # 1.6: the talk's start, for the goodbye before the cap
         self.turn_n = 0
         self.stage: dict[str, float] = {}  # the turn's stage times (also set by _turn)
         self._found_text = ""           # 1.5: the words the last search used
@@ -722,6 +729,8 @@ class _Talk:
             parts = data.get("parts")
             if self.focus and action in ("answer", "show_scheme") and isinstance(parts, list):
                 self.told.setdefault(self.focus, set()).update(p for p in parts if p in prompt.PARTS)
+            if self.last_asked and self.bv.get(self.last_asked) in (UNASKED, UNKNOWN):
+                self.no_reply += 1              # 3.5: the box asked last turn still has no value
             if action == "ask" and ask_box:
                 self.asked[ask_box] = self.asked.get(ask_box, 0) + 1   # 1.3 (A): every ask counts
                 self.last_asked = ask_box
@@ -913,6 +922,14 @@ class _Talk:
         if not self._speak(say):
             self.log.write({"ev": "blocked", "rule": "voice_failed", "question": "", "text": say})
 
+    def _offer_keys(self) -> None:
+        """3.5: after TALK_KEYS_OFFER_AFTER questions with no usable reply, say once that keys are there.
+        Counted per question asked, not per box set to not-known: with 3 questions a call the third
+        question's "I don't know" is never turned into a not-known box (the picker has stopped asking)."""
+        if tunables.KEYS_IN_TALK and not self.keys_offered and self.no_reply >= tunables.TALK_KEYS_OFFER_AFTER:
+            self.keys_offered = True
+            self._fixed("keys_offer", prompt.KEYS_OFFER.get(self.lang, prompt.KEYS_OFFER["en"]))
+
     def _call_back(self, back: dict[str, Any]) -> None:
         """4.3: a photo was read since the last call: it is the first thing said, before the caller is waited for."""
         self.lang = back["lang"]
@@ -934,7 +951,9 @@ class _Talk:
         self.last_say = say
         in_call.done(back["token"], bad)
 
-    def run(self, first_words: str = "") -> None:
+    def run(self, first_words: str = "") -> Optional[dict[str, Any]]:
+        """Ends the call itself (None). The one other way out is key 6: the answers so far come back and
+        the call is NOT ended, so call.py can go on with keys (3.1)."""
         back = in_call.pending() if tunables.PHOTO_IN_CALL else None
         if back:
             self._call_back(back)
@@ -942,6 +961,7 @@ class _Talk:
             # The caller already asked at the greeting: answer that, with no second hello.
             if self._turn(first_words) == "goodbye":
                 return self._end(farewell=True)
+            self._offer_keys()
         elif not back:
             self._speak(prompt.HELLO.get(self.lang, prompt.HELLO["en"]))
         while True:
@@ -964,7 +984,7 @@ class _Talk:
                 if inp.n - self._held_n >= SILENCE_HANGUP_RUNG:
                     return self._end(farewell=True, reason=STOP_ZERO_SURVIVORS)
                 self.audio.say(("waiting_for_reply",))
-                if not self.last_say:
+                if not self.last_say and not self.back:
                     self._speak(prompt.HELLO.get(self.lang, prompt.HELLO["en"]))
                 continue
             if isinstance(inp, Digit) and tunables.PHOTO_IN_CALL and inp.digit == "9":
@@ -972,6 +992,9 @@ class _Talk:
                 self.offer_open = False
                 self._fixed(*self._photo_link())
                 continue
+            if isinstance(inp, Digit) and tunables.KEYS_IN_TALK and inp.digit == tunables.KEYS_KEY:
+                self.log.write({"ev": "key", "key": inp.digit, "means": "go to keys"})
+                return dict(self.bv)
             if isinstance(inp, Digit):          # keys are off in talk mode
                 self.log.write({"ev": "key", "key": inp.digit, "means": "keys are off"})
                 continue
@@ -983,9 +1006,13 @@ class _Talk:
                 self._note_lang()
             if self._turn(inp.text.strip(), inp.end_ms, inp.stt_ms, bool(inp.cut_clip)) == "goodbye":
                 return self._end(farewell=True)
+            self._offer_keys()
 
 
-def run(audio: Any, model: Any, corpus: Any, log: Any, lang: str, index: Any = None, first_words: str = "") -> None:
-    """The rest of the call after the language pick. Ends the call itself. `first_words`: what the
-    caller said at the greeting; it is turn 1 and the hello is skipped."""
-    _Talk(audio, model, corpus, log, lang, index).run(first_words)
+def run(audio: Any, model: Any, corpus: Any, log: Any, lang: str, index: Any = None, first_words: str = "",
+        bv: Optional[dict[str, Any]] = None, t0: Optional[float] = None) -> Optional[dict[str, Any]]:
+    """The rest of the call after the language pick. Ends the call itself and gives back None; only key 6
+    (KEYS_IN_TALK) gives back the answers so far and leaves the call open. `first_words`: what the caller
+    said at the greeting; it is turn 1 and the hello is skipped. `bv`: answers already known (from the
+    keys part); `t0`: when the call's talk began, so the goodbye before the cap stays on time."""
+    return _Talk(audio, model, corpus, log, lang, index, bv, t0).run(first_words)

@@ -106,6 +106,15 @@ SCRIPTS: dict[str, list[Any]] = {
                     ("say", "say that again please", 1.2), BYE],
     "q_three": [("say", "hmm", 0.6), ("say", "hmm", 0.6), ("say", "hmm", 0.6),
                 ("say", "ok", 0.8), BYE],
+    # 3.1 / 3.2 / 3.3 / 3.5: keys and talk in one call. Key 6 goes to keys (answers by key), a full sentence in
+    # keys goes back to talk. A script that starts with "6" presses it at the greeting (no language key).
+    "k_mixed": [("say", "i need a scheme for farming", 1.8), "6", "1", "1",
+                ("say", "how much money does it give", 1.6), BYE],
+    "k_greeting": ["6", "1", "1", ("say", "i need a scheme for farming", 1.8), BYE],
+    # Three questions with no usable reply: the keys offer is said, then key 6. The model asks the picker's box
+    # while the caller says "not sure" or "do not know" (see TalkClient).
+    "k_offer": [("say", "i am not sure what i need", 1.5), ("say", "i do not know", 1.0), ("say", "i do not know", 1.0),
+                ("say", "i do not know", 1.0), "6", "1", BYE],
 }
 # One more thing the caller's side does: (text, seconds), or a key, or a hang-up.
 KINDS: dict[str, Any] = {
@@ -155,8 +164,10 @@ class TalkClient:
         self._w.advance_to(self._w.now + MODEL_S)
         found = re.search(r'NEWEST CALLER WORDS: "(.*)"', messages[-1]["content"])
         words = (found.group(1) if found else "").lower()
+        asks = re.search(r"NEXT QUESTION: (\w+)", messages[-1]["content"])
         self.seen.append(words)
         self.n += 1
+        name = "".join("abcdefghij"[int(d)] for d in str(self.n))     # no digits: the number check reads them
         if any(w in words for w in SIDE_WORDS):
             data = {"action": "not_for_me", "say": ""}
         elif "goodbye" in words:
@@ -165,8 +176,9 @@ class TalkClient:
             data = {"action": "repeat", "say": ""}
         elif "weather" in words:
             data = {"action": "other_topic", "say": ""}
+        elif ("not sure" in words or "do not know" in words) and asks and asks.group(1) != "none":
+            data = {"action": "ask", "say": f"Could you tell me a little more, number {name}?", "ask_box": asks.group(1)}
         else:
-            name = "".join("abcdefghij"[int(d)] for d in str(self.n))     # no digits: the number check reads them
             data = {"action": "answer", "say": f"This is reply {name} about the scheme. "
                                                f"It has a second short part. Do you want to hear more?"}
         return SimpleNamespace(success=True, data={"facts": {}, "scheme": "", "ask_box": "", **data},
@@ -180,7 +192,7 @@ def run_call(script: str, gate: bool, inject: Optional[Callable[[be.World, be.Ca
     if _TMP is None:
         _TMP = tempfile.TemporaryDirectory(prefix="talk_eval_")
     corp = corpus()
-    flags = dict(TALK_ONLY=True, PHOTO_IN_CALL=True, QA_SPEAK=True, CUT_IN_GATE=gate, SPEECH_CUT_IN=False, LIVE_TTS_STREAM=False,
+    flags = dict(TALK_ONLY=True, KEYS_IN_TALK=True, PHOTO_IN_CALL=True, QA_SPEAK=True, CUT_IN_GATE=gate, SPEECH_CUT_IN=False, LIVE_TTS_STREAM=False,
                  QA_ENABLED=False, SILENCE_REMIND_S=REMIND_S, SILENCE_HANGUP_S=HANGUP_S)
     saved = {k: getattr(tunables, k) for k in flags}
     saved_time = (turn_mod.time, ear_mod.time, phone_mod.time)
@@ -198,7 +210,8 @@ def run_call(script: str, gate: bool, inject: Optional[Callable[[be.World, be.Ca
         items = list(SCRIPTS[script])
         over = items.pop(0) if items and items[0][0] == "over" else None
         # "s": no scripted answer at the greeting, the words over it are the caller's; then the language key if asked
-        first = ["s"] + ([be.lang_key("en")] if over[4] else []) if over else [be.lang_key("en")]
+        first = ["s"] + ([be.lang_key("en")] if over[4] else []) if over else (
+            [] if items and items[0] == tunables.KEYS_KEY else [be.lang_key("en")])
         caller = be.Caller(world, first + items)
         stt = be.FakeSTT(world, caller)
         clock = lambda: world.now  # noqa: E731
@@ -272,7 +285,7 @@ def run_call(script: str, gate: bool, inject: Optional[Callable[[be.World, be.Ca
 
 # --- the rules -------------------------------------------------------------------------
 
-SPOKEN = ("answer", "ask", "show_scheme", "other_topic", "repeat", "hold", "hear", "simpler",
+SPOKEN = ("answer", "ask", "show_scheme", "other_topic", "repeat", "hold", "hear", "simpler", "keys_offer",
           "photo_offer", "photo_link", "photo_no", "number", "trust", "cannot", "thanks", "pace")
 
 
@@ -379,6 +392,8 @@ def plan(scripts: Optional[list[str]] = None, kinds: Optional[list[str]] = None,
                 for at in times:
                     # "say it again" before any reply was made has nothing to say again (the talk says nothing: a gap
                     # that is there with the gate off too, left alone): only from the first reply on.
+                    if kind == "cut_again" and script in ("k_greeting", "k_offer"):
+                        continue    # said in the keys part: no talk reply of the line's own to say again (the same gap as above)
                     if kind == "cut_again" and at < min([r["t"] for r in plain.log_rows if r.get("ev") == "act"], default=0.0):
                         continue
                     cases.append(dict(script=script, gate=gate, kind=kind, at=at, res=None))
