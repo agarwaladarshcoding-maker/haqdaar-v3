@@ -77,7 +77,7 @@ SMS_DONE_S: float = float(os.environ.get("SMS_DONE_S", 120.0))              # Do
 PHOTO_HANGUP: bool = os.environ.get("PHOTO_HANGUP", "true" if PHOTO_IN_CALL else "false").strip().lower() in ("1", "true", "yes", "on")   # Step 2: the call ends after the link is sent; off: the talk goes on
 PHOTO_FIRST_CALL: bool = os.environ.get("PHOTO_FIRST_CALL", "true" if PHOTO_HANGUP else "false").strip().lower() in ("1", "true", "yes", "on")   # Step 6: the call-back's model reads the first call and the photo result, each in its own block
 PHOTO_FIRST_CHARS: int = int(os.environ.get("PHOTO_FIRST_CHARS", 600))     # cap of the first call's text (newest lines kept): about 150 tokens of the 3,000 a talk turn already uses
-PHOTO_RESULT_CHARS: int = int(os.environ.get("PHOTO_RESULT_CHARS", 300))   # cap of the photo result text
+PHOTO_RESULT_CHARS: int = int(os.environ.get("PHOTO_RESULT_CHARS", 1500))   # cap of the photo result text
 # The reader writes English; the desk adds one sentence in the case's language. On (with TALK_ONLY): each plain
 # English sentence goes through the translate step (1.4) for a caller of another language. Off: said as it is.
 PHOTO_BACK_TRANSLATE: bool = os.environ.get("PHOTO_BACK_TRANSLATE", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
@@ -92,8 +92,11 @@ CUT_IN_MIN_MS: int = int(os.environ.get("CUT_IN_MIN_MS", 240))   # voice this lo
 CUT_IN_GAP_MS: int = int(os.environ.get("CUT_IN_GAP_MS", 200))   # quiet this long ends a short burst (two coughs do not add up)
 # 7.14 (B5) cut-in with a strict gate, in a talk call. Off: strict turns (the agent does not listen while it talks).
 CUT_IN_GATE: bool = _on("CUT_IN_GATE")
-CUT_IN_GATE_MS: int = int(os.environ.get("CUT_IN_GATE_MS", 600))       # real voice this long pauses the agent
-CUT_IN_GATE_GAP_MS: int = int(os.environ.get("CUT_IN_GATE_GAP_MS", 300))   # quiet this long ends a burst of voice
+# 6 Oct: was 600 / 300. On a real mic one or two words ("Hindi", "ruko ruko") never made 600 ms, and a 300 ms
+# stop between words started the count again, so they were thrown away. The greeting needs less: its answer is one word.
+CUT_IN_GATE_MS: int = int(os.environ.get("CUT_IN_GATE_MS", 240))       # real voice this long pauses the agent
+CUT_IN_GREETING_MS: int = int(os.environ.get("CUT_IN_GREETING_MS", 100))   # the same, over the greeting
+CUT_IN_GATE_GAP_MS: int = int(os.environ.get("CUT_IN_GATE_GAP_MS", 500))   # quiet this long ends a burst of voice
 CUT_IN_GATE_WORDS: int = int(os.environ.get("CUT_IN_GATE_WORDS", 2))   # real words that make it the caller's turn
 SILERO_ON: float = float(os.environ.get("SILERO_ON", 0.5))             # Silero's "this is a voice" score to start
 SILERO_OFF: float = float(os.environ.get("SILERO_OFF", 0.35))          # and to stay one

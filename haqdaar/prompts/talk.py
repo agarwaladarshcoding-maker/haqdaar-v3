@@ -384,6 +384,27 @@ def not_held_say(lang: str, kinds: list[str]) -> str:
             + HELP_WITH.get(lang, HELP_WITH["en"]).format(kinds=kinds_said))
 
 
+BACK_SYSTEM = (
+    "You are Haqdaar, a phone helper for government schemes. The caller sent a photo after a first call and you "
+    "are calling back. Write the first thing to say: plain English, 1 to 3 short sentences, under 45 words. "
+    "If in THE FIRST CALL the caller wanted something checked in the photo (\"is this paper an X?\", \"is the form "
+    "filled right?\", \"what is wrong with my crop?\"), answer exactly that first, yes or no in plain words "
+    "(\"This is not an X.\"). If the caller asked no such thing, skip this: never bring in a paper or thing the caller did not name. "
+    "Then say in one sentence what the photo shows. Name a scheme only if THE DESK LINE names it. "
+    "Use only what is written under WHAT THE PHOTO SHOWS: never guess a cause, never say what it "
+    "may mean for a scheme, never say an ID, bank or phone number. "
+    "No greeting, no question. Reply with a JSON object: {\"say\": \"...\"}."
+)
+
+
+def back_opening(first_call: str, photo: str, desk: str) -> list[dict[str, str]]:
+    """The call-back's first words: the model answers what the caller asked before the photo was sent."""
+    user = (f"THE FIRST CALL (oldest first):\n{first_call}\n\n"
+            f"WHAT THE PHOTO SHOWS (read by a machine from the photo):\n{photo}\n\n"
+            f"THE DESK LINE:\n{desk}\n\nReply with the JSON object.")
+    return [{"role": "system", "content": BACK_SYSTEM}, {"role": "user", "content": user}]
+
+
 def _named(value: Any, lang: str) -> str:
     """The code (for "facts") and the words to SAY for it in the caller's language."""
     label = (vocab.LABELS.get(value) or {}).get(lang) or (vocab.LABELS.get(value) or {}).get("en")
@@ -419,7 +440,8 @@ def build(lang: str, log_text: str, known: Mapping[str, Any], boxes: Mapping[str
         f"SCHEMES (found for the caller's words; the mark says if it fits what we know):\n{cards}\n\n"
         f"SCHEME IN TALK: {in_talk}\n\n"
         + (f"THE FIRST CALL, said by the caller and the line before the photo (do not ask again what is answered here):\n{first_call}\n\n" if first_call else "")
-        + (f"WHAT THE PHOTO SHOWS (read by a machine from the photo the caller sent; the caller did not say this):\n{photo}\n\n" if photo else "")
+        + (f"WHAT THE PHOTO SHOWS (read by a machine from the photo the caller sent; the caller did not say this. "
+           f"Answer what the caller asks about the photo from this; what is not written here you could not see, say so, never guess):\n{photo}\n\n" if photo else "")
         + f"CALL LOG (oldest first):\n{log_text or '(empty)'}\n\n"
         f"NEWEST CALLER WORDS: \"{words}\"\n"
     )

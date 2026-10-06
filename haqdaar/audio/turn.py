@@ -445,7 +445,8 @@ class Turn:
                         in_guard = not early and self.prompt_start_t > 0 and (
                             self._clock() - self.prompt_start_t < tunables.KEY_GUARD_MS / 1000.0
                         )
-                        heard = (self.ear.watch_voice(in_guard, tunables.CUT_IN_GATE_MS, tunables.CUT_IN_GATE_GAP_MS)
+                        need_ms = tunables.CUT_IN_GREETING_MS if profile == "greeting" else tunables.CUT_IN_GATE_MS
+                        heard = (self.ear.watch_voice(in_guard, need_ms, tunables.CUT_IN_GATE_GAP_MS)
                                  if gate else self.ear.watch_voice(in_guard))
                         if heard == "short":
                             self._log_event(event="speech", value="", took=False, why="short_voice")

@@ -101,6 +101,11 @@ SCRIPTS: dict[str, list[Any]] = {
     # ("over", seconds into the call, words, seconds, then a language key) is said over the greeting.
     "g_words": [("over", 0.3, "i need a scheme for farming", 1.5, False), ("say", "how much money does it give", 1.6), BYE],
     "g_one_word": [("over", 0.3, "ok", 0.9, True), ("say", "i need a scheme for farming", 1.8), BYE],
+    # 6 Oct: what a caller really says over the greeting: one short word, early or late in it.
+    "g_lang_short": [("over", 0.5, "hindi", 0.4, False), BYE],
+    "g_lang_late": [("over", 0.9, "english", 0.3, False), BYE],
+    "g_hello": [("over", 0.5, "hello", 0.45, True), ("say", "i need a scheme for farming", 1.8), BYE],
+    "g_hello_lang": [("over", 0.3, "hello", 0.4, False), ("say", "hindi", 0.4), ("say", "i need a scheme for farming", 1.8), BYE],
     "f_key_mid": [("say", "i need a scheme for farming", 1.8), "5", ("say", "how much money does it give", 1.6), "9", BYE],
     "f_cut_again": [("say", "i need a scheme for farming", 1.8), ("say", "which papers are needed", 1.4),
                     ("say", "say that again please", 1.2), BYE],
@@ -125,6 +130,9 @@ KINDS: dict[str, Any] = {
     "cut_in": ("wait tell me about the pension scheme", 1.8),
     "hmm": ("hmm", 0.5),
     "ok_ok": ("ok ok", 1.0),
+    "one_word": ("no", 0.4),            # 6 Oct: short real words, as said on a real mic
+    "two_words": ("wait stop", 0.6),
+    "short_ask": ("which papers", 0.5),
     "cut_again": ("wait say that again please", 1.8),
     "noise": ("", 1.2),
     "long_noise": ("", 4.0),

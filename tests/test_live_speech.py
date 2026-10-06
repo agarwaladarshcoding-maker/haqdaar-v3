@@ -594,7 +594,7 @@ def test_g1_real_words_counts_only_words_that_are_more_than_a_listening_sound():
 
 def test_g2_half_a_second_of_voice_does_not_pause_the_agent(monkeypatch):
     line = _gate_line(monkeypatch, "ruko ek minute")
-    _later(0.05, line.voice, 25, 45)                  # 500 ms: under the 600 ms gate
+    _later(0.05, line.voice, 10, 45)                  # 200 ms: under the 240 ms gate (6 Oct: the gate was 600)
     _later(0.4, line.marks_back)
     got = line.phone.next_input("spoken")
     assert not isinstance(got, Speech) and _clears(line) == 0 and _said(line) == ["answer", "answer"]

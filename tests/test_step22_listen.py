@@ -113,10 +113,15 @@ def test_words_over_the_start_of_a_reply_stop_it_sooner_and_are_heard_whole():
     assert heard[1].startswith("wait tell me about the pension scheme")
 
 
-def test_a_hmm_over_the_start_of_a_reply_does_not_stop_it():
+def test_a_hmm_over_the_start_of_a_reply_is_no_turn():
+    # 6 Oct: the bar went from 600 to 240 ms of voice, so a long "hmm" (0.5 s here) may now pause the reply.
+    # It is still no turn: the sentence is said again and the model is not asked about it.
     plain = te.run_call("ask", True)
     res = te.run_call("ask", True, te._inject("hmm", _first_reply(plain) + 0.1))
-    assert te.check(res) == [] and res.clears == []
+    assert te.check(res) == []
+    assert res.model_answers == plain.model_answers
+    heard = [row["text"] for row in res.log_rows if row.get("ev") == "heard"]
+    assert not any(text.startswith("hmm") for text in heard)
 
 
 def test_gate_off_the_call_is_as_before():

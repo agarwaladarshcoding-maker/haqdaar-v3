@@ -13,6 +13,7 @@ Response (200 OK):
 {
     "shows": str,    # What the photos show (e.g. crop/disease observation)
     "wrong": str,    # What seems wrong or damage observed
+    "details": str,  # Optional. Everything seen, for the talk model: writing read out word by word, what is filled in, what can not be read
     "sure": float,   # Confidence score between 0.0 and 1.0
     "search": str    # A few English keywords for scheme search (e.g. "crop loss insurance")
 }
@@ -34,6 +35,8 @@ from haqdaar.contracts import tunables
 from haqdaar.data.pipeline import muse
 from haqdaar.model import muse_talk
 
+DETAILS_CHARS = 1200     # cap of the long description kept for the talk model
+
 DOSE_PATTERN = re.compile(
     r"(?i)(?:(?:\b\d+(?:\.\d+)?|\d+)\s*(?:ml|l|g|gm|kg|mg|grams?|litres?|liters?|मिली|लीटर|ग्राम|किलो|गोली|गोलियां|गोलियाँ|tablets?)(?=[^\wऀ-ॿ]|$)|(?:\btablets?\b|\bगोली\b|\bगोलियां\b|\bगोलियाँ\b))",
     re.UNICODE,
@@ -44,6 +47,13 @@ SYSTEM = (
     "Say only what can be seen. Answer in JSON with exactly: "
     "shows (one short sentence: what the photos show), "
     "wrong (one short sentence: the damage or problem that can be seen, or \"\" if none), "
+    "details (for the helper who will talk to the caller and can not see the photo; up to 150 words, plain English. "
+    "Tell everything that can be seen: each thing, its colour, its state, how much of it is damaged, the place. "
+    "If there is any writing (a form, a letter, a notice, a card, a bill, a message): say what kind of paper it is, "
+    "then read it out word by word as written, with the English meaning if it is in another language; "
+    "for a form name each field, what is filled in it, and which fields are empty. "
+    "Say plainly which parts you can not read. "
+    "Do not write out an ID, bank, card or phone number: say only that it is there), "
     "sure (a number 0 to 1), "
     "search (3 to 6 English words to search government schemes with, like \"crop loss insurance\" or \"house damage flood help\", or \"\" if the photo has nothing to do with a need). "
     "Never name a medicine, a chemical or a dose. Never guess who a person is. "
@@ -80,6 +90,7 @@ def _sanitize_output(data: dict[str, Any], by_name: str) -> dict[str, Any]:
     shows = _cut_dose_sentences(shows)
     wrong = _cut_dose_sentences(wrong)
     search = _cut_dose_sentences(search)
+    details = _cut_dose_sentences(str(data.get("details", "") or ""))[:DETAILS_CHARS]
 
     shows = shows[:400]
     wrong = wrong[:400]
@@ -96,6 +107,7 @@ def _sanitize_output(data: dict[str, Any], by_name: str) -> dict[str, Any]:
         "wrong": wrong,
         "sure": sure,
         "search": search,
+        "details": details,
         "by": by_name,
     }
 
@@ -145,6 +157,7 @@ def _http(photos: list[bytes], lang: str = "en") -> dict[str, Any]:
         "wrong": result["wrong"],
         "sure": float(result["sure"]),
         "search": result["search"],
+        "details": result["details"] if isinstance(result.get("details"), str) else "",
         "by": "http",
     }
 
@@ -286,11 +299,13 @@ def _muse(photos: list[bytes], lang: str = "en", post: Any = None, ledger: Any =
         sure = 0.0
     sure = max(0.0, min(1.0, sure))
 
+    details_val = parsed.get("details")
     return {
         "shows": shows_val,
         "wrong": wrong,
         "sure": sure,
         "search": search,
+        "details": details_val if isinstance(details_val, str) else "",
         "by": "muse",
     }
 

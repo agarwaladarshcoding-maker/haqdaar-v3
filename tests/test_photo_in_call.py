@@ -402,12 +402,38 @@ def test_call_back_model_reads_the_first_call_and_the_photo_in_own_blocks(call, 
     audio, client, rows = call([Speech("I am a farmer from Bihar and my wheat is yellow"), Hangup()], [_say("There is a crop scheme.")])
     case = _ready()
     cases.set_first_call(case.token, "photo_1", ["pm-kisan"])
-    audio2, client2, _ = call([Speech("what should I do")], [_say("Spray it.")])
-    asked = client2.calls[0]
+    audio2, client2, _ = call([Speech("what should I do")], [_say("It is a wall, not wheat."), _say("Spray it.")])
+    asked = client2.calls[1]                             # calls[0] wrote the opening (6 Oct)
     first, photo, log = asked.index("THE FIRST CALL"), asked.index("WHAT THE PHOTO SHOWS"), asked.index("CALL LOG")
     assert first < photo < log
     assert "wheat is yellow" in asked[first:photo] and "a wall" in asked[photo:log] and "a wall" not in asked[first:photo]
     assert "wheat is yellow" not in asked[log:]          # the old words sit only in their own block
+
+
+def test_call_back_opening_answers_what_the_caller_asked_in_the_first_call(call, photo_dir, tmp_path, monkeypatch, sms):
+    """6 Oct, owner's call: "I am not sure it is an Aadhaar card", photo of chocolates, the call-back only said what the photo shows."""
+    monkeypatch.setattr(tunables, "CALL_LOGS_DIR", str(tmp_path))
+    monkeypatch.setattr(tunables, "PHOTO_FIRST_CALL", True)
+    call([Speech("I am not sure if this is an Aadhaar card, can I send you a photo"), Speech("yes")], [])
+    case = cases.get(_photo_rows(log_text.read_rows(tmp_path / "photo_1.jsonl"))[-1]["token"])
+    cases.set_finding(case.token, {"shows": "a pack of chocolates", "wrong": "", "sure": 0.9, "by": "muse"}, "", "A pack of chocolates.")
+    cases.set_first_call(case.token, "photo_1", [])
+    (cases._base_dir() / "next_call.json").write_text(json.dumps({"token": case.token, "lang": "en", "say": "A pack of chocolates."}))
+    audio2, client2, _ = call([Hangup()], [_say("This is not an Aadhaar card. It is a pack of chocolates.")])
+    asked = client2.calls[0]
+    assert "not sure if this is an Aadhaar card" in asked and "a pack of chocolates" in asked
+    assert "send a link" not in asked                    # the fixed offer and link lines do not push the question out
+    assert _said(audio2) == P["back"]["en"] + " This is not an Aadhaar card. It is a pack of chocolates."
+
+
+def test_call_back_opening_is_the_desk_text_when_the_model_gives_nothing(call, photo_dir, tmp_path, monkeypatch, sms):
+    monkeypatch.setattr(tunables, "CALL_LOGS_DIR", str(tmp_path))
+    monkeypatch.setattr(tunables, "PHOTO_FIRST_CALL", True)
+    call([Speech("I am a farmer from Bihar and my wheat is yellow"), Hangup()], [_say("There is a crop scheme.")])
+    case = _ready()
+    cases.set_first_call(case.token, "photo_1", [])
+    audio2, _c, _r = call([Hangup()], [])
+    assert _said(audio2) == P["back"]["en"] + " I see a wall."
 
 
 def test_no_first_call_blocks_when_the_flag_is_off_or_there_is_no_log(call, photo_dir, tmp_path, monkeypatch):
@@ -481,10 +507,22 @@ def test_whole_path_call_link_hangup_photo_read_callback_answer_talk_goes_on(cal
     assert placed == [(NUMBER, "https://line.example/answer")]
 
     # 5. the call-back: the answer first, the model knows the first call, the talk goes on
-    audio2, client2, rows2 = call([Speech("what should I do about it")], [_say("Spray it and come back.")])
+    audio2, client2, rows2 = call([Speech("what should I do about it")],
+                                  [_say("Yes, the photo shows yellow wheat leaves."), _say("Spray it and come back.")])
     said = _said(audio2)
     assert said.startswith(P["back"]["en"]) and "yellow wheat leaves" in said and said.endswith("Spray it and come back.")
-    asked = client2.calls[0]
+    asked = client2.calls[1]                             # calls[0] wrote the opening (6 Oct)
     assert "my wheat is yellow" in asked[asked.index("THE FIRST CALL"):asked.index("WHAT THE PHOTO SHOWS")]
     assert "yellow wheat leaves" in asked[asked.index("WHAT THE PHOTO SHOWS"):asked.index("CALL LOG")]
     assert cases.get(token).state == "called" and not (photo_dir / "next_call.json").exists()
+
+
+def test_the_photo_block_for_the_model_holds_the_long_description(photo_dir):
+    # 6 Oct: the owner asked "what was written in that?" and the model had only one short sentence to go on
+    case = _ready(details="A loan form. Name: filled in. Amount: 50,000. The signature box is empty.")
+    _first, photo = in_call.first_call_blocks(case.token)
+    assert photo.startswith("a wall") and "The signature box is empty." in photo
+    case = _ready()                                   # an older reading with no details: as before
+    assert in_call.first_call_blocks(case.token)[1] == "a wall"
+    case = _ready(details="x" * 5000)
+    assert len(in_call.first_call_blocks(case.token)[1]) == tunables.PHOTO_RESULT_CHARS

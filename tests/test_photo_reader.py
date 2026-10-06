@@ -40,6 +40,7 @@ def test_stand_in_exact_output():
             "wrong": "",
             "sure": 0.0,
             "search": "",
+            "details": "",
             "by": "stand-in",
         }
 
@@ -418,3 +419,41 @@ def test_dose_guard_search_and_units():
         assert "गोली" not in res["search"]
         assert "tablet" not in res["search"]
         assert "crop loss." in res["search"]
+
+
+# --- 6 Oct: the long description for the talk model ------------------------------------
+
+def _muse_answer(**fields):
+    body = {"shows": "A filled form on a table.", "wrong": "", "sure": 0.8, "search": "loan form", **fields}
+    return {"choices": [{"message": {"content": json.dumps(body)}}], "usage": {"prompt_tokens": 1, "completion_tokens": 1}}
+
+
+def test_muse_is_asked_to_read_writing_out_and_the_details_come_through(tmp_path):
+    asked = {}
+
+    def fake_post(payload, key, timeout):
+        asked["system"] = payload["messages"][0]["content"]
+        return 200, _muse_answer(details="A loan form. Name: filled. Amount: 50,000. Signature: empty.")
+
+    with mock.patch.dict(os.environ, {"PHOTO_READER": "muse", "MUSE_API_KEY": "k"}):
+        res = reader.read([b"\xff\xd8\xff_x"], post=fake_post, ledger=tmp_path / "l.jsonl")
+    assert "details" in asked["system"] and "word by word" in asked["system"] and "can not read" in asked["system"]
+    assert res["details"] == "A loan form. Name: filled. Amount: 50,000. Signature: empty."
+    assert res["shows"] == "A filled form on a table."        # the spoken sentence stays short
+
+
+def test_details_missing_or_wrong_type_is_empty_and_long_is_cut(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_READER": "muse", "MUSE_API_KEY": "k"}):
+        res = reader.read([b"x"], post=lambda p, k, t: (200, _muse_answer()), ledger=tmp_path / "l.jsonl")
+        assert res["details"] == "" and res["by"] == "muse"
+        res = reader.read([b"x"], post=lambda p, k, t: (200, _muse_answer(details=["a"])), ledger=tmp_path / "l.jsonl")
+        assert res["details"] == ""
+        res = reader.read([b"x"], post=lambda p, k, t: (200, _muse_answer(details="word " * 900)), ledger=tmp_path / "l.jsonl")
+        assert len(res["details"]) <= reader.DETAILS_CHARS
+
+
+def test_details_never_carry_a_dose(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_READER": "muse", "MUSE_API_KEY": "k"}):
+        res = reader.read([b"x"], post=lambda p, k, t: (200, _muse_answer(details="Yellow leaves. Spray 20 ml in water. Soil is dry.")),
+                          ledger=tmp_path / "l.jsonl")
+    assert "ml" not in res["details"] and "Yellow leaves." in res["details"] and "Soil is dry." in res["details"]

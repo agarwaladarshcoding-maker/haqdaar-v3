@@ -68,6 +68,9 @@ def _plain_numbers(text: str) -> str:
     return _BIG_NUMBER.sub(lambda m: str(int(round(float(m.group(1)) * _BIG[m.group(2).lower()]))), text)
 
 
+BACK_SAY_CHARS = 320        # the call-back's opening from the model: longer than this, the desk's text is said
+
+
 def _sentences(text: str) -> list[str]:
     out: list[str] = []
     for piece in _SENTENCE_GAP.split(text.strip()):
@@ -958,6 +961,18 @@ class _Talk:
         except Exception:
             return sent
 
+    def _back_answer(self, desk: str) -> str:
+        """6 Oct: the call-back's first words answer what the caller asked in the first call ("is this an
+        Aadhaar card?"), not only what the photo shows. "" (the desk's text is said) when the first call has
+        no caller words, the photo has no read, or the model gives nothing usable."""
+        if "CALLER: " not in self.first_call or not self.photo_block:
+            return ""
+        data = self._timed("model", _call, self.model, prompt.back_opening(self.first_call, self.photo_block, desk))
+        say = str((data or {}).get("say") or "").strip().translate(_HINDI_DIGITS)
+        if not say or len(say) > BACK_SAY_CHARS or not say.isascii():
+            return ""
+        return say
+
     def _call_back(self, back: dict[str, Any]) -> None:
         """4.3: a photo was read since the last call: it is the first thing said, before the caller is waited for."""
         self.lang = back["lang"]
@@ -966,16 +981,19 @@ class _Talk:
         self._note_lang()
         bad = back["bad"]
         say = prompt.PHOTO["bad" if bad else "back"].get(self.lang, prompt.PHOTO["bad" if bad else "back"]["en"])
-        if not bad:
-            text = back["say"]                      # the desk's text is English
-            if self.lang != "en" and tunables.PHOTO_BACK_TRANSLATE:
-                text = " ".join(self._back_sentence(s) for s in _sentences(text)) or text
-            say += " " + text
-        self._photo_row("bad" if bad else "back", {"token": back["token"]})
-        self._speak(say)
-        self.last_say = say
         if tunables.PHOTO_FIRST_CALL:               # Step 6: the model of this call knows the first call
             self.first_call, self.photo_block = in_call.first_call_blocks(back["token"])
+        self._photo_row("bad" if bad else "back", {"token": back["token"]})
+        if not bad:
+            self._speak(say)                        # the hello plays while the model writes the answer
+            text = self._back_answer(back["say"]) or back["say"]   # the desk's text is English
+            if self.lang != "en" and tunables.PHOTO_BACK_TRANSLATE:
+                text = " ".join(self._back_sentence(s) for s in _sentences(text)) or text
+            self._speak(text)
+            say += " " + text
+        else:
+            self._speak(say)
+        self.last_say = say
         in_call.done(back["token"], bad)
 
     def _keys_out(self) -> dict[str, Any]:

@@ -104,6 +104,18 @@ def save_first_call(token: str, call_id: str, told: list[str]) -> bool:
         return False
 
 
+def _before_photo(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The first call up to the photo offer. The fixed offer, link and goodbye lines after it tell the
+    call-back's model nothing, and they pushed the caller's own question out of the capped text."""
+    link = max((i for i, r in enumerate(rows) if r.get("ev") == "photo" and r.get("what") == "link"), default=None)
+    if link is None:
+        return rows
+    offer = max((i for i, r in enumerate(rows[:link]) if r.get("ev") == "photo" and r.get("what") == "offer"), default=None)
+    if offer is not None and sum(1 for r in rows[offer:link] if r.get("ev") == "heard") <= 1:   # only the "yes" is between
+        return rows[:offer]
+    return rows[:link]
+
+
 def first_call_blocks(token: str) -> tuple[str, str]:
     """Step 6: (what was said in the first call, what the photo shows), each capped, each its own text.
     The first call is its log, found by the call id saved on the case. "" for a part that is not there; never raises."""
@@ -119,10 +131,11 @@ def first_call_blocks(token: str) -> tuple[str, str]:
         cid = case.call_id
         path = Path(tunables.CALL_LOGS_DIR) / f"{cid}.jsonl"
         if cid and "/" not in cid and ".." not in cid and path.exists():
-            first = log_text.log_text(log_text.read_rows(path), tunables.PHOTO_FIRST_CHARS)
+            first = log_text.log_text(_before_photo(log_text.read_rows(path)), tunables.PHOTO_FIRST_CHARS)
         f = case.finding or {}
         if not is_bad(f):
-            photo = "; ".join(x for x in (str(f.get("shows", "")).strip(), str(f.get("wrong", "")).strip()) if x)[:tunables.PHOTO_RESULT_CHARS]
+            # 6 Oct: the long description too (writing read out, what is filled in), so the model can answer about the photo
+            photo = "; ".join(x for x in (str(f.get(k, "") or "").strip() for k in ("shows", "wrong", "details")) if x)[:tunables.PHOTO_RESULT_CHARS]
     except Exception:
         pass
     return first, photo
