@@ -78,9 +78,9 @@ PHOTO_HANGUP: bool = os.environ.get("PHOTO_HANGUP", "true" if PHOTO_IN_CALL else
 PHOTO_FIRST_CALL: bool = os.environ.get("PHOTO_FIRST_CALL", "true" if PHOTO_HANGUP else "false").strip().lower() in ("1", "true", "yes", "on")   # Step 6: the call-back's model reads the first call and the photo result, each in its own block
 PHOTO_FIRST_CHARS: int = int(os.environ.get("PHOTO_FIRST_CHARS", 600))     # cap of the first call's text (newest lines kept): about 150 tokens of the 3,000 a talk turn already uses
 PHOTO_RESULT_CHARS: int = int(os.environ.get("PHOTO_RESULT_CHARS", 300))   # cap of the photo result text
-# The desk now writes the call-back text in the case's own language (pass 4), so this is off. On: an English
-# text goes through the translate step (1.4) for a caller of another language.
-PHOTO_BACK_TRANSLATE: bool = os.environ.get("PHOTO_BACK_TRANSLATE", "false").strip().lower() in ("1", "true", "yes", "on")
+# The reader writes English; the desk adds one sentence in the case's language. On (with TALK_ONLY): each plain
+# English sentence goes through the translate step (1.4) for a caller of another language. Off: said as it is.
+PHOTO_BACK_TRANSLATE: bool = os.environ.get("PHOTO_BACK_TRANSLATE", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
 QA_MAX_PER_CALL: int = int(os.environ.get("QA_MAX_PER_CALL", 5))
 QA_MAX_SCHEMES: int = int(os.environ.get("QA_MAX_SCHEMES", 4))
 QA_TIMEOUT_S: float = float(os.environ.get("QA_TIMEOUT_S", 4.0))

@@ -726,6 +726,23 @@ class Engine:
         if to_keys:
             talk_lang = _to_keys(audio, log)
 
+        def words_to_talk(transcript: str) -> Optional[bool]:
+            """Words in the read-out or at anything-else go back to talk, as from a question. None = fewer
+            than 2 real words: not handled. True = the call ended there (talk closed it): say and write
+            nothing more. False = key 6 again: the keys part goes on."""
+            nonlocal talk_lang
+            from haqdaar.engine import talk
+            if talk.real_words(transcript) < 2:
+                return None
+            _to_talk(audio, log, talk_lang)
+            got = talk.run(audio, model, corpus, log, talk_lang, first_words=transcript,
+                           bv=box_vector, t0=talk_t0, mem=talk_mem)
+            if not isinstance(got, dict):
+                return True
+            box_vector.update(got)
+            talk_lang = _to_keys(audio, log)
+            return False
+
         # --- 3. Mode Initialization ---
         # Keypad-only mode is entered when model is None or keypad-only requested
         if to_keys:
@@ -1567,7 +1584,10 @@ class Engine:
                 # widened match name only the top OVERFLOW_READ_CAP).
                 rest = [sid for sid in ranked_ids if sid not in named]
                 qa["model"], qa["mode"] = model, mode
-                kept_going = Engine._read_back(audio, named, sections_heard, rest, corpus, log, turn_n, qa)
+                kept_going = Engine._read_back(audio, named, sections_heard, rest, corpus, log, turn_n, qa,
+                                               words_to_talk if can_talk else None)
+                if kept_going is None:
+                    return      # talk ended the call and wrote its stop row
                 cur_lang = getattr(audio, "language", lang)
                 for n in named:
                     log.write(DeliveryRecord(
@@ -1600,7 +1620,7 @@ class Engine:
             while True:
                 audio.say(("anything_else",))
                 if mode == "keypad_only":
-                    ae_inp = audio.next_input(profile="normal")
+                    ae_inp = audio.next_input(profile="spoken" if can_talk else "normal")
                 else:
                     ae_inp = audio.next_input(profile="confirm")
                 if isinstance(ae_inp, Hangup):
@@ -1680,6 +1700,12 @@ class Engine:
                         confirmed = model.confirm(spk, lang=getattr(audio, "language", None))
                     else:
                         confirmed = None
+                    if confirmed is None and can_talk:
+                        ended = words_to_talk(str(getattr(ae_inp, "text", "") or ""))
+                        if ended:
+                            return
+                        if ended is False:
+                            continue  # the loop asks anything-else again
                     if confirmed is None and Engine._try_question(
                         audio, model, corpus, log, qa, ae_inp, mode, turn_n, box_vector, asked="anything_else",
                     ):
@@ -1748,8 +1774,11 @@ class Engine:
         log: Log,
         turn_n: int,
         qa: Optional[dict[str, Any]] = None,
-    ) -> bool:
+        to_talk: Any = None,
+    ) -> Optional[bool]:
         """Drive the read-back menu one scheme at a time. Returns False if the caller hung up.
+        `to_talk` (a talk call that went to keys): words of 2 or more go back to talk; None is returned if
+        talk then ended the call.
 
         Appends each section actually played to sections_heard[<scheme>] (D9),
         so the caller writes one DeliveryRecord per scheme once this returns.
@@ -1780,7 +1809,7 @@ class Engine:
                 Engine.current_scheme = sid
                 setattr(audio, "current_scheme", sid)
 
-                rb_inp = audio.next_input(profile="readback")
+                rb_inp = audio.next_input(profile="spoken" if to_talk is not None else "readback")
 
                 if pending_section is not None:
                     p_sid, p_sec = pending_section
@@ -1817,6 +1846,16 @@ class Engine:
                     setattr(audio, "current_scheme", None)
                     audio.hangup()
                     return False
+
+                if to_talk is not None and isinstance(rb_inp, Speech):
+                    ended = to_talk(str(getattr(rb_inp, "text", "") or ""))
+                    if ended:
+                        Engine.current_scheme = None
+                        setattr(audio, "current_scheme", None)
+                        return None
+                    if ended is False:
+                        audio.say(tuple(Terminals.render_scheme_block(sid, corpus=corpus, include_section_menu=True)))
+                        continue
 
                 if (
                     qa is not None

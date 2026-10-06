@@ -218,6 +218,7 @@ class _Talk:
         self._recap = False             # 1.8 (B): this turn's reply said them back (for the log)
         # The photo state of the call is kept in `mem`: a new _Talk (key 6, keys, speech, talk) must not forget it.
         self.mem = mem
+        self.to_keys = False            # a turn asks to go back to the keys part (nothing of the talk's to repeat)
         if mem:
             for k in self._MEM:
                 if k in mem:
@@ -903,6 +904,8 @@ class _Talk:
                 row["again"] = self.audio.say_cut_again() or None
             if action == "repeat":
                 say = "" if row.get("again") else self.last_say
+                if not say and not row.get("again") and self.back:
+                    self.to_keys = True         # "say it again" about what the KEYS part said: it says it again
             if say:
                 if self._speak(say, first_voice):
                     self.voice_fails = 0
@@ -945,6 +948,16 @@ class _Talk:
             self.keys_offered = True
             self._fixed("keys_offer", prompt.KEYS_OFFER.get(self.lang, prompt.KEYS_OFFER["en"]))
 
+    def _back_sentence(self, sent: str) -> str:
+        """One sentence of the desk's text in the caller's language. A sentence with a letter outside ASCII
+        is already in the case's language (the desk adds one): said as it is. A refused or failed one stays English."""
+        if not sent.isascii():
+            return sent
+        try:
+            return " ".join(o.text for o in middle.reply_in(sent, self.lang)) or sent
+        except Exception:
+            return sent
+
     def _call_back(self, back: dict[str, Any]) -> None:
         """4.3: a photo was read since the last call: it is the first thing said, before the caller is waited for."""
         self.lang = back["lang"]
@@ -956,10 +969,7 @@ class _Talk:
         if not bad:
             text = back["say"]                      # the desk's text is English
             if self.lang != "en" and tunables.PHOTO_BACK_TRANSLATE:
-                try:                                # a refused or failed sentence comes back in English
-                    text = " ".join(o.text for o in middle.reply_in(text, self.lang)) or text
-                except Exception:
-                    pass
+                text = " ".join(self._back_sentence(s) for s in _sentences(text)) or text
             say += " " + text
         self._photo_row("bad" if bad else "back", {"token": back["token"]})
         self._speak(say)
@@ -967,6 +977,12 @@ class _Talk:
         if tunables.PHOTO_FIRST_CALL:               # Step 6: the model of this call knows the first call
             self.first_call, self.photo_block = in_call.first_call_blocks(back["token"])
         in_call.done(back["token"], bad)
+
+    def _keys_out(self) -> dict[str, Any]:
+        """Leave the talk for the keys part: the photo state goes into `mem`, the answers so far go back."""
+        if self.mem is not None:
+            self.mem.update({k: getattr(self, k) for k in self._MEM})
+        return dict(self.bv)
 
     def run(self, first_words: str = "") -> Optional[dict[str, Any]]:
         """Ends the call itself (None). The one other way out is key 6: the answers so far come back and
@@ -978,6 +994,8 @@ class _Talk:
             # The caller already asked at the greeting: answer that, with no second hello.
             if self._turn(first_words) == "goodbye":
                 return self._end(farewell=True)
+            if self.to_keys:
+                return self._keys_out()
             self._offer_keys()
         elif not back:
             self._speak(prompt.HELLO.get(self.lang, prompt.HELLO["en"]))
@@ -1014,9 +1032,7 @@ class _Talk:
                 continue
             if isinstance(inp, Digit) and tunables.KEYS_IN_TALK and inp.digit == tunables.KEYS_KEY:
                 self.log.write({"ev": "key", "key": inp.digit, "means": "go to keys"})
-                if self.mem is not None:
-                    self.mem.update({k: getattr(self, k) for k in self._MEM})
-                return dict(self.bv)
+                return self._keys_out()
             if isinstance(inp, Digit):          # keys are off in talk mode
                 self.log.write({"ev": "key", "key": inp.digit, "means": "keys are off"})
                 continue

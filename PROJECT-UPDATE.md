@@ -1923,3 +1923,12 @@ headphones, or the microphone hears the agent's own voice.
 - Key 6 and photos now fit: after key 6 and back to talk the line still knows that a link was sent (no second link), and a call-back still knows the first call.
 - Checks: full tests 3,211 passed in the side folder, 1 failed there (the old data gap of side folders); talk check on 6 photo and keys scripts, 6,216 calls, 0 rules broken; stress 1,000 callers, 0 crashes, 0 truth failures.
 - Not done: no Mac call, no real SMS, no real photo read, no browser look at the phone on this branch. The new Marathi, Gujarati and Tamil words (and some Hindi ones) are not checked by a speaker. Callers in the other six languages see the phone in Hindi. The photo answer is not tied to a phone number: the next call within 30 minutes hears it.
+
+## 6 Oct, morning: the whole chain tried on real services, three breaks fixed
+- How: a made voice (the Mac's own) called the real server; real speech-to-text, real model, real voice, real Muse. No phone, no real SMS.
+- Works now, seen on real calls: talk, key 6 to keys, speaking to come back to talk, asking for a photo, "yes", the link, goodbye and hang-up; a photo sent to the page, Muse reads it, the answer waits; the next call opens with the answer in Hindi with no greeting and knows the first call; the SMS door joins 10 pieces sent in the wrong order.
+- Fixed: (1) after key 6 with a need already said, the line read schemes out and heard no speech, so there was no way back to talk; now two or more words there go back to talk. (2) The photo answer was said in English to a Hindi caller; now each English sentence is translated. (3) "Send the link" with no offer open was refused; now it gets the photo offer. (4) "Say that again" at the scheme read-out got silence; now the keys part says it again.
+- Found, not fixed: Muse can not read the 10-SMS photo (64 by 48 dots): it says "blurry, unclear", so that caller is asked for a clearer photo. The same photo at full size reads fine.
+- Limit: during the long scheme read-out the caller is heard only after it ends (cut-in is off by default).
+- Checks: full tests 3,226 passed; talk check on 6 scripts, 7,650 calls, 0 rules broken; stress clean. Muse cost of all tries: Rs 0.03.
+- Not done: a call with a real mic or a real phone; a real SMS; Marathi and other languages on a real call.

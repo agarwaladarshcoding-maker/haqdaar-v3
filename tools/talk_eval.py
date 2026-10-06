@@ -110,6 +110,9 @@ SCRIPTS: dict[str, list[Any]] = {
     # keys goes back to talk. A script that starts with "6" presses it at the greeting (no language key).
     "k_mixed": [("say", "i need a scheme for farming", 1.8), "6", "1", "1",
                 ("say", "how much money does it give", 1.6), BYE],
+    # The keys part reads a scheme out (section menu): words there go back to talk.
+    "k_readout": [("say", "i need a scheme for farming", 1.8), "6", "1", "1", "1", "1", "1", "1",
+                  ("say", "how much money does it give", 1.6), BYE],
     "k_greeting": ["6", "1", "1", ("say", "i need a scheme for farming", 1.8), BYE],
     # Three questions with no usable reply: the keys offer is said, then key 6. The model asks the picker's box
     # while the caller says "not sure" or "do not know" (see TalkClient).

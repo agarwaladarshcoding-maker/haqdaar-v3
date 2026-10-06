@@ -147,3 +147,55 @@ def test_languages_outside_the_five_take_no_slot(corpus, photo_dir, sms):  # noq
     assert talk.langs_spoken == ["hi", "mr"]
     res = in_call.send_link("mr", talk.langs_spoken, NUMBER, sms=lambda to, text: "SM1")
     assert set(cases.get(res["token"]).langs) == {"hi", "mr"}
+
+
+# Step D: the photo answer in the caller's language; "send the link" is a photo ask.
+_BACK_SAY = "Close-up of green leaves. Leaves look pale. नमस्ते यह हिंदी है।"
+
+
+def _back_run(run, monkeypatch, fake, lang="hi"):
+    from haqdaar.model import middle
+    monkeypatch.setattr(tunables, "PHOTO_BACK_TRANSLATE", True)
+    monkeypatch.setattr(middle, "reply_in", fake)
+    case = _ready(lang=lang)
+    (cases._base_dir() / "next_call.json").write_text(
+        json.dumps({"token": case.token, "lang": lang, "say": _BACK_SAY, "made": case.made}))
+    audio, _, _ = run([Hangup()], audio=_CallBackAudio, lang=lang)
+    return _said(audio)
+
+
+def test_call_back_translates_the_english_sentences_only_and_keeps_the_order(run, monkeypatch):
+    from haqdaar.model.middle import Out
+    sent = []
+
+    def fake(text, lang):
+        sent.append(text)
+        yield Out(text="HI[" + text + "]", ok=True, ms=0)
+    said = _back_run(run, monkeypatch, fake)
+    assert sent == ["Close-up of green leaves.", "Leaves look pale."]
+    assert said.index("HI[Close-up of green leaves.]") < said.index("HI[Leaves look pale.]") < said.index("नमस्ते यह हिंदी है।")
+
+
+def test_call_back_says_the_english_when_the_translate_raises(run, monkeypatch):
+    def boom(text, lang):
+        raise RuntimeError("x")
+    said = _back_run(run, monkeypatch, boom)
+    assert "Close-up of green leaves. Leaves look pale." in said
+
+
+def test_call_back_in_english_never_calls_reply_in(run, monkeypatch):
+    def fake(text, lang):
+        raise AssertionError("called")
+    said = _back_run(run, monkeypatch, fake, lang="en")
+    assert "Close-up of green leaves." in said
+
+
+@pytest.mark.parametrize("words", ["Yes, please send the link.", "लिंक भेज दीजिए", "link bhej do", "लिंक पाठव"])
+def test_asking_for_the_link_with_no_offer_open_gives_the_offer_and_no_model_call(run, words):
+    audio, client, _ = run([Speech(words), Hangup()], [_say("MODEL")])
+    assert P["offer"]["en"] in _said(audio) and client.calls == []
+
+
+def test_a_plain_yes_with_no_offer_open_is_not_a_photo_ask(run):
+    audio, client, _ = run([Speech("yes"), Hangup()], [_say("MODEL")])
+    assert P["offer"]["en"] not in _said(audio)

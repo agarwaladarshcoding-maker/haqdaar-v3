@@ -59,6 +59,8 @@ PHOTO_VERBS = ("send", "show", "take", "upload", "bhej", "dikha", "dikhaun", "pa
 SHOW_YOU = ("dikha sakta hoon", "dikha sakti hoon", "dikha sakta hu", "dikha doon", "दिखा सकता हूँ", "दिखा सकता हूं",
             "दिखा सकती हूँ", "दिखा सकती हूं", "दिखा दूं", "दिखा दूँ", "दाखवू शकतो", "दाखवू शकते", "दाखवू का",
             "can i show you", "can i show it", "let me show you", "i can show you")
+# Asking for the link outright is the same as asking to send a photo.
+LINK_ASK = ("send the link", "send me the link", "send link", "लिंक भेज", "link bhej", "लिंक पाठव")
 # 4.2: a need one can SEE. Short and exact: no bare "house" or "crop".
 PHOTO_SEEN = ("my crop is spoiled", "my crop is ruined", "my crop is damaged", "my crop is destroyed", "my crop died",
               "my crops are spoiled", "my crops are ruined", "my crops are damaged", "my crops died", "crop got spoiled",
@@ -147,7 +149,7 @@ def hear(words: str) -> bool:
 def photo_ask(words: str) -> bool:
     toks = _TOK.findall(str(words).lower())
     near = any(t in PHOTO_WORDS for t in toks) and any(t.startswith(v) for t in toks for v in PHOTO_VERBS)
-    return near or _has(words, SHOW_YOU)
+    return near or _has(words, SHOW_YOU) or _has(words, LINK_ASK)
 
 
 def photo_seen(words: str) -> bool:
