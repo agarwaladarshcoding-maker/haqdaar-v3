@@ -145,7 +145,7 @@ def watch_photo_link(log_path: str, stop: threading.Event) -> None:
                 time.sleep(0.2)
                 continue
             if line.startswith("PHOTO LINK: "):
-                url = line[len("PHOTO LINK: "):].strip()
+                url, _, langs = line[len("PHOTO LINK: "):].strip().partition(" LANGS: ")
                 say(f"\nPHOTO LINK: {url}", "!")
                 try:
                     socket.create_connection(("127.0.0.1", 8002), timeout=0.5).close()
@@ -153,7 +153,7 @@ def watch_photo_link(log_path: str, stop: threading.Event) -> None:
                     say("the photo page is not running: start it with  make photo-desk", "!")
                 try:                                # the phone demo (make keypad-ui): the SMS shows there, a click opens the link
                     socket.create_connection(("127.0.0.1", 8080), timeout=0.5).close()
-                    url = "http://127.0.0.1:8080/demo.html?link=" + urllib.parse.quote(url, safe="")
+                    url = "http://127.0.0.1:8080/demo.html?link=" + urllib.parse.quote(url, safe="") + ("&langs=" + urllib.parse.quote(langs.strip(), safe=",") if langs.strip() else "")
                 except OSError:
                     say("the phone demo is not running: start it with  make keypad-ui  (opening the link itself)", "!")
                 webbrowser.open(url)

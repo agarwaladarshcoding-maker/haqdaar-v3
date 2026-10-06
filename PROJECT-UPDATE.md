@@ -1914,3 +1914,12 @@ headphones, or the microphone hears the agent's own voice.
 - Not fixed: the English speaker called "Hindi" on the first turns. The speech service gives no other hint. Idea if it keeps happening: after the first turn, ask once "Hindi or English?" or let the caller's first words in English-looking text win.
 - Not proved: that the model keeps the 3 new rules. A real call shows it.
 - Tests 3,150 passed; talk check 944 calls, 0 broken. English-middle fix and Phase 3 (keys) are committed with this.
+
+## 6 Oct, morning: one branch for everything, `v5-full`
+- What it is: Phases 1 to 3 (talk, cut-in, keys) joined with Phase 4 (photo by two doors, the call-back, the phone demo). Before this, Phase 4 sat loose in its own folder and did not know about the keys.
+- Phase 4's loose work was saved as a commit first (branch `phase4-loose-6oct`). Its folder was not touched.
+- The words on the phone now follow the caller. The line keeps the languages a caller spoke (up to 4; Hindi, Marathi, English, Gujarati, Tamil). The phone shows the last one spoken as the big line and the next one under it. The link SMS is in that language too. The look of the phone did not change: only the words.
+- The call-back now opens with the photo answer, in the caller's language. Before, it played the whole five-language greeting first.
+- Key 6 and photos now fit: after key 6 and back to talk the line still knows that a link was sent (no second link), and a call-back still knows the first call.
+- Checks: full tests 3,211 passed in the side folder, 1 failed there (the old data gap of side folders); talk check on 6 photo and keys scripts, 6,216 calls, 0 rules broken; stress 1,000 callers, 0 crashes, 0 truth failures.
+- Not done: no Mac call, no real SMS, no real photo read, no browser look at the phone on this branch. The new Marathi, Gujarati and Tamil words (and some Hindi ones) are not checked by a speaker. Callers in the other six languages see the phone in Hindi. The photo answer is not tied to a phone number: the next call within 30 minutes hears it.

@@ -17,6 +17,14 @@ from haqdaar.contracts import tunables
 from haqdaar.photo import cases
 
 SMS_TEXT = "Haqdaar: send your photo here: {link} No internet? Open the Haqdaar app."
+# The same sentences are in keypad_app/words/<code>.js (key "sms"): the demo phone shows them.
+SMS_TEXTS = {
+    "en": SMS_TEXT,
+    "hi": "हकदार: अपनी फोटो यहाँ भेजें: {link} इंटरनेट नहीं है? हकदार ऐप खोलें।",
+    "mr": "हकदार: तुमचा फोटो इथे पाठवा: {link} इंटरनेट नाही? हकदार अॅप उघडा.",
+    "gu": "હકદાર: તમારો ફોટો અહીં મોકલો: {link} ઇન્ટરનેટ નથી? હકદાર એપ ખોલો.",
+    "ta": "ஹக்தார்: உங்கள் புகைப்படத்தை இங்கே அனுப்பவும்: {link} இணையம் இல்லையா? ஹக்தார் செயலியைத் திறக்கவும்.",
+}
 
 
 def _sms(to_number: str, text: str) -> str:
@@ -29,13 +37,14 @@ def send_link(lang: str, langs: list[str], number: str,
               sms: Optional[Callable[[str, str], Any]] = None) -> dict[str, Any]:
     """Make a case, text its link. {"token", "link", "sent", "why"}; an SMS fault never raises."""
     kw: dict[str, Any] = {}
+    langs = [lang] + [l for l in langs if l != lang]         # the last language spoken is the main one of the case
     if "langs" in inspect.signature(cases.new_case).parameters:   # the photo desk worker adds it; both orders must work
         kw["langs"] = list(langs)
     case = cases.new_case(lang, number, **kw)
     link = cases.link(case)
     out: dict[str, Any] = {"token": case.token, "link": link, "sent": False, "why": ""}
     if not number and tunables.PHOTO_SHOW_LINK:             # a Mac call: no SMS; the link is shown on the terminal
-        print(f"PHOTO LINK: {link}", flush=True)
+        print(f"PHOTO LINK: {link} LANGS: {','.join(case.langs or [case.lang])}", flush=True)
         out.update(sent=True, why="shown")
         return out
     to = number or os.environ.get("CALL_ME_NUMBER", "")     # a Mac call has no number: the owner's own phone
@@ -43,7 +52,7 @@ def send_link(lang: str, langs: list[str], number: str,
         out["why"] = "no number"
         return out
     try:
-        (sms or _sms)(to, SMS_TEXT.format(link=link))
+        (sms or _sms)(to, SMS_TEXTS.get(case.lang, SMS_TEXT).format(link=link))
         out["sent"] = True
     except Exception as exc:
         out["why"] = f"sms failed: {type(exc).__name__}"

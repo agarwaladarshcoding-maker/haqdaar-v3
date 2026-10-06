@@ -80,11 +80,19 @@ button{cursor:pointer;font-family:inherit}
 <div class="hint">The line sends the SMS; it shows here as on a real phone. Press OK to open it. The screen does not take touch, only the keys.<br>Data ON: the link opens like a website. Pick the photo, then Add / Delete / Send.<br>Data OFF: the link cannot open, the Haqdaar app opens and sends the photo by SMS.</div>
 </div>
 <script>
+var W={},LG='en';
+(function(){var m=location.search.match(/langs=([a-z,]+)/),c=m&&m[1].split(',')[0];
+if(',hi,mr,en,gu,ta,'.indexOf(','+c+',')>-1)LG=c;document.write('<script src="words/'+LG+'.js"><\/script>');})();
+</script>
+<script>
 (function(){
   function $(i){return document.getElementById(i);}
   var q=new URLSearchParams(location.search),link=q.get('link')||'',data=q.get('data')!=='0',mode='home';
   var okLink=/^https?:\/\/[^\/]+\/p\/[A-Za-z0-9]+$/.test(link);
-  var TEXT='Haqdaar: send your photo here: '+link+' No internet? Open the Haqdaar app.';
+  var E={nonet:'NO INTERNET',nolink:'The link cannot open.',opening:'Opening the Haqdaar app...',sms:'Haqdaar: send your photo here: {link} No internet? Open the Haqdaar app.'};
+  function T(k){return (W[LG]&&W[LG][k])||E[k];}
+  var lg=(location.search.match(/langs=([a-z,]+)/)||[])[1],LQ=lg?'&langs='+lg:'';
+  var TEXT=T('sms').replace('{link}',link);
   var actx;function beep(f,d){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();var o=actx.createOscillator(),g=actx.createGain();o.frequency.value=f;g.gain.value=.05;o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+d);}catch(e){}}
   function clock(){var d=new Date(),h=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);$('clk').innerText=h;$('big').innerText=h;$('date').innerText=d.toDateString();}
   setInterval(clock,20000);clock();
@@ -93,9 +101,9 @@ button{cursor:pointer;font-family:inherit}
   function arrive(){if(!okLink){$('txt').innerText='';$('note').className='note';return;}$('txt').innerText=TEXT.slice(0,92)+'..';$('note').className='note on';beep(1000,.12);setTimeout(function(){beep(1300,.12);},180);}
   function open(){
     if(mode!=='home'||!okLink)return;beep(900,.05);
-    if(data){$('url').innerText=link.replace(/^https?:\/\//,'');$('site').src='index.html?embed=1&web='+encodeURIComponent(link);show('web');}
-    else{$('msg').innerHTML='NO INTERNET<br>The link cannot open.<br><br>Opening the Haqdaar app...';show('msg');
-      setTimeout(function(){$('app').src='index.html?embed=1&api='+encodeURIComponent(link.replace(/\/p\/[^\/]+$/,'/sms'));show('app');},1400);}
+    if(data){$('url').innerText=link.replace(/^https?:\/\//,'');$('site').src='index.html?embed=1&web='+encodeURIComponent(link)+LQ;show('web');}
+    else{$('msg').innerHTML=T('nonet')+'<br>'+T('nolink')+'<br><br>'+T('opening');show('msg');
+      setTimeout(function(){$('app').src='index.html?embed=1&api='+encodeURIComponent(link.replace(/\/p\/[^\/]+$/,'/sms'))+LQ;show('app');},1400);}
   }
   function home(){$('site').src='about:blank';$('app').src='about:blank';show('home');}
   function key(k){

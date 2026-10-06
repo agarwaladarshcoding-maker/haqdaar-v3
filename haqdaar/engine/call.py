@@ -638,7 +638,18 @@ class Engine:
         # (7.5) are a miss too: not silence, so they never hang the caller up.
         wrong_keys = 0
         to_keys = False
-        while True:
+        # A photo answer waits (4.3): the call-back has no greeting and no pick; its language is the case's.
+        back_lang: Optional[str] = None
+        if tunables.PHOTO_IN_CALL:
+            try:
+                from haqdaar.photo import in_call
+                back = in_call.pending()
+                back_lang = str(back["lang"]) if back else None
+            except Exception:
+                back_lang = None
+        if back_lang:
+            lang, lang_source = back_lang, "default"    # not picked by the caller: the LangSource schema has no other fit
+        while not back_lang:
             if hasattr(audio, "select_language"):
                 inp = audio.select_language()
             else:
@@ -700,12 +711,13 @@ class Engine:
         # --- 2b. Talk (7.13): the call starts in talk. The keys path below is untouched, unless the caller
         # goes to keys (3.1): key 6 hands the answers so far back here, and the call goes on below as keys.
         carried: Optional[dict[str, Any]] = None
+        talk_mem: dict[str, Any] = {}       # the photo state of this call, handed to every talk.run
         talk_t0 = time.monotonic()
         if tunables.TALK_ONLY:
             from haqdaar.engine import talk
             if not to_keys:
                 carried = talk.run(audio, model, corpus, log, lang, first_words=getattr(audio, "first_words", ""),
-                                   t0=talk_t0)
+                                   t0=talk_t0, mem=talk_mem)
                 if not isinstance(carried, dict):
                     return
                 to_keys = True
@@ -952,7 +964,7 @@ class Engine:
                         # are turn 1 there. One word or noise falls through and is discarded as before.
                         _to_talk(audio, log, talk_lang)
                         got = talk.run(audio, model, corpus, log, talk_lang, first_words=transcript,
-                                       bv=box_vector, t0=talk_t0)
+                                       bv=box_vector, t0=talk_t0, mem=talk_mem)
                         if not isinstance(got, dict):
                             return
                         box_vector.update(got)      # what the talk learned; the next pass asks what is left

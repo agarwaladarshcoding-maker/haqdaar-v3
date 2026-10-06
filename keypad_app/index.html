@@ -110,6 +110,12 @@ body{background:#0d1117;color:#e0e6ed;font-family:monospace;display:flex;flex-di
 <input type="file" id="cam" accept="image/*" capture="environment">
 <canvas id="cnv"></canvas>
 <script>
+var W={},LG=[];
+(function(){var a=(location.search.match(/langs=([a-z,]+)/)||[0,'en,hi'])[1].split(','),i;
+for(i=0;i<a.length&&LG.length<2;i++)if(',hi,mr,en,gu,ta,'.indexOf(','+a[i]+',')>-1&&LG.indexOf(a[i])<0)LG.push(a[i]);
+for(i=0;i<LG.length;i++)document.write('<script src="words/'+LG[i]+'.js"><\/script>');})();
+</script>
+<script>
 (function(){
 var actx=null;
 if(/embed=1/.test(location.search))document.body.className=/web=/.test(location.search)?'emb site':'emb';
@@ -132,6 +138,11 @@ var S={state:'IDLE',api:decodeURIComponent((location.search.match(/api=([^&]+)/)
 function crc8(b){var c=0;for(var i=0;i<b.length;i++){c^=b[i];for(var j=0;j<8;j++)c=(c&0x80)?((c<<1)^7):(c<<1);c&=0xff;}return c;}
 function b64(b){var s='';for(var i=0;i<b.byteLength;i++)s+=String.fromCharCode(b[i]);return window.btoa(s);}
 
+var E={cap:'CAPTURE',capt:'CAPTURE PHOTO',shoot:'Press [OK] or [5] to shoot',wait:'WAIT',proc:'PROCESSING',procp:'PROCESSING PHOTO...',pwait:'Please wait',rev:'REVIEW PHOTO',send:'SEND',del:'DEL',pg:'PHOTO {1} OF {2}',add:'ADD MORE',sendn:'SEND NOW',delp:'DELETE',sending:'SENDING',conf:'CONFIRMATION',ok:'SENT SUCCESSFULLY!',back:'The line will call you back.',newp:'Press [OK] for New Photo',nw:'NEW'};
+function T(k,n){var c=LG[n||0];return (W[c]&&W[c][k])||E[k];}
+function T2(k,c){var s=LG[1]?T(k,1):'',t=c=='opt-hi'?'span':'div';return s?'<'+t+' class="'+c+'">'+s+'</'+t+'>':'';}
+function pg(n){return T('pg').replace('{1}',n).replace('{2}',S.photos.length);}
+function K(a,x,b,y){var i,w,k=[a,b],s=[x,y],d=['skl','skr'];for(i=0;i<2;i++){w=k[i]?T(k[i]):'';$(d[i]).innerText=w&&w+s[i];$('b-'+d[i]).innerText=w&&w.charAt(0)+w.slice(1).toLowerCase()+s[i];}}
 function getAsciiBar(pct){
 var total=10,filled=Math.round((pct/100)*total);
 var s='';for(var i=0;i<filled;i++)s+=(i===filled-1&&filled<total)?'>':'=';
@@ -140,30 +151,30 @@ return '['+s+'] '+pct+'%';
 }
 
 function render(){
-var b=$('sb'),t=$('tb'),l=$('skl'),r=$('skr'),bl=$('b-skl'),br=$('b-skr');
+var b=$('sb'),t=$('tb');
 if(S.state==='IDLE'){
-t.innerText='HAQDAAR KISAN';l.innerText='CAPTURE';r.innerText='';bl.innerText='Capture';br.innerText='';
-b.innerHTML='<div class="cam-icon"><div class="cam-lens"></div></div><div class="big-title">CAPTURE PHOTO</div><div class="sub-title">फोटो खींचें</div><div class="action-box" id="act-c">📸 CAPTURE PHOTO [OK]</div><div style="font-size:9px;margin-top:16px;opacity:0.85;">Press [OK] or [5] to shoot</div>';
+t.innerText='HAQDAAR KISAN';K('cap','');
+b.innerHTML='<div class="cam-icon"><div class="cam-lens"></div></div><div class="big-title">'+T('capt')+'</div>'+T2('capt','sub-title')+'<div class="action-box" id="act-c">📸 '+T('capt')+' [OK]</div><div style="font-size:9px;margin-top:16px;opacity:0.85;">'+T('shoot')+'</div>';
 var ac=$('act-c');if(ac)ac.onclick=function(){startCapture();};
 }else if(S.state==='PROCESSING'){
-t.innerText='PROCESSING';l.innerText='WAIT';r.innerText='';bl.innerText='Wait';br.innerText='';
-b.innerHTML='<div class="big-title" style="margin-top:20px;">PROCESSING PHOTO...</div><div class="sub-title">तैयार हो रहा है...</div><div style="font-size:10px;margin-top:10px;">Please wait</div>';
+t.innerText=T('proc');K('wait','');
+b.innerHTML='<div class="big-title" style="margin-top:20px;">'+T('procp')+'</div>'+T2('procp','sub-title')+'<div style="font-size:10px;margin-top:10px;">'+T('pwait')+'</div>';
 }else if(S.state==='REVIEW'){
 var curPhoto=S.photos[S.previewIdx],tot=S.photos.length;
-t.innerText='REVIEW PHOTO';l.innerText='SEND [2]';r.innerText='DEL [3]';bl.innerText='Send [2]';br.innerText='Del [3]';
-var pgr=tot>1?'<div class="pager" id="pg-nav">◄ PHOTO '+(S.previewIdx+1)+' OF '+tot+' ►</div>':'<div class="pager">PHOTO 1 OF 1</div>';
-b.innerHTML='<div class="thumb-wrap"><img class="thumb" src="'+curPhoto.url+'" alt="Photo Preview">'+pgr+'</div><div class="opt-list"><div class="opt-row" id="opt-add"><span class="opt-key">[1]</span><span class="opt-txt">➕ ADD MORE</span><span class="opt-hi">और जोड़ें</span></div><div class="opt-row opt-pri" id="opt-send"><span class="opt-key">[2]</span><span class="opt-txt">📤 SEND NOW</span><span class="opt-hi">भेजें</span></div><div class="opt-row" id="opt-del"><span class="opt-key">[3]</span><span class="opt-txt">🗑️ DELETE</span><span class="opt-hi">हटाएं</span></div></div>';
+t.innerText=T('rev');K('send',' [2]','del',' [3]');
+var pgr=tot>1?'<div class="pager" id="pg-nav">◄ '+pg(S.previewIdx+1)+' ►</div>':'<div class="pager">'+pg(1)+'</div>';
+b.innerHTML='<div class="thumb-wrap"><img class="thumb" src="'+curPhoto.url+'" alt="Photo Preview">'+pgr+'</div><div class="opt-list"><div class="opt-row" id="opt-add"><span class="opt-key">[1]</span><span class="opt-txt">➕ '+T('add')+'</span>'+T2('add','opt-hi')+'</div><div class="opt-row opt-pri" id="opt-send"><span class="opt-key">[2]</span><span class="opt-txt">📤 '+T('sendn')+'</span>'+T2('sendn','opt-hi')+'</div><div class="opt-row" id="opt-del"><span class="opt-key">[3]</span><span class="opt-txt">🗑️ '+T('delp')+'</span>'+T2('delp','opt-hi')+'</div></div>';
 var ba=$('opt-add'),bs=$('opt-send'),bd=$('opt-del'),pn=$('pg-nav');
 if(ba)ba.onclick=function(){actionAddMore();};if(bs)bs.onclick=function(){actionSend();};if(bd)bd.onclick=function(){actionDelete();};if(pn)pn.onclick=function(){cyclePhoto(1);};
 }else if(S.state==='SENDING'){
-t.innerText='SENDING';l.innerText='';r.innerText='';bl.innerText='';br.innerText='';
+t.innerText=T('sending');K();
 var total=S.allChunks.length,idx=S.curChunk+1,pct=total>0?Math.round((Math.min(idx,total)/total)*100):0;
 var barStr=getAsciiBar(pct);
 if(WEB){pct=S.pct||1;barStr=getAsciiBar(pct);}
-b.innerHTML='<div class="big-title">'+(WEB?'SENDING '+pct+'%':'SMS '+Math.min(idx,total)+' OF '+total)+'</div><div class="sub-title">भेज रहे हैं</div><div class="reassure" style="word-break:break-all">'+(S.allChunks[S.curChunk]||'H:DONE').slice(0,40)+'..</div><div class="prog-wrap"><div class="ascii-bar">'+barStr+'</div><div class="prog-outer"><div class="prog-fill" style="width:'+pct+'%"></div></div></div><div class="sub-title">LINE: '+S.reply+'</div>';
+b.innerHTML='<div class="big-title">'+(WEB?T('sending')+' '+pct+'%':'SMS '+Math.min(idx,total)+' OF '+total)+'</div>'+T2('sending','sub-title')+'<div class="reassure" style="word-break:break-all">'+(S.allChunks[S.curChunk]||'H:DONE').slice(0,40)+'..</div><div class="prog-wrap"><div class="ascii-bar">'+barStr+'</div><div class="prog-outer"><div class="prog-fill" style="width:'+pct+'%"></div></div></div><div class="sub-title">LINE: '+S.reply+'</div>';
 }else if(S.state==='SENT'){
-t.innerText='CONFIRMATION';l.innerText='NEW [OK]';r.innerText='';bl.innerText='New [OK]';br.innerText='';
-b.innerHTML='<div class="done-icon">&#10004;</div><div class="big-title">SENT SUCCESSFULLY!</div><div class="sub-title">सफलतापूर्वक भेज दिया गया</div><div class="reassure">LINE: '+S.reply+'<br>The line will call you back.</div><div class="action-box" id="act-n">Press [OK] for New Photo</div>';
+t.innerText=T('conf');K('nw',' [OK]');
+b.innerHTML='<div class="done-icon">&#10004;</div><div class="big-title">'+T('ok')+'</div>'+T2('ok','sub-title')+'<div class="reassure">LINE: '+S.reply+'<br>'+T('back')+'</div><div class="action-box" id="act-n">'+T('newp')+'</div>';
 var an=$('act-n');if(an)an.onclick=function(){resetToIdle();};
 }
 }

@@ -34,7 +34,7 @@ from haqdaar.engine import talk_follow, talk_kind, talk_pick, talk_trust, talk_w
 from haqdaar.engine.filter import Filter
 from haqdaar.model import middle
 from haqdaar.model.answer import check_answer, mask_digits
-from haqdaar.photo import in_call
+from haqdaar.photo import cases, in_call
 from haqdaar.prompts import talk as prompt
 
 SEARCH_K = 10            # C1: the picker works on the search's top 10
@@ -156,8 +156,11 @@ def _rows(log: Any) -> list[dict[str, Any]]:
 
 
 class _Talk:
+    _MEM = ("offered", "offer_open", "sent", "shown", "told", "langs_spoken", "first_call", "photo_block")
+
     def __init__(self, audio: Any, model: Any, corpus: Any, log: Any, lang: str, index: Any,
-                 bv: Optional[dict[str, Any]] = None, t0: Optional[float] = None) -> None:
+                 bv: Optional[dict[str, Any]] = None, t0: Optional[float] = None,
+                 mem: Optional[dict[str, Any]] = None) -> None:
         self.audio, self.model, self.corpus, self.log, self.lang = audio, model, corpus, log, lang
         self.index = index if index is not None else scheme_index.get(corpus.snapshot_id)
         self.texts = SchemeText.load(corpus.snapshot_id)
@@ -204,7 +207,7 @@ class _Talk:
         self._proof_ids: Optional[list[str]] = None  # 1.5: schemes whose WHOLE cards are the answer check's proof
         self._sent_ids: list[str] = []  # 1.5: schemes whose parts the last prompt held
         self._chunks_said = False       # 1.5: the fall-back to whole cards is logged once a call
-        self.langs_spoken: list[str] = [lang]   # 4.2: the languages the caller spoke, first use first, at most 4
+        self.langs_spoken: list[str] = [lang] if lang in cases.VALID_LANGS else []   # 4.2: the languages the caller spoke, first use first, at most 4
         self.offered = False            # 4.2: the photo link was offered in this call (once)
         self.offer_open = False         # 4.2: the last reply made the offer: this turn's yes / no answers it
         self.before_offer = ""          # 4.2: what was said before the offer, for the question after a "no"
@@ -213,6 +216,12 @@ class _Talk:
         self.off_n = 0                  # 1.8 (B): off-topic turns in a row
         self.recapped = False           # 1.8 (B): the details were said back once in this call
         self._recap = False             # 1.8 (B): this turn's reply said them back (for the log)
+        # The photo state of the call is kept in `mem`: a new _Talk (key 6, keys, speech, talk) must not forget it.
+        self.mem = mem
+        if mem:
+            for k in self._MEM:
+                if k in mem:
+                    setattr(self, k, mem[k])
         self._distress = False          # 1.8 (B): this turn's words are pain: one kind sentence goes first
         self.age_say = ""               # 1.8 (B): the age as the caller said it (the box holds only the band)
 
@@ -335,7 +344,7 @@ class _Talk:
         return "hold", prompt.HOLD.get(self.lang, prompt.HOLD["en"])
 
     def _note_lang(self) -> None:
-        if self.lang not in self.langs_spoken and len(self.langs_spoken) < 4:
+        if self.lang in cases.VALID_LANGS and self.lang not in self.langs_spoken and len(self.langs_spoken) < 4:
             self.langs_spoken.append(self.lang)
 
     def _work(self) -> str:
@@ -1005,6 +1014,8 @@ class _Talk:
                 continue
             if isinstance(inp, Digit) and tunables.KEYS_IN_TALK and inp.digit == tunables.KEYS_KEY:
                 self.log.write({"ev": "key", "key": inp.digit, "means": "go to keys"})
+                if self.mem is not None:
+                    self.mem.update({k: getattr(self, k) for k in self._MEM})
                 return dict(self.bv)
             if isinstance(inp, Digit):          # keys are off in talk mode
                 self.log.write({"ev": "key", "key": inp.digit, "means": "keys are off"})
@@ -1021,9 +1032,11 @@ class _Talk:
 
 
 def run(audio: Any, model: Any, corpus: Any, log: Any, lang: str, index: Any = None, first_words: str = "",
-        bv: Optional[dict[str, Any]] = None, t0: Optional[float] = None) -> Optional[dict[str, Any]]:
+        bv: Optional[dict[str, Any]] = None, t0: Optional[float] = None,
+        mem: Optional[dict[str, Any]] = None) -> Optional[dict[str, Any]]:
     """The rest of the call after the language pick. Ends the call itself and gives back None; only key 6
     (KEYS_IN_TALK) gives back the answers so far and leaves the call open. `first_words`: what the caller
     said at the greeting; it is turn 1 and the hello is skipped. `bv`: answers already known (from the
-    keys part); `t0`: when the call's talk began, so the goodbye before the cap stays on time."""
-    return _Talk(audio, model, corpus, log, lang, index, bv, t0).run(first_words)
+    keys part); `t0`: when the call's talk began, so the goodbye before the cap stays on time.
+    `mem`: one dict for the whole call; the photo state is kept in it across key 6 and back."""
+    return _Talk(audio, model, corpus, log, lang, index, bv, t0, mem).run(first_words)

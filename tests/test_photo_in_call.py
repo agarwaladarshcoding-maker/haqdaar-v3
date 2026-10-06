@@ -383,7 +383,7 @@ def test_mac_call_shows_the_link_and_sends_no_sms(photo_dir, sms, monkeypatch, c
     monkeypatch.setattr(tunables, "PHOTO_SHOW_LINK", True)
     out = in_call.send_link("en", ["en"], "")
     assert out["sent"] and out["why"] == "shown" and sms == []
-    assert capsys.readouterr().out == f"PHOTO LINK: {out['link']}\n"
+    assert capsys.readouterr().out == f"PHOTO LINK: {out['link']} LANGS: en\n"
     assert cases.get(out["token"]) is not None
 
 
