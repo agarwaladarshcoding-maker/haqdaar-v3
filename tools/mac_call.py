@@ -115,6 +115,12 @@ def pick_rate(sd, device, kind: str) -> int:
         return int(sd.query_devices(device, kind)["default_samplerate"])
 
 
+def cut_in_safe(name: str) -> bool:
+    """Cut-in listens while the agent speaks. On open speakers the mic hears the agent, so it is safe only
+    when the sound goes into the ears (headphones, buds): anything not named a speaker."""
+    return "speaker" not in name.lower()
+
+
 LANG_NAMES = {"hi": "Hindi", "mr": "Marathi", "en": "English", "gu": "Gujarati", "ta": "Tamil"}
 COLOURS = {"YOU": "1;32", "AGENT": "1;36", "KEY": "1;33", "!": "1;31", "": "2"}
 SCREEN = {"t0": 0.0, "colour": False, "last": None}
@@ -431,6 +437,7 @@ def main() -> None:
     ap.add_argument("--logs", default="logs/calls")
     ap.add_argument("--plain", action="store_true", help="no colour on the screen")
     ap.add_argument("--back", action="store_true", help="after a call that sent a photo link, wait for the answer and call back here")
+    ap.add_argument("--cut-in", action="store_true", help="with --serve: turn the cut-in gate on (stays off on open speakers)")
     ap.add_argument("--back-wait", type=float, default=0.0, help="a limit in seconds on the wait for the photo's answer (0 = no limit)")
     args = ap.parse_args()
 
@@ -450,6 +457,13 @@ def main() -> None:
     if args.serve:
         Path("logs").mkdir(exist_ok=True)
         env = {**os.environ, "PHONE_CHECK": "false", "TALK_ONLY": "true", "PYTHONUNBUFFERED": "1", "PHOTO_SHOW_LINK": "true"}
+        if args.cut_in and "CUT_IN_GATE" not in os.environ:      # a CUT_IN_GATE set by hand is left as it is
+            import sounddevice as sd
+
+            name = sd.query_devices(device(args.out_device), "output")["name"]
+            env["CUT_IN_GATE"] = "true" if cut_in_safe(name) else "false"
+            say(f"cut-in is ON (sound goes to: {name}): talk over the agent to stop it" if cut_in_safe(name) else
+                f"cut-in is OFF: the sound goes to open speakers ({name}) and the mic would hear the agent. Put headphones on for cut-in")
         out = open("logs/mac-call-server.log", "ab")
         server = subprocess.Popen([sys.executable, "-m", "uvicorn", "haqdaar.server:app", "--port", str(args.port)],
                                   env=env, stdout=out, stderr=subprocess.STDOUT)

@@ -62,6 +62,7 @@ mac-call:
 # started if they are not up, then the call. They stay up after the call, so the photo can come in and the
 # call-back comes by itself: after a call that sent a photo link the command stays, waits for the photo's answer
 # (no clock: photo sent -> read -> answer ready; BACK_WAIT=seconds puts a limit) and at once starts the call-back on this Mac. A real phone number is rung by the watcher (photo-back), which is
+# Cut-in is on (6 Oct) when the sound goes to headphones; on open speakers it stays off by itself. CUT=0 turns it off.
 # started too when PHOTO_BACK_URL is set. `make full-stop` stops them. Logs: logs/photo-desk.log, logs/keypad-ui.log.
 full:
 	@mkdir -p logs; \
@@ -71,7 +72,7 @@ full:
 	sleep 2; \
 	lsof -ti tcp:8002 >/dev/null || echo "!! the photo desk did not start: see logs/photo-desk.log"; \
 	lsof -ti tcp:8080 >/dev/null || echo "!! the phone page did not start: see logs/keypad-ui.log"; \
-	$(PYTHON) -m tools.mac_call --serve --back --back-wait $(or $(BACK_WAIT),0) --port $(or $(PORT),8001)
+	$(PYTHON) -m tools.mac_call --serve $(if $(filter 0,$(CUT)),,--cut-in) --back --back-wait $(or $(BACK_WAIT),0) --port $(or $(PORT),8001)
 
 full-stop:
 	@pkill -f "tools.photo_desk" && echo "photo desk stopped" || echo "photo desk was not running"; \

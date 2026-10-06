@@ -135,3 +135,10 @@ def test_wait_for_answer_has_no_clock_by_default(monkeypatch):
     seen = iter([None] * 30 + [{"token": "t"}])
     monkeypatch.setattr(in_call, "pending", lambda: next(seen))
     assert mac_call.wait_for_answer() is True
+
+
+def test_cut_in_only_when_the_sound_goes_into_the_ears():
+    from tools.mac_call import cut_in_safe
+
+    assert cut_in_safe("Adarsh's OnePlus Nord Buds 3r") and cut_in_safe("External Headphones")
+    assert not cut_in_safe("MacBook Air Speakers")

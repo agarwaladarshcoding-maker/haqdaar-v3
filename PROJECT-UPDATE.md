@@ -1949,3 +1949,11 @@ headphones, or the microphone hears the agent's own voice.
 - Languages: the talk already works in all 11 languages Sarvam gives (Hindi, Marathi, English, Bengali, Gujarati, Kannada, Malayalam, Odia, Punjabi, Tamil, Telugu). The one part that cut callers down to 5 was the photo case; it now keeps any of the 11, so the call-back speaks the caller's own language.
 - Still in fewer languages, because they need made words or recorded sound: the greeting (5), the keys part (3), the words on the phone page and the link SMS (5; others see English).
 - Checks: full tests 3,241 passed. The long talk check has no result (it was stopped). No real call tried in the six newly kept languages.
+
+## 6 Oct, later: `make full` now has cut-in
+- Asked: does `make full` cover every part? It had talk, keys (typed in the terminal), the photo and the call-back. It did not have cut-in: that part sits behind a switch that is off unless it is turned on, and `make full` never turned it on. So talking over the agent did nothing.
+- Now `make full` turns cut-in on when the sound goes to headphones or buds. On the Mac's open speakers it stays off by itself and says so, because the mic would hear the agent and the agent would stop itself. `CUT=0 make full` turns it off.
+- Checks: full tests 3,242 passed. A real start showed "cut-in is ON" and the server had the switch. The long talk check was not run.
+- Not tried: a real voice talking over the agent. Known limits: the voice stops a little under a second late; cut-in while the keys part reads out a scheme was never tried.
+- Asked next: is everything in `make full` now (talk, cut-in, keys, photo)? Yes. Keys (press 6 in the call, speak to go back to talk) and the photo part (link, hang-up, photo read, call-back) were already on in a `make full` call; cut-in was the one missing part and is now on with headphones. Checked by printing the switches the server runs with: all on.
+- Scripted calls with keys, the photo and cut-in together (7,470 calls, cut-in off and on): no rule broken. Committed and pushed on branch v5-full.
