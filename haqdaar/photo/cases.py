@@ -55,6 +55,8 @@ class Case:
     scheme: str = ""     # scheme id picked by the search, "" until set
     say: str = ""        # the text that will be said on the call-back, "" until set
     langs: list[str] = field(default_factory=list)
+    call_id: str = ""    # Step 2: the call the link went out on (its log can be found), "" until sent
+    told: list[str] = field(default_factory=list)   # Step 2: schemes an answer of that call was about
 
 
 def _base_dir(folder: Path | str | None = None) -> Path:
@@ -114,6 +116,7 @@ def _load_case_dict(d: dict[str, Any]) -> Case:
         cleaned = _clean_langs(raw_langs)
     else:
         cleaned = _clean_langs(None, lang=str(d.get("lang", "hi")))
+    raw_told = d.get("told", [])
     return Case(
         token=str(d.get("token", "")),
         lang=cleaned[0],
@@ -125,6 +128,8 @@ def _load_case_dict(d: dict[str, Any]) -> Case:
         scheme=str(d.get("scheme", "")),
         say=str(d.get("say", "")),
         langs=cleaned,
+        call_id=str(d.get("call_id", "")),
+        told=list(raw_told) if isinstance(raw_told, list) else [],
     )
 
 
@@ -332,6 +337,21 @@ def approve(token: str, say: str, folder: Path | str | None = None, now: float |
         raise ValueError(f"cannot approve case in state {case.state}")
     case.say = str(say)
     case.state = "approved"
+    _save(case, folder)
+    return case
+
+
+def set_first_call(token: str, call_id: str, told: list[str], folder: Path | str | None = None,
+                   now: float | None = None) -> Case:
+    """Step 2: before the call ends after the link: what the call-back needs from this call.
+    The call id (its log can be found) and the schemes an answer of this call was about."""
+    case = _get_raw(token, folder=folder)
+    if not token or not TOKEN_RE.match(token):
+        raise ValueError("case not found")
+    if case is None:
+        raise ValueError("case not found")
+    case.call_id = str(call_id)
+    case.told = [str(t) for t in told]
     _save(case, folder)
     return case
 

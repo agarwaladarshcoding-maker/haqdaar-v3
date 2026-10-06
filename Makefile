@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls calls-ui photo-desk sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me mac-call ear-check model-bakeoff muse-status muse-block muse-unblock barge-eval log-text stage-check door-a-check qa-check qa-router-check talk-eval talk-questions
+.PHONY: run call calls calls-ui keypad-ui photo-desk photo-back sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me mac-call ear-check model-bakeoff muse-status muse-block muse-unblock barge-eval log-text stage-check door-a-check qa-check qa-router-check talk-eval talk-questions
 
 test:
 	$(PYTHON) -m pytest
@@ -32,8 +32,16 @@ recording:
 calls-ui:
 	$(PYTHON) -m tools.call_viewer $(ARGS)
 
+# Keypad web client: 240x320 QVGA offline feature phone simulator (port 8080).
+keypad-ui:
+	$(PYTHON) -m http.server 8080 --directory keypad_app
+
 photo-desk:
 	$(PYTHON) -m tools.photo_desk
+
+# Phase 4: rings the caller back when a photo answer is ready (needs PHOTO_BACK_URL).
+photo-back:
+	$(PYTHON) -m tools.photo_back $(ARGS)
 
 # Backup: ring your phone (CALL_ME_NUMBER in .env, or TO=+91...). Needs make run.
 # Uses the live tunnel; HOST=<address> to aim at another server.

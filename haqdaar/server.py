@@ -59,6 +59,12 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/live")
+def live() -> dict[str, bool]:
+    """Phase 4: is a call live? tools/photo_back waits on this before it rings the caller back."""
+    return {"active": is_call_active()}
+
+
 # One caller at a time guard (D14)
 _ACTIVE_CALL: bool = False
 _ACTIVE_CALL_LOCK = threading.Lock()

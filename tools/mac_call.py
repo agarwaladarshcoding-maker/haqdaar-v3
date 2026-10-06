@@ -27,6 +27,8 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.parse
+import webbrowser
 from pathlib import Path
 
 import websockets
@@ -127,6 +129,34 @@ def clock() -> str:
         return "     "
     s = int(time.time() - SCREEN["t0"])
     return f"{s // 60:02d}:{s % 60:02d}"
+
+
+def watch_photo_link(log_path: str, stop: threading.Event) -> None:
+    """The server prints "PHOTO LINK: <url>" when the caller asks for a photo. Show it here and open it."""
+    try:
+        f = open(log_path, "r", encoding="utf-8", errors="replace")
+        f.seek(0, os.SEEK_END)
+    except OSError:
+        return
+    with f:
+        while not stop.is_set():
+            line = f.readline()
+            if not line:
+                time.sleep(0.2)
+                continue
+            if line.startswith("PHOTO LINK: "):
+                url = line[len("PHOTO LINK: "):].strip()
+                say(f"\nPHOTO LINK: {url}", "!")
+                try:
+                    socket.create_connection(("127.0.0.1", 8002), timeout=0.5).close()
+                except OSError:
+                    say("the photo page is not running: start it with  make photo-desk", "!")
+                try:                                # the phone demo (make keypad-ui): the SMS shows there, a click opens the link
+                    socket.create_connection(("127.0.0.1", 8080), timeout=0.5).close()
+                    url = "http://127.0.0.1:8080/demo.html?link=" + urllib.parse.quote(url, safe="")
+                except OSError:
+                    say("the phone demo is not running: start it with  make keypad-ui  (opening the link itself)", "!")
+                webbrowser.open(url)
 
 
 def say(text: str, tag: str = "") -> None:
@@ -379,13 +409,15 @@ def main() -> None:
     SCREEN["colour"] = sys.stdout.isatty() and not args.plain and not os.environ.get("NO_COLOR")
 
     server = None
+    link_stop = threading.Event()
     if args.serve:
         Path("logs").mkdir(exist_ok=True)
-        env = {**os.environ, "PHONE_CHECK": "false", "TALK_ONLY": "true", "PYTHONUNBUFFERED": "1"}
+        env = {**os.environ, "PHONE_CHECK": "false", "TALK_ONLY": "true", "PYTHONUNBUFFERED": "1", "PHOTO_SHOW_LINK": "true"}
         out = open("logs/mac-call-server.log", "ab")
         server = subprocess.Popen([sys.executable, "-m", "uvicorn", "haqdaar.server:app", "--port", str(args.port)],
                                   env=env, stdout=out, stderr=subprocess.STDOUT)
         say(f"starting the server on port {args.port} (its log: logs/mac-call-server.log)")
+        threading.Thread(target=watch_photo_link, args=("logs/mac-call-server.log", link_stop), daemon=True).start()
         if not wait_for_port(args.port, server):
             server.terminate()
             sys.exit("the server did not come up; look at logs/mac-call-server.log")
@@ -394,6 +426,7 @@ def main() -> None:
     try:
         call_id = asyncio.run(call(url, device(args.in_device), device(args.out_device), args.logs))
     finally:
+        link_stop.set()
         if server is not None:
             server.terminate()
             try:

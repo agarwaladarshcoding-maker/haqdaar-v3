@@ -65,6 +65,13 @@ TALK_END_WAIT_MS: int =int(os.environ.get("TALK_END_WAIT_MS", 600))        # qui
 PHOTO_IN_CALL: bool = os.environ.get("PHOTO_IN_CALL", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
 PHOTO_PENDING_S: float = float(os.environ.get("PHOTO_PENDING_S", 1800.0))   # a call-back waiting longer than this is dropped
 PHOTO_SURE_MIN: float = float(os.environ.get("PHOTO_SURE_MIN", 0.4))        # the reader was less sure than this: a bad photo
+PHOTO_SHOW_LINK: bool = os.environ.get("PHOTO_SHOW_LINK", "false").strip().lower() in ("1", "true", "yes", "on")   # a call with no number (Mac call): the link is printed (and opened by tools/mac_call), not texted
+SMS_DOOR: bool = os.environ.get("SMS_DOOR", "false").strip().lower() in ("1", "true", "yes", "on")   # Step 3: the stand-in SMS route on the photo page's server; off: the route answers 404
+SMS_DONE_S: float = float(os.environ.get("SMS_DONE_S", 120.0))              # Door 0: no new piece for this long counts as "done"
+PHOTO_HANGUP: bool = os.environ.get("PHOTO_HANGUP", "true" if PHOTO_IN_CALL else "false").strip().lower() in ("1", "true", "yes", "on")   # Step 2: the call ends after the link is sent; off: the talk goes on
+PHOTO_FIRST_CALL: bool = os.environ.get("PHOTO_FIRST_CALL", "true" if PHOTO_HANGUP else "false").strip().lower() in ("1", "true", "yes", "on")   # Step 6: the call-back's model reads the first call and the photo result, each in its own block
+PHOTO_FIRST_CHARS: int = int(os.environ.get("PHOTO_FIRST_CHARS", 600))     # cap of the first call's text (newest lines kept): about 150 tokens of the 3,000 a talk turn already uses
+PHOTO_RESULT_CHARS: int = int(os.environ.get("PHOTO_RESULT_CHARS", 300))   # cap of the photo result text
 # The desk now writes the call-back text in the case's own language (pass 4), so this is off. On: an English
 # text goes through the translate step (1.4) for a caller of another language.
 PHOTO_BACK_TRANSLATE: bool = os.environ.get("PHOTO_BACK_TRANSLATE", "false").strip().lower() in ("1", "true", "yes", "on")

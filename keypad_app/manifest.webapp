@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "name": "Haqdaar SMS",
+  "description": "Offline Keypad Photo SMS Uploader",
+  "launch_path": "/index.html",
+  "type": "web",
+  "permissions": {
+    "camera": { "description": "Capture photos" },
+    "sms": { "description": "Send SMS packets" }
+  },
+  "default_locale": "en-US",
+  "fullscreen": "true"
+}

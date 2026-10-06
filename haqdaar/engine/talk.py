@@ -165,6 +165,8 @@ class _Talk:
         self.focus = ""                 # the scheme the talk is about now
         self.told: dict[str, set[str]] = {}  # scheme -> the parts of it already said (prompt.PARTS)
         self.shown: set[str] = set()    # schemes an answer of this call was about (going back to one is allowed)
+        self.first_call = ""            # Step 6: after a call-back: the first call's text, and what the photo shows (own blocks for the model)
+        self.photo_block = ""
         self.last_named: list[str] = []  # 1.8: the schemes the last accepted reply named, in order
         self.all_named: list[str] = []   # 1.8: every scheme a reply named in this call, first named first
         self.hold_until = 0.0           # 1.8: "hold on": no quiet rule before this time
@@ -369,6 +371,10 @@ class _Talk:
         if not res["sent"]:                         # nothing went out: a second try may send
             return "photo_link", prompt.PHOTO["no_sms"].get(self.lang, prompt.PHOTO["no_sms"]["en"])
         self.sent = res
+        if tunables.PHOTO_HANGUP:                   # Step 2: one fixed line, then the call ends
+            if not in_call.save_first_call(res["token"], getattr(self.log, "call_id", "") or "", sorted(self.shown)):
+                self._photo_row("save_failed", res)
+            return "goodbye", prompt.PHOTO["bye"].get(self.lang, prompt.PHOTO["bye"]["en"])
         return "photo_link", prompt.PHOTO["sent"].get(self.lang, prompt.PHOTO["sent"]["en"])
 
     def _photo_early(self, words: str) -> Optional[tuple[str, str]]:
@@ -581,7 +587,7 @@ class _Talk:
             self._sent_ids = [sid for sid, _m, _t in cards]
             data = self._timed("model", _call, self.model, prompt.build(
                 work, text, known, boxes, nar.ask, nar.order, cards, words, note,
-                self.focus, sorted(self.told.get(self.focus, ()))))
+                self.focus, sorted(self.told.get(self.focus, ())), self.first_call, self.photo_block))
             wrong_ask = False
             if data is None:
                 break
@@ -932,6 +938,8 @@ class _Talk:
         self._photo_row("bad" if bad else "back", {"token": back["token"]})
         self._speak(say)
         self.last_say = say
+        if tunables.PHOTO_FIRST_CALL:               # Step 6: the model of this call knows the first call
+            self.first_call, self.photo_block = in_call.first_call_blocks(back["token"])
         in_call.done(back["token"], bad)
 
     def run(self, first_words: str = "") -> None:
@@ -970,7 +978,10 @@ class _Talk:
             if isinstance(inp, Digit) and tunables.PHOTO_IN_CALL and inp.digit == "9":
                 self.log.write({"ev": "key", "key": inp.digit, "means": "send the photo link"})
                 self.offer_open = False
-                self._fixed(*self._photo_link())
+                action, say = self._photo_link()
+                self._fixed(action, say)
+                if action == "goodbye":             # Step 2: the link went out: the call ends here
+                    return self._end(farewell=True)
                 continue
             if isinstance(inp, Digit):          # keys are off in talk mode
                 self.log.write({"ev": "key", "key": inp.digit, "means": "keys are off"})
