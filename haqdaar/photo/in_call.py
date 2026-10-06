@@ -77,8 +77,8 @@ def is_bad(finding: dict[str, Any]) -> bool:
 
 
 def pending(now: Optional[float] = None) -> Optional[dict[str, Any]]:
-    """The call-back that waits: {"token", "lang", "say", "bad"}, or None (none, broken, or too old).
-    The age is the file's: the case's own `made` is when the link was sent, which may be hours back."""
+    """The call-back that waits: {"token", "lang", "say", "bad"} (and "drop": True in the demo), or None (none,
+    broken, or too old). The age is the file's: the case's own `made` is when the link was sent, which may be hours back."""
     path = _file()
     try:
         age = float(now if now is not None else time.time()) - path.stat().st_mtime
@@ -91,8 +91,25 @@ def pending(now: Optional[float] = None) -> Optional[dict[str, Any]]:
     case = cases.get(token)
     if case is None:
         return None
-    return {"token": token, "lang": str(data.get("lang") or case.lang), "say": str(data.get("say", "")),
+    back = {"token": token, "lang": str(data.get("lang") or case.lang), "say": str(data.get("say", "")),
             "bad": is_bad(case.finding)}
+    if data.get("drop"):
+        back["drop"] = True
+    return back
+
+
+def set_drop(token: str) -> bool:
+    """Demo (PHOTO_BACK_ASK, case 3): the waiting call-back says its hello and the line is cut. False: no such file."""
+    path = _file()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if str(data["token"]) != token:
+            return False
+        data["drop"] = True
+        cases._write_json_atomic(path, data)
+        return True
+    except Exception:
+        return False
 
 
 def save_first_call(token: str, call_id: str, told: list[str]) -> bool:

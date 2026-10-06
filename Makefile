@@ -72,12 +72,13 @@ full:
 	sleep 2; \
 	lsof -ti tcp:8002 >/dev/null || echo "!! the photo desk did not start: see logs/photo-desk.log"; \
 	lsof -ti tcp:8080 >/dev/null || echo "!! the phone page did not start: see logs/keypad-ui.log"; \
-	$(PYTHON) -m tools.mac_call --serve $(if $(filter 0,$(CUT)),,--cut-in) --back --back-wait $(or $(BACK_WAIT),0) --port $(or $(PORT),8001)
+	PHOTO_BACK_ASK=$${PHOTO_BACK_ASK:-true} $(PYTHON) -m tools.mac_call --serve $(if $(filter 0,$(CUT)),,--cut-in) --back --back-wait $(or $(BACK_WAIT),0) --port $(or $(PORT),8001)
 
 full-stop:
 	@pkill -f "tools.photo_desk" && echo "photo desk stopped" || echo "photo desk was not running"; \
 	pkill -f "http.server 8080 --directory keypad_app" && echo "phone page stopped" || echo "phone page was not running"; \
-	pkill -f "tools.photo_back" && echo "call-back watcher stopped" || echo "call-back watcher was not running"
+	pkill -f "tools.photo_back" && echo "call-back watcher stopped" || echo "call-back watcher was not running"; \
+	pkill -f "cloudflared tunnel --no-autoupdate --url http://localhost:8002" && echo "sound link tunnel stopped" || true
 
 # 5 Oct: run a few minutes before a demo call. Says what is ready and what is not. Places no call.
 stage-check:

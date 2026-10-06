@@ -33,7 +33,8 @@ def env(tmp_path, monkeypatch):
 
     def make(place=None, live=lambda u: False, dry=False):
         return photo_back.PhotoBack(dry=dry, now=clock.now, sleep=clock.sleep, place=place or (lambda n, u: calls.append((n, u)) or "CA123"),
-                                    live=live, out=lines.append, bell=lambda: bells.append(1))
+                                    live=live, out=lines.append, bell=lambda: bells.append(1),
+                                    send=lambda token, why: None)      # never the real SMS / voice from a test
     return make, clock, calls, lines, bells, tmp_path
 
 

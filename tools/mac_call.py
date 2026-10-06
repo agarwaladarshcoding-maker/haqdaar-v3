@@ -21,6 +21,7 @@ import audioop
 import base64
 import json
 import os
+import queue
 import signal
 import socket
 import subprocess
@@ -30,6 +31,7 @@ import time
 import urllib.parse
 import webbrowser
 from pathlib import Path
+from typing import Optional
 
 import websockets
 
@@ -137,6 +139,105 @@ def clock() -> str:
     return f"{s // 60:02d}:{s % 60:02d}"
 
 
+# One thread reads the terminal for the whole run and keeps the lines here. A thread per call kept reading
+# after its call ended (it only stops at the end of input) and took the lines typed between calls, such as
+# the answer to the PHOTO_BACK_ASK question, then died on the closed loop.
+STDIN: "queue.Queue[Optional[str]]" = queue.Queue()      # None: the end of input
+_STDIN_THREAD: list[threading.Thread] = []
+
+
+def start_stdin() -> None:
+    if _STDIN_THREAD:
+        return
+
+    def pump() -> None:
+        for line in sys.stdin:
+            STDIN.put(line)
+        STDIN.put(None)
+
+    _STDIN_THREAD.append(threading.Thread(target=pump, daemon=True))
+    _STDIN_THREAD[0].start()
+
+
+def next_line(timeout: Optional[float] = None) -> Optional[str]:
+    """The next typed line; None at the end of input (and it stays the end). queue.Empty after `timeout`."""
+    line = STDIN.get(timeout=timeout)
+    if line is None:
+        STDIN.put(None)
+    return line
+
+
+def sound_tunnel(port: int = 8002, wait_s: float = 25.0) -> str:
+    """PHOTO_BACK_ASK: a public address for the photo desk, so the sound link in the SMS opens on a real phone.
+    "https://...", or "" when cloudflared is not there or gives no address in time. The tunnel is left running
+    after this program ends (the link in the SMS must still open); `make full-stop` stops it."""
+    import re
+
+    what = ["cloudflared", "tunnel", "--no-autoupdate", "--url", f"http://localhost:{port}"]
+    subprocess.run(["pkill", "-f", " ".join(what)], capture_output=True)      # the one of the last run
+    Path("logs").mkdir(exist_ok=True)
+    log = Path("logs/sound-tunnel.log")
+    try:
+        with open(log, "wb") as out:
+            proc = subprocess.Popen(what, stdout=out, stderr=subprocess.STDOUT, start_new_session=True)
+    except OSError:
+        return ""
+    end = time.time() + wait_s
+    while time.time() < end and proc.poll() is None:
+        m = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", log.read_text(errors="replace"))
+        if m:
+            return m.group(0)
+        time.sleep(0.3)
+    proc.terminate()
+    return ""
+
+
+def ask_demo(token: str) -> int:
+    """PHOTO_BACK_ASK: which case to play (1 picked up, 2 not picked up, 3 picked up then the call drops).
+    Off: 1, nothing asked. 2 is carried out here (no ring); 3 sets the drop flag, the call that follows is cut."""
+    from haqdaar.contracts import tunables
+
+    if not tunables.PHOTO_BACK_ASK:
+        return 1
+    if not sys.stdin.isatty():
+        say("PHOTO_BACK_ASK is on but there is no terminal: playing case 1 (picked up)", "!")
+        return 1
+    from haqdaar.photo import back_msg
+
+    start_stdin()
+    while True:                                  # what was typed while we waited is not an answer
+        try:
+            if next_line(0) is None:
+                break
+        except queue.Empty:
+            break
+
+    def read() -> str:
+        line = next_line()
+        if line is None:
+            raise EOFError
+        return line
+
+    choice = back_msg.ask_case(read, lambda text: say(text, "!"))
+    tunables.PHOTO_BACK_TRANSLATE = True            # case 2 is sent from here: the server's TALK_ONLY is not set in this process
+    back_msg.demo_choice(token, choice, show=True)
+    return choice
+
+
+def wait_for_message(token: str, limit: float = 120.0) -> None:
+    """Case 3: the server sends the answer after the call ended (a model and a voice, some seconds). Stay until
+    it has, or the server is stopped before its line reaches this screen."""
+    from haqdaar.photo import back_msg
+
+    end = time.time() + limit
+    try:
+        while time.time() < end and back_msg.message(token) is None:
+            time.sleep(0.5)
+        time.sleep(1.0)                           # watch_photo_link shows its line
+    except KeyboardInterrupt:
+        pass
+
+
 LINK_SENT = threading.Event()               # a photo link went out in the call just made
 LINK = {"token": ""}                        # its case, to show where the photo is while we wait
 
@@ -183,6 +284,8 @@ def watch_photo_link(log_path: str, stop: threading.Event) -> None:
             if not line:
                 time.sleep(0.2)
                 continue
+            if line.startswith("PHOTO MESSAGE: "):       # the answer went by SMS (the call-back was not heard)
+                say("\nSMS: " + line[len("PHOTO MESSAGE: "):].strip(), "!")
             if line.startswith("PHOTO LINK: "):
                 url, _, langs = line[len("PHOTO LINK: "):].strip().partition(" LANGS: ")
                 LINK["token"] = url.rstrip("/").rsplit("/", 1)[-1]
@@ -310,11 +413,23 @@ async def call(url: str, in_device, out_device, logs: str = "logs/calls") -> str
         outdata[:] = bytes(leftover[:need])
         del leftover[:need]
 
-    def read_keys() -> None:             # a plain thread: stdin cannot be waited on politely
-        for line in sys.stdin:
-            loop.call_soon_threadsafe(key_q.put_nowait, line.strip())
-        loop.call_soon_threadsafe(key_q.put_nowait, "q")
+    call_over = threading.Event()
 
+    def read_keys() -> None:             # a plain thread: stdin cannot be waited on politely
+        while not call_over.is_set():
+            try:
+                line = next_line(0.2)
+            except queue.Empty:
+                continue
+            try:
+                loop.call_soon_threadsafe(key_q.put_nowait, "q" if line is None else line.strip())
+            except RuntimeError:         # the call ended just now: the line is for whoever reads next
+                STDIN.put(line)
+                return
+            if line is None:
+                return
+
+    start_stdin()
     threading.Thread(target=read_keys, daemon=True).start()
     loop.add_signal_handler(signal.SIGINT, end.set)
 
@@ -406,6 +521,7 @@ async def call(url: str, in_device, out_device, logs: str = "logs/calls") -> str
              sd.RawOutputStream(samplerate=out_rate, channels=1, dtype="int16", device=out_device,
                                 blocksize=out_rate // 50, callback=on_speaker):
             await end.wait()
+        call_over.set()
         for t in tasks:
             t.cancel()
         try:
@@ -454,6 +570,14 @@ def main() -> None:
 
     server = None
     link_stop = threading.Event()
+    from haqdaar.contracts import tunables
+
+    if tunables.PHOTO_BACK_ASK and args.back and not os.environ.get("PHOTO_SOUND_URL"):
+        host = sound_tunnel()
+        if host:
+            os.environ["PHOTO_SOUND_URL"] = host         # the server started below gets it too
+        say(f"the sound link in the SMS will open at {host}" if host else
+            "no public address for the sound link (cloudflared): the SMS will carry the text only", "!")
     if args.serve:
         Path("logs").mkdir(exist_ok=True)
         env = {**os.environ, "PHONE_CHECK": "false", "TALK_ONLY": "true", "PYTHONUNBUFFERED": "1", "PHOTO_SHOW_LINK": "true"}
@@ -481,7 +605,12 @@ def main() -> None:
             LINK_SENT.clear()
             if not wait_for_answer(args.back_wait, LINK["token"]):
                 break
+            choice = ask_demo(LINK["token"])        # PHOTO_BACK_ASK only; 1 when off
+            if choice == 2:
+                break
             call_id = asyncio.run(call(url, device(args.in_device), device(args.out_device), args.logs))
+            if choice == 3:
+                wait_for_message(LINK["token"])
     finally:
         link_stop.set()
         if server is not None:

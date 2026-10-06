@@ -156,6 +156,25 @@ async def answer(request: Request) -> Response:
     return Response(content=_stream_twiml(), media_type="text/xml")
 
 
+BACK_NOT_REACHED = ("no-answer", "busy", "failed", "canceled")      # how a call-back ends when nobody heard it
+
+
+@app.post("/back-status")
+async def back_status(request: Request) -> Response:
+    """The phone line says how a call-back ended (tools/photo_back asks for it, with ?token=). Not reached:
+    the answer goes by SMS. In a thread: it calls a model and a voice, and the line wants a quick reply."""
+    form = await _phone_form(request, "/back-status")
+    if form is None:
+        return Response(status_code=403)
+    token, status = request.query_params.get("token", ""), form.get("CallStatus", "")
+    if token and status in BACK_NOT_REACHED:
+        from haqdaar.photo import back_msg
+
+        say(f"back    call-back of case ..{token[-3:]} ended: {status}; the answer goes by SMS")
+        threading.Thread(target=back_msg.send, args=(token, status), daemon=True).start()
+    return Response(status_code=204)
+
+
 @app.post("/answer-again")
 async def answer_again(request: Request) -> Response:
     """Step 1.0: the phone line asks this when a stream ends and the caller is still there.
@@ -332,7 +351,10 @@ def _run_engine(call_id: str, snapshot_id: str, number_hash: str, audio: Any, co
     from haqdaar.engine.call import Engine
     from haqdaar.model.router import Model
 
+    from haqdaar.photo import back_msg
+
     note = say if trace is None else (lambda line: (say(line), trace(line)))
+    waiting = back_msg.back_token()     # a call-back waits: this call is it
     try:
         log = Log.open(call_id=call_id, snapshot_id=snapshot_id, caller_hash=number_hash,
                        logs_dir=tunables.CALL_LOGS_DIR)
@@ -358,6 +380,8 @@ def _run_engine(call_id: str, snapshot_id: str, number_hash: str, audio: Any, co
         note(f"!! engine error: {e!r}")
     finally:
         done()
+        if back_msg.catch_drop(waiting):    # the call ended and its answer was not said in full
+            note("back    the call-back did not finish: the answer goes by SMS")
         if line is not None:
             note(report_words(line.report()))
         if trace is not None:
