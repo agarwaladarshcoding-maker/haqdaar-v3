@@ -270,3 +270,50 @@ def test_a_failed_place_can_be_sent_again():
     res = feed(j, again["packets"])
     assert res[-1].status == "photo"
     assert j.take(res[-1].key).failed == 0
+
+
+def test_a_late_double_of_a_delivered_photo_is_ignored_and_never_joins_another_case():
+    c = cut()
+    j = J.PhotoJoin()
+    res = feed(j, c["packets"])
+    assert j.take(res[-1].key, now=0.0) is not None
+    for pk in (c["packets"][-1], c["packets"][0]):                  # the phone's retry, after the hand-over
+        r = j.add("s1", pk, owner="next caller", now=1.0)
+        assert r.status == "ignored"
+    assert j.groups == {}                                           # no new group was made for it
+    other = pack.cut_photo(photo(7), "417", 1, 1)                   # a different photo, same phone, same case code
+    assert other["stamp"] != c["stamp"]
+    assert feed(j, other["packets"])[-1].status == "photo"
+    assert j.sweep(now=10 ** 6) == 1 and j.delivered == {}          # remembered only for the case time
+
+
+def test_the_same_photo_sent_again_after_a_bad_join_comes_through():
+    c = cut()
+    bad = list(c["packets"])
+    p = bad[0]
+    i = len(p) - 12
+    bad[0] = p[:i] + ("A" if p[i] != "A" else "B") + p[i + 1:]
+    j = J.PhotoJoin()
+    assert feed(j, bad)[-1].reply == "ERR JOIN"
+    again = feed(j, c["packets"])                                   # the identical photo, sent again: same stamp
+    assert again[-1].status == "photo"
+    assert j.take(again[-1].key).failed == 0
+
+
+def test_a_group_cannot_grow_without_limit_and_odd_packets_are_refused():
+    c = cut(1, 1, 1)
+    j = J.PhotoJoin()
+    seen = set()
+    for n in range(40):
+        b = c["packets"][0].split(":")
+        b[4] = "%03d" % n                                          # a new stamp each time
+        r = j.add("s", ":".join(b), now=0.0)
+        seen.add(r.reply)
+    assert "ERR BUSY" in seen
+    assert all(len(g.sessions) <= 3 * g.sent + 2 for g in j.groups.values())
+    b = c["packets"][0].split(":")
+    b[4] = "a b"
+    assert j.add("s", ":".join(b)).status == "bad"
+    b = c["packets"][0].split(":")
+    b[6] = "-1"
+    assert j.add("s", ":".join(b)).status == "bad"

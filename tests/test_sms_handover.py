@@ -271,3 +271,55 @@ def test_the_try_page_says_what_is_wrong(rig, monkeypatch):
 def test_the_try_page_is_not_there_when_the_door_is_off(rig, monkeypatch):
     monkeypatch.setattr(tunables, "SMS_DOOR", False)
     assert rig.desk.get("/try").status_code == 404
+
+
+def test_a_picture_that_cannot_be_enlarged_is_read_as_it_is(rig, monkeypatch):
+    from haqdaar.photo import sms_read
+
+    def boom(jpeg, *a):
+        raise ValueError("odd picture")
+
+    monkeypatch.setattr(sms_read, "enlarge", boom)
+    send(rig, pack.cut_photo(photo(), "417", 1, 1)["packets"])
+    assert rig.get().state in ("approved", "read") and len(rig.seen) == 1     # not stuck in "reading"
+    assert Image.open(io.BytesIO(rig.seen[0][0][0])).size[0] < 512             # the small one went to the reader
+
+
+def test_a_second_approve_of_an_auto_answered_case_writes_no_label(rig):
+    send(rig, pack.cut_photo(photo(), "417", 1, 1)["packets"])
+    tok = rig.get().token
+    assert rig.get().state == "approved"
+    rig.desk.post(f"/approve/{tok}", content=b"again")
+    assert rig.labels() == []                                                  # no person was ever asked about it
+
+
+def test_a_disk_fault_while_handing_over_is_not_a_500(rig, monkeypatch):
+    def boom(*a, **k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(cases, "add_photo", boom)
+    replies = send(rig, pack.cut_photo(photo(), "417", 1, 1)["packets"])
+    assert replies[-1]["ok"] is True                                          # a plain answer, not a crash
+    case = rig.get()
+    assert case.state == "read" and "none" in case.finding["sms"]["reasons"]  # a person answers from the caller's words
+
+
+def test_a_well_formed_packet_longer_than_any_sms_is_refused_before_it_is_stored(rig):
+    b = pack.cut_photo(photo(), "417", 1, 1)["packets"][0].split(":")
+    b[10] = "A" * 2500                                                        # letters that parse, but 17 parts long
+    assert rig.door.post("/sms", json={"text": ":".join(b)}).json() == {"ok": False, "reply": "ERR BAD"}
+    assert photo_desk._pjoin.groups == {}
+
+
+def test_a_packet_longer_than_any_sms_is_refused(rig):
+    assert rig.door.post("/sms", json={"text": "P:" + "A" * 2500}).json() == {"ok": False, "reply": "ERR BAD"}
+    assert rig.door.post("/sms", json={"text": "Q:ab:L:1:" + "A" * 2500}).json() == {"ok": False, "reply": "ERR BAD"}
+
+
+def test_the_try_page_survives_a_one_dot_photo(rig, monkeypatch):
+    import base64
+    monkeypatch.setattr(photo_desk, "_door_post", lambda text: rig.door.post("/sms", json={"text": text, "sender": "+9100"}).json())
+    buf = io.BytesIO()
+    Image.new("RGB", (1, 1), (5, 5, 5)).save(buf, "JPEG")
+    r = rig.desk.post("/try", json={"photos": ["data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()]})
+    assert r.status_code in (200, 400)                                         # never a 500

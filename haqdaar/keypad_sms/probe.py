@@ -26,7 +26,9 @@ LADDER = (1, 3, 5, 10, 15, 20)       # parts, the sizes the probe tries
 DEFAULT = {"hdr": 1, "packet_parts": 5}
 MAX_PACKET_PARTS = 10                # a packet is never asked to be longer, however much the phone allows
 TEST_SIZE = (96, 72)                 # the test picture the phone's JPEG maker is asked to make
-FAILS_TO_FLIP = 2                    # real photos that fail the picture lock with the header left out
+FAILS_TO_FLIP = 2                    # real photos (from different senders) that fail the picture lock with the header left out
+MAX_SESSIONS = 64                    # probes held at once
+MAX_PIECE = 5 * pack.PART_LEN        # letters in one header piece
 DEV_RE = re.compile(r"\A(--|[A-Za-z0-9]{2})\Z")
 
 
@@ -106,6 +108,7 @@ class Probe:
     def __init__(self, path: Optional[Path] = None):
         self.path = path
         self.sessions = {}     # (sender, dev) -> {"head": {i: text}, "n": int, "rungs": {parts: time}}
+        self._fail_senders = {}   # dev -> senders already counted
 
     def add(self, sender: str, text: str, now: Optional[float] = None):
         """(status, reply): status bad | stored | done; reply is the settings text when the probe is done."""
@@ -114,22 +117,25 @@ class Probe:
         if len(bits) < 4 or bits[0] != "Q" or not DEV_RE.match(bits[1]) or bits[2] not in ("H", "L", "E"):
             return "bad", None
         dev, kind = bits[1], bits[2]
-        sess = self.sessions.setdefault((str(sender), dev), {"head": {}, "n": 0, "rungs": {}})
         if kind == "E":
             return "done", self.finish(sender, dev)
         if len(bits) != 5:
             return "bad", None
+        skey = (str(sender), dev)
+        sess = self.sessions.get(skey) or {"head": {}, "n": 0, "rungs": {}}   # kept only once the packet is good
         if kind == "H":
             try:
                 i, n = (int(x) for x in bits[3].split("/"))
             except ValueError:
                 return "bad", None
-            if not (1 <= i <= n <= 16) or any(c not in pack.B64 + "=" for c in bits[4]):
+            if (not (1 <= i <= n <= 16) or not bits[4] or len(bits[4]) > MAX_PIECE
+                    or any(c not in pack.B64 + "=" for c in bits[4])):
                 return "bad", None
             if sess["n"] and sess["n"] != n:
                 return "bad", None
             sess["n"] = n
             sess["head"][i] = bits[4]
+            self._keep(skey, sess)
             return "stored", None
         try:
             parts = int(bits[3])
@@ -139,7 +145,13 @@ class Probe:
         if parts not in LADDER or text != head + _filler(parts, head):
             return "bad", None                      # the wrong length or letters: this size did not arrive whole
         sess["rungs"][parts] = now
+        self._keep(skey, sess)
         return "stored", None
+
+    def _keep(self, skey, sess):
+        if skey not in self.sessions and len(self.sessions) >= MAX_SESSIONS:
+            del self.sessions[next(iter(self.sessions))]      # the oldest probe goes
+        self.sessions[skey] = sess
 
     def finish(self, sender: str, dev: str) -> str:
         """Read what came, keep the line for this phone code, give the settings text. Never raises."""
@@ -174,11 +186,18 @@ class Probe:
             st = dict(DEFAULT)
         return settings_text(st["hdr"], st["packet_parts"])
 
-    def note_failure(self, dev: str) -> Optional[str]:
+    def note_failure(self, dev: str, sender: Optional[str] = None) -> Optional[str]:
         """A real photo failed the picture lock with the header left out. After FAILS_TO_FLIP of them for the same
-        phone code the header goes back on; the settings text is returned once, then None."""
+        phone code the header goes back on; the settings text is returned once, then None. With a sender, each sender
+        counts once, so one sender can not turn the header on for a whole phone model."""
         if dev == "--" or not DEV_RE.match(dev):
             return None
+        if sender is not None:
+            seen = self._fail_senders.setdefault(dev, set())
+            if str(sender) in seen:
+                return None
+            if len(seen) < 256:
+                seen.add(str(sender))
         try:
             data = _load(self.path)
             row = dict(data.get(dev) or {})

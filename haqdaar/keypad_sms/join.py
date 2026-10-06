@@ -28,6 +28,8 @@ from . import pack, share
 
 MAX_PACKETS = 64   # one photo is never more than this many packets
 MAX_GROUPS = 16    # groups held at once; the oldest goes first
+MAX_DELIVERED = 256   # photos remembered after they were handed over, so a late double is not joined again
+MAX_RETIRED = 200     # stamps one group may remember
 
 
 @lru_cache(maxsize=64)
@@ -53,6 +55,7 @@ class _Group:
     owner: str = ""
     sessions: dict = field(default_factory=dict)   # (place, stamp) -> _Photo
     whole: dict = field(default_factory=dict)      # place -> JPEG bytes
+    stamps: dict = field(default_factory=dict)     # place -> the stamp of the whole photo
     failed: set = field(default_factory=set)       # places with no photo left
     retired: set = field(default_factory=set)      # (place, stamp) that must be ignored from now on
 
@@ -102,6 +105,7 @@ def _jpeg_of(p, body):
 class PhotoJoin:
     def __init__(self):
         self.groups = {}
+        self.delivered = {}    # (sender, case, place, stamp) -> time handed over
 
     def sweep(self, now=None):
         """Drop groups older than the case limit. Returns how many went."""
@@ -109,11 +113,16 @@ class PhotoJoin:
         old = [k for k, g in self.groups.items() if now - g.born > tunables.SMS_CASE_S]
         for k in old:
             del self.groups[k]
+        for k in [k for k, t in self.delivered.items() if now - t > tunables.SMS_CASE_S]:
+            del self.delivered[k]
         return len(old)
 
-    def _kill(self, g, place, stamp):
+    def _kill(self, g, place, stamp, retire=True):
+        """Drop one try. retire: its stamp is ignored from now on (a bad try); not for a whole-photo failure, so the
+        same photo sent again can still come through."""
         g.sessions.pop((place, stamp), None)
-        g.retired.add((place, stamp))
+        if retire and len(g.retired) < MAX_RETIRED:
+            g.retired.add((place, stamp))
         if place not in g.whole and not any(pl == place for pl, _ in g.sessions):
             g.failed.add(place)
 
@@ -127,6 +136,8 @@ class PhotoJoin:
                 or p["step"] >= len(pack.SIZE_LADDER)):
             return Result("bad", "ERR RANGE")
         key = (str(sender), p["case"])
+        if (key[0], key[1], p["place"], p["stamp"]) in self.delivered:   # a late double of a photo already handed over
+            return Result("ignored", "OK LATE", key)
         g = self.groups.get(key)
         if g is None:
             if len(self.groups) >= MAX_GROUPS:
@@ -141,6 +152,8 @@ class PhotoJoin:
             return Result("ignored", "OK LATE", key)
         ph = g.sessions.get(sk)
         if ph is None:
+            if len(g.sessions) >= 3 * g.sent + 2:        # more tries than a case can have: refuse, do not grow
+                return Result("bad", "ERR BUSY", key)
             ph = g.sessions[sk] = _Photo(_facts(p))
             g.failed.discard(place)
         elif ph.facts != _facts(p):
@@ -168,9 +181,10 @@ class PhotoJoin:
             body = b""
         jpeg, lock = _jpeg_of({**p, "check": ph.check}, body) if body else (None, 3)
         if jpeg is None:
-            self._kill(g, place, stamp)
+            self._kill(g, place, stamp, retire=False)
             return Result("dropped", "ERR JOIN", key, "a lock failed", lock, p["dev"], p["hdr"])
         g.whole[place] = jpeg
+        g.stamps[place] = stamp
         for other in [s for s in g.sessions if s[0] == place]:
             g.sessions.pop(other, None)
             g.retired.add(other)
@@ -181,11 +195,16 @@ class PhotoJoin:
         g = self.groups.get(key)
         return bool(g and all(i in g.whole or i in g.failed for i in range(1, g.sent + 1)))
 
-    def take(self, key, force=False):
+    def take(self, key, force=False, now=None):
         """The case, when every sent photo is whole or lost (or force: the idle time is up). Removes it."""
         g = self.groups.get(key)
         if g is None or not (force or self.ready(key)):
             return None
         del self.groups[key]
+        now = time.monotonic() if now is None else now
+        for i in g.whole:
+            if len(self.delivered) >= MAX_DELIVERED:
+                del self.delivered[min(self.delivered, key=self.delivered.get)]
+            self.delivered[(g.sender, g.case, i, g.stamps[i])] = now
         photos = [(i, g.whole[i]) for i in sorted(g.whole)]
         return Case(key, g.owner, g.sent, photos, g.sent - len(photos))

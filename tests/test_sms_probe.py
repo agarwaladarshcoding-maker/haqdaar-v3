@@ -179,10 +179,29 @@ def test_the_door_answers_a_probe_and_tells_a_failing_phone(tmp_path, monkeypatc
         for seed in (1, 2):
             cases.new_case("hi", "+91999")                            # one case for each caller's photo
             for pk in pack.cut_photo(photo(seed), "417", 1, 1, dev="D1", hdr=0)["packets"]:
-                got.append(c.post("/sms", json={"text": pk, "sender": "+91999"}).json())
+                got.append(c.post("/sms", json={"text": pk, "sender": "+91999" + str(seed)}).json())   # two different phones
         flagged = [g for g in got if "settings" in g]
         assert len(flagged) == 1 and flagged[0]["settings"] == "S:1:10"   # the 2nd failure, once
-        assert sent[-1] == ("+91999", "S:1:10")
+        assert sent[-1] == ("+919992", "S:1:10")
     finally:
         for t in list(photo_desk._probe_timer.values()) + list(photo_desk._ptimer.values()):
             t.cancel()
+
+
+def test_bad_probe_packets_leave_nothing_behind_and_the_probe_count_is_bounded(pr):
+    p, path = pr
+    for i in range(200):
+        assert p.add("s%d" % i, "Q:ab:L:7:x")[0] == "bad"            # a bad rung: no session kept
+    assert p.sessions == {}
+    for i in range(200):
+        p.add("s%d" % i, "Q:ab:H:1/2:AAAA")
+    assert len(p.sessions) == probe.MAX_SESSIONS
+    assert p.add("x", "Q:ab:H:1/1:" + "A" * (probe.MAX_PIECE + 1))[0] == "bad"
+
+
+def test_one_sender_counts_once_so_one_phone_cannot_flip_a_model(pr):
+    p, path = pr
+    run_probe(p, "F1")
+    assert [p.note_failure("F1", "same") for _ in range(5)] == [None] * 5
+    assert probe.settings_for("F1", path)["hdr"] == 0
+    assert p.note_failure("F1", "other") == "S:1:10"                  # a second phone: now it flips

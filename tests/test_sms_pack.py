@@ -140,3 +140,9 @@ def test_bad_packets():
     assert parse_packet("P:only:three") is None
     cut = cut_photo(pest(44), "c13", 1, 1)
     assert parse_packet(cut["packets"][0] + ":XXXXXX") is None  # check on a non-last packet
+
+
+def test_a_tiny_picture_still_cuts():
+    from haqdaar.keypad_sms.pack import cut_photo, parse_packet
+    c = cut_photo(Image.new("RGB", (1, 1), (9, 9, 9)), "417", 1, 1)
+    assert parse_packet(c["packets"][0]) is not None

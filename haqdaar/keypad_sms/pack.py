@@ -64,7 +64,7 @@ def detail_window(img):
     else:
         i = scores.index(max(scores))
         cx, cy = i % 3, i // 3
-    ww, hh = w // 2, h // 2
+    ww, hh = max(1, w // 2), max(1, h // 2)
     left = cx * w // 3 + w // 6 - ww // 2
     top = cy * h // 3 + h // 6 - hh // 2
     left = max(0, min(w - ww, left))
@@ -209,8 +209,8 @@ def parse_packet(text):
                                               int(place), int(step), int(size), int(hdr))
     except ValueError:
         return None
-    if not (1 <= k <= n and sent >= 1 and place >= 1 and size >= 0
-            and hdr in (0, 1) and payload):
+    if not (1 <= k <= n and sent >= 1 and place >= 1 and size >= 0 and step >= 0
+            and hdr in (0, 1) and payload and len(stamp) == 3 and all(c in B64 for c in stamp)):
         return None
     if (k == n) != (check is not None):
         return None

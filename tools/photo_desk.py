@@ -158,7 +158,13 @@ def _process_done(token: str) -> None:
         lang = case.lang
         meta = _sms_meta.get(token)                       # a case that came by P: packets (the join)
         if meta:
-            photo_list = [sms_read.enlarge(b) for b in photo_list]
+            big = []
+            for b in photo_list:
+                try:
+                    big.append(sms_read.enlarge(b))
+                except Exception:                         # a picture that can not be enlarged is read as it is
+                    big.append(b)
+            photo_list = big
             finding = reader.read(photo_list, lang=lang, note=sms_read.READ_NOTE)
         else:
             finding = reader.read(photo_list, lang=lang)
@@ -1146,15 +1152,18 @@ def _psms_deliver(key: tuple, force: bool = False) -> None:
             cases.add_photo(token, jpeg)
             widths.append(Image.open(io.BytesIO(jpeg)).size[0])
             put += 1
-        except ValueError:
+        except (ValueError, OSError):
             pass
     _sms_meta[token] = {"sent": got.sent, "whole": put, "widths": widths}
     if put:
         _sms_start_reading(token)
     else:                                             # no photo came whole: a person answers from the caller's words
         info = dict(_sms_meta[token], sure=0.0, reasons=bands.needs_person({}, _sms_meta[token]))
-        cases.set_finding(token, {"shows": "", "wrong": "", "sure": 0.0, "search": "", "by": "sms: no photo came whole", "sms": info}, "", "")
-        _log_state(token, "held for the desk: " + ",".join(info["reasons"]))
+        try:
+            cases.set_finding(token, {"shows": "", "wrong": "", "sure": 0.0, "search": "", "by": "sms: no photo came whole", "sms": info}, "", "")
+            _log_state(token, "held for the desk: " + ",".join(info["reasons"]))
+        except (ValueError, OSError):
+            pass
 
 
 @photo_app.post("/sms")
@@ -1166,6 +1175,8 @@ async def post_sms(request: Request):
         text = str(body["text"])
     except Exception:
         return JSONResponse(status_code=400, content={"ok": False, "why": "need json with text"}, headers=_SMS_CORS)
+    if text[:2] in ("P:", "Q:") and len(text) > 2000:  # no SMS packet is this long (10 parts = 1530 letters)
+        return JSONResponse(status_code=200, content={"ok": False, "reply": "ERR BAD"}, headers=_SMS_CORS)
     if text.startswith("Q:"):                         # a phone probe (a health centre, or a phone's first use): no case is needed
         who = str(body.get("sender") or "")
         with _sms_lock:
@@ -1175,7 +1186,7 @@ async def post_sms(request: Request):
             old = _probe_timer.pop(key, None)
             if old:
                 old.cancel()
-            if status == "stored":
+            if status == "stored" and len(_probe_timer) < 64:
                 t = _probe_timer[key] = threading.Timer(tunables.SMS_IDLE_S, _probe_idle, key)
                 t.daemon = True
                 t.start()
@@ -1200,7 +1211,7 @@ async def post_sms(request: Request):
         content = {"ok": res.status in ("stored", "dup", "photo", "ignored"), "reply": res.reply}
         if res.status == "dropped" and res.lock == 4 and res.hdr == 0:      # the header was left out and the picture did not open
             with _sms_lock:
-                settings = _probe.note_failure(res.dev)
+                settings = _probe.note_failure(res.dev, sender)
             if settings:                              # the 2nd time for this phone code: tell it to send the header too
                 content["settings"] = settings
                 _probe_send(sender, settings)
@@ -1317,7 +1328,7 @@ def _sms_answered(token: str, before: Optional[cases.Case], answer: str, kind: s
     """A person answered a held SMS photo: keep the words as a label and wipe the pictures. Never raises."""
     try:
         info = ((before.finding if before else None) or {}).get("sms")
-        if not info:
+        if not info or not info.get("reasons"):           # only a case a person was asked to answer
             return
         review.write_label(info, before.say if before else "", answer, kind)
         cases.wipe_photos(token)
@@ -2149,8 +2160,11 @@ def post_try(payload: dict = Body(...)):
         raise HTTPException(status_code=400, detail="could not read a photo")
     if not imgs:
         raise HTTPException(status_code=400, detail="no photo")
+    try:
+        cut = pack.cut_case(imgs, "417")
+    except Exception:
+        raise HTTPException(status_code=400, detail="could not cut a photo")
     case = cases.new_case("hi", "")
-    cut = pack.cut_case(imgs, "417")
     bad = 0
     try:
         for c in cut:
