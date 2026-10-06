@@ -1006,8 +1006,11 @@ class _Talk:
             return ""
         return say
 
-    def _call_back(self, back: dict[str, Any]) -> None:
-        """4.3: a photo was read since the last call: it is the first thing said, before the caller is waited for."""
+    def _call_back(self, back: dict[str, Any]) -> bool:
+        """4.3: a photo was read since the last call: it is the first thing said, before the caller is waited for.
+        True: the call is over before the answer was said in full (the caller hung up, or the demo cut the line):
+        the file stays, so the end of the call sends the answer by SMS (haqdaar/photo/back_msg.py).
+        `_speak` comes back normally when the caller hangs up in the middle, so only `_gone` tells."""
         self.lang = back["lang"]
         if hasattr(self.audio, "language"):
             self.audio.language = self.lang         # the voice, and the language each turn starts from
@@ -1019,6 +1022,8 @@ class _Talk:
         self._photo_row("bad" if bad else "back", {"token": back["token"]})
         if not bad:
             self._speak(say)                        # the hello plays while the model writes the answer
+            if back.get("drop") or self._gone():
+                return True
             text = self._back_answer(back["say"]) or back["say"]   # the desk's text is English
             if self.lang != "en" and tunables.PHOTO_BACK_TRANSLATE:
                 text = " ".join(self._back_sentence(s) for s in _sentences(text)) or text
@@ -1027,7 +1032,10 @@ class _Talk:
         else:
             self._speak(say)
         self.last_say = say
+        if back.get("drop") or self._gone():
+            return True
         in_call.done(back["token"], bad)
+        return False
 
     def _keys_out(self) -> dict[str, Any]:
         """Leave the talk for the keys part: the photo state goes into `mem`, the answers so far go back."""
@@ -1039,8 +1047,8 @@ class _Talk:
         """Ends the call itself (None). The one other way out is key 6: the answers so far come back and
         the call is NOT ended, so call.py can go on with keys (3.1)."""
         back = in_call.pending() if tunables.PHOTO_IN_CALL else None
-        if back:
-            self._call_back(back)
+        if back and self._call_back(back):
+            return self._end(farewell=False, reason=STOP_ZERO_SURVIVORS)
         if first_words:
             # The caller already asked at the greeting: answer that, with no second hello.
             if self._turn(first_words) == "goodbye":

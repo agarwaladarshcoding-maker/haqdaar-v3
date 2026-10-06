@@ -245,8 +245,9 @@ def _api(path: str, data: dict[str, str] | None = None, opener: Any = None) -> d
         return json.loads(resp.read())
 
 
-def place_call(to_number: str, answer_url: str, opener: Any = None) -> str:
-    """Ask the line to ring `to_number`; when picked up it fetches `answer_url`. Returns call SID."""
+def place_call(to_number: str, answer_url: str, opener: Any = None, status_url: str = "") -> str:
+    """Ask the line to ring `to_number`; when picked up it fetches `answer_url`. Returns call SID.
+    `status_url`: the line posts there how the call ended (no-answer, busy, failed, canceled, completed)."""
     import os
 
     form = {
@@ -255,6 +256,9 @@ def place_call(to_number: str, answer_url: str, opener: Any = None) -> str:
         "Url": answer_url,
         "Method": "POST",
     }
+    if status_url:
+        form["StatusCallback"] = status_url
+        form["StatusCallbackMethod"] = "POST"
     if os.environ.get("CALL_RECORD", "").strip().lower() in ("1", "true", "yes", "on"):
         # 5 Oct: the sound cut on the phone while our own log showed none. The line's own record
         # of the call (caller on one side, us on the other) says on which side of it the cut is.

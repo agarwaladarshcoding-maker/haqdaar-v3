@@ -86,7 +86,8 @@ InboundEvent = Union[
 #   build_end_twiml(line_dropped=False) -> str the reply that ends the call
 #   request_is_signed(url, form, signature) -> bool            the request came from the provider
 #   number_answers_at() -> str                 where dial-ins go now; changes nothing
-#   place_call(to_number, answer_url, opener=None) -> str      ring a number; call id
+#   place_call(to_number, answer_url, opener=None, status_url="") -> str   ring a number; call id
+#                                              status_url: told how the call ended (no answer, busy, failed)
 #   point_number_at(answer_url) -> str         dial-ins go to answer_url; old url
 #   recent_calls(limit=5) -> list[dict]        newest first
 #   call_recording(call_sid="") -> (call id, WAV bytes)        the line's own sound record of a call
@@ -99,7 +100,7 @@ PROVIDER_FUNCTIONS: dict[str, tuple[str, ...]] = {
     "build_end_twiml": ("line_dropped",),
     "request_is_signed": ("url", "form", "signature"),
     "number_answers_at": (),
-    "place_call": ("to_number", "answer_url", "opener"),
+    "place_call": ("to_number", "answer_url", "opener", "status_url"),
     "point_number_at": ("answer_url",),
     "recent_calls": ("limit",),
     "call_recording": ("call_sid",),

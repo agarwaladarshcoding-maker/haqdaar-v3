@@ -11,6 +11,7 @@ then rings it with place_call. One call per file. A Mac call (no number) or no P
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import os
 import sys
@@ -19,6 +20,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Callable, Optional
 
+from haqdaar.contracts import tunables
 from haqdaar.photo import cases
 
 OLD_S = 30 * 60        # a file older than this is skipped (the call side skips it too)
@@ -36,16 +38,34 @@ def _live(url: str) -> bool:
         return False
 
 
-def _place(number: str, url: str) -> str:
+def _place(number: str, url: str, status_url: str = "") -> str:
     from haqdaar.audio.telephony import twilio
-    return twilio.place_call(number, url)
+    return twilio.place_call(number, url, status_url=status_url)
+
+
+def _send(token: str, why: str) -> Any:
+    from haqdaar.photo import back_msg
+    return back_msg.send(token, why)
+
+
+def _ask() -> int:
+    from haqdaar.photo import back_msg
+    return back_msg.ask_case()
+
+
+def _demo(token: str, choice: int) -> bool:
+    from haqdaar.photo import back_msg
+    return back_msg.demo_choice(token, choice)
 
 
 class PhotoBack:
     def __init__(self, dry: bool = False, now: Callable[[], float] = time.time, sleep: Callable[[float], None] = time.sleep,
                  place: Callable[[str, str], str] = _place, live: Callable[[str], bool] = _live,
-                 out: Callable[[str], None] = print, bell: Callable[[], None] = lambda: sys.stdout.write("\a")):
+                 out: Callable[[str], None] = print, bell: Callable[[], None] = lambda: sys.stdout.write("\a"),
+                 send: Callable[[str, str], Any] = _send, ask: Callable[[], int] = _ask,
+                 tty: Callable[[], bool] = lambda: sys.stdin.isatty(), demo: Callable[[str, int], bool] = _demo):
         self.dry, self.now, self.sleep, self.place, self.live, self.out, self.bell = dry, now, sleep, place, live, out, bell
+        self.send, self.ask, self.tty, self.demo = send, ask, tty, demo
         self.seen: set[tuple[str, float]] = set()
         self.last_placed = 0.0
 
@@ -78,6 +98,11 @@ class PhotoBack:
         if self.dry:
             self._say(f"(dry) would ring ***{tail} for case {token}")
             return
+        if tunables.PHOTO_BACK_ASK:                  # demo: which case to play
+            if not self.tty():
+                self._say("PHOTO_BACK_ASK is on but there is no terminal: playing case 1 (picked up)")
+            elif not self.demo(token, self.ask()):
+                return
         self.sleep(float(os.getenv("PHOTO_BACK_WAIT_S", "20")))     # a caller still on the line can hang up
         while self.last_placed and self.now() - self.last_placed < SPACE_S:
             self.sleep(2)
@@ -85,7 +110,7 @@ class PhotoBack:
             self.sleep(2)
         for attempt in (1, 2):
             try:
-                sid = self.place(number, url)
+                sid = self._ring(number, url, token)
                 self.last_placed = self.now()
                 self._say(f"case {token} ***{tail} call {sid}")
                 return
@@ -93,6 +118,14 @@ class PhotoBack:
                 self._say(f"case {token} ***{tail}: the call failed ({type(exc).__name__})" + (", trying once more" if attempt == 1 else ", giving up"))
                 if attempt == 1:
                     self.sleep(RETRY_S)
+        self.send(token, "ring failed")              # the call never started: the answer goes by SMS
+
+    def _ring(self, number: str, url: str, token: str) -> str:
+        """Place the call; the line tells /back-status how it ended. A `place` that takes two arguments gets two."""
+        if len(inspect.signature(self.place).parameters) < 3:
+            return self.place(number, url)
+        p = urllib.parse.urlsplit(url)
+        return self.place(number, url, f"{p.scheme}://{p.netloc}/back-status?token={urllib.parse.quote(token, safe='')}")
 
 
 def main(argv: Optional[list[str]] = None) -> None:

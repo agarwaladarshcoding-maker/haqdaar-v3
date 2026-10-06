@@ -20,6 +20,7 @@ h1{font-size:13px;letter-spacing:1px;color:#788b9c;margin-bottom:10px}
 .note{margin:0 8px;background:var(--fg);color:var(--lcd);border-radius:6px;padding:8px;font-size:10px;line-height:1.35;display:none}
 .note.on{display:block;animation:ring .5s 3}
 .note b{display:block;font-size:11px;margin-bottom:3px}
+#note2{margin-top:6px}
 @keyframes ring{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 .soft{margin-top:auto;border-top:1px solid var(--fg);display:flex;justify-content:space-between;padding:2px 6px;font-size:9px}
 #msg{display:none;height:100%;align-items:center;justify-content:center;text-align:center;padding:14px;font-size:12px;font-weight:900}
@@ -60,6 +61,7 @@ button{cursor:pointer;font-family:inherit}
       <div class="bar"><span id="net">|||| 4G</span><span id="clk">12:00</span><span>[===]</span></div>
       <div class="clock" id="big">12:00</div><div class="date" id="date"></div>
       <div class="note" id="note"><b>&#9993; 1 NEW SMS · HAQDAAR</b><span id="txt"></span></div>
+      <div class="note" id="note2"><b>&#9993; 2nd SMS · HAQDAAR</b><span id="txt2"></span><br>[2] PLAY THE SOUND</div>
       <div class="soft"><span id="sl">MENU</span><span>[OK] OPEN</span></div>
     </div>
     <div id="msg"></div>
@@ -74,6 +76,7 @@ button{cursor:pointer;font-family:inherit}
 </div>
 <div class="tools">
   <button id="data" class="on">MOBILE DATA: ON</button>
+  <button id="play" style="display:none">&#9654; Play the sound</button>
   <button id="again">New SMS</button>
   <button id="home-btn">Home</button>
 </div>
@@ -99,6 +102,12 @@ if(',hi,mr,en,gu,ta,'.indexOf(','+c+',')>-1)LG=c;document.write('<script src="wo
   function show(m){mode=m;['home','msg','web','app'].forEach(function(i){$(i).style.display=(i===m?(i==='home'||i==='web'?'flex':(i==='msg'?'flex':'block')):'none');});}
   function net(){$('net').innerText=data?'|||| 4G':'|||| NO DATA';$('data').className=data?'on':'off';$('data').innerText='MOBILE DATA: '+(data?'ON':'OFF');}
   function arrive(){if(!okLink){$('txt').innerText='';$('note').className='note';return;}$('txt').innerText=TEXT.slice(0,92)+'..';$('note').className='note on';beep(1000,.12);setTimeout(function(){beep(1300,.12);},180);}
+  // The call-back did not reach the caller: the answer comes as a second SMS with a link to its sound.
+  var tok=(link.match(/\/p\/([A-Za-z0-9]+)$/)||[])[1],MSG=null;
+  function poll(){if(!okLink||MSG)return;fetch(link.replace(/\/p\/[^\/]+$/,'/m/'+tok+'.json')).then(function(r){return r.ok?r.json():null;}).then(function(m){if(m&&m.ok&&!MSG){MSG=m;arrive2();}}).catch(function(){});}
+  function arrive2(){var t=MSG.text||'';$('txt2').innerText=t.slice(0,110)+(t.length>110?'..':'');$('note2').className='note on';if(MSG.link)$('play').style.display='';beep(1000,.12);setTimeout(function(){beep(1300,.12);},180);}
+  function play(){if(MSG&&MSG.link){try{new Audio(MSG.link).play();}catch(e){}}}
+  setInterval(poll,3000);
   function open(){
     if(mode!=='home'||!okLink)return;beep(900,.05);
     if(data){$('url').innerText=link.replace(/^https?:\/\//,'');$('site').src='index.html?embed=1&web='+encodeURIComponent(link)+LQ;show('web');}
@@ -109,12 +118,13 @@ if(',hi,mr,en,gu,ta,'.indexOf(','+c+',')>-1)LG=c;document.write('<script src="wo
   function key(k){
     beep(700,.03);
     if(k==='End'||k==='Escape'){home();return;}
-    if(mode==='home'){if(k==='Enter'||k==='SoftLeft'||k==='5')open();return;}
+    if(mode==='home'){if(k==='Enter'||k==='SoftLeft'||k==='5')open();else if(k==='2'||k==='SoftRight')play();return;}
     if(mode==='app'||mode==='web')$(mode==='app'?'app':'site').contentWindow.postMessage({hqkey:k},location.origin);
   }
   var g=$('grid');['1','2','3','4','5','6','7','8','9','*','0','#'].forEach(function(c){var b=document.createElement('button');b.className='k';b.innerText=c;b.dataset.k=c;g.appendChild(b);});
   document.querySelectorAll('[data-k]').forEach(function(b){b.onclick=function(){key(b.dataset.k);};});
   $('data').onclick=function(){data=!data;net();};
+  $('play').onclick=play;
   $('again').onclick=function(){home();arrive();};$('home-btn').onclick=home;
   window.addEventListener('keydown',function(e){var k=e.key;if(['Enter','Escape','1','2','3','4','5','6','7','8','9','0','*','#','Backspace','ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].indexOf(k)>-1){e.preventDefault();key(k==='Backspace'?'Backspace':k);}});
   function fit(){var s=$('stage');s.style.zoom=1;var h=s.scrollHeight+12;s.style.zoom=Math.min(1,innerHeight/h);}

@@ -1220,6 +1220,30 @@ async def post_sms(request: Request):
                 return JSONResponse(status_code=200, content={"ok": False, "reply": f"ERR {e}"}, headers=_SMS_CORS)
     return JSONResponse(status_code=200, content={"ok": ok, "reply": reply}, headers=_SMS_CORS)
 
+# --- The answer by SMS (haqdaar/photo/back_msg.py): the call-back did not reach the caller. The sound of the
+# message is a file in PHOTO_DIR/sound; the demo phone page polls the JSON route for the message of its case.
+_TOKEN_OK = re.compile(r"[A-Za-z0-9]{1,40}")
+
+
+@photo_app.get("/s/{name}.wav")
+async def get_message_sound(name: str):
+    path = cases._base_dir() / "sound" / f"{name}.wav"
+    if not _TOKEN_OK.fullmatch(name) or not path.is_file():
+        return JSONResponse(status_code=404, content={"ok": False, "why": "not found"})
+    return Response(content=path.read_bytes(), media_type="audio/wav", headers=_SMS_CORS)
+
+
+@photo_app.get("/m/{name}.json")
+async def get_message(name: str):
+    from haqdaar.photo import back_msg
+
+    msg = back_msg.message(name) if _TOKEN_OK.fullmatch(name) else None
+    if msg is None:
+        return JSONResponse(status_code=404, content={"ok": False}, headers=_SMS_CORS)
+    return JSONResponse(status_code=200, content={"ok": True, "text": msg.get("text", ""), "link": msg.get("link", ""),
+                                                  "lang": msg.get("lang", "")}, headers=_SMS_CORS)
+
+
 # ==============================================================================
 # 2. DESK APP (port 8003, 127.0.0.1 only, Pass 4 Keyboard-driven)
 # ==============================================================================

@@ -88,6 +88,7 @@ PHOTO_RESULT_CHARS: int = int(os.environ.get("PHOTO_RESULT_CHARS", 1500))   # ca
 # The reader writes English; the desk adds one sentence in the case's language. On (with TALK_ONLY): each plain
 # English sentence goes through the translate step (1.4) for a caller of another language. Off: said as it is.
 PHOTO_BACK_TRANSLATE: bool = os.environ.get("PHOTO_BACK_TRANSLATE", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")
+PHOTO_BACK_ASK: bool = os.environ.get("PHOTO_BACK_ASK", "false").strip().lower() in ("1", "true", "yes", "on")   # demo only: when the answer is ready the terminal asks which case to play (1 picked up, 2 not picked up, 3 picked up but the call drops)
 QA_MAX_PER_CALL: int = int(os.environ.get("QA_MAX_PER_CALL", 5))
 QA_MAX_SCHEMES: int = int(os.environ.get("QA_MAX_SCHEMES", 4))
 QA_TIMEOUT_S: float = float(os.environ.get("QA_TIMEOUT_S", 4.0))
