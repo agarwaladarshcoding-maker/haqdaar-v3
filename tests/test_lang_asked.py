@@ -4,6 +4,7 @@ from haqdaar.audio import lang_words
 from haqdaar.audio.phone import PhoneAudio
 from haqdaar.contracts import tunables
 from haqdaar.contracts.types import Speech
+from haqdaar.prompts import talk as prompt
 
 from tests.test_lang_middle_talk import FakeTranslator, run  # noqa: F401  (fixture)
 from tests.test_talk import _say, corpus  # noqa: F401  (fixture)
@@ -50,10 +51,27 @@ def test_a_mention_alone_does_not_switch(run):
     assert audio.answers[-1] == ANSWER and audio.language == "en" and not getattr(audio, "lang_asked", "")
 
 
-def test_no_offer_when_the_model_does_not_write_english(run, monkeypatch):
-    monkeypatch.setattr(tunables, "ENGLISH_PIPE", False)        # the model writes Hindi itself
-    audio, client, _rows = run("hi", "English में बताओ", [_say("यह किसान परिवारों की योजना है।", lang="en")])
-    assert "The caller named a language" not in client.calls[0] and audio.language == "hi"
+def test_with_the_pipe_off_the_turn_that_names_a_language_is_worked_in_english(run, monkeypatch):
+    monkeypatch.setattr(tunables, "ENGLISH_PIPE", False)        # the model writes Hindi itself on other turns
+    built, real = [], prompt.build
+    monkeypatch.setattr(prompt, "build", lambda lang, *a: built.append(lang) or real(lang, *a))
+    audio, _client, _rows = run("hi", "English में बताओ", [_say(ANSWER, lang="en")])
+    assert built == ["en"] and audio.answers[-1] == ANSWER and audio.language == "en"
+    built.clear()
+    audio, _client, _rows = run("hi", "मराठी में बोलो", [_say(ANSWER, lang="mr")])
+    assert built == ["en"] and audio.answers[-1] == f"[mr] {ANSWER}" and audio.language == "mr"
+    built.clear()                                               # a mention: still Hindi, by the translate step
+    audio, _client, _rows = run("hi", "मैं English स्कूल में पढ़ा हूँ", [_say(ANSWER)])
+    assert built == ["en"] and audio.answers[-1] == f"[hi] {ANSWER}" and audio.language == "hi"
+
+
+def test_say_it_again_in_english_when_the_last_reply_was_written_in_hindi(run, monkeypatch):
+    monkeypatch.setattr(tunables, "ENGLISH_PIPE", False)
+    audio, client, _rows = run("hi", ["किसानों के लिए क्या है", "English में फिर से बोलो"],
+                               [_say("यह किसान परिवारों की योजना है।"), {"action": "repeat", "say": "", "lang": "en"},
+                                _say(ANSWER, lang="en")])
+    assert "Write your last reply again" in client.calls[-1]
+    assert audio.answers[-1] == ANSWER and audio.language == "en"
 
 
 def test_say_that_again_in_hindi_says_the_last_reply_in_hindi(run):

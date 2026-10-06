@@ -1977,3 +1977,8 @@ alone ("I studied in a Hindi school") does not switch. Works for all 11 Sarvam l
 en -> mr, hi -> ta, and a mention that must not switch). Full pytest 3251 passed, 1 failed
 (test_door_a quarantined slugs: fails in this side folder without the change too). talk-eval: 1355 calls,
 0 broken rules. **Not checked:** a real phone call with the real voice.
+
+**Later the same day.** The first build did not offer the switch when `ENGLISH_PIPE=false` and the caller spoke
+Hindi or Marathi (there the model writes Hindi itself, and translate only goes from English). Now a turn that
+names another language is always worked in English, so the ask works in both modes. Full pytest 3252 passed,
+1 failed (the same old test_door_a one). Checked with the fake model only.

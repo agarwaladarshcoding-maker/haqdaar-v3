@@ -172,6 +172,7 @@ class _Talk:
         self.keys_offered = self.back   # 3.5: once a call; a caller who has been in keys knows them
         self.heard: list[str] = []      # the caller's turns, oldest first
         self.last_say = ""
+        self._last_en = False                   # last_work is English (it can be said in another language)
         self.last_work = ""                     # the same reply in the model's English: last_say is the caller's language
         self.focus = ""                 # the scheme the talk is about now
         self.told: dict[str, set[str]] = {}  # scheme -> the parts of it already said (prompt.PARTS)
@@ -610,11 +611,12 @@ class _Talk:
             keep.append(prompt.FOLLOW["recap"].format(facts=", ".join(said_back)))
             note = " ".join([note, keep[-1]]).strip()
         work = self._work()                         # 1.4: "en" when the model works in English
-        # A language named in the caller's words: the model is told it may switch to it. Only when it
-        # writes English, which goes to any language; its Hindi or Marathi can not be turned.
-        can_lang = sorted(lang_words.languages_named(words) - {self.lang}) if work == "en" else []
+        # A language named in the caller's words: the model is told it may switch to it. That turn is
+        # worked in English even with the pipe off: only English can be turned into another language.
+        can_lang = sorted(lang_words.languages_named(words) - {self.lang})
         switched = False
         if can_lang:
+            work = "en"
             keep.append(prompt.LANG_NOTE.format(
                 names=", ".join(f'{lang_words.NAMES[c][0].title()} = "{c}"' for c in can_lang)))
             note = " ".join([note, keep[-1]]).strip()
@@ -679,8 +681,12 @@ class _Talk:
                     ids += [s for s in ranked if s not in kind]
             nar, cards = self._state(ids)          # the facts may have changed the picker's answer
             self.left = nar.left
-            if action == "repeat" and switched and self.last_work:   # "say that in Hindi": the last reply, in it
-                return "answer", self._to_caller(self.last_work) if self.lang in NATIVE else self.last_work
+            if action == "repeat" and switched:    # "say that in Hindi": the last reply, in it
+                if self.last_work and self._last_en:
+                    return "answer", self._to_caller(self.last_work) if self.lang in NATIVE else self.last_work
+                if _try == 0:                       # the last reply was not written in English (pipe off)
+                    note = 'Write your last reply again in "say", in English, with the action "answer".'
+                    continue
             if action in ("not_for_me", "repeat", "goodbye"):
                 if action != "repeat":
                     self.last_asked = ""
@@ -786,7 +792,7 @@ class _Talk:
                     self._will_used = True
             else:
                 self.last_asked = ""
-            self.last_work = say
+            self.last_work, self._last_en = say, work == "en"
             if work != self.lang and self.lang in NATIVE:   # 1.4: the checked English reply, in the caller's
                 say = self._to_caller(say)                  # language; the fixed lines added below are theirs
             if action in ("answer", "show_scheme") and self.more_needs and say:
