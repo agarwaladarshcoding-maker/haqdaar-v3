@@ -17,6 +17,7 @@ import threading
 import time
 from typing import Any, Optional
 
+from haqdaar.audio import lang_words
 from haqdaar.audio.turn import real_words  # noqa: F401  (call.py reaches it here: it imports no audio module)
 from haqdaar.contracts import tunables, vocab
 from haqdaar.contracts.log_schema import (
@@ -348,6 +349,18 @@ class _Talk:
         if self.lang in cases.VALID_LANGS and self.lang not in self.langs_spoken and len(self.langs_spoken) < 4:
             self.langs_spoken.append(self.lang)
 
+    def _switch_lang(self, new: str) -> None:
+        """The caller asked for a language in words and the model set "lang": the text and the voice
+        change now, and the ear's own guess no longer moves it (phone._follow_language)."""
+        log = getattr(self.audio, "_log", None)
+        if callable(log):
+            log(f"<- talk: language {self.lang} -> {new} (asked in words)")
+        self.lang = new
+        if hasattr(self.audio, "language"):
+            self.audio.language = new
+            self.audio.lang_asked = new
+        self._note_lang()
+
     def _work(self) -> str:
         """1.4: the language the model reads, writes and is checked in. English when the pipe is on
         (D1), and always for a language the talk has no words of its own in."""
@@ -597,6 +610,14 @@ class _Talk:
             keep.append(prompt.FOLLOW["recap"].format(facts=", ".join(said_back)))
             note = " ".join([note, keep[-1]]).strip()
         work = self._work()                         # 1.4: "en" when the model works in English
+        # A language named in the caller's words: the model is told it may switch to it. Only when it
+        # writes English, which goes to any language; its Hindi or Marathi can not be turned.
+        can_lang = sorted(lang_words.languages_named(words) - {self.lang}) if work == "en" else []
+        switched = False
+        if can_lang:
+            keep.append(prompt.LANG_NOTE.format(
+                names=", ".join(f'{lang_words.NAMES[c][0].title()} = "{c}"' for c in can_lang)))
+            note = " ".join([note, keep[-1]]).strip()
         for _try in (0, 1):
             if _try and keep:                       # a refused reply is tried again with the same asks
                 note = " ".join([note, *keep]).strip()
@@ -632,6 +653,10 @@ class _Talk:
                     self.bv[box] = UNASKED
             if data.get("just_tell") is True:       # 1.3b (P3.3): no more questions this call
                 self.just_tell = True
+            new_lang = str(data.get("lang") or "").strip().lower().split("-")[0]
+            if new_lang in can_lang and new_lang != self.lang:   # only a language the caller named this turn
+                self._switch_lang(new_lang)
+                switched = True
             if not self._refunded and _free_ask(self.last_asked, set(spot_filled) | set(filled)):
                 self._refunded = True               # 1.3 (A): they answered another box
                 if self.asked.get(self.last_asked, 0) <= 1:
@@ -654,6 +679,8 @@ class _Talk:
                     ids += [s for s in ranked if s not in kind]
             nar, cards = self._state(ids)          # the facts may have changed the picker's answer
             self.left = nar.left
+            if action == "repeat" and switched and self.last_work:   # "say that in Hindi": the last reply, in it
+                return "answer", self._to_caller(self.last_work) if self.lang in NATIVE else self.last_work
             if action in ("not_for_me", "repeat", "goodbye"):
                 if action != "repeat":
                     self.last_asked = ""

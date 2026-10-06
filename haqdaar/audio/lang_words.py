@@ -69,6 +69,12 @@ def language_from_words(text: str) -> Lang | None:
     return found.pop() if len(found) == 1 else None
 
 
+def languages_named(text: str) -> set[str]:
+    """Every language `text` names by its name ("Hindi", "मराठीत"), offered at the greeting or not."""
+    words = _NON_WORD.sub(" ", _plain(text)).split()
+    return {lang for lang, stems in _STEMS.items() if any(w.startswith(stems) for w in words)}
+
+
 # The code the speech service sends back ("hi-IN", "mr-IN", "en-IN"): the language of a caller who
 # spoke at the greeting without naming one. Any Sarvam language in NAMES is kept; any other code,
 # or none, is Hindi.

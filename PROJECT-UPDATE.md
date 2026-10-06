@@ -1958,3 +1958,22 @@ headphones, or the microphone hears the agent's own voice.
 - Asked next: is everything in `make full` now (talk, cut-in, keys, photo)? Yes. Keys (press 6 in the call, speak to go back to talk) and the photo part (link, hang-up, photo read, call-back) were already on in a `make full` call; cut-in was the one missing part and is now on with headphones. Checked by printing the switches the server runs with: all on.
 - Scripted calls with keys, the photo and cut-in together (7,470 calls, cut-in off and on): no rule broken. Committed and pushed on branch v5-full.
 - Before the owner's test: the three chart-4 files and the scheme pick list are now in the branch; nothing is left untracked. Every work branch is inside v5-full. `make full` was started once and hung up: desk, phone page and call all came up. Pushed (3404abe).
+
+## 6 Oct, about 11:00: the caller can ask for a language in words (branch lang-switch-tool)
+
+**Added.** A caller can now say "explain this in Hindi", "Marathi mein bolo", "can you speak Tamil" and the
+agent changes its language. The talk model decides: when the caller's words name a language, the model is
+told it may switch, and it adds `"lang": "hi"` to its answer. That same reply is already said in the new
+language, and the call stays in it.
+
+**Changed.** Before, the language followed only what the ear heard, so a request made in English stayed
+English. Now an asked language is held: the ear's guess does not move it back on the next turn. Asking for
+another language in words moves it again. "Say that again in Hindi" says the last reply in Hindi.
+
+**Safe side.** The model's choice is taken only if the caller named that language in this turn. A mention
+alone ("I studied in a Hindi school") does not switch. Works for all 11 Sarvam languages.
+
+**Checked.** 10 new tests. Real model (Groq), translate faked: 5 of 5 cases right (en -> hi, hi -> en,
+en -> mr, hi -> ta, and a mention that must not switch). Full pytest 3251 passed, 1 failed
+(test_door_a quarantined slugs: fails in this side folder without the change too). talk-eval: 1355 calls,
+0 broken rules. **Not checked:** a real phone call with the real voice.

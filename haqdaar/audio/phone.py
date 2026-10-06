@@ -81,6 +81,7 @@ class PhoneAudio:
             self.turn._log = self._log
         self._speak = speak   # text, lang -> mu-law bytes or None; live Sarvam when not given
         self.language: Lang = "hi"
+        self.lang_asked = ""    # a language the caller asked for in words: it stays (talk._switch_lang)
         self.first_words = ""   # words said at the greeting that start the talk: its first turn
         self.caller_number = ""  # the person's number, in memory for this call only (never logged)
         self._silence = 0
@@ -165,6 +166,8 @@ class PhoneAudio:
         """1.2: the reply goes out in the language the caller just spoke, not the one picked at
         the greeting. Short turns (under 3 real words) and languages the voice does not have keep
         the last language: the guess is weak on "haan" or "ok"."""
+        if getattr(self, "lang_asked", ""):   # asked for in words ("explain in Hindi"): the ear's guess
+            return inp                        # of the language they speak does not move it back
         if tunables.LANG_EACH_TURN and isinstance(inp, Speech) and real_words(inp.text) >= 3:
             heard = (inp.lang or "").strip().lower().split("-")[0]
             if heard in NAMES and heard != self.language:

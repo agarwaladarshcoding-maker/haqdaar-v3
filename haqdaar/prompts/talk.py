@@ -166,6 +166,12 @@ CUT_NOTE = ('The caller said the newest words WHILE you were still talking, and 
             'the action is "not_for_me": you will then go on from the sentence that was cut. If the caller asks '
             'you to wait or stop, or asks or tells you something, answer that.')
 
+# Added to the prompt of a turn whose words name a language the call is not in: the model may switch.
+LANG_NOTE = ('The caller named a language: {names}. If they ask you to speak, answer or explain in it, add '
+             '"lang": "<its code>" to the JSON: your reply is then said in that language, and the call stays '
+             'in it. Still write "say" in English, and answer what they asked. If they only mention the '
+             'language, leave "lang" out.')
+
 OTHER_TOPIC = {
     "en": "I can only help with government schemes. Tell me what help you need.",
     "hi": "मैं सिर्फ़ सरकारी योजनाओं के बारे में बता सकती हूँ। बताइए, आपको किस बात में मदद चाहिए।",
