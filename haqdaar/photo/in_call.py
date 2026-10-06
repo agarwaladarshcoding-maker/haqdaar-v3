@@ -16,7 +16,7 @@ from typing import Any, Callable, Optional
 from haqdaar.contracts import tunables
 from haqdaar.photo import cases
 
-SMS_TEXT = "Haqdaar: send your photo here: {link}"
+SMS_TEXT = "Haqdaar: send your photo here: {link} No internet? Open the Haqdaar app."
 
 
 def _sms(to_number: str, text: str) -> str:
@@ -34,6 +34,10 @@ def send_link(lang: str, langs: list[str], number: str,
     case = cases.new_case(lang, number, **kw)
     link = cases.link(case)
     out: dict[str, Any] = {"token": case.token, "link": link, "sent": False, "why": ""}
+    if not number and tunables.PHOTO_SHOW_LINK:             # a Mac call: no SMS; the link is shown on the terminal
+        print(f"PHOTO LINK: {link}", flush=True)
+        out.update(sent=True, why="shown")
+        return out
     to = number or os.environ.get("CALL_ME_NUMBER", "")     # a Mac call has no number: the owner's own phone
     if not to:
         out["why"] = "no number"
@@ -80,6 +84,39 @@ def pending(now: Optional[float] = None) -> Optional[dict[str, Any]]:
         return None
     return {"token": token, "lang": str(data.get("lang") or case.lang), "say": str(data.get("say", "")),
             "bad": is_bad(case.finding)}
+
+
+def save_first_call(token: str, call_id: str, told: list[str]) -> bool:
+    """Step 2: keep what the call-back needs on the case. A save fault never stops the hangup (False, so it is logged)."""
+    try:
+        cases.set_first_call(token, call_id, told)
+        return True
+    except Exception:
+        return False
+
+
+def first_call_blocks(token: str) -> tuple[str, str]:
+    """Step 6: (what was said in the first call, what the photo shows), each capped, each its own text.
+    The first call is its log, found by the call id saved on the case. "" for a part that is not there; never raises."""
+    from pathlib import Path
+
+    from haqdaar.data import log_text
+
+    first = photo = ""
+    try:
+        case = cases.get(token)
+        if case is None:
+            return "", ""
+        cid = case.call_id
+        path = Path(tunables.CALL_LOGS_DIR) / f"{cid}.jsonl"
+        if cid and "/" not in cid and ".." not in cid and path.exists():
+            first = log_text.log_text(log_text.read_rows(path), tunables.PHOTO_FIRST_CHARS)
+        f = case.finding or {}
+        if not is_bad(f):
+            photo = "; ".join(x for x in (str(f.get("shows", "")).strip(), str(f.get("wrong", "")).strip()) if x)[:tunables.PHOTO_RESULT_CHARS]
+    except Exception:
+        pass
+    return first, photo
 
 
 def done(token: str, bad: bool) -> None:

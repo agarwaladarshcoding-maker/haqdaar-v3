@@ -22,6 +22,8 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 import uvicorn
 
+from haqdaar.contracts import tunables
+from haqdaar.keypad_sms.reassembler import SMSReassemblyManager, parse_sms_packet
 from haqdaar.photo import cases, reader
 
 PHOTO_PORT = int(os.getenv("PHOTO_PORT", "8002"))
@@ -1008,6 +1010,85 @@ async def post_done(token: str, request: Request):
     threading.Thread(target=_process_done, args=(token,), daemon=True).start()
     return JSONResponse(status_code=200, content={"ok": True})
 
+
+
+
+# --- Door 0 stand-in (Step 3): one SMS text at a time, the same text a real SMS gateway would hand over.
+# Everything below the route is real: join the pieces, cases.add_photo, then the same _process_done as Door 1.
+_sms = SMSReassemblyManager()
+_sms_done: set[tuple[str, int]] = set()       # photos already added (a double after the last piece is not added twice)
+_sms_stamp: dict[str, int] = {}               # token -> the newest piece's number; an idle timer only fires for the newest
+_sms_timer: dict[str, threading.Timer] = {}
+_sms_lock = threading.Lock()
+_SMS_CORS = {"Access-Control-Allow-Origin": "*"}   # the keypad app is a page on another port (make keypad-ui, :8080)
+
+
+def _sms_open_case() -> Optional[cases.Case]:
+    """One caller at a time: the newest case that still takes photos."""
+    for c in cases.open_cases():
+        if c.state in ("waiting", "photo"):
+            return c
+    return None
+
+
+def _sms_start_reading(token: str) -> None:
+    """The same three lines as /done."""
+    case = cases.get(token)
+    if case is None or case.state in ("reading", "read", "approved", "called") or not case.photos:
+        return
+    cases.mark_reading(token)
+    _log_state(token, "reading")
+    threading.Thread(target=_process_done, args=(token,), daemon=True).start()
+
+
+def _sms_idle(token: str, stamp: int) -> None:
+    with _sms_lock:
+        if _sms_stamp.get(token) != stamp:
+            return
+    _sms_start_reading(token)
+
+
+def _sms_touch(token: str) -> None:
+    with _sms_lock:
+        stamp = _sms_stamp[token] = _sms_stamp.get(token, 0) + 1
+        old = _sms_timer.pop(token, None)
+        if old:
+            old.cancel()
+        t = _sms_timer[token] = threading.Timer(tunables.SMS_DONE_S, _sms_idle, (token, stamp))
+        t.daemon = True
+        t.start()
+
+
+@photo_app.post("/sms")
+async def post_sms(request: Request):
+    if not tunables.SMS_DOOR:
+        return JSONResponse(status_code=404, content={"ok": False, "why": "not found"})
+    try:
+        body = await request.json()
+        text = str(body["text"])
+    except Exception:
+        return JSONResponse(status_code=400, content={"ok": False, "why": "need json with text"}, headers=_SMS_CORS)
+    case = _sms_open_case()
+    if case is None:                                  # no case is open: the piece is dropped
+        return JSONResponse(status_code=200, content={"ok": False, "reply": "ERR NO_CASE"}, headers=_SMS_CORS)
+    if text.strip().upper() == "H:DONE":              # the app's short last message
+        _sms_start_reading(case.token)
+        return JSONResponse(status_code=200, content={"ok": True, "reply": "DONE OK"}, headers=_SMS_CORS)
+    sender = str(body.get("sender") or case.number or case.token)   # shape (sender, text); never returned or logged
+    ok, reply, data = _sms.ingest_sms(sender, text)
+    if ok:
+        _sms_touch(case.token)
+    if ok and data is not None:
+        pkt = parse_sms_packet(text)                  # the photo is the message id; a double after the end adds nothing
+        key = (case.token, pkt.msg_id if pkt else -1)
+        if key not in _sms_done:
+            try:
+                cases.add_photo(case.token, data)
+                _sms_done.add(key)
+                _log_state(case.token, "photo")
+            except ValueError as e:
+                return JSONResponse(status_code=200, content={"ok": False, "reply": f"ERR {e}"}, headers=_SMS_CORS)
+    return JSONResponse(status_code=200, content={"ok": ok, "reply": reply}, headers=_SMS_CORS)
 
 # ==============================================================================
 # 2. DESK APP (port 8003, 127.0.0.1 only, Pass 4 Keyboard-driven)

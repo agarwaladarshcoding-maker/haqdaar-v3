@@ -238,6 +238,11 @@ PHOTO = {
         "mr": "हे हक्कदार आहे. मला तुमचा फोटो नीट दिसला नाही. कृपया पुन्हा पाठवा: दिवसाच्या उजेडात, जवळून आणि हात "
               "स्थिर ठेवून. तीच लिंक चालेल.",
     },
+    "bye": {   # Step 2: said when the call ends after the link. The Hindi and Marathi are not checked by a speaker.
+        "en": "I have sent a link by SMS. Send the photo. I will call you back.",
+        "hi": "मैंने एसएमएस से एक लिंक भेज दिया है। फ़ोटो भेज दीजिए। मैं आपको वापस फ़ोन करूँगी।",
+        "mr": "मी एसएमएसने एक लिंक पाठवली आहे. फोटो पाठवा. मी तुम्हाला परत फोन करेन.",
+    },
 }
 
 # 1.8 (B): fixed true lines about the line itself, said by code with no model call. The Hindi and Marathi
@@ -386,7 +391,8 @@ def _named(value: Any, lang: str) -> str:
 
 def build(lang: str, log_text: str, known: Mapping[str, Any], boxes: Mapping[str, Sequence[str]],
           ask: str | None, order: Sequence[str], schemes: Sequence[tuple[str, str, str]],
-          words: str, note: str = "", focus: str = "", told: Sequence[str] = ()) -> list[dict[str, str]]:
+          words: str, note: str = "", focus: str = "", told: Sequence[str] = (), first_call: str = "",
+          photo: str = "") -> list[dict[str, str]]:
     """schemes = (scheme id, mark, English card text), best first. `focus` = the scheme the talk
     is about now, `told` = the PARTS of it already said in this call."""
     box_lines = "\n".join(
@@ -411,7 +417,9 @@ def build(lang: str, log_text: str, known: Mapping[str, Any], boxes: Mapping[str
         f"NEXT QUESTION: {nxt}\n\n"
         f"SCHEMES (found for the caller's words; the mark says if it fits what we know):\n{cards}\n\n"
         f"SCHEME IN TALK: {in_talk}\n\n"
-        f"CALL LOG (oldest first):\n{log_text or '(empty)'}\n\n"
+        + (f"THE FIRST CALL, said by the caller and the line before the photo (do not ask again what is answered here):\n{first_call}\n\n" if first_call else "")
+        + (f"WHAT THE PHOTO SHOWS (read by a machine from the photo the caller sent; the caller did not say this):\n{photo}\n\n" if photo else "")
+        + f"CALL LOG (oldest first):\n{log_text or '(empty)'}\n\n"
         f"NEWEST CALLER WORDS: \"{words}\"\n"
     )
     if note:

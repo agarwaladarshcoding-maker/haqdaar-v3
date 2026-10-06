@@ -66,7 +66,7 @@ def test_send_sms_request(monkeypatch):
 def test_send_link_texts_the_callers_number(photo_dir, sms):
     out = in_call.send_link("en", ["en"], NUMBER)
     assert out["sent"] and out["link"].endswith("/p/" + out["token"])
-    assert sms[0][0] == NUMBER and sms[0][1] == f"Haqdaar: send your photo here: {out['link']}" and len(sms[0][1]) < 120
+    assert sms[0][0] == NUMBER and sms[0][1] == f"Haqdaar: send your photo here: {out['link']} No internet? Open the Haqdaar app." and len(sms[0][1]) < 120
     assert cases.get(out["token"]).lang == "en"
 
 
@@ -323,3 +323,168 @@ def test_photo_in_call_off_is_the_old_behaviour(call, monkeypatch, sms):
     assert [r["means"] for r in rows if r.get("ev") == "key" and r["key"] == "9"] == ["keys are off"]
     assert "There is a scheme." in audio.answers and not any("link" in a for a in audio.answers) and sms == [] and _photo_rows(rows) == []
     assert (cases._base_dir() / "next_call.json").exists()
+
+
+# --- Step 2: the call ends after the link (PHOTO_HANGUP) ---
+
+@pytest.fixture
+def hangup_on(monkeypatch):
+    monkeypatch.setattr(tunables, "PHOTO_HANGUP", True)
+
+
+def test_yes_hangs_up_and_saves_call_id_and_told(call, sms, hangup_on):
+    audio, client, rows = call(
+        [Speech("pension schemes"), Speech("can I send a photo"), Speech("yes"), Speech("and one more thing")],
+        [_say("There is a pension scheme.", scheme="pm-kisan")])
+    assert _said(audio) == "There is a pension scheme. " + P["offer"]["en"] + " " + P["bye"]["en"]
+    assert len(client.calls) == 1                   # the words after the link are never heard
+    assert [r["action"] for r in rows if r.get("ev") == "act"] == ["answer", "photo_offer", "goodbye"]
+    link = [r for r in _photo_rows(rows) if r["what"] == "link"][0]
+    got = cases.get(link["token"])
+    assert got.call_id == "photo_1" and got.told == ["pm-kisan"]
+
+
+def test_key_9_hangs_up(call, sms, hangup_on):
+    audio, client, rows = call([Digit("9"), Speech("pension schemes")], [_say("There is a pension scheme.")])
+    assert _said(audio) == P["bye"]["en"]
+    assert client.calls == []
+    assert [r["action"] for r in rows if r.get("ev") == "act"] == ["goodbye"]
+
+
+def test_no_sms_with_hangup_on_keeps_the_talk(call, hangup_on):
+    audio, client, rows = call(
+        [Speech("can I send a photo"), Speech("yes"), Speech("pension schemes")],
+        [_say("There is a pension scheme.")], number="")
+    assert _said(audio) == P["offer"]["en"] + " " + P["no_sms"]["en"] + " There is a pension scheme."
+    assert [r["what"] for r in _photo_rows(rows)] == ["offer", "no_sms"]
+    assert [r["action"] for r in rows if r.get("ev") == "act"] == ["photo_offer", "photo_link", "answer"]
+
+
+def test_hangup_off_the_talk_goes_on(call, sms, monkeypatch):
+    monkeypatch.setattr(tunables, "PHOTO_HANGUP", False)
+    audio, client, rows = call(
+        [Speech("can I send a photo"), Speech("yes"), Speech("pension schemes")],
+        [_say("There is a pension scheme.")])
+    assert _said(audio) == P["offer"]["en"] + " " + P["sent"]["en"] + " There is a pension scheme."
+    assert [r["action"] for r in rows if r.get("ev") == "act"] == ["photo_offer", "photo_link", "answer"]
+
+
+def test_case_without_first_call_fields_loads_empty(photo_dir):
+    token = "abcdefgh23"
+    (photo_dir / token).mkdir(parents=True)
+    (photo_dir / token / "case.json").write_text(json.dumps({
+        "token": token, "lang": "hi", "number": NUMBER, "made": 1700000000.0,
+        "state": "waiting", "photos": [], "finding": {}, "scheme": "", "say": ""}))
+    got = cases.get(token, now=1700000010.0)
+    assert got is not None and got.call_id == "" and got.told == []
+
+
+def test_mac_call_shows_the_link_and_sends_no_sms(photo_dir, sms, monkeypatch, capsys):
+    monkeypatch.setattr(tunables, "PHOTO_SHOW_LINK", True)
+    out = in_call.send_link("en", ["en"], "")
+    assert out["sent"] and out["why"] == "shown" and sms == []
+    assert capsys.readouterr().out == f"PHOTO LINK: {out['link']}\n"
+    assert cases.get(out["token"]) is not None
+
+
+def test_show_link_off_a_call_with_no_number_sends_nothing(photo_dir, sms, monkeypatch, capsys):
+    monkeypatch.setattr(tunables, "PHOTO_SHOW_LINK", False)
+    monkeypatch.delenv("CALL_ME_NUMBER", raising=False)
+    out = in_call.send_link("en", ["en"], "")
+    assert not out["sent"] and capsys.readouterr().out == ""
+
+
+# --- Step 6: the call-back knows the first call ---
+
+def test_call_back_model_reads_the_first_call_and_the_photo_in_own_blocks(call, photo_dir, tmp_path, monkeypatch, sms):
+    monkeypatch.setattr(tunables, "CALL_LOGS_DIR", str(tmp_path))
+    monkeypatch.setattr(tunables, "PHOTO_FIRST_CALL", True)
+    audio, client, rows = call([Speech("I am a farmer from Bihar and my wheat is yellow"), Hangup()], [_say("There is a crop scheme.")])
+    case = _ready()
+    cases.set_first_call(case.token, "photo_1", ["pm-kisan"])
+    audio2, client2, _ = call([Speech("what should I do")], [_say("Spray it.")])
+    asked = client2.calls[0]
+    first, photo, log = asked.index("THE FIRST CALL"), asked.index("WHAT THE PHOTO SHOWS"), asked.index("CALL LOG")
+    assert first < photo < log
+    assert "wheat is yellow" in asked[first:photo] and "a wall" in asked[photo:log] and "a wall" not in asked[first:photo]
+    assert "wheat is yellow" not in asked[log:]          # the old words sit only in their own block
+
+
+def test_no_first_call_blocks_when_the_flag_is_off_or_there_is_no_log(call, photo_dir, tmp_path, monkeypatch):
+    monkeypatch.setattr(tunables, "CALL_LOGS_DIR", str(tmp_path))
+    monkeypatch.setattr(tunables, "PHOTO_FIRST_CALL", False)
+    case = _ready()
+    cases.set_first_call(case.token, "photo_9", [])
+    _, client, _ = call([Speech("how are you")], [_say("Fine.")])
+    assert "THE FIRST CALL" not in client.calls[0] and "WHAT THE PHOTO SHOWS" not in client.calls[0]
+    monkeypatch.setattr(tunables, "PHOTO_FIRST_CALL", True)
+    case = _ready()
+    cases.set_first_call(case.token, "../x", [])
+    assert in_call.first_call_blocks(case.token)[0] == "" and in_call.first_call_blocks("nosuchtoken")[0] == ""
+    _, client, _ = call([Speech("how are you")], [_say("Fine.")])
+    assert "THE FIRST CALL" not in client.calls[0] and "WHAT THE PHOTO SHOWS" in client.calls[0]
+
+
+# --- Step 7: the whole path, both doors, with fakes (no phone, no SMS, no Muse) ---
+
+@pytest.mark.parametrize("door", ["web", "sms"])
+def test_whole_path_call_link_hangup_photo_read_callback_answer_talk_goes_on(call, photo_dir, tmp_path, monkeypatch, sms, door):
+    import base64, time
+    from fastapi.testclient import TestClient
+    from haqdaar.keypad_sms.reassembler import SMSReassemblyManager, calculate_crc8
+    from tools import photo_back, photo_desk
+
+    monkeypatch.setattr(tunables, "CALL_LOGS_DIR", str(tmp_path))
+    monkeypatch.setattr(tunables, "PHOTO_HANGUP", True)
+    monkeypatch.setattr(tunables, "PHOTO_FIRST_CALL", True)
+    monkeypatch.setattr(tunables, "SMS_DOOR", True)
+    monkeypatch.setattr(photo_desk, "_PHOTO_AUTO_RUNTIME", True)
+    monkeypatch.setattr(photo_desk, "_sms", SMSReassemblyManager())
+    monkeypatch.setattr(photo_desk.reader, "read", lambda photos, lang="en": {"shows": "yellow wheat leaves", "wrong": "rust", "sure": 0.9, "by": "muse", "search": ""})
+    monkeypatch.setattr(photo_desk, "pick_scheme", lambda search: ("", ""))
+    monkeypatch.setenv("PHOTO_BACK_URL", "https://line.example/answer")
+    monkeypatch.setenv("PHOTO_BACK_WAIT_S", "0")
+    jpeg = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00" + bytes(range(256)) + b"\xff\xd9"
+
+    # 1. the first call: a talk, then yes to a photo: one SMS, the line says goodbye, the call ends
+    audio, client, rows = call([Speech("my wheat is yellow, any scheme"), Speech("can I send a photo"), Speech("yes"), Speech("never heard")],
+                               [_say("There is a crop scheme.")])
+    assert _said(audio).endswith(P["bye"]["en"]) and len(client.calls) == 1 and len(sms) == 1
+    token = [r for r in _photo_rows(rows) if r["what"] == "link"][0]["token"]
+    assert cases.get(token).call_id == "photo_1"
+
+    # 2. the photo comes in by the web page, or by SMS pieces
+    if door == "web":
+        web = TestClient(photo_desk.photo_app)
+        assert web.post(f"/p/{token}/photo", content=jpeg).json()["ok"]
+        assert web.post(f"/p/{token}/done").json()["ok"]
+    else:
+        sms_client = TestClient(photo_desk.photo_app)
+        parts = [jpeg[i:i + 100] for i in range(0, len(jpeg), 100)]
+        for n, part in reversed(list(enumerate(parts, 1))):
+            text = f"H:00b2:{n}/{len(parts)}:{base64.b64encode(part).decode()}:{calculate_crc8(part):02x}"
+            assert sms_client.post("/sms", json={"text": text}).json()["ok"]
+        assert sms_client.post("/sms", json={"text": "H:DONE"}).json()["ok"]
+
+    # 3. read by the same path: the desk writes the answer file
+    for _ in range(150):
+        if (photo_dir / "next_call.json").exists():
+            break
+        time.sleep(0.02)
+    assert (photo_dir / "next_call.json").exists()
+
+    # 4. the line rings the caller back, once
+    placed = []
+    pb = photo_back.PhotoBack(place=lambda n, u: placed.append((n, u)) or "CA1", live=lambda u: False, sleep=lambda s: None, out=lambda s: None)
+    pb.look()
+    pb.look()
+    assert placed == [(NUMBER, "https://line.example/answer")]
+
+    # 5. the call-back: the answer first, the model knows the first call, the talk goes on
+    audio2, client2, rows2 = call([Speech("what should I do about it")], [_say("Spray it and come back.")])
+    said = _said(audio2)
+    assert said.startswith(P["back"]["en"]) and "yellow wheat leaves" in said and said.endswith("Spray it and come back.")
+    asked = client2.calls[0]
+    assert "my wheat is yellow" in asked[asked.index("THE FIRST CALL"):asked.index("WHAT THE PHOTO SHOWS")]
+    assert "yellow wheat leaves" in asked[asked.index("WHAT THE PHOTO SHOWS"):asked.index("CALL LOG")]
+    assert cases.get(token).state == "called" and not (photo_dir / "next_call.json").exists()

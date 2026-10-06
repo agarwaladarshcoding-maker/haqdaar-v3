@@ -585,3 +585,77 @@ Facts from the run (snapshot CURRENT, 17 schemes; kinds: farming 4, business_loa
 - Changed: prompts/talk.py SYSTEM, 3 rules in "Rules for say" (no sex-marked words about the caller; full spoken scheme name, never letters; an answer starts with what was asked). +76 words, so test_clarify_wire prompt-size cap 350 -> 450 tokens-ish (about +100 tokens a turn of ~3000). phone.py _follow_language: hi / mr / en switch at once; any other language needs the same code twice in a row (a one-off pa is logged "kept"). Tests: 1 changed, 1 new in test_step12_language.
 - NOT proved: the model keeping to the 3 new rules (no real-model call made: Groq budget); Sarvam may still pick a female form if a sentence has any verb about the caller. Check on the next Mac call.
 - Checks: full pytest 3150 passed; talk-eval ask 944 calls 0 broken; py_compile ok.
+
+
+## Phase 4 merge, Step 1 (6 Oct): Door 0 code brought in, no behaviour change
+- Worktree `~/code/haqdaar-v2-phase4`, branch `merge-phase-4` (from v5-clean 7513183).
+- Source: `origin/keypad-sms-uploader` commit `4ea0c3b`, taken by path
+  (`git checkout origin/keypad-sms-uploader -- <paths>`), not by merge.
+- Files: `haqdaar/keypad_sms/__init__.py`, `haqdaar/keypad_sms/reassembler.py`,
+  `keypad_app/index.html`, `keypad_app/manifest.json`, `keypad_app/manifest.webapp`,
+  `keypad_app/sw.js`, `tests/test_keypad_sms_reassembly.py`.
+- NOT taken: `.agent/NOTES.md`, `PROMPTS-KEYPAD-SMS.md` from that branch.
+- Makefile: only the 4-line `keypad-ui` target (+ `.PHONY` entry) added by hand
+  after `calls-ui`. That branch's Makefile is off old `main` — the rest of its
+  Makefile diff (dropped photo-desk/mac-call targets, 0.0.0.0 bind) was NOT taken.
+- `.venv` is a link to `~/code/haqdaar-v2/.venv` (same convention as the other
+  side folders). `audio` and `.env` are links too (fresh worktrees lack git-ignored
+  `audio/index.json`, which fails ~290 tests with CorpusError; NOT the change).
+- Checks: 7 keypad tests pass. Full pytest: 3123 passed, 1 failed =
+  `test_door_a quarantined slugs` (empty set here — the known side-folder data gap,
+  documented before; passes in the main folder). py_compile clean.
+- Step-1 `make talk-eval` ran ~45 min to completion, but its summary was not seen
+  (output went through `tail` in a background session). NOT claimed as green. Step 2's
+  talk-eval re-covers the same tree (the flag is off under talk-eval).
+
+## Phase 4 merge, Step 2 (6 Oct): the call ends after the link
+- Flag `PHOTO_HANGUP` (tunables.py): on when `PHOTO_IN_CALL` is on. Under pytest and
+  talk-eval it is off at import (no TALK_ONLY in env), so all old tests prove flag-off.
+- `_photo_link` (talk.py): after a freshly sent link with the flag on, saves the first
+  call on the case (`in_call.save_first_call`: token, `log.call_id`, sorted shown
+  schemes) and returns ("goodbye", PHOTO["bye"]) — the run loop's existing goodbye path
+  says it and `_end(farewell=True)`. SMS failed / "already" paths unchanged: talk goes on.
+- Key 9 (run loop): speaks the pair, ends the call only on "goodbye", else continues.
+- New prompt `PHOTO["bye"]` en/hi/mr (hi/mr mine, not speaker-checked). Case gains
+  `call_id` + `told`; old case.json files load with "" / [].
+- Assumption: "answers given so far" = `sorted(self.shown)` (schemes an answer was about).
+- Tests: 5 new in tests/test_photo_in_call.py (yes ends + saves, key 9 ends, no-SMS
+  keeps talk, flag-off keeps talk, old-case compat). Whole file: 53 passed.
+- Checks (6 Oct, second session finishing Step 2): 5 touched test files 120 passed;
+  py_compile clean (Makefile is not Python — not compiled). Full pytest: 3128 passed,
+  1 failed = test_door_a quarantined slugs; proved pre-existing by stash + rerun on the
+  base (fails there too; side-folder data gap, passes in the main folder). talk-eval
+  running in background, log /tmp/talkeval_step2.log.
+- Read of the diff: spoken-yes ends through the existing goodbye path (_photo_early ->
+  _photo_link returns ("goodbye", bye) -> _turn -> run loop _end); key 9 ends in its
+  own Digit branch. `self.log.call_id` is the Twilio CallSid on the live path
+  (server.py:331 Log.open(call_id=...)), so the saved call id finds the log.
+
+## Phase 4, Claude takes over (6 Oct ~04:30, owner: "you do the coding, not Muse")
+- Step 2 closed: save_first_call now returns False on a fault and `_photo_link` writes a photo row `save_failed` (before: silent). Muse's old talk-eval process died with no output; not claimed. Full talk-eval not rerun per step (45 min, does not exercise the hang-up); once at Step 7.
+- Step 3 done: tunables `SMS_DOOR` (off) and `SMS_DONE_S` (120). `tools/photo_desk.py`: `POST /sms` on photo_app (:8002), 404 with the flag off. Body `{"text", "sender"?}`; sender defaults to the open case's number (never returned or logged). Open case = newest case in state waiting/photo; none -> `ERR NO_CASE`, piece dropped. `H:DONE` = the app's last message. Every good piece restarts a 120 s idle timer; when it fires (or on DONE) the case goes to reading via the same three lines as /done and the same `_process_done`. Reply text = the reassembler's ACK/NACK. Doubles after the photo is whole add nothing (keyed by case + message id). The 6-photo / 5 MB limits come from `cases.add_photo`.
+- Tests: tests/test_sms_door.py (5): mixed order + double + late piece -> same bytes, goes to reading; idle timer; flag off 404; no case; bad piece, six-photo limit, no number in reply. Photo + keypad test files: 104 passed (mine). py_compile ok.
+- Known limits: the reassembler keeps sessions in memory (lost on restart); a photo is one SMS message id.
+- Next: Step 4 (shrink to <=10 SMS, show screens). Waiting for the owner's go per the plan's one-step rule.
+
+## Phase 4, Step 4 + Mac link (6 Oct ~05:00, Claude)
+- Step 3 full pytest (before step 4): 3133 passed, 1 failed = test_door_a quarantined slugs (known side-folder data gap).
+- SHRINK: `tools/sms_shrink.py` (same ladder as the app, PIL stands in for the phone canvas). LADDER (w,h,q): 96x72 q24, 80x60 q20, 72x54 q20, 64x48 q20, 64x48 q12, 48x36 q15, 40x30 q10; first one whose JPEG is <= 1050 bytes wins. CHUNK = 105 bytes (140 base64 letters + header = 155 chars, under 160; checked: JS pieces rebuild byte-equal in the Python reassembler). 5 real photos from ~/Downloads: all 10 SMS (983, 997, 1042, 1017, 1043 bytes), ending at 96x72 q24 / 80x60 q20 / 72x54 q20. Colour kept (crop colour matters). A JPEG header alone is ~400-600 bytes, so a 10-SMS photo is a thumbnail: OPEN POINT 1 of the brief stands, step 7 must show if Muse can read a crop from it. I did not raise the SMS count. NOT measured in a real phone browser (headless run not done): header there may be a little bigger; the ladder then falls one step.
+- APP (`keypad_app/index.html`, 19.4 KB, was 18.9): no more `sms:` links. Each SMS is POSTed (text/plain, no preflight) to `http://127.0.0.1:8002/sms` (override `?api=`); screen shows "SMS k OF N", the text head and "LINE: <reply>"; then `H:DONE`; SENT screen shows the line's last reply. `/sms` now sends `Access-Control-Allow-Origin: *`. Not run in a real browser here: JS parses (node), pieces checked in Python.
+- Link SMS text now: "Haqdaar: send your photo here: {link} No internet? Open the Haqdaar app." (test updated).
+- MAC LINK (owner's extra): flag `PHOTO_SHOW_LINK` (off by default; `tools/mac_call --serve` turns it on for its server). A call with no number: `send_link` prints `PHOTO LINK: <url>`, sends no SMS, returns sent=True (so the hang-up path runs). `mac_call.watch_photo_link` tails logs/mac-call-server.log, shows the link on the terminal, warns if :8002 is down ("make photo-desk"), and opens the link in the browser = the case's photo page /p/<token>. Before this a Mac call with CALL_ME_NUMBER set texted the owner for real; with the flag on it does not (show only). Tested with a fake log. NOT run in a real Mac call.
+- Tests added: test_sms_door (+3: CORS, page size / no outside file, shrink fits), test_photo_in_call (+2: show link, flag off).
+- Muse itself was NOT used for any photo read.
+
+## Phase 4, Step 4b: phone demo (6 Oct ~05:00)
+- `keypad_app/demo.html` (served by `make keypad-ui` on :8080): the keypad phone with a home screen. `?link=<photo page url>` makes an SMS notification arrive (the real SMS text). Click it or press OK: MOBILE DATA ON -> the link opens in a "browser" (iframe of the photo page /p/<token>); OFF -> "NO INTERNET" then the keypad app (`index.html?embed=1&api=<origin>/sms`) opens in the screen and sends the photo as SMS pieces to the stand-in route. Switch, "New SMS", "Home", END key. Extra URL options: `data=0`, `open=1` (auto-click, for screenshots).
+- `index.html` got `?embed=1` (no chassis) and a postMessage key listener (same origin only). 19.8 KB, still under 20.
+- `tools/mac_call.py`: when the server prints PHOTO LINK it opens `http://127.0.0.1:8080/demo.html?link=...` (falls back to the raw link and says so if :8080 is down).
+- Checked in headless Chrome (real engine): screenshots of all 3 states; data OFF driven by script: notification click -> app -> synthetic photo -> send -> pieces reached the route, case got 1 photo, went to reading. The desk had no Muse key so the read did not run (ledger Rs 0.00). Not tried on a real phone.
+
+## Phase 4, steps 5, 6, 7 (6 Oct ~05:15, Claude; owner said go on after the demo)
+- STEP 5: `tools/photo_back.py` + `make photo-back` (flags --once, --dry). Watches PHOTO_DIR/next_call.json; number from the case (memory only, last 2 digits printed); PHOTO_BACK_URL + number -> waits PHOTO_BACK_WAIT_S (20), waits while a call is live, then place_call; 2 tries 30 s apart; one call per file (token + made); files older than 30 min skipped; 10 min between calls; no number/no URL -> "answer is ready... make mac-call" + bell. New server route `GET /live` -> {"active": bool} (the call server's one-caller flag) so photo_back can wait; unreachable server counts as "not live". tests/test_photo_back.py: 8 tests. Dry run by hand printed: `(dry) would ring ***10 for case <token>`.
+- STEP 6: flag `PHOTO_FIRST_CALL` (on when PHOTO_HANGUP), caps `PHOTO_FIRST_CHARS` 600 (newest lines of the first call's log, found by case.call_id in CALL_LOGS_DIR) and `PHOTO_RESULT_CHARS` 300 (about 250 tokens in all, on top of ~3,000 a talk turn; one turn at ~3.3k tokens is far inside Groq's 8,000 a minute). `in_call.first_call_blocks(token)`; `_Talk._call_back` sets `first_call` / `photo_block`; `prompt.build(..., first_call, photo)` adds two own sections before CALL LOG: "THE FIRST CALL ... (do not ask again what is answered here)" and "WHAT THE PHOTO SHOWS (read by a machine ... the caller did not say this)". The first call's log lines carry the caller's answers (TURN n: answer box = value), so no new case field was needed; `told` is still saved. A bad photo adds no photo block. 2 tests with a fake model: the prompt of call 2 holds the first call's words only in their own block.
+- NOT done for step 6: the "tools/talk_probe" run. talk_probe is a real-phone-protocol probe (real Sarvam STT, model, voice), not a fake harness, and has no photo step; proof here is the fake-model prompt test. A real second call is for the owner's yes.
+- STEP 7 (fakes): `test_whole_path_...[web|sms]` in tests/test_photo_in_call.py: call 1 (talk, offer, yes) -> one SMS, goodbye, call ends, case holds call id -> photo by web page OR by SMS pieces (reverse order + H:DONE) -> the same `_process_done` (reader faked) -> next_call.json -> photo_back places one call to the case number -> call 2 opens with the answer, the model prompt holds the first call + photo blocks, the talk goes on, case ends "called". Both pass.
+- Muse: no real read, ledger Rs 0.00 all through. No real SMS, call or Twilio.
