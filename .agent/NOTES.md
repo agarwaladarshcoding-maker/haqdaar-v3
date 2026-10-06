@@ -824,3 +824,44 @@ Facts from the run (snapshot CURRENT, 17 schemes; kinds: farming 4, business_loa
 - SLIP (mine): to compare I ran `git stash` / `git stash pop` in the main folder. By then commit f45bf96 (cut-in + photo + call-back fix) had been made and ANOTHER session's uncommitted work was in the tree (haqdaar/audio/lang_words.py, phone.py, tests/test_lang_asked.py, .agent/NOTES-langtool.md). For about 5 minutes those changes were out of the tree. The pop went through clean (stash list empty, all 8 paths back). If that session ran tests in that window, its result may be wrong. Rule from now: compare with `git worktree add`, never stash in this folder.
 - CONFIRMED: the stash was the other session (its shell ran `git stash -q && talk_eval --script quiet ...; git stash pop -q`). My first full pytest hung at 0% CPU (code swapped under it), killed. Second run on the joined code: 3293 passed in 433 s (scratchpad pytest_joined.txt).
 - Merge commit made by writing MERGE_HEAD back; v5-full moved up to it (fast-forward). NOT pushed. The other session's `talk_eval --show 3542` (pid 81003) was still running then.
+
+## 6 Oct: M1 the cut (sms-photo worktree, off v5-full, not committed)
+- New: haqdaar/keypad_sms/share.py (share_parts: 20/12/10), haqdaar/keypad_sms/pack.py
+  (detail window, size ladder, make_header, stamp, check, cut_photo, parse_packet),
+  tools/sms_cut.py (prints size/bytes/parts/packets, writes sms_sheet.jpg),
+  tests/test_sms_pack.py (11 passed; plain test join lives in the test file for now).
+- Tunables added: SMS_PACKET_PARTS (5), SMS_JPEG_Q (45). Same style as SMS_DONE_S.
+- Ladder top is 192x144; a textured 1-photo cut reaches it well inside 20 parts.
+  A 3-photo cut lands at 128x96-144x108 (owner hoped ~100x75, we do a bit better).
+- No scratchpad/sms/p1-p3.jpg on this laptop, so tests make their own 3 seeded
+  pest-like photos with Pillow. No real photos, no phone, no cost.
+- dev "--" (unknown phone) holds "-", so the test's letter set keeps "-".
+  "-" is a plain GSM letter, fine on real SMS.
+- Old H: path untouched: test_sms_door + test_keypad_sms_reassembly + test_photo_in_call,
+  78 passed. keypad_app/ untouched.
+- Worktree links: .venv, .env, audio -> main folder (same as the -7.3 folder).
+
+## 6 Oct night: M1-M7 of the photo by SMS built by Claude in this worktree (owner: "do it on your own, Muse takes time, check it")
+- Found on arrival: a session (Muse) had made this worktree and finished M1 (pack.py, share.py, tests, sms_cut.py; 11 tests). I reviewed it, sped up `detail_window` (it walked every pixel: 2 s on 12 MP; now a 96 px copy), and went on from M2. It was waiting for "start M2": the owner must NOT send that to it, two builders in one folder would clash.
+- Explore agent: the helper desk (tools/photo_desk.py desk_app, port 8003) is ALREADY a human review: a case in state "read" waits there; Enter approves with the edited text and writes next_call.json (PHOTO_PENDING_S only counts from then). So M6 reused it. PHOTO_AUTO default true.
+- Checks: each module's tests, plus mutation checks (broke a lock / the wipe / the label / the hold / the note / the header compare / the flip rule on purpose; the tests failed each time; files restored and diffed). Existing 150 photo/desk/SMS tests stayed green after M2-M6.
+- Differences from the plan (also at the end of PLAN.md section 10): desk reused (no new page, no "needs a visit" button); the safety wipe is the existing 24 h sweep; the photo is a file while a case waits; settings SMS not sent for real (hook `_settings_sender` None); cases.MAX_PHOTOS left at 6.
+- Not verified: no real keypad phone (header, parts a packet), no real SMS gateway, no real Muse call (stand-in reader only), the desk page was not opened in a browser (the HTML test passes and the fields are tested).
+
+## 6 Oct ~15:15: first real try of the SMS photo door with the REAL Muse reader (owner: "route to Muse for photo analysis, let's try it")
+- The worktree had NO Muse ledger (data_cache/reports/muse_usage.jsonl missing), so `make muse-status` there said Rs 0 while the real total was Rs 13.08: the daily cap was blind. Fixed by symlinks to the main folder's muse_usage.jsonl and muse_block.json (data_cache is git-ignored, so nothing to commit). Any other worktree that runs Muse has the same gap.
+- Ports 8002/8003 were already held by another session's photo desk (pid 78583, not mine, left alone). Mine runs on PHOTO_PORT=8012 DESK_PORT=8013 (scratch PHOTO_DIR and REVIEW_LABELS_FILE in the scratchpad). New tool tools/sms_try.py plays the phone.
+- Result, p1 (pink bollworm in a boll, 1 photo, 176x132, 20 parts): Muse read it in ~11 s: "cut open fruit with a worm inside", sure 0.60 -> held for the desk (under 0.7). p2+p3 (two tomato late blight leaves, 112x84 and 128x96): "green leaves, parts brown, dried, damaged", sure 0.50 -> held. Neither named the disease or the crop. Cost Rs 0.02 for both (today Rs 0.13 of Rs 30).
+- So at the 0.7 line nearly every SMS photo of this size goes to a person. That is the design working; the counts from real answers will tell if 0.7 is too strict.
+
+## 6 Oct ~15:45: the owner opened http://172.20.10.2:8012 and saw {"detail":"Not Found"}
+- Not a fault: the public photo app has no page at "/" (test_photo_app_has_no_desk_routes insists "/" is 404/405, so I did NOT add a root page there). The start-up banner printed that address as if it were a page.
+- Fix: desk page GET /try (browser: pick 1-5 photos; it plays the phone: cuts to P: packets, posts them to the door at PHOTO_PORT, polls /cases for the reading) and POST /try (sync route; `_door_post` is the one function that talks to the door; tests patch it). Start-up banner now prints http://127.0.0.1:<desk>/try when SMS_DOOR is on. Errors in plain words: door off 409, unreadable photo 400, door down 502.
+- Checked: 3 new tests in tests/test_sms_handover.py; a real server on 8022/8023 with the stand-in reader: GET /try 200, two real photos posted, joined, held for the desk. The owner's own server (pid 28647 on 8012/8013) still has the OLD code: restart it.
+
+## 6 Oct ~16:30: before merging into v5-full: 3 checks (diff audit, live run on the web / old H: / new P: doors, full pytest) + an independent reviewer agent
+- v5-full had moved (d1ed4fb, call-back catch; its worktree ~/code/haqdaar-v2-callback, clean). Merged v5-full INTO sms-photo first: no conflicts.
+- Check 1 (diff audit): only SMS-door files differ from v5-full; keypad_app, reassembler.py, engine/, audio/, server.py, in_call.py, back_msg.py, photo_back.py, mac_call.py: zero diff. Lines of existing code that changed: the Makefile .PHONY line; reader.py (optional `note`, default same); photo_desk.py (imports; `reader.read` call; `if hold ... elif _is_photo_auto()`): non-SMS cases take the same path.
+- Check 2 (live, real Muse): web door -> read, approved; old H: door (956 byte photo, 10 pieces) -> read, approved ("very blurry"); new P: door (176x132) -> read, sure 0.75, approved by the model. Cost Rs 0.04.
+- Reviewer (read-only agent) found no old-path change and no deadlock, but real weaknesses in the NEW code. FIXED + tested (each fix also broken on purpose, test failed): a late double of a delivered photo made a new group and could be read into the NEXT caller's case (join.delivered, kept SMS_CASE_S); an identical re-send after a whole-photo failure was ignored (stamp no longer retired for lock 3/4); join groups / probe sessions / header pieces / probe timers / packet text length were unbounded (caps: 3*sent+2 tries a group, 64 probes, 5 parts a header piece, 64 timers, 2000 letters a P:/Q: text); stamp and negative step were not checked; one sender could flip a phone model's header (now each sender counts once); a 1x1 photo broke the cut; enlarge failing stranded a case in "reading"; disk faults in the hand-over could be a 500; a re-approve of an auto-answered case wrote a label.
+- NOT fixed, on purpose: the stand-in /sms route trusts the sender in the request body, so 16 forged senders can push a real group out (MAX_GROUPS) and anyone can post packets: the real gateway gives the true sender; `_process_done` still swallows all errors (old code); a lost photo is handed over at once, no retry window (the design: no per-piece retry); `_sms_meta` is written outside the lock (one loop thread, benign).

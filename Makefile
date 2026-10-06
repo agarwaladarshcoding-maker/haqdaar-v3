@@ -1,6 +1,6 @@
 PYTHON ?= $(shell if [ -f .venv/bin/python ]; then echo .venv/bin/python; else echo python3; fi)
 
-.PHONY: run call calls calls-ui keypad-ui photo-desk photo-back full full-stop sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me mac-call ear-check model-bakeoff muse-status muse-block muse-unblock barge-eval log-text stage-check door-a-check qa-check qa-router-check talk-eval talk-questions
+.PHONY: sms-door sms-try run call calls calls-ui keypad-ui photo-desk photo-back full full-stop sim test stress demo-fixture pipeline smoke pipeline-discover pipeline-scrape pipeline-extract pipeline-cards pipeline-translate pipeline-gates lines-sheet cards-sheet pipeline-texts pipeline-cost render listen listen-cards pace-samples snapshot backup call-me mac-call ear-check model-bakeoff muse-status muse-block muse-unblock barge-eval log-text stage-check door-a-check qa-check qa-router-check talk-eval talk-questions
 
 test:
 	$(PYTHON) -m pytest
@@ -38,6 +38,15 @@ keypad-ui:
 
 photo-desk:
 	$(PYTHON) -m tools.photo_desk
+
+# The SMS photo door, to try on this laptop (ports 8012 / 8013, so a desk already on 8002 / 8003 is left alone).
+# Terminal 1: make sms-door     Terminal 2: make sms-try PHOTOS="a.jpg b.jpg"   then open http://127.0.0.1:8013
+# Muse is the reader when MUSE_API_KEY is set (a few paise a case): run make muse-status first. PHOTO_READER=stand-in costs nothing.
+sms-door:
+	SMS_DOOR=true PHOTO_PORT=8012 DESK_PORT=8013 $(PYTHON) -m tools.photo_desk
+
+sms-try:
+	PHOTO_PORT=8012 DESK_PORT=8013 $(PYTHON) -m tools.sms_try $(PHOTOS)
 
 # Phase 4: rings the caller back when a photo answer is ready (needs PHOTO_BACK_URL).
 photo-back:

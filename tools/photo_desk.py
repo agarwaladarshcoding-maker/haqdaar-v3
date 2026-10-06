@@ -7,7 +7,9 @@ Starts two FastAPI apps:
 from __future__ import annotations
 
 import argparse
+import base64
 import html
+import io
 import json
 import os
 import re
@@ -15,17 +17,21 @@ import socket
 import sys
 import threading
 import time
+import urllib.request
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import Body, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 import uvicorn
 
 from haqdaar.contracts import tunables
+from haqdaar.keypad_sms import pack
+from haqdaar.keypad_sms.join import PhotoJoin
+from haqdaar.keypad_sms.probe import Probe
 from haqdaar.keypad_sms.reassembler import SMSReassemblyManager, parse_sms_packet
-from haqdaar.photo import cases, reader
+from haqdaar.photo import bands, cases, in_call, reader, review, sms_read
 
 PHOTO_PORT = int(os.getenv("PHOTO_PORT", "8002"))
 DESK_PORT = int(os.getenv("DESK_PORT", "8003"))
@@ -150,7 +156,18 @@ def _process_done(token: str) -> None:
                 pass
 
         lang = case.lang
-        finding = reader.read(photo_list, lang=lang)
+        meta = _sms_meta.get(token)                       # a case that came by P: packets (the join)
+        if meta:
+            big = []
+            for b in photo_list:
+                try:
+                    big.append(sms_read.enlarge(b))
+                except Exception:                         # a picture that can not be enlarged is read as it is
+                    big.append(b)
+            photo_list = big
+            finding = reader.read(photo_list, lang=lang, note=sms_read.READ_NOTE)
+        else:
+            finding = reader.read(photo_list, lang=lang)
         search_term = finding.get("search", "")
         scheme_id, scheme_name = pick_scheme(search_term)
 
@@ -179,13 +196,22 @@ def _process_done(token: str) -> None:
             if not say:
                 say = STAND_IN_SAY.get(lang, STAND_IN_SAY["en"])
 
+        hold = False
+        if meta:                                          # M5: the model answers, or a person does (the caller hears nothing of it)
+            info = dict(meta, sure=finding.get("sure"), reasons=bands.needs_person(finding, meta))
+            hold = bool(info["reasons"])
+            finding = {**finding, "sms": info}
         cases.set_finding(token, finding, scheme_id, say)
         _log_state(token, "read")
 
-        if _is_photo_auto():
+        if hold:
+            _log_state(token, "held for the desk: " + ",".join(info["reasons"]))
+        elif _is_photo_auto():
             c_approved = cases.approve(token, say)
             call_back(c_approved)
             _log_state(token, "approved")
+            if meta:
+                cases.wipe_photos(token)                  # nothing is kept once the model has answered
     except Exception:
         pass
 
@@ -1024,6 +1050,29 @@ _sms_done: set[tuple[str, int]] = set()       # photos already added (a double a
 _sms_stamp: dict[str, int] = {}               # token -> the newest piece's number; an idle timer only fires for the newest
 _sms_timer: dict[str, threading.Timer] = {}
 _sms_lock = threading.Lock()
+_pjoin = PhotoJoin()                          # the P: packets (haqdaar/keypad_sms/join.py); memory only
+_sms_meta: dict[str, dict] = {}               # token -> {sent, whole, widths} of a case that came by P: packets
+_ptimer: dict[str, threading.Timer] = {}
+_pstamp: dict[str, int] = {}
+_probe = Probe()                              # M7: the phone probe and the phone profile (haqdaar/keypad_sms/probe.py)
+_settings_sender = None                       # (to, text) -> None: the real SMS gateway is hooked here later; nothing is texted from this stand-in route
+_probe_timer: dict[tuple, threading.Timer] = {}
+
+
+def _probe_send(sender: str, text: Optional[str]) -> None:
+    if text and sender and _settings_sender:
+        try:
+            _settings_sender(sender, text)
+        except Exception:
+            pass
+
+
+def _probe_idle(sender: str, dev: str) -> None:
+    """The end packet of a probe was lost: read what came, keep the line, send the settings."""
+    with _sms_lock:
+        _probe_timer.pop((sender, dev), None)
+        text = _probe.finish(sender, dev)
+    _probe_send(sender, text)
 _SMS_CORS = {"Access-Control-Allow-Origin": "*"}   # the keypad app is a page on another port (make keypad-ui, :8080)
 
 
@@ -1063,6 +1112,60 @@ def _sms_touch(token: str) -> None:
         t.start()
 
 
+def _psms_touch(token: str, key: tuple) -> None:
+    """The idle wait restarts on each P: packet (SMS_IDLE_S); an idle timer only fires for the newest."""
+    with _sms_lock:
+        stamp = _pstamp[token] = _pstamp.get(token, 0) + 1
+        old = _ptimer.pop(token, None)
+        if old:
+            old.cancel()
+        t = _ptimer[token] = threading.Timer(tunables.SMS_IDLE_S, _psms_idle, (token, stamp, key))
+        t.daemon = True
+        t.start()
+
+
+def _psms_idle(token: str, stamp: int, key: tuple) -> None:
+    with _sms_lock:
+        if _pstamp.get(token) != stamp:
+            return
+    _psms_deliver(key, force=True)
+
+
+def _psms_deliver(key: tuple, force: bool = False) -> None:
+    """Every sent photo is whole or lost (or the idle time is up): hand the whole ones to the same reading as a web photo."""
+    with _sms_lock:
+        got = _pjoin.take(key, force=force)
+        if got is None:
+            return
+        old = _ptimer.pop(got.owner, None)
+        if old:
+            old.cancel()
+    token = got.owner
+    case = cases.get(token)
+    if case is None or case.state not in ("waiting", "photo"):
+        return
+    import io
+    from PIL import Image
+    widths, put = [], 0
+    for _place, jpeg in got.photos:
+        try:
+            cases.add_photo(token, jpeg)
+            widths.append(Image.open(io.BytesIO(jpeg)).size[0])
+            put += 1
+        except (ValueError, OSError):
+            pass
+    _sms_meta[token] = {"sent": got.sent, "whole": put, "widths": widths}
+    if put:
+        _sms_start_reading(token)
+    else:                                             # no photo came whole: a person answers from the caller's words
+        info = dict(_sms_meta[token], sure=0.0, reasons=bands.needs_person({}, _sms_meta[token]))
+        try:
+            cases.set_finding(token, {"shows": "", "wrong": "", "sure": 0.0, "search": "", "by": "sms: no photo came whole", "sms": info}, "", "")
+            _log_state(token, "held for the desk: " + ",".join(info["reasons"]))
+        except (ValueError, OSError):
+            pass
+
+
 @photo_app.post("/sms")
 async def post_sms(request: Request):
     if not tunables.SMS_DOOR:
@@ -1072,6 +1175,24 @@ async def post_sms(request: Request):
         text = str(body["text"])
     except Exception:
         return JSONResponse(status_code=400, content={"ok": False, "why": "need json with text"}, headers=_SMS_CORS)
+    if text[:2] in ("P:", "Q:") and len(text) > 2000:  # no SMS packet is this long (10 parts = 1530 letters)
+        return JSONResponse(status_code=200, content={"ok": False, "reply": "ERR BAD"}, headers=_SMS_CORS)
+    if text.startswith("Q:"):                         # a phone probe (a health centre, or a phone's first use): no case is needed
+        who = str(body.get("sender") or "")
+        with _sms_lock:
+            status, settings = _probe.add(who or "?", text)
+            bits = text.split(":")
+            key = (who or "?", bits[1] if len(bits) > 1 else "")
+            old = _probe_timer.pop(key, None)
+            if old:
+                old.cancel()
+            if status == "stored" and len(_probe_timer) < 64:
+                t = _probe_timer[key] = threading.Timer(tunables.SMS_IDLE_S, _probe_idle, key)
+                t.daemon = True
+                t.start()
+        _probe_send(who, settings)
+        content = {"ok": status != "bad", "reply": settings or ("ERR BAD" if status == "bad" else "OK")}
+        return JSONResponse(status_code=200, content=content, headers=_SMS_CORS)
     case = _sms_open_case()
     if case is None:                                  # no case is open: the piece is dropped
         return JSONResponse(status_code=200, content={"ok": False, "reply": "ERR NO_CASE"}, headers=_SMS_CORS)
@@ -1079,6 +1200,22 @@ async def post_sms(request: Request):
         _sms_start_reading(case.token)
         return JSONResponse(status_code=200, content={"ok": True, "reply": "DONE OK"}, headers=_SMS_CORS)
     sender = str(body.get("sender") or case.number or case.token)   # shape (sender, text); never returned or logged
+    if text.startswith("P:"):                         # the packets of the cut (haqdaar/keypad_sms/pack.py); H: goes the old way
+        with _sms_lock:
+            res = _pjoin.add(sender, text, owner=case.token)
+            ready = res.key is not None and _pjoin.ready(res.key)
+        if res.key is not None and res.status != "bad":
+            _psms_touch(case.token, res.key)
+        if ready:
+            _psms_deliver(res.key)
+        content = {"ok": res.status in ("stored", "dup", "photo", "ignored"), "reply": res.reply}
+        if res.status == "dropped" and res.lock == 4 and res.hdr == 0:      # the header was left out and the picture did not open
+            with _sms_lock:
+                settings = _probe.note_failure(res.dev, sender)
+            if settings:                              # the 2nd time for this phone code: tell it to send the header too
+                content["settings"] = settings
+                _probe_send(sender, settings)
+        return JSONResponse(status_code=200, content=content, headers=_SMS_CORS)
     ok, reply, data = _sms.ingest_sms(sender, text)
     if ok:
         _sms_touch(case.token)
@@ -1172,6 +1309,33 @@ def _case_step(state: str) -> str:
     return "link sent"
 
 
+def _sms_note(c: cases.Case) -> str:
+    """For the helper: how an SMS photo case came and why it waits for a person. "" for any other case."""
+    info = (c.finding or {}).get("sms")
+    if not info:
+        return ""
+    bits = [f"{info.get('whole', 0)} of {info.get('sent', 0)} photos came"]
+    if info.get("widths"):
+        bits.append("smallest " + str(min(info["widths"])) + " dots wide")
+    if info.get("sure") is not None:
+        bits.append(f"model sure {float(info['sure']):.2f}")
+    if info.get("reasons"):
+        bits.append("waits because: " + ", ".join(info["reasons"]))
+    return "; ".join(bits)
+
+
+def _sms_answered(token: str, before: Optional[cases.Case], answer: str, kind: str) -> None:
+    """A person answered a held SMS photo: keep the words as a label and wipe the pictures. Never raises."""
+    try:
+        info = ((before.finding if before else None) or {}).get("sms")
+        if not info or not info.get("reasons"):           # only a case a person was asked to answer
+            return
+        review.write_label(info, before.say if before else "", answer, kind)
+        cases.wipe_photos(token)
+    except Exception:
+        pass
+
+
 def _case_to_dict(c: cases.Case) -> dict[str, Any]:
     raw_tail = cases.number_tail(c)
     last2 = raw_tail[-2:] if len(raw_tail) >= 2 else raw_tail
@@ -1192,6 +1356,8 @@ def _case_to_dict(c: cases.Case) -> dict[str, Any]:
         "say": c.say,
         "photos": [f"/photo/{c.token}/{i}" for i in range(len(c.photos))],
         "is_stand_in": is_stand_in,
+        "note": _sms_note(c),
+        "first": in_call.first_call_blocks(c.token)[0] if (c.finding or {}).get("sms") else "",
     }
 
 
@@ -1414,6 +1580,8 @@ button:focus { outline: 3px solid #004488; outline-offset: 2px; }
     </div>
 
     <div class="field-line" id="shows-line"><strong>Saw:</strong> <span id="shows-text">-</span></div>
+    <div class="field-line" id="note-line" style="display:none;"><strong>SMS photo:</strong> <span id="note-text">-</span></div>
+    <div class="field-line" id="first-line" style="display:none;"><strong>Caller said:</strong> <span id="first-text">-</span></div>
     <div class="field-line" id="scheme-line"><strong>Scheme:</strong> <span id="scheme-text">-</span></div>
 
     <label for="say-box" class="textarea-label">Text to say:</label>
@@ -1536,6 +1704,10 @@ function renderUI() {
 
   document.getElementById("shows-text").textContent = activeCase.shows || "-";
   document.getElementById("scheme-text").textContent = activeCase.scheme || "-";
+  document.getElementById("note-line").style.display = activeCase.note ? "block" : "none";
+  document.getElementById("note-text").textContent = activeCase.note || "-";
+  document.getElementById("first-line").style.display = activeCase.first ? "block" : "none";
+  document.getElementById("first-text").textContent = activeCase.first || "-";
 
   // Text box: do not overwrite if user is typing in it
   if (!isEditing && document.activeElement !== sayBox) {
@@ -1875,10 +2047,12 @@ async def post_desk_approve(token: str, request: Request):
     if not token or not cases.TOKEN_RE.match(token):
         raise HTTPException(status_code=404, detail="Case not found")
     body_text = (await request.body()).decode("utf-8")
+    before = cases.get(token)
     try:
         case = cases.approve(token, body_text)
         call_back(case)
         _log_state(token, case.state)
+        _sms_answered(token, before, body_text, "approve")
         return JSONResponse(status_code=200, content={"ok": True, "state": case.state})
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -1901,13 +2075,106 @@ async def post_desk_save(token: str, request: Request):
 async def post_desk_not_clear(token: str):
     if not token or not cases.TOKEN_RE.match(token):
         raise HTTPException(status_code=404, detail="Case not found")
+    before = cases.get(token)
     try:
         case = cases.mark_not_clear(token)
         call_back(case)
         _log_state(token, case.state)
+        _sms_answered(token, before, "", "not_clear")
         return JSONResponse(status_code=200, content={"ok": True, "state": case.state, "wrong": case.finding.get("wrong")})
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+TRY_HTML = """<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Try a photo by SMS</title>
+<style>body{font:16px system-ui;max-width:40em;margin:2em auto;padding:0 1em}button{font-size:1em;padding:.5em 1em}
+pre{background:#eee;padding:.7em;white-space:pre-wrap}.hold{color:#a50}.ok{color:#070}</style>
+<h2>Try a photo by SMS</h2>
+<p>Pick 1 to 5 photos. This page plays a keypad phone: each photo is cut into numbered SMS packets, sent to the door,
+joined again, and read. <a href="/">Back to the desk</a></p>
+<input type="file" id="f" accept="image/*" multiple> <button id="go">Send as SMS</button>
+<pre id="out">Nothing sent yet.</pre>
+<script>
+const out = document.getElementById("out");
+function shrink(file){ return new Promise((ok, bad) => { const im = new Image(); im.onload = () => {
+  const k = Math.min(1, 1280 / Math.max(im.width, im.height)), c = document.createElement("canvas");
+  c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+  c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); ok(c.toDataURL("image/jpeg", 0.85)); };
+  im.onerror = bad; im.src = URL.createObjectURL(file); }); }
+document.getElementById("go").onclick = async () => {
+  const files = [...document.getElementById("f").files].slice(0, 5);
+  if (!files.length) { out.textContent = "Pick a photo first."; return; }
+  out.textContent = "Cutting and sending " + files.length + " photo(s)...";
+  try {
+    const photos = []; for (const f of files) photos.push(await shrink(f));
+    const r = await fetch("/try", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({photos})});
+    const j = await r.json(); if (!r.ok) { out.textContent = "Error: " + (j.detail || r.status); return; }
+    let head = "Sent " + j.cut.length + " photo(s):\n" + j.cut.map(c => "  photo " + c.place + ": " + c.w + "x" + c.h + ", " + c.parts + " SMS parts, " + c.packets + " packets").join("\n");
+    out.textContent = head + "\nWaiting for the reading...";
+    for (let i = 0; i < 100; i++) {
+      await new Promise(z => setTimeout(z, 2000));
+      const row = (await (await fetch("/cases")).json()).find(x => x.token === j.token);
+      if (row && ["read", "approved", "called"].includes(row.state)) {
+        out.innerHTML = ""; const t = document.createElement("span");
+        t.className = row.note.indexOf("waits because") >= 0 ? "hold" : "ok";
+        t.textContent = head + "\n\nSaw:   " + row.shows + "\nWrong: " + row.wrong + "\nSay:   " + row.say + "\nNote:  " +
+          (row.note || "(the model answered; nothing waits for a person)") +
+          (t.className === "hold" ? "\n\nThis case waits for a person: go back to the desk and press Enter to answer it." : "");
+        out.appendChild(t); return; }
+    }
+    out.textContent = head + "\nNo answer yet. Look at the desk.";
+  } catch (e) { out.textContent = "Error: " + e; }
+};
+</script>"""
+
+
+def _door_post(text: str) -> dict:
+    """Send one SMS text to this laptop's door, as the real SMS route would get it."""
+    req = urllib.request.Request(f"http://127.0.0.1:{PHOTO_PORT}/sms",
+                                 data=json.dumps({"text": text, "sender": "+910000000000"}).encode("utf-8"),
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+@desk_app.get("/try", response_class=HTMLResponse)
+async def get_try():
+    if not tunables.SMS_DOOR:                         # off unless the SMS door is on: nothing new is shown by default
+        raise HTTPException(status_code=404, detail="Not Found")
+    return HTMLResponse(TRY_HTML)
+
+
+@desk_app.post("/try")
+def post_try(payload: dict = Body(...)):
+    """Play the phone: make a case, cut the photos into P: packets, send them to the door. (A sync route: it waits on the door.)"""
+    from PIL import Image
+    if not tunables.SMS_DOOR:
+        raise HTTPException(status_code=409, detail="the SMS door is off: start it with SMS_DOOR=true (make sms-door)")
+    imgs = []
+    try:
+        for item in (payload.get("photos") or [])[:5]:
+            raw = base64.b64decode(str(item).split(",", 1)[-1])
+            imgs.append(Image.open(io.BytesIO(raw)).convert("RGB"))
+    except Exception:
+        raise HTTPException(status_code=400, detail="could not read a photo")
+    if not imgs:
+        raise HTTPException(status_code=400, detail="no photo")
+    try:
+        cut = pack.cut_case(imgs, "417")
+    except Exception:
+        raise HTTPException(status_code=400, detail="could not cut a photo")
+    case = cases.new_case("hi", "")
+    bad = 0
+    try:
+        for c in cut:
+            for pk in c["packets"]:
+                if not _door_post(pk).get("ok"):
+                    bad += 1
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"the door did not answer: {type(exc).__name__}")
+    return {"token": case.token, "bad": bad,
+            "cut": [{"place": c["place"], "w": c["w"], "h": c["h"], "parts": c["parts"], "packets": c["n"]} for c in cut]}
 
 
 @desk_app.post("/new")
@@ -1953,6 +2220,8 @@ def main():
 
     print(f"Photo app: http://0.0.0.0:{photo_port} (local: http://{local_ip}:{photo_port})")
     print(f"Desk app:  http://127.0.0.1:{desk_port}")
+    if tunables.SMS_DOOR:
+        print(f"SMS door is ON. Try a photo by SMS in your browser: http://127.0.0.1:{desk_port}/try  (the photo port {photo_port} has no page at /)")
 
     desk_thread = threading.Thread(
         target=uvicorn.run,
