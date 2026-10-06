@@ -262,6 +262,24 @@ def add_photo(token: str, data: bytes, folder: Path | str | None = None, now: fl
     return case
 
 
+def wipe_photos(token: str, folder: Path | str | None = None) -> Case:
+    """The photo files go and the list is emptied; the case keeps its words and its state."""
+    case = _get_raw(token, folder=folder)
+    if not token or not TOKEN_RE.match(token):
+        raise ValueError("case not found")
+    if case is None:
+        raise ValueError("case not found")
+    case_dir = _base_dir(folder) / token
+    for name in case.photos:
+        try:
+            (case_dir / name).unlink()
+        except OSError:
+            pass
+    case.photos = []
+    _save(case, folder)
+    return case
+
+
 def drop_photos(token: str, folder: Path | str | None = None, now: float | None = None) -> Case:
     case = _get_raw(token, folder=folder)
     if not token or not TOKEN_RE.match(token):

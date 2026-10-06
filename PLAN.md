@@ -516,3 +516,60 @@ What the agent then does (a step of its own, after Phase 1's gate):
    skips the tunnel.
 6. The line report of 1.0 is compared: laptop on a hotspot against the cloud server, five calls each.
 Until then: a phone hotspot or wired net, not the hall wifi.
+
+## 10. Photo by SMS: cut, join, hand to the photo model, a person when unsure (owner, 6 Oct night; PLAN ONLY; build on "start M<n>")
+The full build instructions for Muse are in `.agent/PROMPT-muse-sms-photo.md` (tag format, files, checks). This is the short plan.
+Who it is for: a caller with a keypad phone, no data, no browser, no smartphone near. Screens and flow stay as today;
+nothing is added for the caller. The government pays for the SMS. No ID photos.
+
+**In one line.** The phone shrinks each photo, leaves the JPEG header out, and sends it as numbered packets; the server
+joins each photo behind four locks, puts the header back, and hands the pictures to the photo model; when the model is not
+sure, a person answers in the back end and the caller gets that answer by the normal call-back. The caller is never told we
+could not do it.
+
+**The share (owner OK'd).** 1 photo 20 parts (about 150x110), 2 photos 12 each (about 112x84), 3 or more 10 each (about
+100x75). A case holds up to 5 photos (50 parts at most). A part is one SMS of 153 letters.
+
+**Four locks on the join.** (1) same case, same photo stamp, sender matches (or one open case: second SIM); (2) in order of
+packet number, all there, a double with other bytes drops the photo; (3) length and a 6 letter check of the whole photo; (4) with
+the header put back, the whole picture decodes strictly to the stated size. A failed photo is dropped alone. The wait restarts
+on each packet (3 minutes idle, 30 minutes a case).
+
+**Who answers.** The model, unless: its `sure` is under the line (first guess 0.7), a picture is narrower than 104 dots, not
+all sent photos came whole, or none came. Then a person (health centre or farm officer) sees the pictures, the model's guess
+and the caller's words and answers: same as the model / needs a visit / a typed answer. There is no timeout message to the caller;
+the case waits. Pictures wait only for the person, then are wiped (at the latest after 7 days); only words are kept as labels, and
+the per-size counts of "the person agreed" tell the owner where to set the line by hand.
+
+**The phone probe.** At the health centre (and by the phone itself on first use) test packets of 1 to 20 parts show, for each
+phone model, whether its JPEG header can be left out and how many parts one SMS may have; the server sends the setting back by
+one short SMS. Safe default: header on, 5 parts, one at a time.
+
+**Steps (Muse builds one at a time, stops and reports after each; none needs a phone or money).**
+M1 the cut (laptop) · M2 the join (four locks) · M3 the share rule and the cap of 5 photos · M4 the hand-over to the model (header
+back, enlarge, memory only) · M5 who answers (the lines above) · M6 the person's queue and page, labels and counts · M7 the
+phone probe and settings (simulated phones).
+**Later, not now:** high-stakes kinds always to a person; a second read by a second model; the line moving by itself; the phone
+app code and its probe mode; the first run on real phones at the health centre.
+**Not closed:** the model can still be wrong when it is sure (the person's answers measure how often); the probe covers only the
+models the staff reach (the rest use the safe default).
+
+### Built 6 Oct night (by Claude, in worktree ~/code/haqdaar-v2-smsphoto, branch sms-photo; not committed, not pushed)
+What was built, and where it differs from the plan above:
+- M1 `haqdaar/keypad_sms/pack.py`, `share.py`, `tools/sms_cut.py` (the cut). M2 `join.py` (the four locks) and the `P:` branch of `/sms` in
+  `tools/photo_desk.py`; the old `H:` door is untouched. M3 `share.max_parts`, `pack.cut_case` (cap 5, `SMS_MAX_PHOTOS`); `cases.MAX_PHOTOS`
+  (6) is already above 5, so it was not changed. M4 `haqdaar/photo/sms_read.py` (enlarge + the reader note; `reader.read(..., note=)`).
+  M5 `haqdaar/photo/bands.py`. M6 `haqdaar/photo/review.py`, `tools/review_counts.py`. M7 `haqdaar/keypad_sms/probe.py`.
+- The helper desk (port 8003) was already there, so M6 reuses it instead of a new page: a held case waits in state "read"; the desk shows two
+  new lines ("SMS photo": how many came, why it waits; "Caller said": the first call) and Enter (Call back) answers. "Same as the model" is
+  Enter with the text unchanged. There is no "needs a visit" button: the helper types that in the text box. "Not clear" still sends the
+  old "send a clearer one" and is the helper's own choice.
+- The safety wipe is the existing 24 hour sweep (`cases.sweep`), not 7 days: a case nobody answers in 24 hours is removed silently.
+- The join is in memory only. The case store is on disk, so a photo is a file under data_cache/photo/<case>/ while the case waits;
+  `cases.wipe_photos` removes it when the model or the person has answered. Labels (words only) go to logs/review_labels.jsonl.
+- No `PHOTO_AUTO` change: with auto off every case waits for the desk, as before. With no Muse key the reader is the stand-in (sure 0),
+  so every SMS photo waits for the desk.
+- The settings text `S:<hdr>:<parts>` is NOT texted for real: `photo_desk._settings_sender` is None until the SMS gateway is hooked in
+  (the stand-in route also returns it in its reply). Reason: the route takes the sender from the request body, so texting it blind
+  would let anyone make us text any number.
+- The packet's case field is any short string the phone picks (it only groups packets); the door still attaches to the newest open case.

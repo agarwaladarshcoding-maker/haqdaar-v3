@@ -172,7 +172,7 @@ def _detect_mime(data: bytes) -> str:
     return "image/jpeg"
 
 
-def _muse(photos: list[bytes], lang: str = "en", post: Any = None, ledger: Any = None) -> dict[str, Any]:
+def _muse(photos: list[bytes], lang: str = "en", post: Any = None, ledger: Any = None, note: str = "") -> dict[str, Any]:
     ledger_path = Path(ledger or muse.LEDGER)
 
     # 1. Money guard comes FIRST: no call is made
@@ -212,7 +212,7 @@ def _muse(photos: list[bytes], lang: str = "en", post: Any = None, ledger: Any =
         "reasoning_effort": "minimal",
         "response_format": {"type": "json_object"},
         "messages": [
-            {"role": "system", "content": SYSTEM},
+            {"role": "system", "content": SYSTEM + ("\n" + note if note else "")},
             {"role": "user", "content": user_content},
         ],
     }
@@ -317,7 +317,7 @@ READERS: dict[str, Callable[..., dict[str, Any]]] = {
 }
 
 
-def read(photos: list[bytes], lang: str = "en", post: Any = None, ledger: Any = None) -> dict[str, Any]:
+def read(photos: list[bytes], lang: str = "en", post: Any = None, ledger: Any = None, note: str = "") -> dict[str, Any]:
     dotenv.load_dotenv()
     mode = os.getenv("PHOTO_READER", "auto").strip()
     if mode == "auto":
@@ -336,7 +336,7 @@ def read(photos: list[bytes], lang: str = "en", post: Any = None, ledger: Any = 
 
     try:
         if reader_name == "muse":
-            raw_res = reader_fn(photos, lang, post=post, ledger=ledger)
+            raw_res = reader_fn(photos, lang, post=post, ledger=ledger, **({"note": note} if note else {}))
         else:
             raw_res = reader_fn(photos, lang)
         by = raw_res.get("by", reader_name)

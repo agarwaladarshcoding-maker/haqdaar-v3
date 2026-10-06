@@ -74,6 +74,13 @@ PHOTO_SURE_MIN: float = float(os.environ.get("PHOTO_SURE_MIN", 0.4))        # th
 PHOTO_SHOW_LINK: bool = os.environ.get("PHOTO_SHOW_LINK", "false").strip().lower() in ("1", "true", "yes", "on")   # a call with no number (Mac call): the link is printed (and opened by tools/mac_call), not texted
 SMS_DOOR: bool = os.environ.get("SMS_DOOR", "false").strip().lower() in ("1", "true", "yes", "on")   # Step 3: the stand-in SMS route on the photo page's server; off: the route answers 404
 SMS_DONE_S: float = float(os.environ.get("SMS_DONE_S", 120.0))              # Door 0: no new piece for this long counts as "done"
+SMS_PACKET_PARTS: int = int(os.environ.get("SMS_PACKET_PARTS", 5))          # M1: parts in one long SMS packet (a part = 153 letters)
+SMS_JPEG_Q: int = int(os.environ.get("SMS_JPEG_Q", 45))                     # M1: JPEG quality of the cut photo
+SMS_MAX_PHOTOS: int = int(os.environ.get("SMS_MAX_PHOTOS", 5))              # M3: photos in one case by the P: door (the web page keeps its own cap)
+SMS_IDLE_S: float = float(os.environ.get("SMS_IDLE_S", 180.0))             # M2: no new P: packet for this long counts as "done" (restarts on each packet)
+SMS_CASE_S: float = float(os.environ.get("SMS_CASE_S", 1800.0))            # M2: a case of P: packets is dropped this long after its first packet
+SMS_SURE_LINE: float = float(os.environ.get("SMS_SURE_LINE", 0.7))         # M5: a P: photo read less sure than this goes to a person, not to the caller
+SMS_SMALL_W: int = int(os.environ.get("SMS_SMALL_W", 104))                  # M5: a P: picture narrower than this (dots) goes to a person
 PHOTO_HANGUP: bool = os.environ.get("PHOTO_HANGUP", "true" if PHOTO_IN_CALL else "false").strip().lower() in ("1", "true", "yes", "on")   # Step 2: the call ends after the link is sent; off: the talk goes on
 PHOTO_FIRST_CALL: bool = os.environ.get("PHOTO_FIRST_CALL", "true" if PHOTO_HANGUP else "false").strip().lower() in ("1", "true", "yes", "on")   # Step 6: the call-back's model reads the first call and the photo result, each in its own block
 PHOTO_FIRST_CHARS: int = int(os.environ.get("PHOTO_FIRST_CHARS", 600))     # cap of the first call's text (newest lines kept): about 150 tokens of the 3,000 a talk turn already uses

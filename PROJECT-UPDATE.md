@@ -1998,3 +1998,28 @@ names another language is always worked in English, so the ask works in both mod
 - Checked: full tests on the joined code, 3293 passed. Not checked: a real call with a mic on the joined code.
 - Not pushed to GitHub yet.
 - Also looked for software that keeps only the caller's voice when other people talk nearby. Found, not tried: Krisp (paid), ai-coustics Voice Focus (30 days free), Hush (free, open). Nothing is wired in.
+
+## 6 Oct afternoon: M1 of the photo-by-SMS back end is built (worktree sms-photo, not committed)
+- The phone side of the cut is done: each photo is shrunk to the biggest size that fits
+  its share of SMS parts (20 for 1 photo, 12 each for 2, 10 each for 3 or more), cut into
+  short numbered packets, and tagged so the server can join them later.
+- Checked: cut then join gives the same bytes back; 1 photo reaches 144x108 or more;
+  the old SMS path still passes its 78 tests. Say "start M2" for the server-side join.
+
+### 6 Oct, night: the photo by SMS back end is built (M1 to M7), in the worktree `~/code/haqdaar-v2-smsphoto`, branch `sms-photo`; not committed, not pushed
+- Built and tested with a stand-in reader (no model, no money, no phone): the cut of a photo into numbered SMS packets, the join behind four locks, the share rule (20 / 12 / 10 parts, up to 5 photos), the hand-over to the photo reader (header put back, picture enlarged, the reader told it is tiny), who answers (the model, or a person on the helper desk), the label and the wipe, and the phone probe with its settings.
+- The caller is told nothing when a photo is unsure. A person answers on the desk that was already there; the call-back carries that answer. The pictures are wiped when the model or the person has answered.
+- Each lock and step was also broken on purpose to see that a test fails; each did.
+- Not done: the keypad app itself, a real phone, a real SMS gateway (the settings text is not texted yet), a real model call.
+- The project can now take a photo that comes by `P:` packets at the `/sms` route; the old `H:` way works as before.
+
+### 6 Oct, ~15:15: the SMS photo door was tried with the real Muse reader
+- Two cases were sent through the door as SMS packets and read by Muse: a bollworm in a cotton boll, and two tomato blight leaves. Muse took about 11 seconds a case and the two cases cost about 2 paise.
+- It saw "a worm in the fruit" and "brown, dried leaves" but did not name the pest or disease, and its own sureness was 0.6 and 0.5. Both went to the helper desk, as designed, and wait there. The caller would hear nothing until the helper answers.
+- Found and fixed: the worktree could not see the Muse spend, so the daily cap would not have counted it there. It now shares the main folder's ledger.
+- The project can do the same as before this entry.
+
+### 6 Oct, ~15:45: a browser page to try the SMS photo door
+- The owner opened the photo port in the browser and saw "Not Found". That port has no page; it only takes photos and SMS packets.
+- Added a page on the desk: `http://127.0.0.1:8013/try` (with `make sms-door`). Pick 1 to 5 photos; the page plays a keypad phone, sends them as SMS packets, and shows the reading and whether the case waits for a person. The start-up text now prints this address.
+- The project can do the same as before this entry.
