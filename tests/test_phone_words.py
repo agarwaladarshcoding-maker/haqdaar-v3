@@ -86,10 +86,13 @@ def test_sms_text_follows_the_main_language_and_holds_the_link(photo_dir, code):
     assert sent == [in_call.SMS_TEXTS[code].format(link=out["link"])] and out["link"] in sent[0]
 
 
-def test_sms_text_for_a_language_the_case_does_not_keep_is_the_cases_own(photo_dir):
+def test_sms_text_for_a_language_with_no_sms_words_is_english_and_the_case_keeps_the_language(photo_dir):
+    """6 Oct: the case keeps every Sarvam language (the call-back speaks it); the link SMS has 5 and falls to English."""
     sent = []
     out = in_call.send_link("bn", ["bn"], "+919999900001", sms=lambda to, text: sent.append(text))
-    assert cases.get(out["token"]).lang == "hi" and sent == [in_call.SMS_TEXTS["hi"].format(link=out["link"])]
+    assert cases.get(out["token"]).lang == "bn" and sent == [in_call.SMS_TEXT.format(link=out["link"])]
+    out = in_call.send_link("xx", ["xx"], "+919999900001", sms=lambda to, text: sent.append(text))
+    assert cases.get(out["token"]).lang == "hi"                     # not a Sarvam language: Hindi, as before
 
 
 def _watch(tmp_path, monkeypatch, line, demo_up=True):

@@ -1942,3 +1942,10 @@ headphones, or the microphone hears the agent's own voice.
 - Sarvam: the old key ran out of credits during the work; the owner's new key is in place and works.
 - Checks: full tests 3,240 passed. Real check: browser photo -> Muse -> answer -> the wait saw it. Muse cost today Rs 0.05.
 - Not done: the call-back heard with a real mic after these fixes; Gujarati and Tamil short names (only Hindi and Marathi are put back); a real phone number.
+- Pushed: branch v5-full is on GitHub. The wait for the photo answer in `make full` is now 1 minute (`make full BACK_WAIT=180` gives 3 minutes).
+
+## 6 Oct, later: no timer on the call-back; photo part open to every Sarvam language
+- `make full` no longer counts 60 seconds. After the call it shows where the photo is (waiting, came, sent and being read) and calls back the moment the answer is ready. Tried with a real photo: the call-back came 18 seconds after the start. Ctrl+C stops the wait.
+- Languages: the talk already works in all 11 languages Sarvam gives (Hindi, Marathi, English, Bengali, Gujarati, Kannada, Malayalam, Odia, Punjabi, Tamil, Telugu). The one part that cut callers down to 5 was the photo case; it now keeps any of the 11, so the call-back speaks the caller's own language.
+- Still in fewer languages, because they need made words or recorded sound: the greeting (5), the keys part (3), the words on the phone page and the link SMS (5; others see English).
+- Checks: full tests 3,241 passed. The long talk check has no result (it was stopped). No real call tried in the six newly kept languages.

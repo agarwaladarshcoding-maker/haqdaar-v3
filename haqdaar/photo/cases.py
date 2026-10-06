@@ -17,12 +17,16 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
+from haqdaar.contracts.types import SARVAM_CODES
+
 MAX_PHOTOS = 6
 MAX_BYTES = 5 * 1024 * 1024
 TTL_SECONDS = 24 * 3600
 TOKEN_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
 TOKEN_RE = re.compile(r"\A[a-z2-9]{10}\Z")
-VALID_LANGS = ("hi", "mr", "en", "gu", "ta")
+# Every language Sarvam gives (owner, 6 Oct: the talk is not held to 3 or 5 languages). The phone page and the
+# link SMS have words for hi mr en gu ta; the others see English there, and hear the call-back in their own language.
+VALID_LANGS = tuple(SARVAM_CODES)
 
 
 def _clean_langs(langs: Optional[list[str] | tuple[str, ...]] = None, lang: Optional[str] = None) -> list[str]:

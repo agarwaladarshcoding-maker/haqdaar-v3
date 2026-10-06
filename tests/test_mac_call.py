@@ -121,4 +121,17 @@ def test_wait_for_answer_gives_up_in_time(monkeypatch):
 
     monkeypatch.setattr(in_call, "pending", lambda: None)
     monkeypatch.setattr(mac_call.time, "sleep", lambda s: None)
-    assert mac_call.wait_for_answer(0) is False
+    assert mac_call.wait_for_answer(0.01) is False
+
+
+def test_wait_for_answer_has_no_clock_by_default(monkeypatch):
+    """Owner, 6 Oct: no 60 s timer. The call comes when the answer is ready, however long the photo takes."""
+    from haqdaar.photo import in_call
+    from tools import mac_call
+
+    now = [1000.0]
+    monkeypatch.setattr(mac_call.time, "time", lambda: now[0])
+    monkeypatch.setattr(mac_call.time, "sleep", lambda s: now.__setitem__(0, now[0] + 600))     # ten minutes a look
+    seen = iter([None] * 30 + [{"token": "t"}])
+    monkeypatch.setattr(in_call, "pending", lambda: next(seen))
+    assert mac_call.wait_for_answer() is True

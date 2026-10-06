@@ -132,22 +132,32 @@ def clock() -> str:
 
 
 LINK_SENT = threading.Event()               # a photo link went out in the call just made
+LINK = {"token": ""}                        # its case, to show where the photo is while we wait
 
 
-def wait_for_answer(wait_s: float, stop=None) -> bool:
-    """After a call that sent a photo link: wait here until the photo's answer is ready (make full).
-    True = ready, ring back now. False = no answer in time, or Ctrl+C."""
-    from haqdaar.photo import in_call
+def wait_for_answer(wait_s: float = 0, token: str = "") -> bool:
+    """After a call that sent a photo link (make full). No clock by default: wait for the photo to be sent,
+    then for the reading, and ring back the moment the answer is ready. wait_s > 0 puts a limit on it.
+    True = ready, ring back now. False = Ctrl+C, or the limit ran out."""
+    from haqdaar.photo import cases, in_call
 
-    say(f"\nwaiting for your photo (up to {int(wait_s)} seconds). When the answer is ready I call you back here. Ctrl+C stops.", "!")
-    end = time.time() + wait_s
+    steps = {"waiting": "waiting for your photo: pick it and press send on the phone (Ctrl+C stops)",
+             "photo": "the photo has come; waiting for send", "reading": "the photo is sent: it is being read now",
+             "read": "read; waiting for the helper desk to pass it (http://127.0.0.1:8003)"}
+    end = time.time() + wait_s if wait_s > 0 else None
+    shown = None
     try:
-        while time.time() < end and not (stop is not None and stop.is_set()):
+        while end is None or time.time() < end:
             if in_call.pending() is not None:
-                say("\a\nthe photo's answer is ready: calling you back in 3 seconds", "!")
-                time.sleep(3.0)
+                say("\a\nthe photo's answer is ready: calling you back now", "!")
+                time.sleep(1.0)
                 return True
-            time.sleep(1.0)
+            case = cases.get(token) if token else None
+            state = case.state if case is not None else "waiting"
+            if state != shown:
+                shown = state
+                say("\n" + steps.get(state, f"the photo case is now: {state}"), "!")
+            time.sleep(0.5)
     except KeyboardInterrupt:
         return False
     say("no photo answer came in time. Run  make full  again later to hear it.", "!")
@@ -168,8 +178,9 @@ def watch_photo_link(log_path: str, stop: threading.Event) -> None:
                 time.sleep(0.2)
                 continue
             if line.startswith("PHOTO LINK: "):
-                LINK_SENT.set()
                 url, _, langs = line[len("PHOTO LINK: "):].strip().partition(" LANGS: ")
+                LINK["token"] = url.rstrip("/").rsplit("/", 1)[-1]
+                LINK_SENT.set()
                 say(f"\nPHOTO LINK: {url}", "!")
                 try:
                     socket.create_connection(("127.0.0.1", 8002), timeout=0.5).close()
@@ -420,7 +431,7 @@ def main() -> None:
     ap.add_argument("--logs", default="logs/calls")
     ap.add_argument("--plain", action="store_true", help="no colour on the screen")
     ap.add_argument("--back", action="store_true", help="after a call that sent a photo link, wait for the answer and call back here")
-    ap.add_argument("--back-wait", type=float, default=900.0, help="seconds to wait for the photo's answer")
+    ap.add_argument("--back-wait", type=float, default=0.0, help="a limit in seconds on the wait for the photo's answer (0 = no limit)")
     args = ap.parse_args()
 
     if args.list_devices:
@@ -454,7 +465,7 @@ def main() -> None:
         # make full: the photo comes in after the call. Stay, and ring back here when its answer is ready.
         while args.back and LINK_SENT.is_set():
             LINK_SENT.clear()
-            if not wait_for_answer(args.back_wait):
+            if not wait_for_answer(args.back_wait, LINK["token"]):
                 break
             call_id = asyncio.run(call(url, device(args.in_device), device(args.out_device), args.logs))
     finally:

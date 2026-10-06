@@ -136,7 +136,8 @@ class _CallBackKeys(KeysAudio):
         self.picked = 0
 
 
-def test_languages_outside_the_five_take_no_slot(corpus, photo_dir, sms):  # noqa: F811
+def test_every_sarvam_language_takes_a_slot(corpus, photo_dir, sms):  # noqa: F811
+    """Owner, 6 Oct: the talk is not held to 5 languages. Before, bn / te / kn / pa were dropped here."""
     class A:
         language = "bn"
 
@@ -144,9 +145,15 @@ def test_languages_outside_the_five_take_no_slot(corpus, photo_dir, sms):  # noq
     for lang in ("te", "kn", "pa", "hi", "mr"):
         talk.lang = lang
         talk._note_lang()
-    assert talk.langs_spoken == ["hi", "mr"]
-    res = in_call.send_link("mr", talk.langs_spoken, NUMBER, sms=lambda to, text: "SM1")
-    assert set(cases.get(res["token"]).langs) == {"hi", "mr"}
+    assert talk.langs_spoken == ["bn", "te", "kn", "pa"]            # first use first, 4 at most
+    res = in_call.send_link("bn", talk.langs_spoken, NUMBER, sms=lambda to, text: "SM1")
+    case = cases.get(res["token"])
+    assert case.lang == "bn" and set(case.langs) == {"bn", "te", "kn", "pa"}
+
+    class B:
+        language = "xx"
+
+    assert talk_mod._Talk(B(), None, corpus, None, "xx", NamedIndex(FIRST_IDS)).langs_spoken == []   # not a Sarvam language
 
 
 # Step D: the photo answer in the caller's language; "send the link" is a photo ask.
