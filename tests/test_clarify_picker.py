@@ -48,7 +48,8 @@ def test_keys_keep_stopping_at_four(corpus):
     assert isinstance(act, Stop) and act.reason == STOP_LE_4_SURVIVORS
 
 
-def test_at_most_three_questions_a_call(corpus, tmp_path):
+def test_at_most_three_questions_a_call(corpus, tmp_path, monkeypatch):
+    monkeypatch.setattr(tunables, "TALK_ASK_FIRST", False)   # the fixed 3 is the switch-off rule; ask-first has a budget (test_ask_first.py)
     log = Log.open("maxq", corpus.snapshot_id, logs_dir=str(tmp_path))
     t = _Talk(SimpleNamespace(), None, corpus, log, "en", Index())
     t.asked = {"category": 1, "occupation": 1}
@@ -80,11 +81,16 @@ def test_asked_box_is_never_without_a_dependent_scheme(corpus):
         assert planner._box_splits_survivors(got.ask, surv, bv, sub), (ids, bv, got.ask)
 
 
-def test_tie_worst_then_average_then_easy_first(corpus):
+def test_tie_worst_then_average_then_easy_first(corpus, monkeypatch):
     """business_loans: occupation and age tie at worst 0 and on average, so the
-    fixed easy-first order asks occupation (work before age)."""
+    fixed easy-first order asks occupation (work before age). N5: with ask-first on, 3 schemes and a
+    mean cut under 1 are no question (small_cut); the tie rule is the switch-off path's."""
+    got = talk_pick.narrow(_all(corpus), _blank(category="business_loans"), corpus)
+    assert got.ask is None and got.stop == "small_cut"
+    monkeypatch.setattr(tunables, "TALK_ASK_FIRST", False)
     got = talk_pick.narrow(_all(corpus), _blank(category="business_loans"), corpus)
     assert got.ask == "occupation"
+    monkeypatch.undo()
     got = talk_pick.narrow(_all(corpus), _blank(category="pension"), corpus)
     assert got.ask == "age"  # age wins outright here: worst 2 left vs gender's 3
 
@@ -144,9 +150,10 @@ def test_question_count_rule(corpus, tmp_path):
     assert _free_ask("age", {"state"})              # asked age, told the state
 
 
-def test_three_unanswered_questions_then_schemes(corpus, tmp_path):
+def test_three_unanswered_questions_then_schemes(corpus, tmp_path, monkeypatch):
     """1.3b (A): three turns with no usable answer use up the questions;
     then the line shows schemes and asks nothing."""
+    monkeypatch.setattr(tunables, "TALK_ASK_FIRST", False)   # the fixed 3 is the switch-off rule; ask-first: test_ask_first.py
     from types import SimpleNamespace
     from haqdaar.data.log import Log
     from haqdaar.engine.talk import _Talk
@@ -304,15 +311,15 @@ SITUATIONS = [
     ("मेरे बच्चे की पढ़ाई के लिए", None),           # education holds nothing: say so plainly
     ("मैं विकलांग हूँ", None),                      # 2 left: show them
     ("गाँव में रोज़गार चाहिए", None),               # jobs are 2: show them
-    ("मुझे लोन चाहिए दुकान के लिए", "occupation"),
+    ("मुझे लोन चाहिए दुकान के लिए", None),                # N5: 3 business loans, a mean cut under 1: no question
     ("मैं बुनकर हूँ", "category"),
-    ("मुझे दुकान खोलने के लिए पैसे चाहिए", "occupation"),
+    ("मुझे दुकान खोलने के लिए पैसे चाहिए", None),                # N5: 3 business loans, a mean cut under 1: no question
     ("बारिश नहीं हुई, फसल सूख गई", "occupation"),
     ("मुझे ट्रैक्टर खरीदना है", "category"),
     ("मैं गर्भवती हूँ", None),                      # jsy1 + day-nrlm: show them
     ("मुझे पढ़ाई के लिए स्कॉलरशिप चाहिए", None),
     ("मुझे मकान बनाने के लिए पैसे चाहिए", None),
-    ("मुझे अपना छोटा कारोबार बढ़ाना है", "occupation"),
+    ("मुझे अपना छोटा कारोबार बढ़ाना है", None),                # N5: 3 business loans, a mean cut under 1: no question
     ("I need some help", "category"),
     ("i need a scheme for farming", "occupation"),
     ("my crops died", "occupation"),

@@ -162,13 +162,23 @@ def turn_masks(box_vector=None, corpus=None, *, vector=None):
     return _get_answered_masks(bv, corpus)
 
 
-def survivors(box_vector=None, corpus=None, *, vector=None):
+def _keys_only(indices, corpus, include_talk_only):
+    """The keys path never counts a scheme held for the talk only (it can not read it out), so its
+    short-list and questions are the same as with a snapshot without those schemes. The talk picker
+    works on a SubCorpus (no `_talk_only`) or asks for them, so it still counts them."""
+    held = getattr(corpus, "_talk_only", None)
+    if include_talk_only or not isinstance(held, frozenset) or not held:
+        return indices
+    return tuple(i for i in indices if i not in held)
+
+
+def survivors(box_vector=None, corpus=None, *, vector=None, include_talk_only=False):
     bv = box_vector if box_vector is not None else (vector or {})
     answered = _get_answered_masks(bv, corpus)
     total_schemes = _get_scheme_count(corpus)
     all_indices = tuple(range(total_schemes))
     if not answered:
-        return all_indices
+        return _keys_only(all_indices, corpus, include_talk_only)
 
     combined_mask = None
     for box, val, m in answered:
@@ -178,14 +188,11 @@ def survivors(box_vector=None, corpus=None, *, vector=None):
             combined_mask = combined_mask & m
 
     if combined_mask is None:
-        return all_indices
+        return _keys_only(all_indices, corpus, include_talk_only)
 
-    survs = []
-    for i in all_indices:
-        bit = 2**i
-        if bool(combined_mask & bit):
-            survs.append(i)
-    return tuple(survs)
+    # N5: read the bits of the one combined mask (the same places as testing 2**i for each scheme, far faster on 1,000+)
+    bits = format(combined_mask & ((1 << total_schemes) - 1), f"0{total_schemes}b")[::-1]
+    return _keys_only(tuple(i for i, c in enumerate(bits) if c == "1"), corpus, include_talk_only)
 
 
 def tally(box_vector=None, corpus=None, *, vector=None):
@@ -230,6 +237,8 @@ def speakable(scheme, box_vector=None, corpus=None, *, vector=None):
                     break
                 idx += 1
 
+    if isinstance(target, dict) and target.get("talk_only") is True:
+        return False         # N6: no recorded clips: the keys path can not read it out
     if isinstance(target, dict):
         for box in HARD_BOXES:
             s_val = target.get(box)
@@ -256,6 +265,9 @@ def speakable(scheme, box_vector=None, corpus=None, *, vector=None):
         return True
 
     if isinstance(target, int):
+        talk_only = getattr(corpus, "_talk_only", None)    # N6: a scheme held for the talk only is never speakable here
+        if isinstance(talk_only, frozenset) and target in talk_only:
+            return False
         bit = 2**target
         for box in HARD_BOXES:
             is_any = False
@@ -354,8 +366,8 @@ class Filter:
         return _get_answered_masks(bv, corpus)
 
     @staticmethod
-    def survivors(box_vector=None, corpus=None, *, vector=None):
-        return survivors(box_vector, corpus, vector=vector)
+    def survivors(box_vector=None, corpus=None, *, vector=None, include_talk_only=False):
+        return survivors(box_vector, corpus, vector=vector, include_talk_only=include_talk_only)
 
     @staticmethod
     def tally(box_vector=None, corpus=None, *, vector=None):

@@ -117,7 +117,7 @@ def test_a_second_scheme_named_in_a_two_scheme_reply_counts_as_shown(call):
 
 def test_any_other_offers_only_schemes_not_named_and_says_when_none_are_left(call):
     _, client, _ = call(
-        [Speech("some schemes"), Speech("any other?")],
+        [Speech("just tell me some schemes"), Speech("any other?")],   # ask-first does not list a long list; "just tell me" does
         [_say(TWO, action="show_scheme", scheme="ignwps"), _say("There is also a loan scheme.")])
     note = client.calls[1].split("NOTE: ")[1]
     left = re.findall(r"\[([\w-]+)\]", note.split("Name only: ")[1].split(". Do not")[0])

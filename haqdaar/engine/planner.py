@@ -121,6 +121,39 @@ def _is_scheme_non_any(scheme_ix: int, box: BoxId, corpus: Any) -> bool:
     return False
 
 
+def _worst_left(
+    box: BoxId,
+    survivors: Sequence[int],
+    box_vector: Mapping[BoxId, ValueCode],
+    corpus: Any,
+) -> int:
+    """The most schemes that can be left after any answer to box (N1: the talk shows it)."""
+    n = len(survivors)
+    surv_counts = [
+        len(Filter.survivors({**box_vector, box: v}, corpus))
+        for v in corpus.values(box)
+    ]
+    return max(surv_counts) if surv_counts else n
+
+
+def _expected_left(
+    box: BoxId,
+    survivors: Sequence[int],
+    box_vector: Mapping[BoxId, ValueCode],
+    corpus: Any,
+) -> float:
+    """N5: the mean schemes left over the answers the list can still give. A value no scheme left holds is
+    not an answer, and "do not know" is not one either. Worst-case minimax gives a box that only a few
+    schemes need a score of 0 (the schemes with no condition stay on every answer); this mean still sees it."""
+    counts = [
+        len(Filter.survivors({**box_vector, box: v}, corpus))
+        for v in corpus.values(box)
+        if v not in (UNASKED, UNKNOWN, "ANY")
+    ]
+    live = [c for c in counts if c]
+    return sum(live) / len(live) if live else float(len(survivors))
+
+
 def _minimax_score(
     box: BoxId,
     survivors: Sequence[int],
@@ -132,11 +165,7 @@ def _minimax_score(
     vals = corpus.values(box)
     if not vals:
         return 0.0
-    surv_counts = [
-        len(Filter.survivors({**box_vector, box: v}, corpus))
-        for v in vals
-    ]
-    max_remaining = max(surv_counts) if surv_counts else n
+    max_remaining = _worst_left(box, survivors, box_vector, corpus)
     elimination = n - max_remaining
     turns = _expected_turns(box, corpus)
     return elimination / turns
@@ -199,6 +228,8 @@ def _cap_stop(
     question_count: Optional[int],
     box_vector: Mapping[BoxId, ValueCode],
     corpus: Any,
+    max_questions: Optional[int] = None,
+    boxes: Sequence[BoxId] = SEVEN_BOXES,
 ) -> Optional[Stop]:
     """Return the Stop a budget cap forces, or None if there is room to ask."""
     if turn_count is not None and turn_count >= tunables.MAX_TURNS:
@@ -206,9 +237,9 @@ def _cap_stop(
     eff_q = (
         question_count
         if question_count is not None
-        else _inferred_questions(box_vector, corpus)
+        else _inferred_questions(box_vector, corpus, boxes)
     )
-    if eff_q >= tunables.MAX_QUESTIONS:
+    if eff_q >= (tunables.MAX_QUESTIONS if max_questions is None else max_questions):
         return Stop(STOP_MAX_QUESTIONS)
     return None
 
@@ -263,14 +294,20 @@ def _nearest_candidates(
     elif corpus is not None and hasattr(corpus, "scheme_id"):
         while corpus.scheme_id(total) != "":
             total += 1
+    held = getattr(corpus, "_talk_only", None)        # keys path: a talk-only scheme is never a nearest (SubCorpus has none)
+    held = held if isinstance(held, frozenset) else frozenset()
     return [
         ix
         for ix in range(total)
-        if not Filter.miss_set(box_vector, corpus, ix).intersection(HARD_BOXES)
+        if ix not in held and not Filter.miss_set(box_vector, corpus, ix).intersection(HARD_BOXES)
     ]
 
 
-def _inferred_questions(box_vector: Mapping[BoxId, ValueCode], corpus: Any) -> int:
+def _inferred_questions(
+    box_vector: Mapping[BoxId, ValueCode],
+    corpus: Any,
+    boxes: Sequence[BoxId] = SEVEN_BOXES,
+) -> int:
     """Count questions asked so far from box_vector (opener is turn 0, not question 0).
 
     Used only when question_count is omitted (e.g. offline tests or standalone calls).
@@ -279,7 +316,7 @@ def _inferred_questions(box_vector: Mapping[BoxId, ValueCode], corpus: Any) -> i
     actual runtime `question_count` explicitly.
     """
     count = 0
-    for b in SEVEN_BOXES:
+    for b in boxes:
         if b == "category":
             continue
         val = box_vector.get(b)
@@ -296,6 +333,8 @@ def next_action(
     question_count: Optional[int] = None,
     stop_survivors: Optional[int] = None,
     tie_break: str = "snapshot",
+    max_questions: Optional[int] = None,
+    boxes: Sequence[BoxId] = SEVEN_BOXES,
 ) -> Union[Ask, Widen, Stop]:
     """Determine next action for Haqdaar v2 questioning loop.
 
@@ -303,7 +342,10 @@ def next_action(
     `stop_survivors` moves the short-list stop (keys keep STOP_SURVIVORS; the
     talk loop asks down to 2). `tie_break="easy_first"` is the talk picker's
     PLAN 1.3 tie rule (fewer left on average, then easy-first order); every
-    other caller keeps snapshot-order ties.
+    other caller keeps snapshot-order ties. `max_questions` moves the question cap
+    (None = tunables.MAX_QUESTIONS: the keys path); the talk (N5) asks as many as the
+    picker finds worth it, so it lifts it. `boxes` is the list the question and the question count walk
+    (N6: the talk gives its wider list; the keys path keeps the seven; the hard-box rule stays on the seven).
     """
     stop_at = tunables.STOP_SURVIVORS if stop_survivors is None else stop_survivors
     surv = Filter.survivors(box_vector, corpus)
@@ -321,7 +363,7 @@ def next_action(
                 _nearest_candidates(box_vector, corpus), box_vector, corpus, tie_break
             )
             if gag is not None:
-                capped = _cap_stop(turn_count, question_count, box_vector, corpus)
+                capped = _cap_stop(turn_count, question_count, box_vector, corpus, max_questions, boxes)
                 return capped if capped is not None else Ask(gag)
             return Stop(STOP_ZERO_SURVIVORS)
 
@@ -333,7 +375,7 @@ def next_action(
             if len(widened) >= 1:
                 gag = _hard_box_to_ask_before_speaking(widened, box_vector, corpus, tie_break)
                 if gag is not None:
-                    capped = _cap_stop(turn_count, question_count, box_vector, corpus)
+                    capped = _cap_stop(turn_count, question_count, box_vector, corpus, max_questions, boxes)
                     return capped if capped is not None else Ask(gag)
                 speakable_widened = _filter_speakable(widened, test_vector, corpus)
                 if len(speakable_widened) >= 1:
@@ -345,7 +387,7 @@ def next_action(
             _nearest_candidates(box_vector, corpus), box_vector, corpus, tie_break
         )
         if gag is not None:
-            capped = _cap_stop(turn_count, question_count, box_vector, corpus)
+            capped = _cap_stop(turn_count, question_count, box_vector, corpus, max_questions, boxes)
             return capped if capped is not None else Ask(gag)
 
         return Stop(STOP_ZERO_SURVIVORS)
@@ -369,9 +411,9 @@ def next_action(
         eff_q = (
             question_count
             if question_count is not None
-            else _inferred_questions(box_vector, corpus)
+            else _inferred_questions(box_vector, corpus, boxes)
         )
-        if eff_q >= tunables.MAX_QUESTIONS:
+        if eff_q >= (tunables.MAX_QUESTIONS if max_questions is None else max_questions):
             return Stop(STOP_MAX_QUESTIONS)
 
         # Ask the qualifying hard box (ties per tie_break).
@@ -383,15 +425,15 @@ def next_action(
     eff_q = (
         question_count
         if question_count is not None
-        else _inferred_questions(box_vector, corpus)
+        else _inferred_questions(box_vector, corpus, boxes)
     )
-    if eff_q >= tunables.MAX_QUESTIONS:
+    if eff_q >= (tunables.MAX_QUESTIONS if max_questions is None else max_questions):
         return Stop(STOP_MAX_QUESTIONS)
 
     # 4. Filter askable boxes that split survivors
     askable_boxes = [
         b
-        for b in SEVEN_BOXES
+        for b in boxes
         if _is_askable(b, box_vector.get(b), corpus)
         and _box_splits_survivors(b, surv, box_vector, corpus)
     ]
@@ -415,6 +457,8 @@ class Planner:
         question_count: Optional[int] = None,
         stop_survivors: Optional[int] = None,
         tie_break: str = "snapshot",
+        max_questions: Optional[int] = None,
+        boxes: Sequence[BoxId] = SEVEN_BOXES,
     ) -> Union[Ask, Widen, Stop]:
         return next_action(
             box_vector,
@@ -423,4 +467,6 @@ class Planner:
             question_count=question_count,
             stop_survivors=stop_survivors,
             tie_break=tie_break,
+            max_questions=max_questions,
+            boxes=boxes,
         )

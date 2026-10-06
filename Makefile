@@ -95,6 +95,10 @@ demo-fixture:
 		$(PYTHON) -m haqdaar.sim --persona $$p --canned --call-id demo_$$p --logs-dir logs/demo || exit 1; \
 	done
 
+# 6 Oct: the team's schemes (data_cache/intake) -> checked rows + an ISOLATED snapshot in data_cache/intake/snaps (never snapshots/CURRENT). Free: no network, no model.
+intake:
+	$(PYTHON) -m tools.intake_build
+
 # Plan 3.1: every central scheme on myscheme -> data_cache/derived/candidates.csv (free).
 pipeline-discover:
 	$(PYTHON) -m haqdaar.data.pipeline.p0_discover

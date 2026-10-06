@@ -96,6 +96,7 @@ def test_english_is_never_translated(run, monkeypatch):
 @pytest.mark.parametrize("mode", ["bad", "twist"])
 def test_a_failed_or_wrong_translate_says_the_english_never_silence(run, monkeypatch, mode):
     monkeypatch.setattr(tunables, "ENGLISH_PIPE", True)
+    monkeypatch.setattr(tunables, "TALK_ASK_FIRST", False)   # about the translate step; ask-first gives no scheme text (so no "6000") on a long list
     say = "It gives 6000 rupees a year."
     FakeTranslator.mode = mode
     audio, _client, rows = run("ta", "money", [_say(say)])

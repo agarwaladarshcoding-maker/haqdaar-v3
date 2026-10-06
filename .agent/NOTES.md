@@ -824,3 +824,419 @@ Facts from the run (snapshot CURRENT, 17 schemes; kinds: farming 4, business_loa
 - SLIP (mine): to compare I ran `git stash` / `git stash pop` in the main folder. By then commit f45bf96 (cut-in + photo + call-back fix) had been made and ANOTHER session's uncommitted work was in the tree (haqdaar/audio/lang_words.py, phone.py, tests/test_lang_asked.py, .agent/NOTES-langtool.md). For about 5 minutes those changes were out of the tree. The pop went through clean (stash list empty, all 8 paths back). If that session ran tests in that window, its result may be wrong. Rule from now: compare with `git worktree add`, never stash in this folder.
 - CONFIRMED: the stash was the other session (its shell ran `git stash -q && talk_eval --script quiet ...; git stash pop -q`). My first full pytest hung at 0% CPU (code swapped under it), killed. Second run on the joined code: 3293 passed in 433 s (scratchpad pytest_joined.txt).
 - Merge commit made by writing MERGE_HEAD back; v5-full moved up to it (fast-forward). NOT pushed. The other session's `talk_eval --show 3542` (pid 81003) was still running then.
+
+## 6 Oct evening: narrowing plan (PLAN ONLY, no code changed). Facts from two explore agents, read from the code and data, not run as tests.
+Why the talk lists a whole kind today:
+- Bits are thin. Of 17 live schemes: state, social_category, income_band are ANY on all; gender set on 2; only category, occupation, age split. Run of talk_pick.narrow with only the kind set: farming 4 left (asks occupation; a farmer still has all 4), loans 3, pension 3, six other kinds <= 2 so nothing is asked.
+- talk_pick.py:118 stops asking at <= TALK_STOP_SCHEMES (2). tunables TALK_MAX_QUESTIONS 3.
+- No code stops the model from listing while a question stands (prompt text only, prompts/talk.py:93; the same prompt says show when "the caller asks which schemes there are", :43, :73).
+- With TALK_CHUNKS on, the parts the model sees come from a separate search (talk.py:286-336) that drops only "does not fit"; nar.left and SHOW_K are not applied. Nothing counts the schemes named in a reply.
+- Real conditions (widow, BPL, land, disability, village, pregnant) are free text in gate_notes, not bits. Talk never uses Filter.miss_set / nearest for a "why not"; the talk path never widens (talk_pick.py:123).
+- Keys in talk: only 9 (photo) and 6 (keys path); every other key is dropped (talk.py:1087). Keys path: a key answer is not said back and has no undo; a voice answer is read back with press 1 / press 2 (call.py:1263-1340).
+The schemes that are coming:
+- ~/code/haqdaar-v2-schemes (uncommitted): data_cache/derived/schemes.jsonl 94 rows, 93 of 124 picks (pick list: 13 domains, 147 rows). SAME row shape as today, no new field. 9 kinds used: welfare_disability 16, farming 14, business_loans 14, health 10, education 9, jobs 8, housing 8, pension 8, women_children 7.
+- 37 of 94 rows have gender, social group, age, income, occupation ALL ANY (farming 8 of 14). So with today's boxes a farming caller can never get under 8. 75 rows have gate_notes, 208 notes.
+- 23 picks sit in two domains; a row holds one category.
+Plan draft (told to the owner; waits for his OK):
+- A. Data: two new fixed fields per scheme: `gives` (cash / loan / insurance / machine-subsidy / training / pension / house / health cover / scholarship ...) and `facts` (closed list of ~20 yes/no facts: needs / bars / ANY, each with a quote from the page; doubt = ANY). Conditional notes stay text and are SAID, not asked.
+- B. Each is a new box in the bitmask (fact yes/no: "needs" = bit under yes only, "bars" = bit under no only). Filter and minimax stay as they are.
+- C. Picker rules: kind -> gives -> minimax over the rest; stop at <= 2 left, or nothing splits, or "just tell me", or 5 questions; touchy questions (caste, income, widow, disability) last and with a reason.
+- D. Code gate: while a question stands the model gets no scheme cards and show_scheme is refused; parts only from the narrowed list; at most 2 schemes named.
+- E. Confirm: each question names its keys (1 yes, 2 no, 0 don't know; lists 1-5, 7 = more; 6 and 9 keep their jobs); the next sentence says the answer back; one full read-back before the result.
+- F. None fits: schemes that miss by 1 box, then 2; ranked by search on the caller's words; say at most 2 with the blocker, and whether it can be fixed (a card, an account) or not (age).
+- G. Normal talk: a named scheme or a side question is answered first, then "one more question"; facts heard in free talk fill boxes and are in the read-back.
+Open choices for the owner: confirm style; cap 5; who fills `gives` + `facts` for the 94 rows; 13 domains or 9 kinds.
+
+## 6 Oct night (one-voice session): trying "keep one voice" software. Owner: calls on the phone line and on the laptop; find the best; must not make the turn slower. NO app code touched.
+- All bench files are in the scratchpad of session 0dea4dd0 (…/scratchpad/voice/): bench.py (Mac `say` voices), bench_real.py (real Hindi speakers), diag.py, hush_repo/ (git clone), real/ (FLEURS hi_in validation clips, via datasets-server first-rows; they are float WAV, `afconvert -d LEI16@16000` first).
+- HUSH: github.com/pulp-vision/Hush, model huggingface.co/weya-ai/hush (NOT Aliados/hush), Apache 2.0. 8 MB, built on DeepFilterNet3. Runs with NO torch: deployment/lib/libweya_nc.dylib (arm64) + ONNX tar + ctypes wrapper deployment/examples/python/weya_nc.py (needs only numpy; works in our .venv). `WeyaModel().create_session(sample_rate=8000)` takes our 8 kHz straight (resamples inside), frame = 80 samples (10 ms), so 2 calls per 20 ms ear frame. It needs NO sample of the caller's voice.
+- Hush measured here (M-series Mac): 0.71 ms of work per 20 ms frame (99 in 100 under 0.87 ms), added delay 10 ms. So it does not slow a turn.
+- Hush on Mac `say` voices: far second voice (room echo) 6-18 dB below the caller: the ear's cut-in went CUT -> none in 8 of 9 cases; a NEAR dry second voice is NOT removed (1-2 dB only). Short caller words still cut in (only "हाँ" at rms 1500 went CUT -> short).
+- FAULT IN THE RIG, not in Hush: the Mac voice Lekha is made 7-11 dB quieter by Hush even alone (it is a made voice); Aman only 1.5 dB at 16 kHz. So `say` voices are a poor caller here -> bench_real.py with real people. Wave-shape SI-SDR is useless here (the resampler moves the phase): use diag.mag_sdr (loudness picture).
+- Seen: the 8 kHz line itself costs the caller's voice about 3 dB more through Hush than 16 kHz wide sound (Aman: -1.5 dB wide, -4.5 dB on the line). Our ear's START_RMS 700 is a fixed loudness floor, so a quieter voice after Hush can fall under it: must be watched (give gain back, or lower the floor) if Hush is wired in.
+- No saved real caller audio in logs/ (only TTS trials in logs/voice-trial). A real test needs the owner's own voice.
+- ai-coustics (Quail Voice Focus) and Krisp (BVC) can NOT be tried without the owner: both need a key (ai-coustics: free 30 day sign-up; Krisp: apply).
+- REAL SPEAKERS (bench_real.py, 8 FLEURS Hindi clips, 8 kHz mu-law, caller rms 3000, our ear with real Silero, cut-in 240/500):
+  - Second person FAR (room echo), alone: 6 dB below the caller: ear stopped the agent 6/6 raw -> 0/6 with Hush; 12 dB: 6/6 -> 0/6; 18 dB: 2/6 -> 0/6. As loud as the caller: 6/6 -> 6/6 (not removed).
+  - Second person NEAR (no echo): 6 dB below 6/6 -> 6/6, 12 dB 6/6 -> 5/6: NOT removed. Hush tells "far" from "near", not "who".
+  - Without any filter our ear's loudness floor already ignores a voice 24 dB below (0/6) and most at 18 dB (2/6).
+  - COST: the caller ALONE is made 5-13 dB quieter (man -11, woman -13 at rms 3000); frames over START_RMS 700 fall 80% -> 41% and 87% -> 22%; a soft woman caller (rms 900) went CUT -> not heard. diag2.py: same clips alone lose 2-14 dB even at 16 kHz wide, so it is not only the phone line. FLEURS people read into a phone held away in a room, so they have echo of their own; a phone at the mouth or buds may do better: NOT known, needs the owner's voice.
+  - Attenuation limit 12 dB (session arg): caller loses less (-5 to -8 dB, likeness 12-17 dB) but far voice at 6 dB below gets through again (6/6 -> 6/6); 12 dB below still 6/6 -> 0/6.
+  - Time: 0.72 ms per 20 ms frame, 99 in 100 under 1.4 ms, +10 ms delay. One 193 ms spike seen once in 86,300 frames while another job ran.
+- VERDICT so far: Hush is fast enough and free, removes far voices, but it is NOT safe to wire in blind: it also eats the caller's own voice on room-recorded speech. Next: the same bench on the owner's real voice (buds + phone), and ai-coustics Quail Voice Focus (pip aic-sdk, runs on the Mac, needs AIC_SDK_LICENSE from developers.ai-coustics.com, 30 days free) on the same bench.
+- 6 Oct night: owner dropped the one-voice work for now. Nothing of it is in the app or the repo code (only these notes); bench files stay in the scratchpad. Do not restart it until asked.
+
+## 6 Oct night: owner pasted a "who pays for the photo" note (Rs 3-5 a photo case, reverse-billed SMS, dealer as a proxy, quality gate). No ask with it; I gave a view only, NO code or plan changed.
+- Fact from the code: tools/sms_shrink.py:17-18: CHUNK 105 bytes x MAX_SMS 10 = 1050 bytes for a whole photo. The note's quality gate (blur / flat frame) does not catch "sharp but too small to tell a pest".
+- My doubts told to the owner (from memory, NOT checked on the web): Rs 0.10-0.12 is the price of an SMS we SEND (A2P); SMS the farmer sends to a toll-free short code is a different, dearer deal with each operator plus a rent for the code. PMFBY claims are paid by the insurer, the state pays its share of the premium. The Rs 150-500 visit and Rs 5-15 per transaction numbers have no source in the note. Quota by Aadhaar needs a UIDAI licence: use the phone number.
+- My pick told to the owner: dealer / CSC web door first (Rs 0 telecom, full photo), SMS door as the back-up. Waits for his word on what to do with the note.
+
+## N1 (coder)
+- Switch `TALK_ASK_FIRST` (default on) and `TALK_ASK_MAX` (8) added in tunables.py. TALK_MAX_QUESTIONS stays 3: it is the OFF path's number, so it was not raised to 8 (new name instead).
+- conftest.py not touched: the default is on, so the whole suite runs the new path.
+- Prompt: the first line stays `NEXT QUESTION: <best box> ...` (tests and tools/talk_eval.py parse it with a regex); the options go on lines under it.
+- 6 Oct night: v5-full (f1cdc95: cut-in fix + language ask + photo read + call-back) PUSHED to origin on the owner's word. The folder was on branch narrow-ask by then (another session's uncommitted work): not touched, not committed.
+- planner.py: `_worst_left(box, survivors, bv, corpus)` split out of `_minimax_score` (same numbers; keys path unchanged). talk_pick.narrow gives `options` (up to TALK_OPTIONS=3 `Option(box, left)`), sorted by the planner's own tie rule (score, fewer left on average, easy-first), `ask` first. Empty when the switch is off.
+- Budget: `talk_pick.question_budget(n)` = min(TALK_ASK_MAX, ceil(log2 n)+1), 0 for n <= 2 ((n-1).bit_length() for exact ceil(log2)). `_Talk.need_n` / `need_base`: the list size when the kind of help became known, and the questions asked before it. Fixed at the first `_state` with a category known (until then the live list size is used). Cleared by: new category from words (`_new_need`), "for my mother" (`who`), the model changing a known category. Used = sum(asked) - need_base.
+- Gate: `_Talk._gate`, set in `_state` = switch and nar.options and more than 2 left. Held scheme / question on the scheme in talk / just_tell / used-up budget already empty the options (they build `Narrow(left, None)`), so the gate is closed for them. Gated: only focus + pinned pair are given (parts or cards), plus "N schemes fit ..." line. show_scheme while gated and a question stands: blocked row `list_first`, one retry, then the fixed QUESTION words (the existing wrong_ask path).
+- Parts (TALK_CHUNKS): `_pieces(allowed, only)`. allowed = nar.left + pins. Hits outside it are dropped; the search is also told "does not fit" for them (push-down). None from this = whole cards of nar.left. With nothing allowed (nothing fits at all) the old `fit or hits` fall-back stays.
+- >2 schemes named: rule "many_schemes" in the same `rule` block as forbidden / script (one retry; second failure = the NOT_SURE line, as the others). Names found by `index.named_in(say)` over ALL schemes (not only the ones in the prompt).
+- Old tests changed: test_clarify_picker::test_at_most_three_questions_a_call and ::test_three_unanswered_questions_then_schemes (pin the OFF rule, switch set off); test_talk::test_only_two_schemes_are_sent_in_full (switch off: ask-first sends no scheme text on 'I need some scheme'); test_clarify_wire::test_two_needs_first_taken_other_kept (reply is `answer` not `show_scheme`) and ::test_live_just_tell_on_turn_two (turn 1 reply is an `ask`).
+- More old tests changed after the full run: test_lang_middle_talk::test_a_failed_or_wrong_translate... (switch off: the "6000" needs scheme text, which the gate holds back), test_step3_keys::test_the_keys_offer_is_said_once... (asks == 3 became >= 3: the budget follows the list), test_step18_followup::test_any_other_offers_only... (first words "just tell me some schemes": a long list is not listed). Full suite after: 3321 passed.
+- For N2: the key path has no question/option state; `nar.options` is empty in the will_get branch. N3: the gate hides all scheme text when nar.options stands, even when nothing fits is impossible (>2 left), so N3's "none fits" is outside the gate by construction.
+
+## N2 (coder)
+- Plan: keys state in `_Talk` (`_kmap` digit -> value, `_kvals`, `_krest`, `_kbox`); `_turn` adds the hint after `_decide`; run() handles a Digit when `_kmap` stands (after keys 9 / 6). turn.py gets `talk_keys` (the digits the standing question uses) so `_talk_ignores` lets them cut the voice. `live_values` in talk_pick. Read-back state `_rb` ("" / open / fix / again / done), reset together with need_n (`_new_budget`).
+- Key turns skip `_early` and the word spotters (`_by_key`): a label like "Disability and social help" must not name a second need.
+
+## 6 Oct night: "right way for the photo case" (owner asked; view only, NO code, NO plan file changed)
+Checked on the web (search results, not first-hand):
+- SMS we SEND (DLT): Rs 0.10-0.20 each (Jio 0.10-0.12, Airtel 0.13-0.15, Vi/BSNL 0.16-0.20). So the note's Rs 0.10-0.12 is the SEND price. NO public price found for SMS the farmer sends to us free of charge (reverse-billed short code); short codes are rented and SMS to them are known as premium (Rs 1-3, paid by the sender).
+- KaiOS: the `sms` permission (mozMobileMessage) is for CERTIFIED apps only, i.e. put in by the phone maker / Jio. keypad_app/manifest.webapp asks for `sms` with type "web": a store app or a field worker's install can not get it. Not tried on a real JioPhone.
+- JioBharat plans all have data (Rs 123: 0.5 GB a day). So a phone that can run our app nearly always has data and can use the web page.
+- MoSPI telecom survey Jan-Mar 2025: 85.5% of households have a smartphone; rural homes with ONLY a non-smart phone: 12.3%.
+- PMFBY: claims are paid by the insurers; centre and state share the premium subsidy 50:50 (90:10 north-east).
+- Call-back: about Rs 0.4-1.4 a minute at list prices (Knowlarity), so a 3 minute call-back is the biggest cost of a case. Toll-free and Exotel/Plivo rates are behind sales.
+- No source found (not searched hard) for Rs 150-500 a field visit or Rs 5-15 a transaction.
+From our code: tools/sms_shrink.py:19 LADDER best case is 96x72 px at quality 24 (down to 40x30). Whether a model can tell a pest from that is NOT tested (my guess: no).
+Pick told to the owner: (1) link by SMS -> web page on any smartphone in the house (main road); (2) helper with the case number (dealer / CSC / field worker), answer still to the farmer's number; (3) no photo: the agent asks about the signs by voice, hard cases go to a list for a field visit. SMS photo door stays a show, not a product. Guards: link only after a call + yes/key 9 (built), 3 cases a number a season, link dies in 48 h, photo checked on the phone before upload. No ID photos through a helper.
+- Built (tunables unchanged, same switch): talk_pick.live_values; prompts: KEY_HINT / READ_BACK_HINT / READ_BACK (hi, mr, en; hi/mr unchecked by a speaker), FOLLOW read_back / rb_wrong / rb_yes, just_heard(), key_hint(), one ASK_FIRST_EDITS line ("Do not first say back..." unless JUST HEARD); turn.py `talk_keys`; talk.py `_add_keys` (hint after `_decide`, in `_turn`), `_key_words` (a Digit while `_kmap` stands, in run() after keys 9 / 6), `_rb_answer` / `_read_back_due` / `_new_budget`.
+- Model-set facts are NOT in the next JUST HEARD (only key and pre-call spotted facts): the model says its own facts back in the same reply, a carried line would say them twice.
+- Hint is its own sentence after the reply (`audio.answers` has it as a separate item; old tests pinning `answers == [question]` were changed). last_say holds the hint too ("say it again" repeats it).
+- Read-back counts "answered" in `_decide` where no_reply is counted (a real value for last_asked); the trigger also counts a key / spotted answer given in the same turn. Fallback if the model twice words show_scheme instead: fixed READ_BACK words, labels in bv order.
+- A show_scheme during "fix" (caller said no) that fails twice falls to NOT_SURE (no fixed words for that case).
+- Not provable here: a real key cutting the voice on a live line (Turn.push_key / get_valid_key gates); `_speak` stops the later sentences when `turn.has_key()` and a question stands.
+
+## 6 Oct night: shrinking a photo into SMS (owner: worst case, keypad phone, no data, no browser; take it the app may send SMS). Tried in the scratchpad only, NO app code.
+- Files: scratchpad of session 01eca3e8 `sms/t.py`, `sms/sheet.png`, 3 Wikimedia photos (pink bollworm in a boll, 2 tomato late blight leaves). PIL stands in for the phone.
+- MEASURED: a tiny JPEG carries 623 bytes of header (the tables, the same on every photo). Today's photo: 64x48 or 72x54 at quality 20, total 950-1026 bytes = 623 header + only 325-401 bytes of picture.
+- Header left out (the server puts the same 623 bytes back), same 10 SMS (1050 bytes): 88x66 to 96x72 at quality 45. With 8-bit SMS (1340 bytes): 104x78 q45 to 128x96 q30. 20 SMS (2680): 160x120 to 168x126 q45. Grey in place of colour gains only ~8 dots of width: not worth losing colour.
+- LOOKED AT (my own eyes on the sheet, not a model run through the app): today's = a blur, nothing can be told. Header out, whole photo = shapes and colours, a dried grey leaf can be seen, a worm not surely. Header out + ONLY the middle 40% of the photo sent (112x84 q45, 1340 bytes) = the worm's stripes and dark head are plain, the grey blight patch with its edge is plain.
+- NOT known: (a) these are sharp press photos; a keypad phone camera (0.3 MP, fixed focus, blurs when close) will be worse; (b) if the phone's own JPEG maker uses the standard tables (if not, the app must make the JPEG itself or send the tables once); (c) if KaiOS can send 8-bit SMS at all (text SMS is sure, so plan on 1050).
+- Way told to the owner: header out + cut-out of the middle + quality ~45 + one photo = 10 SMS; the call-back asks by voice what the photo can not show (which crop, which part, how much of the field).
+
+## N3 (coder)
+- talk_pick.py: `blockers(ids, bv, corpus)` (per scheme, one `Blocker(box, needs, said, can_change)` per answered box the mask misses; category, UNKNOWN, UNASKED never) and `near(ids, bv, corpus)` (miss by 1, then 2, search order inside, TALK_NEAR_K=2 at most; a miss on category = never near). `CAN_CHANGE` dict (default True): N4's fact boxes add rows. Age needs are built from the bands the mask holds, touching bands joined ("18 to 40"); other values by vocab LABELS.
+- talk.py `_state`: near only when `not nar.left and not self._gate`; near ids join `allowed`; `_pieces` treats them like pins (not pushed down, not dropped by the fit filter). `_with_blockers` puts the NEAR line on the card text (mark "near"), the focus that does not fit gets its blockers in the mark, FITS SO FAR on a scheme in nar.left with gate_notes. Whole cards already hold "exclusions:" (scheme_text.card); the parts do NOT: so the line carries the notes in the parts path and only points to the exclusions line on a whole card. Rules (prompts NEAR_RULE / MAY_FIT_RULE) are added to SYSTEM only on a turn whose SCHEMES hold such a line (token budget). Log: field `near` {scheme: [boxes]} on the "act" row. Proof for numbers gets the blocker words.
+
+## Call-back catch (owner, 6 Oct night; plan only so far, NO code)
+Map (explore agent, line numbers from the narrow-ask tree, not re-read by me):
+- Desk writes PHOTO_DIR/next_call.json: tools/photo_desk.py:101 `call_back`. Watcher places the call: tools/photo_back.py:55 `PhotoBack.look` -> `_place` :39 -> twilio.py:248 `place_call` (raw REST, To/From/Url/Method only).
+- Answer: server.py:136 `/answer` -> Connect/Stream TwiML (twilio.py:171). Same `/stream` socket as an inbound call. call.py:641-650 skips greeting when in_call.pending() (photo/in_call.py:79).
+- First words: talk.py `_call_back` :1290 (fixed hello prompt.PHOTO["back"]) -> `_back_answer` :1278 (model, prompt.back_opening prompts/talk.py:493) -> `_back_sentence` :1268 -> in_call.done :144.
+- Keys: twilio.py:80 parse_dtmf -> server.py:497 -> Turn.push_key turn.py:158. No Gather, no "press a key to go on" gate anywhere.
+- SMS: twilio.py:266 `send_sms` (body only), used by in_call.send_link :36. No MMS, no audio file route, no MP3. TTS to bytes: render.py:135 SarvamTTS.speak (8 kHz mu-law), render.py:74 ulaw_to_wav.
+- NOT handled today: no answer / rejected / voicemail. No StatusCallback. next_call.json then stays PHOTO_PENDING_S (1800 s), so the next call of ANY kind in 30 min opens as the call-back.
+- An SMS can not carry sound. Twilio MMS works only to US/Canada numbers. So "audio by SMS" = SMS with the answer as text + a link to a sound file we host (photo desk, PHOTO_BASE_URL).
+
+## 6 Oct afternoon: Cost Analysis & Scalability Roadmap (owner audio request)
+- System components audited:
+  - Telephony: Twilio US (~₹1.80-3.50/min) vs Indian CPaaS (Exotel/Airtel/Tata: ₹0.35-0.50/min inbound, ₹0.30-0.45/min outbound).
+  - Ear (STT): Sarvam saaras:v4 (~₹0.20/min active voice; ~1.2 min/call = ₹0.24).
+  - Brain (LLM): Groq Llama 3.3 70B (~₹0.35/call); local Minimax + Bitmask + Chunk Index = ₹0.00 API cost.
+  - Mouth (TTS): Sarvam bulbul:v3 (~₹0.10 dynamic; static clips cached on disk = ₹0.00).
+  - Vision: Muse / Llama 3.2 Vision (~₹0.30-0.50/image).
+  - SMS: DLT Transactional (₹0.12/SMS).
+  - Human in the loop (HITL): Operator Desk (port 8003), ~30-45 sec verification = ₹1.20-1.50/case vs ₹18-30 for full call center agent.
+- Scenarios modeled (per 100k calls/cases):
+  - 10% HITL: ₹2.28 / case ($0.027) -> ₹2,28,000 / 100k calls.
+  - 20% HITL: ₹2.43 / case ($0.029) -> ₹2,43,000 / 100k calls.
+  - 80% HITL: ₹3.33 / case ($0.040) -> ₹3,33,000 / 100k calls.
+  - Baseline Status Quo: Kisan Call Center / Govt helpline = ₹29.80 / case; Physical Krishi Mitra visit = ₹150-350 / case.
+- Scalability levers:
+  - Decoupled async architecture (`PHOTO_HANGUP=true` frees trunk lines during capture).
+  - Local CPU Minimax pruning (0-token scheme filtering).
+  - Multi-tenant SIP trunking (Exotel/FreeSWITCH) to replace single Twilio line.
+- Future cost reduction:
+  - Local quantized Indic SLMs (Sarvam-1 2B / Llama 3.2 3B) drops LLM cost by 85%.
+  - Local CPU pest vision classifier (YOLOv8/MobileNet) drops vision cost to <₹0.01.
+  - Wholesale Indian SIP lines drop telephony to ₹0.20-0.25/min.
+- Owner's answers (6 Oct night): the key is a DEMO-ONLY button, it is nothing in real life. Real life: the call-back is tried; not picked = SMS text + sound link; picked but the call fails = the same. The button only lets him play "not picked / failed" in the demo. Message = text + sound link. Lands on the real number AND the keypad demo page. He wants to be asked once more before any build.
+
+## 6 Oct night: SMS photo door, PLAN ONLY (owner: do NOT build the keypad / SMS app now)
+Owner's rules: no ID photos; the network is taken as secure, so the "crops only because SMS is not secret" line is dropped; nothing stored; NO check on each piece; pieces come in a numbered row, the system knows how many and joins them in order; use the phone's own SMS size limit, which can differ by phone.
+SMS limits (web search, not tried on a phone):
+- One SMS: 160 plain letters (GSM 7-bit), or 140 bytes (8-bit), or 70 letters of Hindi/other script (UCS-2).
+- A long SMS is cut by the phone into parts; each part gives 6 bytes to a number tag (which long SMS, how many parts, which part), so a part holds 153 plain letters / 134 bytes / 67 other-script letters. The tag's "how many parts" is one byte, so 255 is the top by the standard. How many parts a given phone or network lets through: NO number found; it differs.
+- base64 letters are all plain GSM letters. One part = 153 letters = 114 bytes of photo. 10 parts in one long SMS = 1530 letters = about 1147 bytes (today: 10 single SMS with our own tag = 1050).
+- KaiOS has `mozMobileMessage.getSegmentInfoForText(text)` -> segments, charsPerSegment, charsAvailableInLastSegment (certified apps only, same as send). So the app can ASK the phone how a text will be cut before it sends.
+- India: long SMS is supported. An old TRAI rule caps a SIM at 100 (later 200) SMS a day; one photo is 10, so it is no bar. If the SMS gateway hands us the long SMS already joined or as parts: depends on the provider, not found.
+Plan (told to the owner):
+1. Phone makes the picture: middle cut-out, quality ~45, header left out (see the entry above).
+2. Phone asks itself how big a part is and sends the photo as ONE long SMS; the network's own tag is the numbered row. If the phone refuses that many parts, the app cuts into 2-3 long SMS, each starting with a 3-letter tag "k of n".
+3. Server: takes pieces only for an open case from that number; knows the count from the tag; joins in order; no check per piece. If the row is not full 2 minutes after the first piece: drop all, the call-back says "send it again".
+4. My one add (owner may drop it): 4 letters at the end as a check on the WHOLE photo, so a wrongly joined picture is never read as a real one.
+5. Photo in memory only; gone after it is read; only the answer's words kept. No ID photos.
+First step when the owner says build: on a real keypad phone, read what getSegmentInfoForText says and how many parts one long SMS may have.
+
+## 6 Oct night: N1 + N2 + N3 built on branch narrow-ask (main session's view; the coders' own notes are above). NOT committed.
+- Owner's answers: say-back + one read-back; questions follow the list size, 8 at most; the model stays in charge (picker and bits are its tools); the team gives PDFs from myscheme, the intake (format, chunk, bits) is done here = N4, waits for the PDFs.
+- One switch: TALK_ASK_FIRST (on). Off = the talk of f1cdc95. Other new numbers: TALK_ASK_MAX 8, TALK_NEAR_K 2.
+- My run on the whole tree: py_compile ok; full pytest 3362 passed (3293 before + 28 + 23 + 18 new). make talk-eval started in the background; no result yet.
+- NOT proved: any turn with a real model (does it pick an option, say the answer back, word the read-back and the blocker well); a real key on a live line cutting the voice (`_speak` uses turn.has_key(), which moves the key to _stashed_key: check it comes back on the next input); Hindi / Marathi fixed words of N2 not checked by a speaker.
+- Known rough spots: the kind question's key hint is long (5 labels + "7 for more, 0 if you do not know"); the fixed read-back fall-back says raw labels ("Farming, Farmer."); a 3-scheme reply twice in a row ends in the NOT_SURE line; on today's 17 schemes the picker still has only kind, work, age to cut with, so the gain shows fully only after N4.
+- N4 to-do from the coders: new boxes must be in the loop that today runs over SEVEN_BOXES (talk_pick blockers), rows in CAN_CHANGE, words in BOX_MEANING and labels for yes/no facts ("a BPL card", not "Yes").
+- I did not read the three diffs line by line (file limit of the main thread); the checks are the tests and the coders' reports.
+
+## 6 Oct afternoon: In-depth 5-Min Single Call Cost Model & Government Procurement Pitch
+- Model parameters updated per owner:
+  - 1 call only (avg 5.0 minutes), no separate call-2.
+  - Telephony (5.0 min @ ₹0.45/min Exotel/Airtel): ₹2.25. (Toll-free 1800 @ ₹1.30/min: ₹6.50).
+  - Ear STT (2.0 min active speech @ ₹30/hr = ₹0.50/min Sarvam saaras:v4): ₹1.00.
+  - Brain LLM (8 turns, 12k in, 700 out @ Groq Llama 3.3 70B): ₹0.65.
+  - Decision / Scheme Filter: native Minimax + bitmasks + chunk index = ₹0.00 API.
+  - Mouth TTS (~800 dynamic chars @ ₹3/1k chars Sarvam bulbul:v3; static cached): ₹0.24.
+  - SMS Link: ₹0.12.
+  - Vision AI with Router: Intent Router (₹0.01) + Specialized model (Crop/Doc/Asset/Blur: ₹0.15-0.40) + Guards (₹0.00) = blended ₹0.35/image.
+  - Base automated 5-min call: ₹4.26 (without photo) to ₹4.61 (with photo).
+- Fixed Backend & Operations Base:
+  - Cloud server (AWS c6i.xlarge or Hetzner CPX31 + Redis + R2 + network): ₹14,000/mo.
+  - Dedicated human operator / supervisor on staff (at least 1 seat, ₹20,000/mo salary): ₹20,000/mo.
+  - Fixed monthly base: ₹34,000/mo (~$400/mo).
+- Unit costs at 100k calls/month:
+  - 10% HITL: ₹5.18 / call ($0.061)
+  - 20% HITL: ₹5.30 / call ($0.063)
+  - 80% HITL: ₹6.02 / call ($0.071)
+- Govt comparison:
+  - Kisan Call Centre (KCC) tender: ₹142.85 Cr for 234 seats over 3 years = ~₹20.35 Lakh/seat/yr -> ~₹60 to ₹180 per answered call.
+  - Krishi Vigyan Kendra (KVK) / Extension officer field visit: ₹250 to ₹500 per visit.
+  - Haqdaar provides 92% to 97% savings to DA&FW / state governments.
+- Govt sales playbook:
+  - Primary target: Ministry of Agriculture (DA&FW) under NeGPA, PMFBY grievance cell, State Agri departments (Maha, MP, UP).
+  - Procurement route: GeM (Government e-Marketplace) under Cloud BPO / AI-enabled Call Center, or pilot RFP under GFR Rule 194.
+
+- BUILD started (owner's OK). Branch `callback-catch` off v5-full (f1cdc95), worktree ~/code/haqdaar-v2-callback. No .venv / .env / audio/ there: tests run with /Users/adarshagarwala/code/haqdaar-v2/.venv/bin/python -m pytest from the worktree (it loads the worktree's haqdaar: checked). Baseline there, before any change: at least 1 test fails (tests/test_call_faults_5oct.py::test_a_relation_word_that_is_only_mentioned_names_no_one[...]); full baseline list in the session scratchpad baseline.txt.
+- Design: new haqdaar/photo/back_msg.py (answer text outside a call, WAV via SarvamTTS.speak + ulaw_to_wav, send once per case: marker file PHOTO_DIR/sent/<token>.json = also what the demo page reads; then in_call.done). Desk serves /s/<token>.wav + the message JSON. Real fail catch: place_call gets a StatusCallback -> server /back-status (no-answer, busy, failed, canceled = send); picked-but-dropped = at the end of a call-back call the next_call.json of that token is still there = send. Demo: tunable PHOTO_BACK_ASK (off): terminal asks 1/2/3 in mac_call --back and in photo_back (tty only). Case 3 = "drop" flag in next_call.json: hello, then the line is cut.
+- Watch out: tools/mac_call.py:313 `read_keys` thread reads sys.stdin for the whole run, so a plain input() for the 1/2/3 ask would fight it.
+- In `make full` the watcher runs under nohup (no terminal); the foreground is mac_call --serve --back. So the ask must live in mac_call for the Mac demo.
+
+## 6 Oct night: detailed SMS photo plan written as PLAN.md section 10 (PLAN ONLY). PLAN.md also holds another session's uncommitted section 9 work: I only added at the end.
+- Tried (scratchpad sms/q.py, middle 40% cut-out, quality 45, header out): 2270 bytes -> 144x108 to 160x120; 1130 -> 96x72 to 104x78; 750 -> 72x54 to 80x60. So one 20-part case: 1 photo good, 2 fair, 3 too small.
+- Packet math: 5 parts x 153 = 765 letters, minus ~8 for the tag = 757 letters base64 = 567 bytes; 4 packets = ~2270 bytes.
+- Steps M1-M7; M1 M2 M3 M5 need no phone and no money; M4 spends on the photo model; M6 (keypad app) is "not now"; M7 needs a real phone. Open for the owner: 20 parts, cap 2 photos, whole-photo check, M4 spend.
+
+## 6 Oct night: owner's fixes to PLAN.md section 10 (still PLAN ONLY)
+- Screen: no packets, counts or codes for the caller; ONE progress bar, then a tick or "try again". All packet work is behind it.
+- Many photos: up to 3. Parts in all 20 / 24 / 30 for 1 / 2 / 3 photos (2270 / 1360 / 1130 bytes each; 1340 gave 112x84 in the earlier test). Floor: no photo under 10 parts. My numbers, the owner may change them.
+- Join: four locks. (1) same case + same caller number + same photo stamp (3 letters from the photo's bytes; a re-send has a new stamp); (2) order by packet number, all n there; (3) length + 6 letter whole-photo check (CRC-32 kind, 1 in 4 billion by luck); (4) must open as a picture of the said size. Any fail = drop whole, "send it again". Still no check on each piece.
+
+## Call-back catch (coder)
+- Built in worktree ~/code/haqdaar-v2-callback (branch callback-catch), nothing committed. New: haqdaar/photo/back_msg.py (answer text, WAV, send once, drop catch, 1/2/3 ask), tests/test_back_msg.py, tests/test_back_drop.py.
+- FOUND: `_Talk._speak` returns normally when the caller hangs up mid-sentence (PhoneAudio._play stops waiting on turn.hung_up; _speak ends with `... or self._gone()`). So the old `_call_back` called `in_call.done` even for a cut answer. Now `_call_back` returns True (no `done`) when `self._gone()` or the demo `drop` flag is set; `run` then ends the call. `_gone()` = audio.turn.hung_up.is_set(), set by server `_finish` -> `turn.push_hangup`.
+- FOUND: frozen provider signature: tests/test_telephony_conformance.py checks exact parameter names against base.PROVIDER_FUNCTIONS. place_call is now (to_number, answer_url, opener, status_url); base.py list + comment changed with it. Old positional calls still work (new arg last, default "").
+- FOUND: tools/mac_call.py `read_keys` was one `for line in sys.stdin` thread PER CALL, never stopped between calls (only at EOF), so a plain input() ask would race it; and the stale thread dies on the closed loop, losing the line. Now one shared reader (STDIN queue) for the whole run; read_keys of a call and the ask both read from it; the ask drains lines typed while waiting.
+- Drop catch lives in server._run_engine (covers a Twilio call and the Mac call, whose server is a uvicorn subprocess): token of the waiting call-back is taken before Engine.run_call, and in `finally` if next_call.json still names it -> back_msg.catch_drop (thread). Mac demo: the server prints `PHOTO MESSAGE: ...`; mac_call's watch_photo_link shows it; case 3 waits for PHOTO_DIR/sent/<token>.json before it stops the server.
+- Decision: a message that could not be sent (SMS fault, no number) writes no marker and does NOT call in_call.done, so the call-back stays waiting for the next call.
+- Engine-level tests need the corpus: run them from the worktree with SNAPSHOTS_DIR and AUDIO_DIR pointed at ~/code/haqdaar-v2 (no files copied).
+
+## 6 Oct night: owner narrowed PLAN.md section 10 again (rewritten whole; still PLAN ONLY)
+- Scope is ONLY: cut the photo into SMS, join it, hand it to the photo model. UI and flow stay as today: no bar, no box, no "3 shots", no say-back step, no new caller step. Those were taken OUT of section 10.
+- Any number of photos, no cap. Share per photo: 1 -> 20 parts, 2 -> 12 each, 3 or more -> 10 each (floor). My numbers.
+- Each photo is joined by itself; one bad photo does not drop the others. Tag now also says how many photos the case has and this photo's place. Four locks unchanged.
+- Steps cut to M1 cut, M2 join, M3 share rule, M4 hand-over (stand-in model). Parked on the owner's word: the cut inside the keypad app's code, a real phone, the trust test.
+
+## 6 Oct night: business/product case written for the owner's presentation (no code)
+- Asked: product story, scalability, viability, feasibility, unit economics, business + monetization cases, human in the loop.
+- Numbers used (all from this repo's own notes, re-verified by a read-only explore agent this turn): Groq 8,000 tok/min + 200,000 tok/day per model, ~3,000 tok/talk-turn; Muse Rs 30/day cap, photo read ~Rs 0.006 (5.3 s, 405 in + 145 out tok); Sarvam translate ~60-90 req/min measured, translate ~0.6-1.4 s/reply; Twilio trial SMS $0.0832 delivered to the checked number, balance $10.56, trial = checked numbers only; one caller at a time, 10-min cap (CALL_CEILING_S), replies 0.7-1.6 s on Mac calls; 17-18 schemes live, 27 derived; pytest 3000+ green, talk-eval 0 broken on main paths.
+- Answer given in chat (not a file): 3-stage scale ladder (1 line laptop -> cloud + N numbers -> sharded + desk pool), per-5-min-call unit math with free-tier caps (~25-30 calls/day free, then paid), 4 monetization cases (B2G per-query/SaaS, B2B agri-input leads, sponsored toll-free, demand-insights), HITL tiers from hooks already built (photo desk approve, unclear_prompt, keys fallback press 6, call-back catch, recap confirm).
+- Honestly marked UNPROVEN for the presentation: real-user calls at scale, SMS to unchecked phones (needs paid Twilio), cloud server, photo reads on ~1 KB keypad-SMS photos, other-language guard at 9/10.
+
+## 6 Oct afternoon: 5-Minute Real-Life Call Simulation, 3 Photos, Text + Voice Dispatch, Network vs No-Network
+- Scenario: Ramesh (Cotton farmer, Yavatmal, Maharashtra). Problem: Pink Bollworm + leaf curl. Goal: Treatment + PMFBY claim.
+- Turn-by-turn trace: 5 minutes (300 s), 10 turns.
+  - Telephony (5.0 min @ ₹0.45/min Exotel SIP): ₹2.25.
+  - STT (2.1 min active speech @ ₹0.50/min Sarvam saaras:v4): ₹1.05.
+  - LLM (Groq Llama 3.3 70B, ~14k in, 850 out): ₹0.75.
+  - Local Minimax + Bitmasks + Chunk RAG: ₹0.00.
+  - TTS (Sarvam bulbul:v3, ~1,100 dynamic chars): ₹0.33.
+  - 3 Images processed:
+    - Photo 1 (pest close-up via Llama 3.2 Vision / Muse): ₹0.20 (or ₹0.006 on Muse).
+    - Photo 2 (foliar leaf damage via Vision Router): ₹0.15.
+    - Photo 3 (canopy overview / PMFBY damage proxy): ₹0.15.
+    - Total 3 Vision inferences: ₹0.50.
+  - Text Message: 2 DLT Transactional SMS (1 link + 1 summary): 2 x ₹0.12 = ₹0.24.
+  - Voice Message:
+    - Path A (Network): Audio link hosted on R2/S3 (TTS dynamic 350 chars = ₹0.10 + hosting ₹0.01) = ₹0.11.
+    - Path B (No Network): Automated 45-sec OBD IVR voice drop call = ₹0.40.
+- Sequence Cost Total:
+  - Scenario A (With Network / 4G / Web Door 1): ₹5.43 per completed resolution.
+  - Scenario B (No Network / Keypad / Door 0 / OBD): ₹5.97 per completed resolution.
+    (If Door 0 keypad sends 30 raw SMS packets over standard SIM, carrier fee is borne by user's daily SMS pack or ₹0 via Kiosk QR).
+- Human Comparison (Status Quo):
+  - KCC Level-1 FTA (5 min) + Level-2 Agronomist escalation (4 min) = ₹28.50 phone/labor.
+  - Agronomist manual review of 3 photos = ₹50.00.
+  - Manual drafting of regional SMS + voice advisory = ₹15.00.
+  - Total Human Cost: ₹93.50.
+  - Haqdaar savings: ₹87.53 to ₹88.07 saved per case (93.6% to 94.2% cheaper).
+- Scalability:
+  - SIP trunk pooling (1000+ E1/SIP channels).
+  - Background asynchronous worker thread pool for 3-photo vision processing (6.2s total latency).
+  - Voice message delivered out-of-band so telephony trunk is not stalled.
+
+
+## 6 Oct night: BUSINESS-CASE.md written (owner asked for detailed number-backed md file)
+- File: BUSINESS-CASE.md (repo root). 9 sections: per-5-min-call cost table, capacity caps (~20 calls/day free, ~8-10 concurrent per Sarvam key, Muse 5,000 reads/day), scale ladder, viability, 4 monetization cases with pricing math, HITL tiers, feasibility checklist, risks.
+- TO-VERIFY flags left in the file (do not present as fact): Twilio India voice Rs/min, Sarvam paid per-request prices, operator wage, B2B lead price.
+
+## 6 Oct night: STRESS TEST of PLAN.md section 10 M1-M4 (in the head, no code). Holes found, then fixed in the plan text:
+1. The JPEG header holds the picture's width, height and the quality tables. The server must MAKE the same header for (w, h, q). If a phone's JPEG maker differs, lock 4 fails every time. Fix: the tag says "header on / off"; the app can fall back to sending the header (today's way, smaller picture). Also a fingerprint of the header in the tag. M7-time check on a real phone (parked).
+2. A fixed "middle 40%" loses a sick spot at the edge, and with no box the farmer does not know. Fix: the phone picks the most detailed window of the frame (cheap grid test), the middle is only the fallback; default window 50%, not 40%. M1 tests off-centre photos.
+3. Photo-level facts (size step, length, count, header flag) sat only in the first packet; SMS can come out of order, so the last may arrive first. Fix: every packet carries them; only the whole-photo check is in the last packet.
+4. 2 minute wait from the first packet is too short: SMS can be late by minutes on a weak signal or a busy network. Fix: wait restarts with each new packet, idle limit 3 minutes, whole case 30 minutes.
+5. Dual SIM: the SMS may come from another number than the call. Fix: match by case number + sender; if the sender differs, accept on the case number only when exactly one case is open (v1 serves one caller at a time).
+6. A duplicate packet with the same k but different bytes = conflict: drop that photo (not "ignore").
+7. "Any number of photos" runs into the SIM's SMS cap (TRAI: 100, later 200 a day) and the farmer's balance: 10 photos x 10 parts = 100 SMS. Fix: a cap of total parts a case (tunable, first guess 100 = 10 photos); the tag says photos SENT; the call-back says "I got your first N photos". Who pays the farmer's SMS is still open (reverse billing was shelved by the owner).
+8. Lock 4 must decode the whole picture strictly (a truncated JPEG must fail, not open half).
+9. Gateway may give long-SMS parts or the joined packet: M2 takes a clean packet text (sender + body); part-level join belongs to the gateway stand-in, open.
+10. NOT closed by the join: a small, smoothed picture can make the model sure and wrong. Enlarging adds no detail. Only the model prompt ("tiny blocky pictures, say when unsure") helps; the trust test stays parked on the owner's word.
+
+## 6 Oct night: scale audit (explore agent; measured on a made-up set of 5,000 with the real classes)
+- Storage is generic already: corpus.py:211/234 load any box in vocab.json; the box vector is a dict; filter.py:77 uses whatever keys it holds. The WRITER is fixed: p6_snapshot.py:339 `boxes = list(SEVEN_BOXES)`, :395 an unknown box is taken as a range (crash), :518-525 a chip per value x 3 languages and corpus.py:157 raises when the clip is missing.
+- Extra box quietly ignored at: planner.py:250,293,369,405; talk_pick.py:87,103,161,226; talk.py:119 (fact dropped),:708,:729,:819,:1051,:618; prompts/talk.py QUESTION has no fall-back. call.py:765 takes the talk's dict, so extra keys would reach the keys filter: cut to the seven in `_keys_out`.
+- Minimax and yes/no facts: a fact that 5% NEED scores 0 (no leaves 95%, yes leaves 100% because ANY schemes stay). talk_pick.py:172 leaves such a box out. `_average_remaining` (planner.py:156) is only a tie-break. planner.py:399 caps at MAX_QUESTIONS 6 through `_inferred_questions`. Worst walk on 1,000 with 30 boxes: 29 questions, 180 left.
+- Times (median): narrow on 1,000 ids 214-849 ms; live_values 84-488; near 89-527; mark x 5,000 about 2,300 ms (talk.py:423, before its memo check); `_state` runs 2-5 times a turn -> about 5 s. Causes: talk_pick._ix linear scan (:65), SubCorpus.mask rebuilt each call (:53). Search itself is fine: 42 ms names, 12 ms vectors. Index build 0.22 s + 0.89 s a scheme = about 90 min for 5,000, once.
+- Snapshot gates: 18 clips a scheme (p6:256, :685), whole build fails on one incomplete scheme (:309). The talk needs no clip. No talk-only scheme today (`--all-schemes` still lists chunk keys; Corpus.load raises).
+- Age bands: 9 at most, a bit only when the band is wholly inside the scheme's range (p6:414): with many ranges a narrow scheme can fall out once age is known. Watch in N6.
+- Pipeline: p2 quarantines any level but CENTRAL / MAHARASHTRA (p2_derive.py:733); name comes from <slug>.html title (:552); raw shape `data_cache/raw/<slug>.json`: myscheme_slug, source_url, fetched_on, benefits, eligibility, exclusions, documents, apply, source_sha256, level, department. No PDF reader, no PDF library in .venv. Muse: 13.1 calls, Rs 0.447 a scheme; MUSE_CAP_INR 60 in all (13.08 spent).
+- Tests that pin 17 / seven: test_step2.py:67, test_corpus.py:468, test_clarify_picker.py:28-90, test_ask_first.py:95,226, test_talk_human_code.py:93, test_scheme_index.py:92,121, test_scheme_names.py:77, test_real_snapshot.py:52-90, test_door_a.py:141.
+- Owner (6 Oct night): a kind may hold 1,000, the set 5,000+; the picker decides the number of questions. Plan: PLAN.md 9b, steps N5 (picker + rank + speed), N6 (more boxes, talk-only schemes), N7 (PDF intake; waits).
+
+## 6 Oct night: owner's two points put into PLAN.md section 10 (PLAN ONLY)
+- Human in the loop when the model is not sure -> section D: bands green / amber / red from signals (reader `sure`, two reads differ, size step, photos lost, high-stakes kind). Today only `sure` < PHOTO_SURE_MIN (0.4) gives "send a clearer one" (reader.py:17, tunables.py:79); nothing sends a case to a person. Review queue, 3 answers (confirm / correct / needs a visit), wait 4 h then a plain "could not tell" call; photo kept only while waiting (max 24 h), labels (words) kept; per-size counts set the green line = the live trust test (replaces the parked paid one). Dial REVIEW_TARGET first guess 30%.
+- SMS paid by the government (owner). The "health care centre" = where the phone probe is run: section E. Probe packets type Q; per phone-model code: header_ok, max_parts, seconds_a_packet; the settings go back by SMS (phones have no data); self-calibration on first use; safe default = today's way (header on, 5 parts, one at a time). Model code (2 letters) in every tag.
+- Steps now M1-M7 (M5 bands, M6 review queue + learning, M7 probe + profile). None needs a phone or money. Parked: the app code + probe mode, the real-phone probe run.
+- Numbers (30%, 4 h, 24 h, 100 parts, the probe ladder 1/3/5/10/15/20) are my first guesses.
+
+## N5 (coder)
+- Built: planner `_expected_left` (next to `_worst_left`) and `max_questions` on next_action / Planner.next_action / `_cap_stop` (None = MAX_QUESTIONS: keys path as before). talk_pick: `_ix` by dict (`_IX`, kept per corpus), SubCorpus mask kept per (box, value), `marks()` (mark for many schemes on the masks), `rank()`, `narrow` worth-it rule (worst-case cut >= max(1, ceil(TALK_MIN_CUT*n)) = minimax order; else expected cut; else stop "small_cut"), `Narrow.stop`. `question_budget` deleted. talk.py: need_n gone, `need_base` is None until the need is named, `_asked_out` (guard TALK_ASK_MAX=12), `_narrow` / `_found` one-slot memos, rank in `_state` (also sorts `_others`), `_ranked` / `_rank_pos`, log row field `stop`. prompts: RANK_RULE, build(ranked=).
+- The count line "N schemes fit" is now also in the number proof (N, N-1, N-2): before, a model that said the count in the gated case was refused by the number check.
+
+## 6 Oct night: owner's answers, then the build file for Muse (PLAN ONLY; nothing built)
+- Owner: NO "we could not do it" message to the caller; unsure goes to a person, back end only; the call-back carries the person's answer. Shares 20 / 12 / 10 OK. High stakes: later (dropped). Photo cap: he said "five ... keep it four" (garbled); I TOOK 5 (`SMS_MAX_PHOTOS`), one number to change if he meant 4.
+- My simplifications (owner can undo): second read by a second model left out; green / amber / red cut to "model or person"; no 4-hour fallback and no "honest" call; no automatic moving of the sure line (by hand from counts); reviewer answers by 3 buttons + a text box (no list); a "no photo came" case also goes to the person.
+- Written: `.agent/PROMPT-muse-sms-photo.md` (full steps M1-M7 with the packet format, files, checks, rules) and PLAN.md section 10 cut down to a short plan that points to it.
+- Watch for Muse: PHOTO_PENDING_S (tunables.py:78) may drop a call-back that waits 30 minutes; a case waiting for a person must be exempt. Also the line numbers in the file are from the explore agent and may have moved.
+- Numbers that are my guesses: SMS_SURE_LINE 0.7, SMS_SMALL_W 104, SMS_IDLE_S 180, SMS_CASE_S 1800, REVIEW_KEEP_DAYS 7, the probe ladder 1/3/5/10/15/20.
+- CHECK (me, 6 Oct night, worktree, keys unset, SNAPSHOTS_DIR + AUDIO_DIR pointed at the main folder): full pytest 3358 passed, 3 failed, 1 skipped. The 3 (test_door_a::test_repo_entries_exclude_quarantined_slugs, test_step2_cut_in::test_key_9_mid_reply_stops_it_and_the_link_line_is_said[False/True]) fail the same way with the change stashed: old faults in this setup, not from this work. make talk-eval started in the worktree; not finished when this was written.
+- NOT proven: real ring + Twilio status posts, real SMS, real Sarvam WAV, a phone browser playing the WAV, the 1/2/3 ask on a live terminal, demo.html in a browser.
+- To try: the worktree has no .env / audio / .venv. Either merge callback-catch into the branch in the main folder, or run from the worktree with the main folder's .env, audio and snapshots.
+- Speed: the big cost was `Filter.survivors` (a `2**i` test for each scheme, 138 calls a narrow): changed in filter.py to read the bits of the one combined mask (same tuple; tests/test_ask_scale.py compares it with the old loop). With `_ix` by dict, the SubCorpus mask kept, `talk_pick.marks` (one pass on the masks for the 5,000 marks of `_pieces`) and one-slot memos `_narrow` / `_found` (key: words + facts), one turn pass on 1,000 of 5,000 is about 12 ms (13 ms median of 5; asking turn about 20 ms), was about 5 s.
+- Rule effects to know: a 3-scheme list whose boxes cut under 1 scheme on average now stops with "small_cut" (business_loans: 3 schemes, occupation leaves 2.14 on average): no question, 3 ranked. On the made-up 1,000: worst answers = age, occupation, gender, then small_cut at 682 left; the expected-cut path is a fallback that the made-up data did not need.
+- Old tests changed: test_ask_first (budget tests replaced by min_cut / guard / no-question tests), test_clarify_picker::test_tie_worst_then_average_then_easy_first (tie rule checked on the switch-off path) and ::test_thirty_situations (3 business-loan rows now None).
+- For N6: new boxes need `planner`/`narrow` to see them: narrow loops SEVEN_BOXES for `rest`; `marks()` and `rank()` loop SEVEN_BOXES too; `max_questions=len(SEVEN_BOXES)` in narrow only holds while the planner counts SEVEN_BOXES. CAN_CHANGE / BOX_MEANING need rows.
+- SHOWN for real (me, 6 Oct night, made-up case in the scratchpad, SMS caught by a fake, real Sarvam + real translate): send took 3.2 s; SMS = "हकदार: यह आधार कार्ड नहीं है। तस्वीर में चॉकलेट का एक पैकेट दिख रहा है। सुनें: <link>" (117 letters); WAV 8000 Hz 5.7 s; the waiting call-back was cleared; a second send did nothing ("already sent").
+- Found + fixed: PHOTO_BACK_TRANSLATE is on only with TALK_ONLY, which mac_call sets for its SERVER process only. Case 2 is sent from the mac_call process itself, so the text stayed English. tools/mac_call.py ask_demo now sets tunables.PHOTO_BACK_TRANSLATE = True before demo_choice.
+- Worktree now has links to the main folder's .env, .venv, audio and data_cache/chunk_index (all git-ignored), so `make full` can run there.
+- Log field for the picker's stop reason is `stop_asking` on the act row (`stop` is the close row's key; the first name clashed and broke test_keys_readout_talk).
+- Correction: the act-row field is `ask_stop` (not `stop_asking`); it is not `stop`, which marks the close row.
+
+## 6 Oct night: 1-lakh-calls/day scale model (chat answer, no code)
+- Assumptions stated in answer: 100k calls/day, 5-min AHT, 14h day (7am-9pm), 2x peak factor. Human: 6.5-min AHT with wrap, 80-85% occupancy, Tier-2/3 wage Rs 24k/mo loaded, 7/6 weekoff + shrinkage. AI: repo-measured unit costs (SMS $0.0832, Muse Rs 0.006) + TO-VERIFY telecom/API prices.
+- Headline: ~1,200-1,500 concurrent channels; humans ~2,100 heads / ~Rs 25-32 per call in-house (Rs 40-60 outsourced) vs AI ~Rs 12-18 per call; monthly ~Rs 8-10 Cr vs ~Rs 4-5 Cr.
+
+## 6 Oct night: N5 checked by the main session
+- N5's `row["stop"]` on the talk's act row clashed with the row that ends a call (tests count rows with "stop"): renamed to `ask_stop` (talk.py ~:1232). Full pytest then 3378 passed (434 s, machine busy). test_mouth::test_a_key_stops_the_line_fast... failed once under load and passed alone: timing, not this work.
+- make talk-eval on the N1-N3 code: 38,194 calls, 14 with a broken rule, all R4 + key 9 early (quiet 9, g_lang_late 5): the old fault. Not run again on N5.
+- N5 rule to know: with 3 left and no box that cuts 1 scheme on average, nothing is asked ("small_cut") and the 3 are ranked, 2 told. On the made-up 1,000 with only the seven boxes the worst answers end at 682 left after 3 questions: the seven boxes can not cut a big kind; N6's boxes (gives, sub_kind, facts, all states) are what will.
+
+## N6 (coder)
+- Way taken for `state`: widening `state` touches the keys path (vocab.KEYPAD_LISTS["state"] is read by router.py:140/189, pipeline/texts.py:74 (chips), span_guard.py:144 `value in vocab.STATE`), so `state` is LEFT and the talk gets its own box `home_state` (37 values: 36 states / UTs + OTHER). N7 must fill `home_state` on rows; the old `state` stays MAHARASHTRA / OTHER.
+- Value codes: gives = cash_aid, loan, subsidy, insurance, monthly_pension, training, job, house, health_cover, scholarship, equipment, food, other (underscore / non-colliding with category labels: "pension" is a category label, so monthly_pension). The `code_name` rule (talk.py `codes`) is made to look at the seven boxes only, so the new values (loan, yes, no ...) can not trip it.
+- types.py: FACT_NAMES / FACT_BOXES / TALK_BOXES; vocab.py: GIVES, HOME_STATE, FACTS (yes / no words, ask en/hi/mr drafts, change), fact_of, box_values, value_words; tunables TALK_MODEL_BOXES.
+- planner.py: `boxes` param (default SEVEN_BOXES) on next_action / Planner.next_action / _cap_stop / _inferred_questions.
+- p6_snapshot.py: `_box_value` (fact box reads row `facts`: needs->yes, bars->no, else ANY), `_check_talk_fields` (unknown code -> ValueError naming scheme + value; returns the talk-only boxes a row names), a talk-only box is written ONLY when a row names it (so old data builds the same snapshot as before; deviation from "every box"), chips only for SEVEN_BOXES, `is_range_box = box in ("age","income_band")`, `talk_only_rest` param (+ `--all-schemes` now means this), row `talk_only: true` skips the chunk keys; Gate 3 asks only for en text on a talk-only row.
+- corpus.py: `talk_only` ids -> `_talk_only` (index set), `is_talk_only(ix)`, not in alias maps (Door A). filter.py `speakable`: a talk-only scheme (int target or dict row) is never speakable = the ONE keys-path place.
+- corpus.py: NO public is_talk_only (test_frozen_corpus_interface_verbatim pins the public names): the set is the private _talk_only (index set) that filter.speakable reads.
+- Owner tried the demo: NO message on his phone. Cause: on a Mac call (no caller number) the message was only printed ("PHOTO MESSAGE:"), as the link is. Twilio itself is fine: one real test SMS to CALL_ME_NUMBER (+91) came back "delivered", 2 parts, $0.166 (about $0.083 a part: dear).
+- FIX (worktree, not committed): back_msg._send: with PHOTO_BACK_ASK on, a shown message ALSO goes by SMS to CALL_ME_NUMBER; a link to 127.0.0.1 / localhost is left out of that SMS. New env PHOTO_SOUND_URL (base of the sound link, before PHOTO_BASE_URL). tools/mac_call.py `sound_tunnel()`: with PHOTO_BACK_ASK + --back it starts a cloudflared quick tunnel to port 8002 (log logs/sound-tunnel.log), sets PHOTO_SOUND_URL before the server starts; the tunnel is LEFT running after the program ends (the SMS link must still open); `make full-stop` stops it; the next run kills the old one first.
+- Checked for real: tunnel up in 6 s; public fetch of /s/<token>.wav through it: 200, audio/wav, RIFF. Tests: test_back_msg + test_back_drop pass (2 new tests). NOT checked: the SMS with the link arriving on the phone and the phone playing the WAV (needs the owner's run).
+
+## 6 Oct night: pasted 5-min scenario doc verified, BUSINESS-CASE.md §10-14 written
+- Two checker agents (repo + live web prices). Tallies machine-checked (seq1-19=5.977, A=7.027, B=6.877).
+- Added: §10 verified Ramesh scenario, §11 corrected 20-row trace (A≈Rs 7.03, B≈Rs 6.88), §12 human comparison (Rs 108.50 vs 7, ~93-94%, ~Rs 1.01 Cr/1L cases), §13 scalability today-vs-target, §14 verification appendix.
+- Fixes: TTS was 10x understated; Gemini-router+3xLlama-vision rows replaced by one measured Muse read (Rs 0.006); OBD 0.40->0.90 (60-s pulse); Groq chain is qwen3/gpt-oss (llama-3.3-70b 404'd 4 Oct; $0.59/$0.79 has no official list); KCC Rs 142.85Cr/234 seats NOT found (RFP: 525 seats, no award value) -> human basis recomputed from BPO math; reassembler path keypad_sms/, voice advisory via tools/photo_back.py; blur/species-confidence/250-concurrent/uvloop all unmeasured or absent.
+- Also fixed: TALK_MAX_TURNS 8 -> 40 (code default).
+- talk_pick.py: `boxes_of(corpus)` (seven + talk-only boxes the snapshot holds values for), every SEVEN loop now walks it (mark, marks, needs_ask, narrow `walk` + `rest` + max_questions, rank, blockers), `model_boxes(left, bv, corpus, limit, must)` = the new boxes shown to the model (unanswered, split the left list, only values a left scheme NAMES (not ANY-held); facts both answers), CAN_CHANGE rows, live_values yes-first for facts, Blocker.line / _say / _needs for facts ("the scheme needs: has a BPL card; the caller said: no (can change: yes)").
+- talk.py: _take_facts over TALK_BOXES (+ true/false for facts), bv starts with all TALK_BOXES UNASKED (also when it comes back from keys with seven), model_boxes joined to `boxes` for build() (TALK_MODEL_BOXES=5), `nots` over TALK_BOXES, code_name rule over the seven only, fixed read-back via prompt.say_value, `_add_keys` over boxes_of, `_recap_facts` adds the new boxes, `_keys_out` seven only.
+- prompts/talk.py: BOX_MEANING / QUESTION rows for new boxes (f_* from vocab.FACTS), `say_value`, just_heard for facts, BOXES lines for non-seven boxes get "(meaning)".
+- Measured (tests/test_talk_boxes.py -s): worst walk on the made-up 1,000 with new boxes ends at 6 left (small_cut) after 11 questions (was 682 with the seven); clear caller (loan, rural, BPL yes, female, 41-79): 80 fit on the five answers, 5 left after the picker's worst-answer questions; speed (22 boxes) median 50 ms a turn pass; prompt +172 tokens for 5 boxes (gives, sub_kind, home_state, 2 facts).
+- Limits: the picker walk uses `Filter.survivors` per value; fine at 22 boxes. Fixed read-back words and facts in hi / mr say the fact phrase in English (FACTS has en yes/no words only).
+
+## 6 Oct night: BUSINESS-CASE.md (another session's file, untracked) brought in line with the built SMS photo door
+- Full pytest in the sms-photo worktree: 3361 passed, 1 failed: tests/test_door_a.py::test_repo_entries_exclude_quarantined_slugs. Same failure in the untouched worktree haqdaar-v2-callback (same commit) and it PASSES in the main folder: the worktrees' data_cache lacks the quarantine data (data_cache is git-ignored). Not caused by the SMS code.
+- Edited only 4 spots of BUSINESS-CASE.md: §7 (what the SMS door now does: model vs operator, the 0.7 / 104 first guesses, labels, wipe), §8 and §9 (readability still unmeasured on a real phone and a real model), §10 (Door 0 parts per photo). No other number changed; the file is NOT committed.
+
+## 6 Oct night: 1,000 calls/s cost model (chat answer, no code)
+- Scenario: 1,000 calls/s, 5 min, English-middle (2 languages), 1 photo per call, SMS + audio back on 50% of calls. 300,000 concurrent (Little's law), 86.4M calls/day.
+- Per call: BUSINESS-CASE §11 seq 1-18 = Rs 5.857 + 0.5 x SMS 0.12 + 0.5 x audio 1.05 + translate Rs 7.20 (3,600 chars at Sarvam Rs 20 per 10k, web-checked 6 Oct) + review 1.5 = Rs 15.14. Without translate Rs 7.94. §11 trace had NO translate row: a gap (NOTES says ~40 sentences a call).
+- Human same case Rs 88.5 (call 28.5 + look 50 + 50% SMS 5 + 50% voice 15; all but call are estimates). 24x7 staffing ~1.85M heads.
+- Gov: KCC 1551 (old source 144 agents; 2023 RFP 525 seats), PM-Kisan 155261 + AI chatbot (95 lakh queries / 53 lakh farmers), ~5 lakh CSCs. No gov cost per call found.
+- Not true at this scale: list prices, Groq / Sarvam per-key limits (translate ~8-10 calls a key), Muse, telecom.
+- Full suite after N6: 3404 passed (411 s). tests/test_talk_boxes.py 26 passed. No old test changed.
+- Owner's 2nd try (15:08 IST): he says no SMS, no link. Twilio's own list: that SMS (3 parts, with the public link) is "delivered" to CALL_ME_NUMBER. So the app side sent it; whether the handset shows it is NOT known from here. Its text was ENGLISH for a Hindi call: the translator failed once and the English was kept.
+- CAUSE of that failure, most likely: my own pytest runs. tunables.py does load_dotenv(), and I had linked .env into the worktree, so `env -u KEY` did not hide the keys: tests reached the real translator / voice / Twilio (runs took 60-180 s; with keys set EMPTY the same tests take 5 s). Two test SMS went to the tests' fake number (Twilio "failed 21608", nothing delivered).
+- RULE for this worktree: run tests with the keys set EMPTY (GROQ_API_KEY= GROQ_API_KEY_2= SARVAM_API_KEY= TWILIO_AUTH_TOKEN= TWILIO_ACCOUNT_SID= MUSE_API_KEY= NVIDIA_API_KEY=), not `env -u`.
+- FIXES: tests/test_photo_back.py fixture now passes a fake `send` (the watcher's "ring failed" road called the real back_msg.send). back_msg.answer_text: a sentence still in English after the translator gets ONE more try. Full pytest, keys empty: 3364 passed, 1 failed (test_door_a::test_repo_entries_exclude_quarantined_slugs, old).
+- Real check sent to the owner's phone at ~15:35 IST: Hindi text + public sound link (link fetched: 200 audio/wav).
+- Owner: "it is working as it should". Makefile `full` now sets PHOTO_BACK_ASK=true by itself (PHOTO_BACK_ASK=false make full turns it off). Committed on callback-catch and merged (fast-forward) into v5-full, NOT pushed. The worktree ~/code/haqdaar-v2-callback is now on v5-full. The main folder is still on narrow-ask, which does NOT have this work yet. make talk-eval was never seen to finish.
+
+## 6 Oct night: N6 checked by the main session; where narrow-ask stands
+- My run on the whole tree (N1, N2, N3, N5, N6): py_compile ok, full pytest 3404 passed (385 s). Nothing committed. make talk-eval was run on N1-N3 only (14 broken, the old key-9 fault).
+- Made-up kind of 1,000 (coder's own mix, NOT real data): worst answers go 1000 -> 182 (sub_kind) -> 27 (gives) -> 14 (home_state) -> ... -> 6 after 11 questions, stop small_cut. Seven boxes alone: 682. One turn pass: 50 ms with 22 boxes.
+- `state` left alone (keys path, chips, span_guard read it); the talk's own box is `home_state` (36 states / UTs + OTHER).
+- Row shape for N7: gives (code / list / ANY), sub_kind (code), home_state (code / list), facts {name: needs | bars}, talk_only true; build with `--all-schemes` (now means: no clips = talk-only). p6 writes a new box only when some row names it, so today's data builds the same snapshot.
+- Open, known: hi / mr words for facts, the key hint and the read-back are English or drafts; facts learnt in the talk are lost when the caller goes to the keys part and back; the keys picker may count talk-only schemes it can not read; `specificity` in Corpus does not count the new boxes; nothing tried with a real model or on a call.
+- 11 questions in the worst case is long for a phone call. TALK_ASK_MAX (12) and TALK_MIN_CUT (0.10) are the two numbers to move after a real call.
+- 6 Oct: v5-full (d1ed4fb, call-back catch) PUSHED to origin on the owner's word.
+
+## 6 Oct night: COST-MODEL.md (per language, business plans) written
+- File: COST-MODEL.md (new, uncommitted). Scratchpad scripts: lenmeasure.py (Sarvam translate of 8 sentences x 10 langs, ~Rs 10 spent), model.py.
+- Measured script length vs English: hi 1.118 mr 1.071 bn 1.052 gu 1.021 kn 1.222 ml 1.335 od 1.121 pa 1.162 ta 1.374 te 1.158.
+- Result: Rs 17.62 a call weighted (Tamil 19.8, Gujarati 16.9, English 11.8); infra Rs 10.5 Cr a month = Rs 0.04 a call; person Rs 88.5. Voice out 46%, translate 26%, phone 13%.
+- CORRECTS my earlier chat answer: Rs 15 -> Rs 17.6 (TTS now on the 2,400 letters of 40 sentences, not the 910 of the pasted draft; translate chars 3,600 -> 2,400); reviewers at 1,000 calls a second are ~36,000 (not 150-300); human check Rs 0.34 a call is below BUSINESS-CASE §7 (Rs 1-2).
+- Estimates still: 150 calls a box, 500 channels a box, Rs 0.45 a minute line, 80 s of caller speech, Rs 90 a dollar, English 3% share.
+
+## 6 Oct night: COST-SLIDES.md (deck content + government adoption plan)
+- New file COST-SLIDES.md (uncommitted): 8 slide blocks + risks/answers + steps 0-4 + the ask. Numbers from COST-MODEL.md.
+- Web found 6 Oct: Kisan e-Mitra (PM-Kisan chatbot, 11 langs, voice/text, Bhashini + Wadhwani AI, 49 query kinds); Bhashini free for PoC only, production by quote, no rate card; DPIIT startups exempt from experience/turnover/EMD on GeM only if the tender says so; Digital Agriculture Mission ~Rs 28.2 bn; Bharat-VISTAAR (Budget 2026-27, proposed) AgriStack AI advisory layer; Sarvam also lists in-India LLMs (Sarvam-30B / 105B).
+- NOT found: any gov cost per call (KCC, PM-Kisan); KCC 2023 tender value and calls a year; GeM trial-order limits.
+- Gap to fix before a gov pilot: the talk model runs at Groq (outside India). Groq is 3% of cost, so an in-India model does not change the plan.
+- Compare numbers: call only Rs 16.3 vs desk 28.5 (43%); whole case 17.6 vs 88.5 (80%); lean 8.6 (90%). District pilot: 300 calls a day, price Rs 25 a call = Rs 2.25 lakh a month, my cost ~Rs 2.2 lakh, desk Rs 7.97 lakh.
+
+## Intake builder (coder)
+- 6 Oct: p6 age rule changed (p6_snapshot.py): bands (edges) cut from schemes that are NOT talk_only; a talk_only scheme sets the bit of every band that OVERLAPS its range (`_band_overlaps`). Live rows have no talk_only so their bands and masks are unchanged.
+- Isolated build plan: audio dir = data_cache/intake/audio (symlinks to repo audio/*.ulaw + a COPY of index.json) so p6 never writes repo audio/index.json; snapshots in data_cache/intake/snaps/ with its own CURRENT.
+- Live chunk sizes (en): max 307 chars (name 63, summary 254, benefit 307, who 285, docs 297, how 282). Intake chunks capped the same.
+
+## 6 Oct night: scheme intake (narrow-ask session). Spec .agent/INTAKE-FORMAT.md; source data_cache/intake/source.md (copy of ~/Downloads/documentation (1).md); index data_cache/intake/index.json (34 schemes)
+- Skipped: 3 repeats (National Youth Award, Nikshay Poshan, SBM-G), 3 already live with clips (PMFBY 2344-2492, KCC 2493-2609, APY 3132-3276).
+- 34 annotation files written by 3 annotators (quotes checked by their own script; builder check pending). Points they flagged for a person:
+  - lws-health-beedi-cine, pg-indira-gandhi-single-girl: no minimum age in the text, min set to 0.
+  - loan-foreign-study-sebc-gujarat: its FAQ is copied from the DAADC scheme and contradicts its own eligibility; the FAQ must NOT go into its spoken text. home_state GUJARAT rests on "Government of Gujarat" in Details. daadc-microcredit: 6% in Benefits vs 4% in FAQ; group vs individual unclear.
+  - sbm-g-phase-1: low confidence (past tense, phase I may be over). pmay-urban: income cap 18 lakh = top band, "owns no pucca house" only a gate note. gobardhan: thin.
+  - niti-internship: `student` needs, but fresh graduates can apply (gate note): a caller who just graduated may be filtered out. pm-vikas: `minority` not set (25% / 15% non-minority seats). stand-up-india: gender / SC-ST rule only in gate_notes.
+  - Low use for an individual caller: pm-ajay-adarsh-gram (village), icwf (overseas), rkvy-agri-startups, rti-fellowship, mda-tourism, centre-of-excellence, odop-awards (organisations).
+  - Category debates: ksb-home-loan (housing vs welfare), odop-awards (business_loans vs welfare).
+
+## 6 Oct night: HAQDAAR-COST-ANALYSIS.md (single file for the slide team)
+- New, uncommitted. Combines COST-MODEL.md + COST-SLIDES.md + new: options A desk / B1 AI-assisted desk (Rs 52.4 a case, Rs 6 Cr build) / B2 build own on VoicERA+Bhashini (Rs 17.6 + Rs 8.1 Cr a year, Rs 18 Cr build, 12-18 months) / C buy from us (Rs 22); scheme-freshness cost (~Rs 1.1 Cr a year per 100 schemes, mostly people); profit (net Rs 11 / 17.4 / 43.9 Cr at 1 lakh a day, break-even ~31,000 calls a day at Rs 22); slide blueprint.
+- KEY HONEST RESULT: 3-year at 1 lakh a day B2 Rs 235 Cr vs C Rs 241 Cr: buying from us is ABOUT EQUAL to building, so the pitch is speed, no upfront spend, schemes kept current, keypad + photo doors; not per-call price. At 10 lakh a day B2 is a little cheaper (1,971 vs 2,081).
+- Found: VoicERA on Bhashini = open-source voice AI stack (19 Feb 2026), a threat and a partner. KCC adviser pay starts ~Rs 25,000 (recruitment notice, not opened). Senseforth won the Umang voice assistant tender (lowest bid): no value found.
+- B1 and B2 build figures are my estimates with no published contract to check against.
+- Old COST-MODEL.md / COST-SLIDES.md left in place; the new file says it replaces them.
+- tools/intake_build.py + `make intake` + tests/test_intake_build.py (35 tests) done. Real run 6 Oct (34 annots present): OK 34, REFUSED 0, MISSING 0. Isolated snap data_cache/intake/snaps/intake_20261006_102052 (+ CURRENT there), audio pool data_cache/intake/audio (symlinks + copied index.json). 51 schemes, 34 talk-only, live bands unchanged (0-13,14-17,18-35,36-39,40-40,41-79,80+). New boxes written: gives, sub_kind, home_state, f_aadhaar f_bank_account f_govt_employee f_new_business f_owns_farm_land f_rural f_student. income_band stays ANY (no chip asked); category/gender/social/occupation/state are closed lists (build raises on a value outside), checked in verify.
+- FINDING (not fixed, planner is out of scope): the KEYS-path planner (Planner.next_action default boxes) counts talk-only schemes among survivors. Vector farming/male/farmer: live Stop(survivors_le_4) with 4 live schemes; isolated 9 survivors (5 talk-only) -> Ask(state). So with the 51 snapshot the keys path asks extra questions, and its short-list may be padded by schemes it can not name (speakable drops them). Same as the N6 open point "keys picker may count talk-only".
+- Chunks: cap 320 chars at a sentence end; 130 of ~170 chunks cut; 4 fall back (pmgsy summary, pmjjby / pmsby documents, skill-technical-textiles summary: sections not in the text -> text says "The scheme text does not list this."). scheme_name_mr / aliases_mr copy the Hindi (Devanagari), hi/mr chunks absent (talk_only needs en only).
+- Full pytest, keys empty: 3439 passed (407 s).
+
+## Intake check (coder)
+- Fix 1: Filter.survivors drops talk-only schemes (new `_keys_only` in filter.py) unless `include_talk_only=True`. It reads the full Corpus `_talk_only`; SubCorpus has none, so the whole talk picker (talk_pick.narrow / marks / rank / near) still counts them. talk.py 3 direct calls on the full corpus (`_help_kinds`, kind sets) pass include_talk_only=True. Planner / terminals / call.py unchanged (they only reach survivors through Filter). tests/test_intake_build.py: by-name tolerance removed.
+
+## 6 Oct: v5-full (sms-photo merge) pushed; main fast-forwarded to it (owner ask)
+- Pushed local v5-full to origin over https: d1ed4fb..1e162be (the 4 sms-photo commits were unpushed).
+- main was 111 commits behind v5-full and a strict ancestor, so local main was fast-forwarded with `git branch -f main v5-full` (no checkout: worktree stayed on narrow-ask, its ~20 dirty files untouched), then pushed: 806299b..1e162be.
+- Verified via ls-remote: origin/main and origin/v5-full both at 1e162be; local main and v5-full match. No code changed, so no pytest/py_compile run (ref moves only).
+
+## 6 Oct: main checked + README rewritten (owner ask, fast)
+- Remote main verified correct: 1e162be, zero diff vs v5-full, sms-photo files (keypad_sms/, photo/, tools/sms_cut.py) present. (Local origin/* tracking refs were stale because pushes used the https URL; fixed with `git fetch origin`.)
+- README rewritten on main via clean worktree /tmp/haqdaar-readme (narrow-ask dirty tree untouched; other sessions' worktrees left alone): committed 6ea88f4, pushed. Remote main = 6ea88f4, v5-full stays 1e162be. No app code changed, so no pytest run.

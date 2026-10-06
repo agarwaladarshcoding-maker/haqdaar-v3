@@ -75,6 +75,7 @@ class Corpus:
         templates: dict[str, Any],
         chunks_map: dict[str, dict[str, tuple[RenderKey, ...]]],
         gate_notes_map: dict[str, tuple[str, ...]],
+        talk_only: frozenset[str] = frozenset(),
     ) -> None:
         self._snapshot_id = snapshot_id
         self._masks = masks
@@ -85,6 +86,7 @@ class Corpus:
         self._templates = templates
         self._chunks_map = chunks_map
         self._gate_notes_map = gate_notes_map
+        self._talk_only = frozenset(i for i, sid in enumerate(scheme_ids) if sid in talk_only)
 
     @classmethod
     def load(cls, snapshot_id: str) -> Corpus:
@@ -182,6 +184,7 @@ class Corpus:
             raise CorpusError(f"Failed to read schemes.jsonl: {e}") from e
 
         scheme_ids = tuple(s.get("scheme_id", f"S{i+1}") for i, s in enumerate(scheme_records))
+        talk_only = frozenset(sid for sid, s in zip(scheme_ids, scheme_records) if s.get("talk_only") is True)
 
         # Calculate specificities: count of non-ANY boxes in SEVEN_BOXES
         specificities_list: list[int] = []
@@ -256,6 +259,8 @@ class Corpus:
         alias_maps: dict[str, dict[str, tuple[str, ...]]] = {"en": {}, "hi": {}, "mr": {}}
         for scheme in scheme_records:
             sid = scheme.get("scheme_id", "")
+            if sid in talk_only:      # N6: Door A (keys path) must never name a scheme it can not read out
+                continue
             for lang in ("en", "hi", "mr"):
                 for alias in scheme.get(f"aliases_{lang}", []):
                     norm = _normalize_text(alias)
@@ -274,6 +279,7 @@ class Corpus:
             templates=templates,
             chunks_map=chunks_map,
             gate_notes_map=gate_notes_map,
+            talk_only=talk_only,
         )
 
     @property

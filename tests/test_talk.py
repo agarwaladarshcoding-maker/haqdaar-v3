@@ -147,11 +147,11 @@ def test_the_model_may_only_ask_the_pickers_box(call):
     wrong = {"action": "ask", "say": "Are you a man or a woman?", "ask_box": "gender"}
     right = {"action": "ask", "say": "What kind of help do you need?", "ask_box": "category"}
     audio, client, _ = call([Speech("I just called")], [wrong, right])
-    assert audio.answers == ["What kind of help do you need?"]
+    assert audio.answers[0] == "What kind of help do you need?" and len(audio.answers) == 2   # N2: the keys are the 2nd sentence
     assert 'Ask about "category", not "gender".' in client.calls[1]
 
     audio, _, _ = call([Speech("I just called")], [wrong, wrong])     # twice wrong -> the fixed words
-    assert audio.answers == [prompt.QUESTION["category"]["en"]]
+    assert audio.answers[0] == prompt.QUESTION["category"]["en"] and len(audio.answers) == 2   # N2: then the keys
 
 
 def test_unclear_words_get_a_normal_clarifying_question(call):
@@ -251,7 +251,8 @@ def test_rate_limited_model_hands_over_to_the_next_one(corpus, tmp_path, monkeyp
     assert client.models == ["big", "small"] and audio.answers == ["It is for farmers."]
 
 
-def test_only_two_schemes_are_sent_in_full(call):
+def test_only_two_schemes_are_sent_in_full(call, monkeypatch):
+    monkeypatch.setattr(tunables, "TALK_ASK_FIRST", False)   # ask-first sends no scheme text while the list is long (test_ask_first.py)
     _, client, _ = call([Speech("I need some scheme")], [{"action": "not_for_me"}])
     assert client.calls[0].count("how_to_apply:") == 2 and client.calls[0].count("mark: ") == 4
 

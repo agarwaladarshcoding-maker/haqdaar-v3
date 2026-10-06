@@ -152,7 +152,7 @@ def test_the_keys_offer_is_said_once_after_three_questions_with_no_reply(go):
     said_text = " ".join(audio.answers)
     assert prompt.KEYS_OFFER["en"].split(". ")[1] in said_text
     asks = [r for r in rows if r.get("ev") == "act" and r.get("action") == "ask"]
-    assert len(asks) == 3 and rows.index(offers[0]) > rows.index(asks[2])    # after the third question's reply
+    assert len(asks) >= 3 and rows.index(offers[0]) > rows.index(asks[2])    # after the third question's reply (ask-first: the list's size sets how many more)
 
 
 def test_no_keys_offer_when_keys_in_talk_is_off(go, monkeypatch):
