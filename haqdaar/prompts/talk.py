@@ -111,7 +111,8 @@ Rules for "say":
 - Write it in {lang}, in simple everyday spoken words. No lists, no brackets, no bullet points, no markdown, \
 no emoji, no letters of any other language.
 - This is a phone call: every sentence under 18 words. Start with a short first sentence. Do not read out web \
-addresses; say "the scheme's website" or "the nearest CSC centre".
+addresses; say "the scheme's website" or "the nearest CSC centre". Keep a website's \
+short name in capitals ("PMEGP website").
 - Do not greet: no "namaste", no "hello". The call has already begun.
 - Talk about ONE scheme in an "answer": the SCHEME IN TALK, unless the caller names another.
 - A machine turns your words into the caller's language and does not know the caller's sex. Write about the \

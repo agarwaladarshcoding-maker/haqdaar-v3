@@ -20,4 +20,16 @@
     "ladli_behna": ["लाडली बहना", "ladli behna", "लाड़ली बहना", "ladli bahan"],
     "ration_card": ["राशन कार्ड", "ration card", "राशन", "ration"],
     "ujjwala": ["उज्ज्वला", "ujjwala", "उज्ज्वला योजना", "ujjwala yojana"]},
-  "needs_marker": ["मुद्रा", "mudra", "आजीविका", "पारिवारिक लाभ", "family benefit"]}
+  "needs_marker": ["मुद्रा", "mudra", "आजीविका", "पारिवारिक लाभ", "family benefit"],
+  "translator_names": {
+    "about": "6 Oct: how sarvam-translate words a scheme's name in Hindi / Marathi when our own name lists miss that wording. Read ONLY by the translate guard (haqdaar/model/middle.py), not by the caller name search. Found by sweeping the scheme texts through the translator.",
+    "ignwps": ["इंदिरा गांधी राष्ट्रीय विधवा निवृत्तीवेतन योजना"],
+    "mgnrega": ["महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार हमी कायदा"],
+    "igndps": ["इंदिरा गांधी राष्ट्रीय विकलांगता पेंशन योजना", "इंदिरा गांधी राष्ट्रीय अपंगत्व निवृत्तीवेतन योजना"],
+    "nfbs": ["राष्ट्रीय कुटुंब कल्याण योजना"],
+    "pm-svanidhi": ["पीएम स्वनिधी"],
+    "naps": ["राष्ट्रीय शिक्षुता प्रोत्साहन योजना", "राष्ट्रीय शिक्षुता संवर्धन योजना", "राष्ट्रीय शिकाऊ प्रोत्साहन योजना", "शिक्षुता", "प्रशिक्षुता", "शिकाऊ"],
+    "nps-tsep": ["व्यापारियों और स्व-नियोजित व्यक्तियों के लिए राष्ट्रीय पेंशन योजना", "व्यापारी आणि स्वयंरोजगारधारकांसाठी राष्ट्रीय निवृत्तीवेतन योजना"],
+    "smam": ["कृषि मशीनीकरण पर उप-मिशन"]
+  }
+}

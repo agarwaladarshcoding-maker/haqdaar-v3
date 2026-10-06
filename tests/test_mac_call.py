@@ -103,3 +103,22 @@ def test_log_tail_gives_each_whole_row_once(tmp_path):
         f.write(b'id", "text": "hi"}\nnot json\n')
     assert tail.rows() == [{"ev": "said", "text": "hi"}]
     assert tail.rows() == []
+
+
+def test_wait_for_answer_rings_back_when_the_answer_is_ready(monkeypatch):
+    from haqdaar.photo import in_call
+    from tools import mac_call
+
+    seen = iter([None, None, {"token": "t"}])
+    monkeypatch.setattr(in_call, "pending", lambda: next(seen))
+    monkeypatch.setattr(mac_call.time, "sleep", lambda s: None)
+    assert mac_call.wait_for_answer(60) is True
+
+
+def test_wait_for_answer_gives_up_in_time(monkeypatch):
+    from haqdaar.photo import in_call
+    from tools import mac_call
+
+    monkeypatch.setattr(in_call, "pending", lambda: None)
+    monkeypatch.setattr(mac_call.time, "sleep", lambda s: None)
+    assert mac_call.wait_for_answer(0) is False

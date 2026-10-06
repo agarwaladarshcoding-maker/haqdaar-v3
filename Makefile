@@ -60,19 +60,23 @@ mac-call:
 
 # Everything at once for a Mac call: the photo desk (8002 / 8003, SMS door on) and the phone page (8080) are
 # started if they are not up, then the call. They stay up after the call, so the photo can come in and the
-# next `make full` opens with the answer. `make full-stop` stops them. Logs: logs/photo-desk.log, logs/keypad-ui.log.
+# call-back comes by itself: after a call that sent a photo link the command stays, waits for the photo's answer
+# (1 minute; BACK_WAIT=seconds for more) and starts the call-back on this Mac. A real phone number is rung by the watcher (photo-back), which is
+# started too when PHOTO_BACK_URL is set. `make full-stop` stops them. Logs: logs/photo-desk.log, logs/keypad-ui.log.
 full:
 	@mkdir -p logs; \
 	lsof -ti tcp:8002 >/dev/null || { SMS_DOOR=true nohup $(PYTHON) -m tools.photo_desk > logs/photo-desk.log 2>&1 & echo "started the photo desk  (page 8002, desk http://127.0.0.1:8003)"; }; \
 	lsof -ti tcp:8080 >/dev/null || { nohup $(PYTHON) -m http.server 8080 --directory keypad_app > logs/keypad-ui.log 2>&1 & echo "started the phone page  (8080)"; }; \
+	[ -z "$$(grep -E '^PHOTO_BACK_URL=.+' .env 2>/dev/null)" ] || pgrep -f "tools.photo_back" >/dev/null || { nohup $(PYTHON) -m tools.photo_back > logs/photo-back.log 2>&1 & echo "started the call-back watcher  (logs/photo-back.log)"; }; \
 	sleep 2; \
 	lsof -ti tcp:8002 >/dev/null || echo "!! the photo desk did not start: see logs/photo-desk.log"; \
 	lsof -ti tcp:8080 >/dev/null || echo "!! the phone page did not start: see logs/keypad-ui.log"; \
-	$(PYTHON) -m tools.mac_call --serve --port $(or $(PORT),8001)
+	$(PYTHON) -m tools.mac_call --serve --back --back-wait $(or $(BACK_WAIT),60) --port $(or $(PORT),8001)
 
 full-stop:
 	@pkill -f "tools.photo_desk" && echo "photo desk stopped" || echo "photo desk was not running"; \
-	pkill -f "http.server 8080 --directory keypad_app" && echo "phone page stopped" || echo "phone page was not running"
+	pkill -f "http.server 8080 --directory keypad_app" && echo "phone page stopped" || echo "phone page was not running"; \
+	pkill -f "tools.photo_back" && echo "call-back watcher stopped" || echo "call-back watcher was not running"
 
 # 5 Oct: run a few minutes before a demo call. Says what is ready and what is not. Places no call.
 stage-check:

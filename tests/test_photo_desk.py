@@ -623,3 +623,17 @@ def test_host_origin_guard_covers_new_routes(tmp_path):
 
         r_ta_good = client.post("/toggle-auto", headers={"Origin": "http://localhost:8003"})
         assert r_ta_good.status_code == 200
+
+
+def test_phone_demo_on_another_port_may_post_a_photo():
+    """6 Oct: the phone demo (port 8080) posts image/jpeg to the photo port. The browser asks first (OPTIONS);
+    with no yes to that the photo never left the page."""
+    client = TestClient(photo_desk.photo_app)
+    r = client.options("/p/abcdefghij/photo", headers={"Origin": "http://127.0.0.1:8080",
+                                                      "Access-Control-Request-Method": "POST",
+                                                      "Access-Control-Request-Headers": "content-type"})
+    assert r.status_code == 200
+    assert r.headers["access-control-allow-origin"] == "*"
+    assert "POST" in r.headers["access-control-allow-methods"]
+    r = client.post("/p/abcdefghij/done", headers={"Origin": "http://127.0.0.1:8080"})
+    assert r.headers.get("access-control-allow-origin") == "*"       # the page can read the answer, even a "no such case"

@@ -1932,3 +1932,13 @@ headphones, or the microphone hears the agent's own voice.
 - Limit: during the long scheme read-out the caller is heard only after it ends (cut-in is off by default).
 - Checks: full tests 3,226 passed; talk check on 6 scripts, 7,650 calls, 0 rules broken; stress clean. Muse cost of all tries: Rs 0.03.
 - Not done: a call with a real mic or a real phone; a real SMS; Marathi and other languages on a real call.
+
+## 6 Oct, after the owner's own Mac call: photo upload, call-back, English sentence fixed
+- What went wrong on the call: (1) the photo sent from the phone picture on the screen never reached the photo desk, so there was no answer and no call-back; (2) one sentence in a Hindi answer was said in English ("To apply, visit the official PMEGP website...").
+- Why (1): the phone picture is a page on one port and the photo desk is on another. The browser asks the desk for leave first, and the desk did not answer that. Fixed in the desk; a real browser now gets the photo through.
+- Why (2): the translator wrote "PMEGP" in Hindi letters, our checker then found no scheme name and threw the Hindi away. Now the short name is put back in English letters inside the Hindi sentence.
+- Other words (a sweep of 87 scheme sentences through the real translator, Hindi and Marathi): the same fall to English happened for 9 schemes whose names the translator words in its own way, and for amounts written as a range. Both fixed. 159 of 162 pairs now pass; 3 with numbers written as words still fall to English.
+- One command: `make full` starts the photo desk, the phone page, the call; after a call that sent a photo link it now waits (15 minutes) and calls back on the Mac by itself when the answer is ready. The watcher that rings a real phone starts too once a phone line is set. `make full-stop` stops all.
+- Sarvam: the old key ran out of credits during the work; the owner's new key is in place and works.
+- Checks: full tests 3,240 passed. Real check: browser photo -> Muse -> answer -> the wait saw it. Muse cost today Rs 0.05.
+- Not done: the call-back heard with a real mic after these fixes; Gujarati and Tamil short names (only Hindi and Marathi are put back); a real phone number.

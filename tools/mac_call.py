@@ -131,6 +131,29 @@ def clock() -> str:
     return f"{s // 60:02d}:{s % 60:02d}"
 
 
+LINK_SENT = threading.Event()               # a photo link went out in the call just made
+
+
+def wait_for_answer(wait_s: float, stop=None) -> bool:
+    """After a call that sent a photo link: wait here until the photo's answer is ready (make full).
+    True = ready, ring back now. False = no answer in time, or Ctrl+C."""
+    from haqdaar.photo import in_call
+
+    say(f"\nwaiting for your photo (up to {int(wait_s)} seconds). When the answer is ready I call you back here. Ctrl+C stops.", "!")
+    end = time.time() + wait_s
+    try:
+        while time.time() < end and not (stop is not None and stop.is_set()):
+            if in_call.pending() is not None:
+                say("\a\nthe photo's answer is ready: calling you back in 3 seconds", "!")
+                time.sleep(3.0)
+                return True
+            time.sleep(1.0)
+    except KeyboardInterrupt:
+        return False
+    say("no photo answer came in time. Run  make full  again later to hear it.", "!")
+    return False
+
+
 def watch_photo_link(log_path: str, stop: threading.Event) -> None:
     """The server prints "PHOTO LINK: <url>" when the caller asks for a photo. Show it here and open it."""
     try:
@@ -145,6 +168,7 @@ def watch_photo_link(log_path: str, stop: threading.Event) -> None:
                 time.sleep(0.2)
                 continue
             if line.startswith("PHOTO LINK: "):
+                LINK_SENT.set()
                 url, _, langs = line[len("PHOTO LINK: "):].strip().partition(" LANGS: ")
                 say(f"\nPHOTO LINK: {url}", "!")
                 try:
@@ -395,6 +419,8 @@ def main() -> None:
     ap.add_argument("--list-devices", action="store_true")
     ap.add_argument("--logs", default="logs/calls")
     ap.add_argument("--plain", action="store_true", help="no colour on the screen")
+    ap.add_argument("--back", action="store_true", help="after a call that sent a photo link, wait for the answer and call back here")
+    ap.add_argument("--back-wait", type=float, default=900.0, help="seconds to wait for the photo's answer")
     args = ap.parse_args()
 
     if args.list_devices:
@@ -425,6 +451,12 @@ def main() -> None:
     call_id = None
     try:
         call_id = asyncio.run(call(url, device(args.in_device), device(args.out_device), args.logs))
+        # make full: the photo comes in after the call. Stay, and ring back here when its answer is ready.
+        while args.back and LINK_SENT.is_set():
+            LINK_SENT.clear()
+            if not wait_for_answer(args.back_wait):
+                break
+            call_id = asyncio.run(call(url, device(args.in_device), device(args.out_device), args.logs))
     finally:
         link_stop.set()
         if server is not None:

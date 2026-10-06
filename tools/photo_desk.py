@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 import uvicorn
 
@@ -193,6 +194,9 @@ def _process_done(token: str) -> None:
 # 1. PHOTO APP (port 8002, 0.0.0.0)
 # ==============================================================================
 photo_app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+# The phone demo (keypad_app, port 8080) is another origin: its photo POST carries Content-Type image/jpeg,
+# so the browser asks first (OPTIONS). With no answer to that the photo never left the page (owner's call, 6 Oct).
+photo_app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
 
 STEPS_PHRASES = {
     "step1": {

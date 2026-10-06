@@ -338,3 +338,57 @@ def test_a_time_out_is_not_tried_again(monkeypatch):
     assert [o.ok for o in outs] == [True, False]
     assert outs[1].text == "One is PM Kisan."
     assert calls.count("One is PM Kisan.") == 1
+
+
+# 6 Oct: Sarvam spelled "PMEGP" in Hindi letters, the guard found no name, the sentence was said in English.
+@pytest.mark.parametrize("en,out,lang,want", [
+    ("To apply, visit the official PMEGP website and fill the online form.",
+     "आवेदन करने के लिए, आधिकारिक पी.एम.ई.जी.पी. वेबसाइट पर जाएं और ऑनलाइन फॉर्म भरें।", "hi",
+     "आवेदन करने के लिए, आधिकारिक PMEGP वेबसाइट पर जाएं और ऑनलाइन फॉर्म भरें।"),
+    ("To apply, visit the official PMEGP website.", "अर्ज करण्यासाठी, अधिकृत पीएमईजीपी संकेतस्थळाला भेट द्या.", "mr",
+     "अर्ज करण्यासाठी, अधिकृत PMEGP संकेतस्थळाला भेट द्या."),
+    ("Go to the nearest CSC centre.", "जवळच्या सी.एस.सी. केंद्रावर जा.", "mr", "जवळच्या CSC केंद्रावर जा."),
+    ("It is PMEGP.", "यह पी.एम.ई.जी.पी. है।", "hi", "यह PMEGP है।"),
+])
+def test_short_name_goes_back_to_english_letters(en, out, lang, want):
+    assert middle.keep_short_names(en, out, lang) == want
+
+
+def test_short_name_fix_leaves_the_rest_alone():
+    hi = "आवेदन करने के लिए नज़दीकी केंद्र पर जाएँ।"
+    assert middle.keep_short_names("To apply, go to the nearest centre.", hi, "hi") == hi       # no short name in the English
+    assert middle.keep_short_names("Visit the PMEGP website.", "PMEGP वेबसाइट पर जाएं।", "hi") == "PMEGP वेबसाइट पर जाएं।"
+    assert middle.keep_short_names("Visit the PMEGP website.", "பி.எம்.இ.ஜி.பி.", "ta") == "பி.எம்.இ.ஜி.பி."   # Hindi and Marathi only
+
+
+def test_reply_with_a_spelled_short_name_is_said_in_hindi(monkeypatch):
+    class T:
+        def __init__(self, timeout=None):
+            pass
+
+        def translate(self, sent, lang):
+            return "आवेदन करने के लिए, आधिकारिक पी.एम.ई.जी.पी. वेबसाइट पर जाएं और ऑनलाइन फॉर्म भरें।"
+
+    monkeypatch.setattr(middle, "AnswerTranslator", T)
+    monkeypatch.setattr(middle, "scheme_names", lambda: [{"id": "pmegp", "en": ["pmegp"], "hi": ["pmegp योजना"]}])
+    outs = list(reply_in("To apply, visit the official PMEGP website and fill the online form.", "hi"))
+    assert [o.ok for o in outs] == [True]
+    assert "PMEGP" in outs[0].text and "To apply" not in outs[0].text
+
+
+# 6 Oct sweep: right Hindi / Marathi was refused (and English said) for a name worded the translator's way, and for a range.
+@pytest.mark.parametrize("en,out,lang", [
+    ("Indira Gandhi National Widow Pension Scheme", "इंदिरा गांधी राष्ट्रीय विधवा निवृत्तीवेतन योजना", "mr"),
+    ("Indira Gandhi National Disability Pension Scheme", "इंदिरा गांधी राष्ट्रीय विकलांगता पेंशन योजना", "hi"),
+    ("Visit the Apprenticeship Portal at apprenticeshipindia.gov.in.", "apprenticeshipindia.gov.in पर शिक्षुता पोर्टल पर जाएँ।", "hi"),
+    ("Atal Pension Yojana guarantees a monthly pension of Rs 1,000‑5,000 from age 60.",
+     "अटल पेंशन योजना 60 वर्ष की आयु से 1,000-5,000 रुपये की मासिक पेंशन की गारंटी देती है।", "hi"),
+])
+def test_guard_takes_the_translators_own_wording(en, out, lang):
+    assert guard_ok(en, out, lang, scheme_names())
+
+
+def test_guard_still_refuses_the_wrong_scheme_and_the_wrong_amount():
+    names = scheme_names()
+    assert not guard_ok("Indira Gandhi National Widow Pension Scheme", "इंदिरा गांधी राष्ट्रीय विकलांगता पेंशन योजना", "hi", names)
+    assert not guard_ok("It gives Rs 1,000‑5,000 a month.", "यह हर महीने 1,000-6,000 रुपये देती है।", "hi", names)

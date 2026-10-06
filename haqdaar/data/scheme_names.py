@@ -34,6 +34,10 @@ _DATA = _load()
 SHORT_NAMES: dict[str, tuple[str, ...]] = {
     key: tuple(names) for key, names in _DATA.get("short_names", {}).items()}
 
+# scheme id -> the name as the translator words it (Hindi / Marathi). Only the translate guard reads this.
+TRANSLATOR_NAMES: dict[str, tuple[str, ...]] = {
+    key: tuple(names) for key, names in _DATA.get("translator_names", {}).items() if isinstance(names, list)}
+
 # Well-known schemes we do NOT hold: canonical id -> words that name it.
 # A turn naming one of these is its own kind of turn ("I do not have that one
 # yet"), not a situation to ask questions about. Kept here, next to SHORT_NAMES.

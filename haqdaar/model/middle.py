@@ -181,6 +181,9 @@ def _number_tokens(text: str, en_words: bool = True) -> list[tuple[float, bool]]
     Indian comma groups, ordinals (2nd, दूसरा), and phone numbers without dashes.
     """
     t = text.translate(_TO_LATIN)
+    # The scheme texts write a range with a no-break hyphen ("Rs 1,000‑5,000"), the translator with a plain one:
+    # read both the same way, or a right sentence is refused and said in English (6 Oct).
+    t = re.sub(r"[\u2010-\u2015]", "-", t)
     # Strip dashes between digits (e.g. phone numbers 9876-543-210)
     t = re.sub(r"(?<=\d)-(?=\d)", "", t)
     tokens: list[tuple[float, bool]] = []
@@ -235,7 +238,7 @@ def scheme_names() -> list[dict]:
     plus snapshot full names and aliases.
     """
     try:
-        from haqdaar.data.scheme_names import SHORT_NAMES, short_names_for
+        from haqdaar.data.scheme_names import SHORT_NAMES, TRANSLATOR_NAMES, short_names_for
 
         root = os.environ.get("SNAPSHOTS_DIR", "snapshots")
         try:
@@ -275,7 +278,7 @@ def scheme_names() -> list[dict]:
                         names.append(normed)
                 item[lang] = names
 
-            for sname in short_names_for(scheme_id):
+            for sname in list(short_names_for(scheme_id)) + list(TRANSLATOR_NAMES.get(scheme_id, ())):
                 normed = _norm(sname)
                 if not normed:
                     continue
@@ -405,6 +408,30 @@ def guard_ok(en: str, out: str, lang: str, names: list[dict] | None = None) -> b
     return True
 
 
+# Sarvam spells an English short name in the caller's letters ("PMEGP" -> "पी.एम.ई.जी.पी."). The guard then
+# finds no scheme name and the whole sentence was said in English (owner's call, 6 Oct). The short name is
+# put back in English letters, as the caller knows it from posters and forms. Hindi and Marathi only.
+_LETTERS = {
+    "A": "ए|अ", "B": "बी", "C": "सी", "D": "डी", "E": "ई|इ", "F": "एफ़|एफ", "G": "जी", "H": "एच|एच्", "I": "आई|आय",
+    "J": "जे", "K": "के", "L": "एल", "M": "एम", "N": "एन", "O": "ओ", "P": "पी", "Q": "क्यू", "R": "आर", "S": "एस",
+    "T": "टी", "U": "यू", "V": "वी|व्ही", "W": "डब्ल्यू|डब्लू", "X": "एक्स", "Y": "वाई|वाय", "Z": "ज़ेड|जेड|झेड",
+}
+_SHORT = re.compile(r"\b[A-Z]{3,8}\b")           # 3 letters and more: "PM" in "PM Kisan" is left alone
+
+
+def keep_short_names(en: str, out: str, lang: str) -> str:
+    """Every short name in capitals in the English ("PMEGP", "CSC") that came out spelled in Devanagari
+    is written in English letters again. Anything else is left as it is."""
+    if lang not in ("hi", "mr") or not out:
+        return out
+    for word in dict.fromkeys(_SHORT.findall(en or "")):
+        if word in out:
+            continue
+        spelled = r"[.\s-]*".join(f"(?:{_LETTERS[ch]})" for ch in word)
+        out = re.sub(r"(?<![\u0900-\u097F])" + spelled + r"(?:\.(?=\s+\S))?(?![\u0900-\u097F])", word, out)
+    return out
+
+
 def _timeout() -> float:
     try:
         return float(os.environ.get("MIDDLE_TIMEOUT_S", "3.0"))
@@ -461,6 +488,8 @@ def reply_in(reply_en: str, lang: str) -> Iterator[Out]:
                         got = translator.translate(sent, lang)
                 except Exception:
                     got = None
+                if got and got.strip() and not guard_ok(sent, got, lang, names):
+                    got = keep_short_names(sent, got, lang)       # only a sentence the guard would refuse is touched
                 if got and got.strip() and guard_ok(sent, got, lang, names):
                     text, ok = got, True
                     break
