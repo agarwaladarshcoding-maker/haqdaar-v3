@@ -1339,3 +1339,8 @@ First step when the owner says build: on a real keypad phone, read what getSegme
 - Known, not fixed: age bands are coarse, so pmjjby (18-50) / pmsby (18-70) / pm-vikas (14-45) / national-youth-award (15-29) can be listed to a caller whose band only overlaps (the model says the exact limit from the card); 54 listings across 72 walks are schemes a not-asked box would cut (picker stops on small_cut); loose phrases for pm-vikas (rank 8), pm-ajay, rkvy, ambedkar-obc vs gujarat foreign-study loan (near duplicates); pmay-urban parts rank after pmay-g's for "what do I get" / "who can apply"; talk_eval's search stub returns all schemes, so scripted runs do not test search; barge_eval ignores the two variables.
 - NOT proved: a call or real-model turn on the 51; full talk-eval (only --places 2: 1965 calls, 1 broken = old key-9 fault); 1,000-caller stress.
 - To run on the 51 (from the worktree): SNAPSHOTS_DIR=$PWD/data_cache/intake/snaps AUDIO_DIR=$PWD/data_cache/intake/audio make mac-call  (or make full). Unset both to go back to the live 17.
+
+## 7 Oct: merge + make full
+- main = 6ea88f4 + audit-fix commit e19b360 + merge d49fb49 (narrow-ask f7d4da3). Conflicts only in PLAN.md, PROJECT-UPDATE.md, .agent/NOTES.md (kept both sides). .agent/ is gitignored but NOTES.md is tracked: use `git add -f`.
+- Makefile `full`: target-specific export SNAPSHOTS_DIR/AUDIO_DIR to data_cache/intake (51 schemes), LIVE=1 to undo. make_call/mac_call pass os.environ to the server, photo_desk inherits too. Corpus loads: 51 rows.
+- Subagent found: PHOTO_BACK_URL unset in .env (watcher not started; Mac call-back works anyway); .env has a commented old Sarvam key in plain text (line 3): owner should remove.

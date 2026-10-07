@@ -2154,3 +2154,9 @@ All 19 findings were real on main and are fixed with tests. A held photo now sho
 - Schemes for organisations (startups, firms, states) are kept out of what an ordinary caller is asked about; they open when the caller names them or says they are a company, startup or NGO.
 - Not done: a call or a real-model turn on the 51; the full long scripted-call check. Known: age limits are loose for the new schemes (the agent says the exact limit from the scheme's text); the first start needs the local search model (it was gone from the temp folder; it was downloaded again).
 - To try it on a call, from ~/code/haqdaar-v2-narrow: SNAPSHOTS_DIR=$PWD/data_cache/intake/snaps AUDIO_DIR=$PWD/data_cache/intake/audio make mac-call
+
+## 7 Oct: narrow-ask merged into main; `make full` is the one command
+- Merged: the keypad-SMS audit fixes (19) and the 34 new schemes (talk only), now on main. Full tests: 3636 passed.
+- `make full` now runs on the 51 schemes (17 live + 34 new) with everything on: talk, keys, language switch, cut-in, photo by SMS, Muse read, call-back. `LIVE=1` goes back to the old 17.
+- README rewritten longer: what it is, how to try it, the table of what is on, commands, adding schemes, known limits.
+- Not pushed to GitHub yet. Old worktree branches left as they are.

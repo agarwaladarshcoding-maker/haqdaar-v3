@@ -73,8 +73,14 @@ mac-call:
 # (no clock: photo sent -> read -> answer ready; BACK_WAIT=seconds puts a limit) and at once starts the call-back on this Mac. A real phone number is rung by the watcher (photo-back), which is
 # Cut-in is on (6 Oct) when the sound goes to headphones; on open speakers it stays off by itself. CUT=0 turns it off.
 # started too when PHOTO_BACK_URL is set. `make full-stop` stops them. Logs: logs/photo-desk.log, logs/keypad-ui.log.
+# 7 Oct: THE one command, everything on: the 51 schemes (17 live + 34 new talk-only, from data_cache/intake), talk + keys + language switch,
+# English middle, cut-in (headphones only), photo by SMS (door 0) + web + keypad page, Muse photo read, auto approve, call-back catch.
+# LIVE=1 uses the old 17-scheme snapshots/CURRENT instead. Still never rings a real phone (no PHOTO_BACK_URL needed).
+full: export SNAPSHOTS_DIR := $(if $(LIVE),snapshots,$(CURDIR)/data_cache/intake/snaps)
+full: export AUDIO_DIR := $(if $(LIVE),audio,$(CURDIR)/data_cache/intake/audio)
 full:
 	@mkdir -p logs; \
+	echo "schemes: $(if $(LIVE),old 17 (snapshots/CURRENT),51 (data_cache/intake/snaps))"; \
 	lsof -ti tcp:8002 >/dev/null || { SMS_DOOR=true nohup $(PYTHON) -m tools.photo_desk > logs/photo-desk.log 2>&1 & echo "started the photo desk  (page 8002, desk http://127.0.0.1:8003)"; }; \
 	lsof -ti tcp:8080 >/dev/null || { nohup $(PYTHON) -m http.server 8080 --directory keypad_app > logs/keypad-ui.log 2>&1 & echo "started the phone page  (8080)"; }; \
 	[ -z "$$(grep -E '^PHOTO_BACK_URL=.+' .env 2>/dev/null)" ] || pgrep -f "tools.photo_back" >/dev/null || { nohup $(PYTHON) -m tools.photo_back > logs/photo-back.log 2>&1 & echo "started the call-back watcher  (logs/photo-back.log)"; }; \
