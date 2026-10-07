@@ -135,6 +135,7 @@ class SchemeIndex:
         self._vectors = vectors      # (passages, dim), unit length; None = name search only
         self._owner = owner          # passage row -> place in ids
         self._embed = embed
+        self._pos = {sid: n for n, sid in enumerate(ids)}
 
     @classmethod
     def load(cls, snapshot_id: str = "CURRENT", embed: Optional[Embed] = None,
@@ -170,26 +171,29 @@ class SchemeIndex:
             vectors, owner_arr, embed = None, owner, None
         return cls(snapshot_id, ids, names, vectors, owner_arr, embed)
 
-    def _name_scores(self, text: str) -> list[float]:
+    def _name_words(self, text: str) -> list[int]:
         # 1.3b: a name counts only when its whole words stand in the caller's
         # words ("समुद्र" is not "मुद्रा"; `\b` misses Hindi vowel-sign tails,
         # so words are split on spaces and punctuation instead). A short name
         # that is also a common word ("मुद्रा", "आजीविका") needs योजना / लोन /
         # scheme / loan next to it. A short name is the whole name people say,
         # never one common word of it.
+        # Per scheme: the word count of its longest name that stands in the text, 0 for no hit.
         qtoks = _norm(text).split()
-        out: list[float] = []
+        out: list[int] = []
         for names in self._names:
-            hit = False
+            best = 0
             for name in names:
                 ntoks = name.split()
                 if ntoks and _contains(qtoks, ntoks) and (
                         not scheme_names.needs_marker(name)
                         or _marked_beside(qtoks, ntoks)):
-                    hit = True
-                    break
-            out.append(1.0 if hit else 0.0)
+                    best = max(best, len(ntoks))
+            out.append(best)
         return out
+
+    def _name_scores(self, text: str) -> list[float]:
+        return [1.0 if n else 0.0 for n in self._name_words(text)]
 
     def named_in(self, text: str, among: Optional[Any] = None) -> list[str]:
         """1.8: the schemes whose name stands in the text, in the order they are said (what a reply
@@ -226,7 +230,8 @@ class SchemeIndex:
         try:
             if not _norm(text) or not self.ids:
                 return []
-            by_name = self._name_scores(text)
+            words = self._name_words(text)
+            by_name = [1.0 if n else 0.0 for n in words]
             try:
                 by_vec = self._vector_scores(text)
             except Exception:
@@ -235,7 +240,9 @@ class SchemeIndex:
                 Hit(sid, max(n, v), "name" if n >= v and n > 0 else "vector")
                 for sid, n, v in zip(self.ids, by_name, by_vec)
             ]
-            hits.sort(key=lambda h: -h.score)
+            # A tie between name hits goes to the longest matched name: "PMAY Urban"
+            # holds "pmay" (the rural scheme's short name) and "pmay urban" (its own).
+            hits.sort(key=lambda h: (-h.score, -words[self._pos[h.scheme_id]]))
             return hits[:k]
         except Exception:
             return []

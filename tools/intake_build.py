@@ -310,6 +310,8 @@ def make_row(annot: dict, lines: list[str], department: str, live_keys: list[str
         "home_state": annot["home_state"], "gives": annot["gives"], "sub_kind": annot["sub_kind"],
         "facts": {name: body["role"] for name, body in annot["facts"].items()}, "talk_only": True,
     }
+    if annot.get("for_organisation"):       # the talk leaves it out of the lists a person is asked about
+        row["for_organisation"] = True
     for lang in ("en", "hi", "mr"):
         row[f"{lang}_sections_origin"] = "source" if lang == "en" else "none"
         row[f"{lang}_summary_origin"] = "source" if lang == "en" else "none"

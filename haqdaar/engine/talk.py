@@ -29,7 +29,7 @@ from haqdaar.contracts.log_schema import (
     TurnLogRecord,
 )
 from haqdaar.contracts.types import SEVEN_BOXES, TALK_BOXES, UNASKED, UNKNOWN, Digit, Hangup, Silence, Speech
-from haqdaar.data import chunk_index, log_text, scheme_index
+from haqdaar.data import chunk_index, log_text, scheme_index, scheme_names
 from haqdaar.data.pipeline.texts import LANGS as RECORDED_LANGS  # noqa: F401  (the languages with recorded clips; call.py reads it here)
 from haqdaar.data.scheme_text import SchemeText
 from haqdaar.engine import talk_follow, talk_kind, talk_pick, talk_trust, talk_words, words_no_answer, words_tell_me
@@ -59,6 +59,12 @@ KEY_MORE = 5             # N2: values on keys 1..5; key 7 says the next ones
 KEEP_KEYS = ("repeat", "not_for_me", "hold", "hear", "number", "trust", "cannot", "thanks", "pace")
 CAP_MARGIN_S = 60        # 1.6: goodbye this long before CALL_CEILING_S (the server's clock starts at the greeting)
 VOICE_FAILS_HANGUP = 2   # 1.6: this many replies in a row with no voice -> goodbye
+# Words that say the caller speaks for an organisation: only then are the schemes whose applicant is an
+# organisation offered by search or by kind (a scheme named outright always opens).
+ORG_WORDS = ("company", "companies", "firm", "firms", "startup", "startups", "start-up", "ngo", "society",
+             "institution", "institute", "university", "panchayat", "organisation", "organization",
+             "कंपनी", "कम्पनी", "फर्म", "स्टार्टअप", "एनजीओ", "संस्था", "संस्थान", "विश्वविद्यालय",
+             "पंचायत", "संगठन", "सोसाइटी", "समिति")
 NATIVE = ("hi", "mr", "en")   # the talk's prompt, checks and fixed lines are written in these; any other
                               # Sarvam language is worked in English and translated (1.4)
 
@@ -679,6 +685,18 @@ class _Talk:
         return (tuple(self.heard[-3:]), self._new_need, tuple(sorted(self.bv.items())), self.focus,
                 None if self._others is None else tuple(self._others), tuple(self.all_named))
 
+    def _drop_org(self, ids: list[str], text: str, by_name: set[str]) -> list[str]:
+        """Schemes whose applicant is an organisation leave the list a person is asked about, unless the
+        caller named one or said they speak for an organisation."""
+        held = getattr(self.corpus, "_for_org", None)
+        if not held:
+            return ids
+        org = {self.corpus.scheme_id(ix) for ix in held}
+        lowered = text.lower()
+        if any(scheme_names.contains_word(lowered, w) for w in ORG_WORDS):
+            return ids
+        return [sid for sid in ids if sid not in org or sid in by_name]
+
     def _found_work(self) -> list[str]:
         named = self.index.search(self.heard[-1], 1) if self.heard else []
         self.named = bool(named and named[0].by == "name")
@@ -691,12 +709,15 @@ class _Talk:
         else:
             text = " ".join(self.heard[-3:])
         self._found_text = text
-        ranked = [h.scheme_id for h in self.index.search(text, len(self.index.ids) or SEARCH_K)]
+        hits = self.index.search(text, len(self.index.ids) or SEARCH_K)
+        by_name = {h.scheme_id for h in hits if h.by == "name"}
+        ranked = [h.scheme_id for h in hits]
         ids = ranked[:SEARCH_K]
         category = self.bv.get("category")
         if category in self.corpus.values("category"):
             kind = {self.corpus.scheme_id(ix) for ix in Filter.survivors({"category": category}, self.corpus, include_talk_only=True)}
             ids += [sid for sid in ranked[SEARCH_K:] if sid in kind]
+        ids = self._drop_org(ids, text, by_name)
         if self._others is not None:         # 1.8: "any other?": what is left of the found schemes
             self._others = [sid for sid in ids if sid not in self.all_named
                             and talk_pick.mark(sid, self.bv, self.corpus) != talk_pick.DOES_NOT_FIT]
@@ -887,10 +908,12 @@ class _Talk:
                 if category in self.corpus.values("category"):  # the list again from the need
                     kind = {self.corpus.scheme_id(ix)
                             for ix in Filter.survivors({"category": category}, self.corpus, include_talk_only=True)}
-                    ranked = [h.scheme_id for h in self.index.search(
-                        " ".join(self.heard[-3:]), len(self.index.ids) or SEARCH_K)]
+                    words = " ".join(self.heard[-3:])
+                    hits = self.index.search(words, len(self.index.ids) or SEARCH_K)
+                    ranked = [h.scheme_id for h in hits]
                     ids = [s for s in self.index.ids if s in kind]
                     ids += [s for s in ranked if s not in kind]
+                    ids = self._drop_org(ids, words, {h.scheme_id for h in hits if h.by == "name"})
             nar, cards = self._state(ids)          # the facts may have changed the picker's answer
             self.left = nar.left
             if (tunables.TALK_ASK_FIRST and self._rb == "fix" and _try == 0
