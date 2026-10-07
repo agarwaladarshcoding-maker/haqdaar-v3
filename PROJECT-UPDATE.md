@@ -2023,3 +2023,6 @@ names another language is always worked in English, so the ask works in both mod
 - The owner opened the photo port in the browser and saw "Not Found". That port has no page; it only takes photos and SMS packets.
 - Added a page on the desk: `http://127.0.0.1:8013/try` (with `make sms-door`). Pick 1 to 5 photos; the page plays a keypad phone, sends them as SMS packets, and shows the reading and whether the case waits for a person. The start-up text now prints this address.
 - The project can do the same as before this entry.
+
+## 7 Oct: audit of door 0 and door 1, 19 fixes (on main, not committed)
+All 19 findings were real on main and are fixed with tests. A held photo now shows a loud banner in the terminal. Stuck "reading" cases are picked up again at start. Web and keypad photos with a stand-in read now wait for a person. Not fixed: half-joined P: photos lost on restart, /sms has no password, lock is one process only. 3479 tests pass.

@@ -12,7 +12,9 @@ import re
 import secrets
 import shutil
 import tempfile
+import threading
 import time
+from functools import wraps
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Optional
@@ -22,11 +24,24 @@ from haqdaar.contracts.types import SARVAM_CODES
 MAX_PHOTOS = 6
 MAX_BYTES = 5 * 1024 * 1024
 TTL_SECONDS = 24 * 3600
+HELD_TTL_SECONDS = 72 * 3600     # a case a person was asked to answer outlives the 24 h link, counted from its last save
 TOKEN_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"
 TOKEN_RE = re.compile(r"\A[a-z2-9]{10}\Z")
 # Every language Sarvam gives (owner, 6 Oct: the talk is not held to 3 or 5 languages). The phone page and the
 # link SMS have words for hi mr en gu ta; the others see English there, and hear the call-back in their own language.
 VALID_LANGS = tuple(SARVAM_CODES)
+
+# One lock for every read-modify-write below: the desk runs reading threads, idle timers and routes at once, and two
+# of them saving the same case.json would lose one change (a photo, a state). One process only; the call side never writes a case.
+_LOCK = threading.RLock()
+
+
+def _locked(fn):
+    @wraps(fn)
+    def inner(*a, **kw):
+        with _LOCK:
+            return fn(*a, **kw)
+    return inner
 
 
 def _clean_langs(langs: Optional[list[str] | tuple[str, ...]] = None, lang: Optional[str] = None) -> list[str]:
@@ -61,6 +76,7 @@ class Case:
     langs: list[str] = field(default_factory=list)
     call_id: str = ""    # Step 2: the call the link went out on (its log can be found), "" until sent
     told: list[str] = field(default_factory=list)   # Step 2: schemes an answer of that call was about
+    sms_meta: dict = field(default_factory=dict)    # a case that came by P: packets: {sent, whole, widths}; {} for any other
 
 
 def _base_dir(folder: Path | str | None = None) -> Path:
@@ -134,9 +150,26 @@ def _load_case_dict(d: dict[str, Any]) -> Case:
         langs=cleaned,
         call_id=str(d.get("call_id", "")),
         told=list(raw_told) if isinstance(raw_told, list) else [],
+        sms_meta=dict(d["sms_meta"]) if isinstance(d.get("sms_meta"), dict) else {},
     )
 
 
+def _held(case: Case) -> bool:
+    """A finished read that waits for a person (the desk shows it; the model's words are not said)."""
+    info = (case.finding or {}).get("sms") if isinstance(case.finding, dict) else None
+    return case.state == "read" and bool(isinstance(info, dict) and info.get("reasons"))
+
+
+def _alive(case: Case, path: Path, now: float) -> bool:
+    if (now - case.made) <= TTL_SECONDS:
+        return True
+    try:
+        return _held(case) and (now - path.stat().st_mtime) <= HELD_TTL_SECONDS
+    except OSError:
+        return False
+
+
+@_locked
 def new_case(
     lang: str = "hi",
     number: str = "",
@@ -173,12 +206,16 @@ def new_case(
     return case
 
 
-def mark_reading(token: str, folder: Path | str | None = None) -> Case:
+@_locked
+def mark_reading(token: str, folder: Path | str | None = None) -> Case | bool:
+    """Compare-and-set: waiting/photo -> reading. False when the case is already past that (another read has it)."""
     case = _get_raw(token, folder=folder)
     if not token or not TOKEN_RE.match(token):
         raise ValueError("case not found")
     if case is None:
         raise ValueError("case not found")
+    if case.state not in ("waiting", "photo"):
+        return False
     case.state = "reading"
     _save(case, folder)
     return case
@@ -203,7 +240,7 @@ def get(token: str, folder: Path | str | None = None, now: float | None = None) 
     if case is None:
         return None
     current_time = float(now if now is not None else time.time())
-    if (current_time - case.made) > TTL_SECONDS:
+    if not _alive(case, _base_dir(folder) / token / "case.json", current_time):
         return None
     return case
 
@@ -233,24 +270,30 @@ def _image_type(data: bytes) -> tuple[str, str]:
     return "", ""
 
 
+@_locked
 def add_photo(token: str, data: bytes, folder: Path | str | None = None, now: float | None = None) -> Case:
+    if len(data) > MAX_BYTES:                       # the cheap checks first: a big or wrong body costs no disk read
+        raise ValueError("the photo is too big")
+    ext, _ = _image_type(data)
+    if not ext:
+        raise ValueError("this is not a photo")
     case = _get_raw(token, folder=folder)
     if not token or not TOKEN_RE.match(token):
         raise ValueError("case not found")
     if case is None:
         raise ValueError("case not found")
-    if len(data) > MAX_BYTES:
-        raise ValueError("the photo is too big")
-    ext, _ = _image_type(data)
-    if not ext:
-        raise ValueError("this is not a photo")
+    if case.state not in ("waiting", "photo"):      # a case being read or answered must not slide back to "photo"
+        raise ValueError(f"the case is not taking photos ({case.state})")
     if len(case.photos) >= MAX_PHOTOS:
         raise ValueError("six photos at most")
 
     base = _base_dir(folder)
     case_dir = base / token
     case_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"{len(case.photos) + 1}.{ext}"
+    n = len(case.photos) + 1
+    while any((case_dir / f"{n}.{e}").exists() for e in ("jpg", "png", "webp")):   # never overwrite a file left by a wipe
+        n += 1
+    filename = f"{n}.{ext}"
     _write_bytes_atomic(case_dir / filename, data)
 
     case.photos.append(filename)
@@ -262,6 +305,7 @@ def add_photo(token: str, data: bytes, folder: Path | str | None = None, now: fl
     return case
 
 
+@_locked
 def wipe_photos(token: str, folder: Path | str | None = None) -> Case:
     """The photo files go and the list is emptied; the case keeps its words and its state."""
     case = _get_raw(token, folder=folder)
@@ -280,6 +324,7 @@ def wipe_photos(token: str, folder: Path | str | None = None) -> Case:
     return case
 
 
+@_locked
 def drop_photos(token: str, folder: Path | str | None = None, now: float | None = None) -> Case:
     case = _get_raw(token, folder=folder)
     if not token or not TOKEN_RE.match(token):
@@ -335,6 +380,7 @@ def photo_bytes(token: str, n: int, folder: Path | str | None = None, now: float
     return data, mime
 
 
+@_locked
 def set_finding(token: str, finding: dict, scheme: str, say: str, folder: Path | str | None = None, now: float | None = None) -> Case:
     case = _get_raw(token, folder=folder)
     if not token or not TOKEN_RE.match(token):
@@ -349,6 +395,7 @@ def set_finding(token: str, finding: dict, scheme: str, say: str, folder: Path |
     return case
 
 
+@_locked
 def approve(token: str, say: str, folder: Path | str | None = None, now: float | None = None) -> Case:
     case = _get_raw(token, folder=folder)
     if not token or not TOKEN_RE.match(token):
@@ -363,6 +410,31 @@ def approve(token: str, say: str, folder: Path | str | None = None, now: float |
     return case
 
 
+@_locked
+def set_sms_meta(token: str, meta: dict, folder: Path | str | None = None) -> Case:
+    """Keep the P: facts on the case, so a restart in the middle of a read still treats it as a P: case."""
+    case = _get_raw(token, folder=folder)
+    if case is None:
+        raise ValueError("case not found")
+    case.sms_meta = dict(meta)
+    _save(case, folder)
+    return case
+
+
+@_locked
+def set_say(token: str, say: str, folder: Path | str | None = None) -> Case:
+    """The helper's words are kept; the state stays (nothing is called back). Only a case that was read."""
+    case = _get_raw(token, folder=folder)
+    if case is None:
+        raise ValueError("case not found")
+    if case.state not in ("read", "approved"):
+        raise ValueError(f"cannot save case in state {case.state}")
+    case.say = str(say)
+    _save(case, folder)
+    return case
+
+
+@_locked
 def set_first_call(token: str, call_id: str, told: list[str], folder: Path | str | None = None,
                    now: float | None = None) -> Case:
     """Step 2: before the call ends after the link: what the call-back needs from this call.
@@ -378,6 +450,7 @@ def set_first_call(token: str, call_id: str, told: list[str], folder: Path | str
     return case
 
 
+@_locked
 def mark_called(token: str, folder: Path | str | None = None, now: float | None = None) -> Case:
     case = _get_raw(token, folder=folder)
     if not token or not TOKEN_RE.match(token):
@@ -403,7 +476,7 @@ def open_cases(folder: Path | str | None = None, now: float | None = None) -> li
                 try:
                     data = json.loads(case_file.read_text(encoding="utf-8"))
                     c = _load_case_dict(data)
-                    if (current_time - c.made) <= TTL_SECONDS:
+                    if _alive(c, case_file, current_time):
                         cases.append(c)
                 except Exception:
                     continue
@@ -411,6 +484,7 @@ def open_cases(folder: Path | str | None = None, now: float | None = None) -> li
     return cases
 
 
+@_locked
 def sweep(folder: Path | str | None = None, now: float | None = None) -> int:
     base = _base_dir(folder)
     if not base.exists():
@@ -424,9 +498,11 @@ def sweep(folder: Path | str | None = None, now: float | None = None) -> int:
             if case_file.exists():
                 try:
                     data = json.loads(case_file.read_text(encoding="utf-8"))
-                    made = float(data.get("made", 0.0))
-                    if (current_time - made) > TTL_SECONDS:
+                    c = _load_case_dict(data)
+                    if not _alive(c, case_file, current_time):
                         is_expired = True
+                        if _held(c):                  # a person never answered it: say so in the log, not silently
+                            print(f"[{time.strftime('%H:%M:%S')}] token:{entry.name[:3]}*** swept while held for a person", flush=True)
                 except Exception:
                     is_expired = True
             else:
@@ -437,12 +513,15 @@ def sweep(folder: Path | str | None = None, now: float | None = None) -> int:
     return deleted
 
 
+@_locked
 def mark_not_clear(token: str, folder: Path | str | None = None) -> Case:
     case = _get_raw(token, folder=folder)
     if not token or not TOKEN_RE.match(token):
         raise ValueError("case not found")
     if case is None:
         raise ValueError("case not found")
+    if case.state not in ("read", "approved"):      # not before a read, not while one runs, not after the call-back
+        raise ValueError(f"cannot mark case in state {case.state}")
     if not isinstance(case.finding, dict):
         case.finding = {}
     case.finding["wrong"] = "helper: not clear"

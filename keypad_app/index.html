@@ -68,43 +68,43 @@ body{background:#0d1117;color:#e0e6ed;font-family:monospace;display:flex;flex-di
 </head>
 <body>
 <div class="chassis">
-  <div class="ear"></div>
-  <div class="brand">HAQDAAR KISAN 240x320</div>
-  <div class="bezel">
-    <div class="screen" id="sc">
-      <div class="s-bar"><span>|||| GSM</span><span id="clk">12:00</span><span>[===]</span></div>
-      <div class="t-bar" id="tb">HAQDAAR PHOTO</div>
-      <div class="s-body" id="sb"></div>
-      <div class="sk-bar"><span id="skl">CAPTURE</span><span id="skr"></span></div>
-    </div>
-  </div>
-  <div class="pad">
-    <div class="nav">
-      <button class="s-btn" id="b-skl">Capture</button>
-      <div class="dpad">
-        <button class="d-b du" id="b-u">&#9650;</button>
-        <button class="d-b dl" id="b-l">&#9664;</button>
-        <button class="d-b dok" id="b-ok">OK</button>
-        <button class="d-b dr" id="b-r">&#9654;</button>
-        <button class="d-b dd" id="b-d">&#9660;</button>
-      </div>
-      <button class="s-btn" id="b-skr" style="opacity:0.5;"></button>
-    </div>
-    <div class="grid">
-      <button class="k-btn" id="k1"><span class="d1">1</span><span class="d2">+ADD</span></button>
-      <button class="k-btn" id="k2"><span class="d1">2</span><span class="d2">&#8629; SEND</span></button>
-      <button class="k-btn" id="k3"><span class="d1">3</span><span class="d2">&#10006; DEL</span></button>
-      <button class="k-btn" id="k4"><span class="d1">4</span><span class="d2">GHI</span></button>
-      <button class="k-btn" id="k5"><span class="d1">5</span><span class="d2">TAKE</span></button>
-      <button class="k-btn" id="k6"><span class="d1">6</span><span class="d2">MNO</span></button>
-      <button class="k-btn" id="k7"><span class="d1">7</span><span class="d2">PQRS</span></button>
-      <button class="k-btn" id="k8"><span class="d1">8</span><span class="d2">TUV</span></button>
-      <button class="k-btn" id="k9"><span class="d1">9</span><span class="d2">WXYZ</span></button>
-      <button class="k-btn" id="ks"><span class="d1">*</span><span class="d2">BACK</span></button>
-      <button class="k-btn" id="k0"><span class="d1">0</span><span class="d2">OPER</span></button>
-      <button class="k-btn" id="kh"><span class="d1">#</span><span class="d2">SEND</span></button>
-    </div>
-  </div>
+<div class="ear"></div>
+<div class="brand">HAQDAAR KISAN 240x320</div>
+<div class="bezel">
+<div class="screen" id="sc">
+<div class="s-bar"><span>|||| GSM</span><span id="clk">12:00</span><span>[===]</span></div>
+<div class="t-bar" id="tb">HAQDAAR PHOTO</div>
+<div class="s-body" id="sb"></div>
+<div class="sk-bar"><span id="skl">CAPTURE</span><span id="skr"></span></div>
+</div>
+</div>
+<div class="pad">
+<div class="nav">
+<button class="s-btn" id="b-skl">Capture</button>
+<div class="dpad">
+<button class="d-b du" id="b-u">&#9650;</button>
+<button class="d-b dl" id="b-l">&#9664;</button>
+<button class="d-b dok" id="b-ok">OK</button>
+<button class="d-b dr" id="b-r">&#9654;</button>
+<button class="d-b dd" id="b-d">&#9660;</button>
+</div>
+<button class="s-btn" id="b-skr" style="opacity:0.5;"></button>
+</div>
+<div class="grid">
+<button class="k-btn" id="k1"><span class="d1">1</span><span class="d2">+ADD</span></button>
+<button class="k-btn" id="k2"><span class="d1">2</span><span class="d2">&#8629; SEND</span></button>
+<button class="k-btn" id="k3"><span class="d1">3</span><span class="d2">&#10006; DEL</span></button>
+<button class="k-btn" id="k4"><span class="d1">4</span><span class="d2">GHI</span></button>
+<button class="k-btn" id="k5"><span class="d1">5</span><span class="d2">TAKE</span></button>
+<button class="k-btn" id="k6"><span class="d1">6</span><span class="d2">MNO</span></button>
+<button class="k-btn" id="k7"><span class="d1">7</span><span class="d2">PQRS</span></button>
+<button class="k-btn" id="k8"><span class="d1">8</span><span class="d2">TUV</span></button>
+<button class="k-btn" id="k9"><span class="d1">9</span><span class="d2">WXYZ</span></button>
+<button class="k-btn" id="ks"><span class="d1">*</span><span class="d2">BACK</span></button>
+<button class="k-btn" id="k0"><span class="d1">0</span><span class="d2">OPER</span></button>
+<button class="k-btn" id="kh"><span class="d1">#</span><span class="d2">SEND</span></button>
+</div>
+</div>
 </div>
 <div class="hint">Keypad Driven | Tap Screen or Keypad Buttons</div>
 <input type="file" id="cam" accept="image/*" capture="environment">
@@ -238,17 +238,17 @@ var c=crc8(sl),payload=b64(sl),ih=pid.toString(16).padStart(4,'0'),ch=c.toString
 S.allChunks.push('H:'+ih+':'+(i+1)+'/'+cnt+':'+payload+':'+ch);
 }
 }
-S.curChunk=0;S.state='SENDING';render();sendNextChunk();
+S.curChunk=S.e=0;S.state='SENDING';render();sendNextChunk();
 }
 
 function post(t,next){
-var done=false;function go(r){if(done)return;done=true;S.reply=r;render();S.timer=setTimeout(next,700);}
+var done=false,tm=setTimeout(function(){go('NO LINE');},15000);function go(r){if(done)return;done=true;clearTimeout(tm);S.reply=r;if(/^(ERR|NO LINE|\?)/.test(r))S.e=1;render();S.timer=setTimeout(next,700);}
 try{fetch(S.api,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({text:t})})
 .then(function(r){return r.json();}).then(function(j){go(j.reply||'?');}).catch(function(){go('NO LINE');});}catch(e){go('NO LINE');}
 }
 function sendNextChunk(){
 if(S.curChunk>=S.allChunks.length){
-post('H:DONE',function(){beep(1500,0.12);S.state='SENT';render();});return;
+post('H:DONE',function(){S.state=S.e?'REVIEW':'SENT';beep(1500,.12);render();});return;
 }
 beep(1100,0.03);S.reply='...';render();
 post(S.allChunks[S.curChunk],function(){if(S.state==='SENDING'){S.curChunk++;sendNextChunk();}});

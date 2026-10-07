@@ -7,6 +7,7 @@ Starts two FastAPI apps:
 from __future__ import annotations
 
 import argparse
+import asyncio
 import base64
 import html
 import io
@@ -115,13 +116,33 @@ def call_back(case: cases.Case) -> None:
         "say": case.say,
         "made": case.made,
     }
-    cases._write_json_atomic(target, payload)
+    with cases._LOCK:                                     # two answers close together: the second waits in its own file
+        try:                                              # (in_call.done brings it to next_call.json), it never overwrites the first
+            busy = (json.loads(target.read_text(encoding="utf-8")).get("token") != case.token
+                    and time.time() - target.stat().st_mtime <= tunables.PHOTO_PENDING_S)
+        except Exception:
+            busy = False
+        cases._write_json_atomic(base / f"next_call.{case.token}.json" if busy else target, payload)
 
 
 def _log_state(token: str, state: str) -> None:
     t3 = (token or "")[:3]
     t_str = time.strftime("%H:%M:%S")
     print(f"[{t_str}] token:{t3}*** state:{state}", flush=True)
+
+
+def _alert_held(token: str, reasons: list, sure=None) -> None:
+    """A case waits for a person: say it loud in the terminal (and on the tty when the desk runs in the background)."""
+    why = ",".join(reasons)
+    _log_state(token, "held for the desk: " + why)
+    msg = (f"\n{'!' * 60}\n  PHOTO HELD FOR A PERSON  case {token}  sure={sure}  why: {why}\n"
+           f"  open the desk: http://127.0.0.1:{os.environ.get('DESK_PORT', '8003')}\n{'!' * 60}\n")
+    print(msg, flush=True)
+    try:
+        with open("/dev/tty", "w") as tty:
+            tty.write(msg)
+    except OSError:
+        pass
 
 
 SCHEME_HELP_TEMPLATES = {
@@ -141,12 +162,21 @@ STAND_IN_SAY = {
 }
 
 
+def _hold_stand_in(token: str, why: str, meta: Optional[dict] = None) -> None:
+    """The read did not happen (no photos, a fault): a stand-in finding puts the case on the desk, so it never stays "reading"."""
+    case = cases.get(token)
+    n = len(case.photos) if case else 0
+    info = dict(meta or {"sent": n, "whole": n, "widths": [], "door": 1}, sure=0.0, reasons=[why])
+    cases.set_finding(token, {"shows": "", "wrong": "", "sure": 0.0, "search": "", "by": f"stand-in: {why}", "sms": info}, "", "")
+    _alert_held(token, info["reasons"], 0.0)
+
+
 def _process_done(token: str) -> None:
     try:
         case = cases.get(token)
-        if not case or not case.photos:
+        if not case:
             return
-
+        meta = case.sms_meta or _sms_meta.get(token)      # a case that came by P: packets (the join); kept on the case for a restart
         photo_list: list[bytes] = []
         for i in range(len(case.photos)):
             try:
@@ -154,9 +184,11 @@ def _process_done(token: str) -> None:
                 photo_list.append(data)
             except Exception:
                 pass
+        if not photo_list:
+            _hold_stand_in(token, "none", meta)
+            return
 
         lang = case.lang
-        meta = _sms_meta.get(token)                       # a case that came by P: packets (the join)
         if meta:
             big = []
             for b in photo_list:
@@ -201,19 +233,49 @@ def _process_done(token: str) -> None:
             info = dict(meta, sure=finding.get("sure"), reasons=bands.needs_person(finding, meta))
             hold = bool(info["reasons"])
             finding = {**finding, "sms": info}
+        elif by.startswith("stand-in"):                   # web and H: photos: a stand-in read is no read, a person must see it
+            n = len(case.photos)
+            info = {"sent": n, "whole": len(photo_list), "widths": [], "door": 1, "sure": finding.get("sure"), "reasons": ["stand-in"]}
+            hold = True
+            finding = {**finding, "sms": info}
         cases.set_finding(token, finding, scheme_id, say)
         _log_state(token, "read")
 
         if hold:
-            _log_state(token, "held for the desk: " + ",".join(info["reasons"]))
+            _alert_held(token, info["reasons"], info.get("sure"))
         elif _is_photo_auto():
             c_approved = cases.approve(token, say)
             call_back(c_approved)
             _log_state(token, "approved")
             if meta:
                 cases.wipe_photos(token)                  # nothing is kept once the model has answered
-    except Exception:
-        pass
+    except Exception as e:                            # never die quiet: the desk log shows why the answer never came
+        _log_state(token, f"crashed: {type(e).__name__} {e}")
+        try:
+            c = cases.get(token)
+            if c is not None and c.state == "reading":    # a read that died must not leave the case "reading" for ever
+                _hold_stand_in(token, "crashed", c.sms_meta or _sms_meta.get(token))
+        except Exception:
+            pass
+    finally:
+        _sms_meta.pop(token, None)
+
+
+def _recover_stuck() -> int:
+    """After a restart: a case left "reading" is read again; a "photo" case whose idle wait is over is read now, a younger
+    one gets its idle timer back (the timers lived in memory only). Returns how many cases were taken up."""
+    n = 0
+    for c in cases.open_cases():
+        if c.state == "reading":
+            threading.Thread(target=_process_done, args=(c.token,), daemon=True).start()
+            n += 1
+        elif c.state == "photo" and c.photos:
+            if time.time() - c.made > tunables.SMS_DONE_S:
+                _sms_start_reading(c.token)
+            else:
+                _sms_touch(c.token)
+            n += 1
+    return n
 
 
 # ==============================================================================
@@ -819,7 +881,9 @@ sendBtn.onclick = function() {
         doneXhr.open("POST", "/p/" + TOKEN + "/done", true);
         doneXhr.onreadystatechange = function() {
           if (doneXhr.readyState === 4) {
-            if (doneXhr.status === 200) {
+            var doneOk = false;
+            try { doneOk = JSON.parse(doneXhr.responseText).ok === true; } catch (e) {}
+            if (doneXhr.status === 200 && doneOk) {
               mainSection.style.display = "none";
               successCard.style.display = "block";
             } else {
@@ -969,13 +1033,13 @@ def _render_photo_page(case: cases.Case) -> str:
 @photo_app.get("/p/{token}")
 async def get_photo_page(token: str, request: Request):
     if not token or not cases.TOKEN_RE.match(token):
-        time.sleep(1.0)
+        await asyncio.sleep(1.0)
         err_page = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Not Found</title></head><body style='font-family:sans-serif;padding:2rem;text-align:center;'><h2>this link is no longer good / यह लिंक अब काम नहीं करता / ही लिंक आता चालत नाही</h2></body></html>"
         return HTMLResponse(content=err_page, status_code=404, headers={"Cache-Control": "no-store"})
 
     case = cases.get(token)
     if case is None:
-        time.sleep(1.0)
+        await asyncio.sleep(1.0)
         err_page = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Not Found</title></head><body style='font-family:sans-serif;padding:2rem;text-align:center;'><h2>this link is no longer good / यह लिंक अब काम नहीं करता / ही लिंक आता चालत नाही</h2></body></html>"
         return HTMLResponse(content=err_page, status_code=404, headers={"Cache-Control": "no-store"})
 
@@ -990,16 +1054,23 @@ async def get_photo_page(token: str, request: Request):
 @photo_app.post("/p/{token}/photo")
 async def post_photo(token: str, request: Request):
     if not token or not cases.TOKEN_RE.match(token):
-        time.sleep(1.0)
+        await asyncio.sleep(1.0)
         return JSONResponse(status_code=404, content={"ok": False, "why": "case not found"})
 
     case = cases.get(token)
     if case is None:
-        time.sleep(1.0)
+        await asyncio.sleep(1.0)
         return JSONResponse(status_code=404, content={"ok": False, "why": "case not found"})
 
-    body = bytearray()
+    if case.state not in ("waiting", "photo"):          # being read or answered: a new photo would pull it back
+        return JSONResponse(status_code=409, content={"ok": False, "why": "the case is not taking photos"})
     max_len = cases.MAX_BYTES
+    try:
+        if int(request.headers.get("content-length", 0)) > max_len:     # say no before the body is read at all
+            return JSONResponse(status_code=413, content={"ok": False, "why": "the photo is too big"})
+    except ValueError:
+        pass
+    body = bytearray()
     async for chunk in request.stream():
         body.extend(chunk)
         if len(body) > max_len:
@@ -1015,8 +1086,10 @@ async def post_photo(token: str, request: Request):
         if "too big" in err:
             return JSONResponse(status_code=413, content={"ok": False, "why": err})
         elif "case not found" in err:
-            time.sleep(1.0)
+            await asyncio.sleep(1.0)
             return JSONResponse(status_code=404, content={"ok": False, "why": err})
+        elif "not taking photos" in err:
+            return JSONResponse(status_code=409, content={"ok": False, "why": err})
         else:
             return JSONResponse(status_code=400, content={"ok": False, "why": err})
 
@@ -1024,18 +1097,24 @@ async def post_photo(token: str, request: Request):
 @photo_app.post("/p/{token}/done")
 async def post_done(token: str, request: Request):
     if not token or not cases.TOKEN_RE.match(token):
-        time.sleep(1.0)
+        await asyncio.sleep(1.0)
         return JSONResponse(status_code=404, content={"ok": False, "why": "case not found"})
 
     case = cases.get(token)
     if case is None:
-        time.sleep(1.0)
+        await asyncio.sleep(1.0)
         return JSONResponse(status_code=404, content={"ok": False, "why": "case not found"})
 
-    if case.state in ("reading", "read", "approved", "called") or not case.photos:
+    if not case.photos:                                 # nothing arrived: say so, or the page shows SENT for nothing
+        return JSONResponse(status_code=200, content={"ok": False, "why": "no photos arrived yet"})
+    if case.state in ("reading", "read", "approved", "called"):
         return JSONResponse(status_code=200, content={"ok": True})
 
-    cases.mark_reading(token)
+    try:
+        if not cases.mark_reading(token):               # another /done or the idle timer got there first
+            return JSONResponse(status_code=200, content={"ok": True})
+    except ValueError:
+        return JSONResponse(status_code=404, content={"ok": False, "why": "case not found"})
     _log_state(token, "reading")
     threading.Thread(target=_process_done, args=(token,), daemon=True).start()
     return JSONResponse(status_code=200, content={"ok": True})
@@ -1085,11 +1164,17 @@ def _sms_open_case() -> Optional[cases.Case]:
 
 
 def _sms_start_reading(token: str) -> None:
-    """The same three lines as /done."""
+    """The same three lines as /done. The idle timer of this case is over from here on (it must not read it twice)."""
+    with _sms_lock:
+        _sms_stamp.pop(token, None)
+        old = _sms_timer.pop(token, None)
+        if old:
+            old.cancel()
     case = cases.get(token)
     if case is None or case.state in ("reading", "read", "approved", "called") or not case.photos:
         return
-    cases.mark_reading(token)
+    if not cases.mark_reading(token):
+        return
     _log_state(token, "reading")
     threading.Thread(target=_process_done, args=(token,), daemon=True).start()
 
@@ -1131,21 +1216,27 @@ def _psms_idle(token: str, stamp: int, key: tuple) -> None:
     _psms_deliver(key, force=True)
 
 
-def _psms_deliver(key: tuple, force: bool = False) -> None:
-    """Every sent photo is whole or lost (or the idle time is up): hand the whole ones to the same reading as a web photo."""
+def _psms_deliver(key: tuple, force: bool = False) -> bool:
+    """Every sent photo is whole or lost (or the idle time is up): hand the whole ones to the same reading as a web photo.
+    False: the photos had no case to go to and were dropped (the caller of this must not say ok)."""
     with _sms_lock:
         got = _pjoin.take(key, force=force)
         if got is None:
-            return
+            return True
         old = _ptimer.pop(got.owner, None)
         if old:
             old.cancel()
     token = got.owner
     case = cases.get(token)
     if case is None or case.state not in ("waiting", "photo"):
-        return
+        case = _sms_open_case()                           # the owner is gone or already read: the open case takes them
+        if case is None:
+            _log_state(token, "dropped: P: photos had no open case")
+            return False
+        token = case.token
     import io
     from PIL import Image
+    pre = len(case.photos)                                # photos that came by another way (a mixed case) count as whole too
     widths, put = [], 0
     for _place, jpeg in got.photos:
         try:
@@ -1154,16 +1245,33 @@ def _psms_deliver(key: tuple, force: bool = False) -> None:
             put += 1
         except (ValueError, OSError):
             pass
-    _sms_meta[token] = {"sent": got.sent, "whole": put, "widths": widths}
+    meta = _sms_meta[token] = {"sent": got.sent + pre, "whole": put + pre, "widths": widths}
+    try:
+        cases.set_sms_meta(token, meta)                   # on the case too: a restart in the middle of the read must still see a P: case
+    except (ValueError, OSError):
+        pass
     if put:
         _sms_start_reading(token)
-    else:                                             # no photo came whole: a person answers from the caller's words
-        info = dict(_sms_meta[token], sure=0.0, reasons=bands.needs_person({}, _sms_meta[token]))
+    else:                                                 # no photo came whole: a person answers from the caller's words
+        info = dict(meta, sure=0.0, reasons=bands.needs_person({}, meta))
         try:
             cases.set_finding(token, {"shows": "", "wrong": "", "sure": 0.0, "search": "", "by": "sms: no photo came whole", "sms": info}, "", "")
-            _log_state(token, "held for the desk: " + ",".join(info["reasons"]))
+            _alert_held(token, info["reasons"], 0.0)
         except (ValueError, OSError):
             pass
+    return True
+
+
+def _sms_prune() -> None:
+    """The stand-in keeps pieces of every phone in memory: forget the ones older than a case lives, and the
+    "already added" marks of cases that are gone."""
+    cutoff = time.time() - tunables.SMS_CASE_S
+    for k, sess in list(_sms.sessions.items()):
+        if sess.updated_at < cutoff:
+            _sms.sessions.pop(k, None)
+    if len(_sms_done) > 32:
+        for k in [k for k in _sms_done if cases.get(k[0]) is None]:
+            _sms_done.discard(k)
 
 
 @photo_app.post("/sms")
@@ -1171,11 +1279,16 @@ async def post_sms(request: Request):
     if not tunables.SMS_DOOR:
         return JSONResponse(status_code=404, content={"ok": False, "why": "not found"})
     try:
+        if int(request.headers.get("content-length", 0)) > 16000:     # nothing real is this big: do not even read it
+            return JSONResponse(status_code=200, content={"ok": False, "reply": "ERR BAD"}, headers=_SMS_CORS)
+    except ValueError:
+        pass
+    try:
         body = await request.json()
         text = str(body["text"])
     except Exception:
         return JSONResponse(status_code=400, content={"ok": False, "why": "need json with text"}, headers=_SMS_CORS)
-    if text[:2] in ("P:", "Q:") and len(text) > 2000:  # no SMS packet is this long (10 parts = 1530 letters)
+    if len(text) > (2000 if text[:2] in ("P:", "Q:") else 4000):  # no SMS packet is this long (10 parts = 1530 letters)
         return JSONResponse(status_code=200, content={"ok": False, "reply": "ERR BAD"}, headers=_SMS_CORS)
     if text.startswith("Q:"):                         # a phone probe (a health centre, or a phone's first use): no case is needed
         who = str(body.get("sender") or "")
@@ -1195,20 +1308,33 @@ async def post_sms(request: Request):
         return JSONResponse(status_code=200, content=content, headers=_SMS_CORS)
     case = _sms_open_case()
     if case is None:                                  # no case is open: the piece is dropped
+        if text.strip().upper() == "H:DONE":          # unless the idle timer already took the pieces up: that is a good DONE
+            newest = (cases.open_cases() or [None])[0]
+            if newest is not None and newest.state in ("reading", "read", "approved") and newest.photos:
+                return JSONResponse(status_code=200, content={"ok": True, "reply": "DONE OK"}, headers=_SMS_CORS)
         return JSONResponse(status_code=200, content={"ok": False, "reply": "ERR NO_CASE"}, headers=_SMS_CORS)
+    sender = str(body.get("sender") or case.number or case.token)   # shape (sender, text); never returned or logged
     if text.strip().upper() == "H:DONE":              # the app's short last message
+        if not case.photos:                           # no piece ever landed: the app must show this, not SENT
+            return JSONResponse(status_code=200, content={"ok": False, "reply": "ERR EMPTY"}, headers=_SMS_CORS)
+        with _sms_lock:                               # a piece still missing: say so (the app shows it), the photo is not whole
+            lost = [k for k, sess in _sms.sessions.items() if k[0] == sender and not sess.is_complete()]
+            for k in lost:                            # a clean slate: the resend has new message ids
+                _sms.sessions.pop(k, None)
+        if lost:
+            return JSONResponse(status_code=200, content={"ok": False, "reply": f"ERR LOST {len(lost)}"}, headers=_SMS_CORS)
         _sms_start_reading(case.token)
         return JSONResponse(status_code=200, content={"ok": True, "reply": "DONE OK"}, headers=_SMS_CORS)
-    sender = str(body.get("sender") or case.number or case.token)   # shape (sender, text); never returned or logged
     if text.startswith("P:"):                         # the packets of the cut (haqdaar/keypad_sms/pack.py); H: goes the old way
         with _sms_lock:
             res = _pjoin.add(sender, text, owner=case.token)
             ready = res.key is not None and _pjoin.ready(res.key)
         if res.key is not None and res.status != "bad":
             _psms_touch(case.token, res.key)
-        if ready:
-            _psms_deliver(res.key)
-        content = {"ok": res.status in ("stored", "dup", "photo", "ignored"), "reply": res.reply}
+        content = {"ok": res.status in ("stored", "dup", "photo") or (res.status == "ignored" and res.why != "retired"),
+                   "reply": res.reply}                # a late double is fine; a packet of a dropped try is a lost photo
+        if ready and not _psms_deliver(res.key):
+            content = {"ok": False, "reply": "ERR NO_CASE"}
         if res.status == "dropped" and res.lock == 4 and res.hdr == 0:      # the header was left out and the picture did not open
             with _sms_lock:
                 settings = _probe.note_failure(res.dev, sender)
@@ -1216,6 +1342,7 @@ async def post_sms(request: Request):
                 content["settings"] = settings
                 _probe_send(sender, settings)
         return JSONResponse(status_code=200, content=content, headers=_SMS_CORS)
+    _sms_prune()
     ok, reply, data = _sms.ingest_sms(sender, text)
     if ok:
         _sms_touch(case.token)
@@ -1325,12 +1452,14 @@ def _sms_note(c: cases.Case) -> str:
 
 
 def _sms_answered(token: str, before: Optional[cases.Case], answer: str, kind: str) -> None:
-    """A person answered a held SMS photo: keep the words as a label and wipe the pictures. Never raises."""
+    """A person answered an SMS photo (held, or read by the model with auto off): wipe the pictures, and keep the
+    words as a label when a person was asked to answer. Never raises."""
     try:
         info = ((before.finding if before else None) or {}).get("sms")
-        if not info or not info.get("reasons"):           # only a case a person was asked to answer
+        if not info or info.get("door"):                  # a web or H: photo has no promise to wipe (only P: cases)
             return
-        review.write_label(info, before.say if before else "", answer, kind)
+        if info.get("reasons"):
+            review.write_label(info, before.say if before else "", answer, kind)
         cases.wipe_photos(token)
     except Exception:
         pass
@@ -2064,7 +2193,7 @@ async def post_desk_save(token: str, request: Request):
         raise HTTPException(status_code=404, detail="Case not found")
     body_text = (await request.body()).decode("utf-8")
     try:
-        case = cases.approve(token, body_text)
+        case = cases.set_say(token, body_text)             # the words are kept; nothing is called back, so the state stays
         _log_state(token, case.state)
         return JSONResponse(status_code=200, content={"ok": True, "state": case.state})
     except ValueError as e:
@@ -2222,6 +2351,13 @@ def main():
     print(f"Desk app:  http://127.0.0.1:{desk_port}")
     if tunables.SMS_DOOR:
         print(f"SMS door is ON. Try a photo by SMS in your browser: http://127.0.0.1:{desk_port}/try  (the photo port {photo_port} has no page at /)")
+
+    try:
+        taken = _recover_stuck()
+        if taken:
+            print(f"Took up {taken} case(s) a restart left half done.")
+    except Exception as exc:
+        print(f"Could not look for half done cases: {type(exc).__name__} {exc}")
 
     desk_thread = threading.Thread(
         target=uvicorn.run,

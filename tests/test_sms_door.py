@@ -68,6 +68,14 @@ def test_mixed_order_double_and_late_piece_end_in_the_same_photo_and_read(door):
     assert cases.get(case.token).state == "reading"
 
 
+def test_h_done_with_no_pieces_is_honest(door):
+    client, case, ran = door
+    r = _send(client, "H:DONE")
+    assert r["ok"] is False
+    assert ran == []
+    assert cases.get(case.token).state == "waiting"
+
+
 def test_two_minutes_with_no_new_piece_counts_as_done(door, monkeypatch):
     client, case, ran = door
     monkeypatch.setattr(tunables, "SMS_DONE_S", 0.1)
@@ -126,3 +134,56 @@ def test_phone_demo_page_shows_the_sms_and_picks_the_door_by_data():
     page = (cases.Path(__file__).parent.parent / "keypad_app" / "demo.html").read_text(encoding="utf-8")
     assert "Open the Haqdaar app" in page and "index.html?embed=1" in page and "MOBILE DATA" in page
     assert "src=\"http" not in page and "href=\"http" not in page
+
+
+# --- audit 7 Oct: the door must not lie, must not read twice, must not grow without end ---
+
+def test_a_text_over_the_cap_is_refused_whole(door):
+    client, case, ran = door
+    r = _send(client, "H:" + "A" * 5000)
+    assert r == {"ok": False, "reply": "ERR BAD"}
+
+
+def test_h_done_after_the_idle_timer_read_the_case_is_still_a_good_done(door):
+    client, case, ran = door
+    for text in _pieces(JPEG):
+        _send(client, text)
+    photo_desk._sms_start_reading(case.token)             # what the idle timer does
+    assert cases.get(case.token).state == "reading"
+    r = _send(client, "H:DONE")                           # the app's DONE comes after: no REVIEW for a photo that is being read
+    assert r == {"ok": True, "reply": "DONE OK"}
+    _wait(ran)
+    assert ran == [case.token]                            # and it did not start a second read
+
+
+def test_reading_cancels_the_idle_timer_and_a_second_start_does_nothing(door):
+    client, case, ran = door
+    for text in _pieces(JPEG):
+        _send(client, text)
+    assert case.token in photo_desk._sms_timer
+    photo_desk._sms_start_reading(case.token)
+    photo_desk._sms_start_reading(case.token)
+    assert case.token not in photo_desk._sms_timer and case.token not in photo_desk._sms_stamp
+    _wait(ran)
+    assert ran == [case.token]
+
+
+def test_h_done_with_a_photo_still_missing_a_piece_says_so(door):
+    client, case, ran = door
+    for text in _pieces(JPEG, msg_id=1):
+        _send(client, text)                               # one whole photo
+    part = _pieces(JPEG, msg_id=2)
+    for text in part[:2] + part[3:]:                      # another one with piece 3 never sent
+        _send(client, text)
+    r = _send(client, "H:DONE")
+    assert r == {"ok": False, "reply": "ERR LOST 1"}      # the app shows REVIEW, not SENT
+    assert cases.get(case.token).state == "photo"         # nothing was started on a half photo
+
+
+def test_old_pieces_are_forgotten(door):
+    client, case, ran = door
+    _send(client, _pieces(JPEG, msg_id=7)[0])
+    (key,) = photo_desk._sms.sessions
+    photo_desk._sms.sessions[key].updated_at -= tunables.SMS_CASE_S + 1
+    _send(client, _pieces(JPEG, msg_id=8)[0])
+    assert key not in photo_desk._sms.sessions and len(photo_desk._sms.sessions) == 1

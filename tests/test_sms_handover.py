@@ -323,3 +323,72 @@ def test_the_try_page_survives_a_one_dot_photo(rig, monkeypatch):
     Image.new("RGB", (1, 1), (5, 5, 5)).save(buf, "JPEG")
     r = rig.desk.post("/try", json={"photos": ["data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()]})
     assert r.status_code in (200, 400)                                         # never a 500
+
+
+# --- audit 7 Oct ---
+
+def test_a_packet_of_a_dropped_try_is_not_ok(rig):
+    c = pack.cut_case([photo(1), photo(2)], "417")[0]      # photo 2 is still to come: the case stays open
+    p = c["packets"][0]
+    i = p.rindex(":") + 1
+    bad = p[:i] + ("B" if p[i] != "B" else "C") + p[i + 1:]
+    send(rig, [p, bad])
+    r = send(rig, [c["packets"][1]])[0]
+    assert r["reply"] == "OK LATE" and r["ok"] is False   # the photo is lost: the phone must not count it as sent
+
+
+def test_a_late_double_of_a_whole_photo_stays_ok(rig):
+    c = pack.cut_case([photo(1), photo(2)], "417")[0]
+    send(rig, c["packets"])
+    r = send(rig, [c["packets"][0]])[0]
+    assert r["reply"] == "OK LATE" and r["ok"] is True
+
+
+def test_with_auto_off_a_persons_approve_still_wipes_a_p_case(rig, monkeypatch):
+    monkeypatch.setenv("PHOTO_AUTO", "false")
+    send(rig, pack.cut_photo(photo(), "417", 1, 1)["packets"])
+    case = rig.get()
+    assert case.state == "read" and case.finding["sms"]["reasons"] == [] and len(files(rig)) == 1
+    assert rig.desk.post(f"/approve/{case.token}", content=case.say.encode()).status_code == 200
+    assert rig.get().photos == [] and files(rig) == []
+    assert rig.labels() == []                              # nobody was asked, so no label
+
+
+def test_the_p_facts_are_on_the_case_and_a_restart_still_reads_it_as_a_p_case(rig):
+    jpeg = io.BytesIO()
+    photo().save(jpeg, "JPEG")
+    cases.add_photo(rig.case.token, jpeg.getvalue())
+    cases.set_sms_meta(rig.case.token, {"sent": 1, "whole": 1, "widths": [640]})
+    cases.mark_reading(rig.case.token)                     # the desk died here
+    photo_desk._sms_meta.clear()
+    assert photo_desk._recover_stuck() == 1                # the new desk starts: the case is read again
+    case = rig.get()
+    assert case.state == "approved" and case.finding["sms"]["whole"] == 1
+    assert "tiny" in rig.seen[0][1]                        # with the P: note, as a P: case
+
+
+def test_the_photos_go_to_the_open_case_when_the_owner_is_gone(rig):
+    import shutil
+    cut = pack.cut_case([photo(1), photo(2)], "417")
+    send(rig, cut[0]["packets"])
+    shutil.rmtree(rig.dir / rig.case.token)                # the owner case is gone
+    other = cases.new_case("hi", NUMBER)
+    assert photo_desk._psms_deliver((NUMBER, "417"), force=True) is True
+    assert cases.get(other.token).state in ("read", "approved")      # it was read: the photos arrived there
+
+
+def test_the_photos_are_dropped_loudly_when_no_case_is_open(rig):
+    import shutil
+    cut = pack.cut_case([photo(1), photo(2)], "417")
+    send(rig, cut[0]["packets"])
+    shutil.rmtree(rig.dir / rig.case.token)
+    assert photo_desk._psms_deliver((NUMBER, "417"), force=True) is False
+
+
+def test_a_mixed_case_counts_every_photo_as_whole(rig):
+    buf = io.BytesIO()
+    photo(9).save(buf, "JPEG")
+    cases.add_photo(rig.case.token, buf.getvalue())        # one came by the old H: way
+    send(rig, pack.cut_photo(photo(), "417", 1, 1)["packets"])
+    info = rig.get().finding["sms"]
+    assert info["whole"] == 2 and info["sent"] == 2 and "lost" not in info["reasons"]

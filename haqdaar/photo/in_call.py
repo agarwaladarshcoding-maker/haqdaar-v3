@@ -63,6 +63,21 @@ def _file() -> Any:
     return cases._base_dir() / "next_call.json"
 
 
+def promote_next() -> None:
+    """Two answers close together: the desk keeps the second in next_call.<token>.json (the readers look at one file
+    only). When next_call.json is gone or too old, the oldest waiting one takes its place."""
+    path = _file()
+    try:
+        if time.time() - path.stat().st_mtime <= tunables.PHOTO_PENDING_S:
+            return
+    except OSError:
+        pass
+    queued = sorted(path.parent.glob("next_call.*.json"), key=lambda q: q.stat().st_mtime)
+    if queued:
+        os.replace(queued[0], path)
+        os.utime(path)                               # the age the readers see starts now, not when it was queued
+
+
 def is_bad(finding: dict[str, Any]) -> bool:
     """The photo could not be read: the reader is unsure, it was the stand-in, it saw nothing, or a helper
     marked it "not clear". `wrong` is the damage SEEN in the photo, so a filled `wrong` is a good read."""
@@ -162,6 +177,10 @@ def done(token: str, bad: bool) -> None:
     """The call-back was made: the file goes. A bad photo: the case is open again (the same link works)."""
     try:
         _file().unlink()
+    except OSError:
+        pass
+    try:
+        promote_next()
     except OSError:
         pass
     try:

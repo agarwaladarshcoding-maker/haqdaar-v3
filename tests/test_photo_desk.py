@@ -121,7 +121,7 @@ def test_reopen_drops_old_photos(tmp_path):
 
 
 def test_wrong_token_404_and_slowed(tmp_path):
-    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}),          mock.patch("time.sleep") as mock_sleep:
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}),          mock.patch("asyncio.sleep", new=mock.AsyncMock()) as mock_sleep:
         client = TestClient(photo_desk.photo_app)
         resp = client.get("/p/nonexistent")
         assert resp.status_code == 404
@@ -132,7 +132,7 @@ def test_wrong_token_404_and_slowed(tmp_path):
 
 
 def test_wrong_tokens_do_not_block_good_tokens(tmp_path):
-    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}),          mock.patch("time.sleep"):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}),          mock.patch("asyncio.sleep", new=mock.AsyncMock()):
         c = cases.new_case("hi", folder=tmp_path)
         client = TestClient(photo_desk.photo_app)
 
@@ -231,6 +231,20 @@ def test_second_done_ignored(tmp_path):
             r = client.post(f"/p/{c.token}/done")
             assert r.status_code == 200
             assert mock_thread.call_count == 0
+
+
+def test_done_without_photos_says_not_ok(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        c = cases.new_case("hi", folder=tmp_path)
+
+        with mock.patch("threading.Thread") as mock_thread:
+            client = TestClient(photo_desk.photo_app)
+            r = client.post(f"/p/{c.token}/done")
+            assert r.status_code == 200
+            assert r.json()["ok"] is False
+            assert mock_thread.call_count == 0
+
+        assert cases.get(c.token, folder=tmp_path).state == "waiting"
 
 
 def test_photo_app_has_no_desk_routes(tmp_path):
@@ -487,10 +501,9 @@ def test_photo_auto_on_and_off(tmp_path):
             assert r.status_code == 200
 
         c2_up = cases.get(c2.token, folder=tmp_path)
-        assert c2_up.state == "approved"
-        d2 = json.loads((tmp_path / "next_call.json").read_text(encoding="utf-8"))
-        assert d2["token"] == c2.token
-        assert d2["lang"] == "en"
+        assert c2_up.state == "read"                      # a stand-in read is no read: it waits for a person (audit 6)
+        assert c2_up.finding["sms"]["reasons"] == ["stand-in"]
+        assert json.loads((tmp_path / "next_call.json").read_text())["token"] == c1.token   # no call-back was written for it
 
     # 3. PHOTO_AUTO=false: state stays read, no file until /approve
     (tmp_path / "next_call.json").unlink(missing_ok=True)
@@ -606,6 +619,7 @@ def test_host_origin_guard_covers_new_routes(tmp_path):
         r_cases_bad = client.get("/cases", headers={"Host": "attacker.com"})
         assert r_cases_bad.status_code == 403
 
+        cases.set_finding(c.token, {"shows": "x"}, "", "", folder=tmp_path)   # not-clear is for a case that was read
         # POST /not-clear with evil Origin -> 403
         r_nc_bad = client.post(f"/not-clear/{c.token}", headers={"Origin": "http://evil.com"})
         assert r_nc_bad.status_code == 403
@@ -637,3 +651,131 @@ def test_phone_demo_on_another_port_may_post_a_photo():
     assert "POST" in r.headers["access-control-allow-methods"]
     r = client.post("/p/abcdefghij/done", headers={"Origin": "http://127.0.0.1:8080"})
     assert r.headers.get("access-control-allow-origin") == "*"       # the page can read the answer, even a "no such case"
+
+
+# --- audit 7 Oct ---
+
+def _sync_thread(target=None, args=(), **kwargs):
+    if target:
+        target(*args)
+    return mock.Mock()
+
+
+def _reading_case(tmp_path, photo=True):
+    c = cases.new_case("en", folder=tmp_path)
+    if photo:
+        cases.add_photo(c.token, TINY_JPEG, folder=tmp_path)
+    cases.mark_reading(c.token, folder=tmp_path) if photo else None
+    return c
+
+
+def test_a_read_that_crashes_does_not_leave_the_case_reading(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        c = _reading_case(tmp_path)
+        with mock.patch("haqdaar.photo.reader.read", side_effect=RuntimeError("boom")):
+            photo_desk._process_done(c.token)
+        got = cases.get(c.token, folder=tmp_path)
+        assert got.state == "read" and got.finding["by"].startswith("stand-in")
+        assert got.finding["sms"]["reasons"] == ["crashed"]
+        assert photo_desk._case_to_dict(got)["is_stand_in"] is True
+
+
+def test_a_case_with_no_photos_to_read_lands_on_the_desk(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        c = _reading_case(tmp_path, photo=False)
+        photo_desk._process_done(c.token)
+        got = cases.get(c.token, folder=tmp_path)
+        assert got.state == "read" and got.finding["sms"]["reasons"] == ["none"]
+
+
+def test_a_restart_takes_up_reading_and_old_photo_cases(tmp_path, monkeypatch):
+    import types
+    monkeypatch.setattr(photo_desk, "threading", types.SimpleNamespace(
+        Thread=lambda target=None, args=(), **kw: types.SimpleNamespace(start=lambda: target(*args)),
+        Timer=threading.Timer, Lock=threading.Lock))                     # the reads run here, the idle timers stay real
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path), "PHOTO_AUTO": "false"}):
+        stuck = _reading_case(tmp_path)                                  # died while reading
+        old = cases.new_case("hi", folder=tmp_path, now=time.time() - 3600)
+        cases.add_photo(old.token, TINY_JPEG, folder=tmp_path)           # photo came, the idle timer died with the desk
+        fresh = cases.new_case("hi", folder=tmp_path)
+        cases.add_photo(fresh.token, TINY_JPEG, folder=tmp_path)         # too young: its idle timer starts again
+        empty = cases.new_case("hi", folder=tmp_path)                    # waiting: left alone
+        good = {"shows": "a crop", "wrong": "", "sure": 0.9, "search": "", "by": "muse"}
+        with mock.patch("haqdaar.photo.reader.read", return_value=good), mock.patch.object(photo_desk, "pick_scheme", return_value=("", "")):
+            assert photo_desk._recover_stuck() == 3
+        try:
+            assert cases.get(stuck.token, folder=tmp_path).state == "read"
+            assert cases.get(old.token, folder=tmp_path).state == "read"
+            assert cases.get(fresh.token, folder=tmp_path).state == "photo" and fresh.token in photo_desk._sms_timer
+            assert cases.get(empty.token, folder=tmp_path).state == "waiting"
+        finally:
+            for t in list(photo_desk._sms_timer.values()):
+                t.cancel()
+            photo_desk._sms_timer.clear()
+            photo_desk._sms_stamp.clear()
+
+
+def test_a_stand_in_read_of_a_web_photo_waits_for_a_person_and_the_desk_says_why(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path), "PHOTO_AUTO": "true"}):
+        c = _reading_case(tmp_path)
+        bad = {"shows": "", "wrong": "", "sure": 0.0, "search": "", "by": "stand-in (no reader)"}
+        with mock.patch("haqdaar.photo.reader.read", return_value=bad):
+            photo_desk._process_done(c.token)
+        got = cases.get(c.token, folder=tmp_path)
+        assert got.state == "read" and not (tmp_path / "next_call.json").exists()
+        assert "waits because: stand-in" in photo_desk._case_to_dict(got)["note"]
+        # a person answers: the web photo is not wiped (no promise made on that door)
+        r = TestClient(photo_desk.desk_app).post(f"/approve/{c.token}", content=b"words")
+        assert r.status_code == 200 and len(cases.get(c.token, folder=tmp_path).photos) == 1
+
+
+def test_the_page_needs_ok_true_from_done():
+    c_html = photo_desk.PHOTO_HTML_TEMPLATE
+    assert "JSON.parse(doneXhr.responseText).ok === true" in c_html      # {"ok": false} with status 200 is not a success
+
+
+def test_a_photo_for_a_case_being_read_is_a_409(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        c = _reading_case(tmp_path)
+        r = TestClient(photo_desk.photo_app).post(f"/p/{c.token}/photo", content=TINY_JPEG, headers={"Content-Type": "image/jpeg"})
+        assert r.status_code == 409 and r.json()["ok"] is False
+        assert len(cases.get(c.token, folder=tmp_path).photos) == 1
+
+
+def test_a_second_done_starts_one_read_only(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}), mock.patch("tools.photo_desk._process_done") as run:
+        c = cases.new_case("hi", folder=tmp_path)
+        cases.add_photo(c.token, TINY_JPEG, folder=tmp_path)
+        client = TestClient(photo_desk.photo_app)
+        assert client.post(f"/p/{c.token}/done").json() == {"ok": True}
+        assert client.post(f"/p/{c.token}/done").json() == {"ok": True}
+        time.sleep(0.2)
+        assert run.call_count == 1
+
+
+def test_two_answers_close_together_are_both_kept(tmp_path):
+    from haqdaar.photo import in_call
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        a = cases.new_case("hi", folder=tmp_path)
+        b = cases.new_case("en", folder=tmp_path)
+        a.say, b.say = "first", "second"
+        photo_desk.call_back(a)
+        photo_desk.call_back(b)
+        assert json.loads((tmp_path / "next_call.json").read_text())["say"] == "first"     # the first is not overwritten
+        in_call.done(a.token, False)                                                       # its call-back was made
+        got = json.loads((tmp_path / "next_call.json").read_text())
+        assert got["token"] == b.token and got["say"] == "second" and got["lang"] == "en"  # same format; the second is next
+        photo_desk.call_back(b)                                                            # the same case again: it just replaces
+        assert not list(tmp_path.glob("next_call.*.json"))
+
+
+def test_save_keeps_the_words_and_calls_nobody_back(tmp_path):
+    with mock.patch.dict(os.environ, {"PHOTO_DIR": str(tmp_path)}):
+        c = cases.new_case("hi", folder=tmp_path)
+        cases.add_photo(c.token, TINY_JPEG, folder=tmp_path)
+        cases.set_finding(c.token, {"shows": "x"}, "", "old", folder=tmp_path)
+        r = TestClient(photo_desk.desk_app).post(f"/save/{c.token}", content=b"half typed")
+        assert r.status_code == 200 and r.json()["state"] == "read"
+        got = cases.get(c.token, folder=tmp_path)
+        assert got.say == "half typed" and got.state == "read"
+        assert not (tmp_path / "next_call.json").exists()

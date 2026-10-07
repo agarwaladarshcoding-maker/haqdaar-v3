@@ -148,8 +148,10 @@ class PhotoJoin:
         sk = (place, stamp)
         if g.sent != p["sent"]:
             return Result("dropped", "ERR FACTS", key, "sent differs")
-        if sk in g.retired or place in g.whole:
+        if place in g.whole:
             return Result("ignored", "OK LATE", key)
+        if sk in g.retired:                          # a bad try: its photo is lost, the route must not call this ok
+            return Result("ignored", "OK LATE", key, "retired")
         ph = g.sessions.get(sk)
         if ph is None:
             if len(g.sessions) >= 3 * g.sent + 2:        # more tries than a case can have: refuse, do not grow

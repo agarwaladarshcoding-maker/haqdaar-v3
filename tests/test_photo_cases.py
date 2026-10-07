@@ -148,12 +148,19 @@ def test_state_transitions(tmp_path):
     assert c.state == "approved"
     assert c.say == "Second helper edit"
 
-    # Adding a photo now resets state back to "photo" and clears finding/scheme/say
-    c = cases.add_photo(c.token, TINY_PNG, folder=tmp_path)
-    assert c.state == "photo"
-    assert c.finding == {}
-    assert c.scheme == ""
-    assert c.say == ""
+    # A photo may not pull an approved case back (audit 4): the helper's answer would be thrown away
+    with pytest.raises(ValueError, match="not taking photos"):
+        cases.add_photo(c.token, TINY_PNG, folder=tmp_path)
+    assert cases.get(c.token, folder=tmp_path).state == "approved"
+
+    # Adding a photo to an open case keeps resetting finding/scheme/say
+    c2 = cases.new_case("hi", folder=tmp_path)
+    cases.add_photo(c2.token, TINY_JPEG, folder=tmp_path)
+    c2 = cases.add_photo(c2.token, TINY_PNG, folder=tmp_path)
+    assert c2.state == "photo"
+    assert c2.finding == {}
+    assert c2.scheme == ""
+    assert c2.say == ""
 
 
 def test_mark_called_wipes_number(tmp_path):
@@ -248,3 +255,87 @@ def test_mark_reading(tmp_path):
     assert c.state == "reading"
     fetched = cases.get(c.token, folder=tmp_path)
     assert fetched.state == "reading"
+
+
+# --- audit 7 Oct ---
+
+def test_add_photo_refuses_a_case_that_is_being_read_or_answered(tmp_path):
+    c = cases.new_case("hi", folder=tmp_path)
+    cases.add_photo(c.token, TINY_JPEG, folder=tmp_path)
+    cases.mark_reading(c.token, folder=tmp_path)
+    with pytest.raises(ValueError, match="not taking photos"):
+        cases.add_photo(c.token, TINY_PNG, folder=tmp_path)
+    assert cases.get(c.token, folder=tmp_path).state == "reading" and len(cases.get(c.token, folder=tmp_path).photos) == 1
+
+
+def test_mark_reading_is_a_compare_and_set(tmp_path):
+    c = cases.new_case("hi", folder=tmp_path)
+    cases.add_photo(c.token, TINY_JPEG, folder=tmp_path)
+    assert cases.mark_reading(c.token, folder=tmp_path).state == "reading"
+    assert cases.mark_reading(c.token, folder=tmp_path) is False          # the second reader loses
+    cases.set_finding(c.token, {}, "", "", folder=tmp_path)
+    assert cases.mark_reading(c.token, folder=tmp_path) is False          # and a read case is not read again
+
+
+def test_mark_not_clear_only_for_a_case_that_was_read(tmp_path):
+    c = cases.new_case("hi", folder=tmp_path)
+    with pytest.raises(ValueError, match="cannot mark"):
+        cases.mark_not_clear(c.token, folder=tmp_path)                    # waiting
+    cases.add_photo(c.token, TINY_JPEG, folder=tmp_path)
+    cases.mark_reading(c.token, folder=tmp_path)
+    with pytest.raises(ValueError, match="cannot mark"):
+        cases.mark_not_clear(c.token, folder=tmp_path)                    # being read: the reader would overwrite it
+    cases.set_finding(c.token, {"shows": "x"}, "", "", folder=tmp_path)
+    assert cases.mark_not_clear(c.token, folder=tmp_path).state == "approved"
+
+
+def test_photos_added_at_the_same_time_are_all_kept(tmp_path, monkeypatch):
+    import threading
+    import time
+    c = cases.new_case("hi", folder=tmp_path)
+    real = cases._save
+
+    def slow(case, folder=None):                       # widen the gap between read and write
+        time.sleep(0.02)
+        real(case, folder)
+
+    monkeypatch.setattr(cases, "_save", slow)
+    ts = [threading.Thread(target=cases.add_photo, args=(c.token, TINY_JPEG, tmp_path)) for _ in range(5)]
+    [t.start() for t in ts]
+    [t.join() for t in ts]
+    got = cases.get(c.token, folder=tmp_path)
+    assert len(got.photos) == 5 and len(set(got.photos)) == 5
+    assert len(list((tmp_path / c.token).glob("*.jpg"))) == 5
+
+
+def test_set_say_keeps_the_state(tmp_path):
+    c = cases.new_case("hi", folder=tmp_path)
+    with pytest.raises(ValueError):
+        cases.set_say(c.token, "x", folder=tmp_path)
+    cases.add_photo(c.token, TINY_JPEG, folder=tmp_path)
+    cases.set_finding(c.token, {}, "", "old", folder=tmp_path)
+    got = cases.set_say(c.token, "new words", folder=tmp_path)
+    assert got.say == "new words" and got.state == "read"
+
+
+def test_the_p_facts_survive_on_disk(tmp_path):
+    c = cases.new_case("hi", folder=tmp_path)
+    cases.set_sms_meta(c.token, {"sent": 2, "whole": 1, "widths": [300]}, folder=tmp_path)
+    assert cases.get(c.token, folder=tmp_path).sms_meta == {"sent": 2, "whole": 1, "widths": [300]}
+
+
+def test_a_held_case_outlives_the_day_and_the_sweep_says_so(tmp_path, capsys):
+    import os
+    import time
+    c = cases.new_case("hi", folder=tmp_path, now=time.time() - 30 * 3600)
+    cases.add_photo(c.token, TINY_JPEG, folder=tmp_path)
+    cases.set_finding(c.token, {"sms": {"reasons": ["sure"]}}, "", "", folder=tmp_path)
+    assert cases.get(c.token, folder=tmp_path) is not None and [x.token for x in cases.open_cases(tmp_path)] == [c.token]
+    assert cases.sweep(tmp_path) == 0                                      # a person was asked: it is kept
+    old = time.time() - 80 * 3600                                          # nobody touched it for 80 h
+    os.utime(tmp_path / c.token / "case.json", (old, old))
+    assert cases.get(c.token, folder=tmp_path) is None
+    assert cases.sweep(tmp_path) == 1
+    assert "swept while held" in capsys.readouterr().out
+    plain = cases.new_case("hi", folder=tmp_path, now=time.time() - 30 * 3600)   # a case nobody was asked about goes at 24 h
+    assert cases.sweep(tmp_path) == 1 and not (tmp_path / plain.token).exists()
