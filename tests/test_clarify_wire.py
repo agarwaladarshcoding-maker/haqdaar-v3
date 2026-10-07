@@ -99,9 +99,10 @@ def test_two_needs_first_taken_other_kept(corpus, tmp_path, idx):
     """P2.3: the first named need is taken; "you also asked about a house"."""
     t = _talk(corpus, tmp_path, "wire-two", idx)
     t.heard = ["खेती और घर दोनों के लिए कुछ है क्या"]
-    t.model = SimpleNamespace(client=Client([{"action": "show_scheme", "say": "Two schemes for you.", "scheme": ""}]))
+    # Four farming schemes fit: ask-first does not list them, so the reply is an answer (the "also asked" line is added to both).
+    t.model = SimpleNamespace(client=Client([{"action": "answer", "say": "Four schemes fit.", "scheme": ""}]))
     action, say = t._decide("खेती और घर दोनों के लिए कुछ है क्या")
-    assert action == "show_scheme"
+    assert action == "answer"
     assert t.bv["category"] == "farming"
     assert "also asked about" in say and "A house" in say
     assert t.more_needs == []  # come back to it once: said, then dropped
@@ -218,14 +219,14 @@ def test_live_situation_asks_first(corpus, tmp_path, idx, livecall):
         [Speech(said)],
         [{"action": "ask", "say": "What work do you do?", "ask_box": ask, "facts": {}}])
     assert f"NEXT QUESTION: {ask}" in client.calls[0]
-    assert audio.answers == ["What work do you do?"]
+    assert audio.answers[0] == "What work do you do?" and audio.answers[1].startswith("Press 1 for Farmer")   # N2: the keys follow
 
 
 def test_live_just_tell_on_turn_two(livecall):
     audio, client, _rows = livecall(
         [Speech("I need some scheme"), Speech("just tell me")],
-        [{"action": "show_scheme", "say": "Two schemes for you.", "scheme": ""},
-         {"action": "show_scheme", "say": "Two schemes for you.", "scheme": ""}])
+        [{"action": "ask", "say": "What kind of help do you need?", "ask_box": "category", "facts": {}},
+         {"action": "show_scheme", "say": "Two schemes for you.", "scheme": ""}])   # turn 1: the list is long, so a question
     assert "NEXT QUESTION: none" in client.calls[1]
     assert client.calls[1].count("mark: ") == 2
 

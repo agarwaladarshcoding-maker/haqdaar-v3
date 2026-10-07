@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any, Mapping, Sequence
 
 from haqdaar.contracts import vocab
+from haqdaar.contracts.types import SEVEN_BOXES
 
 LANG_NAMES = {"hi": "Hindi", "mr": "Marathi", "en": "English"}
 
@@ -136,6 +137,77 @@ When entries in the CALL LOG clash, the NEWEST CALLER WORDS win over older words
 said before. Do not repeat a sentence you already said unless the action is "repeat"."""
 
 
+# N1 (TALK_ASK_FIRST): the lines of SYSTEM that change when the model is handed question options and a
+# long list is never listed. (old text, new text); a test checks every old text is still in SYSTEM.
+ASK_FIRST_EDITS = (
+    ("you may ask ONLY the box named in NEXT QUESTION. Put that box name in",
+     "you may ask ONLY a box named in NEXT QUESTION or in its OPTIONS: pick the ONE that fits what the caller said. "
+     "Put that box name in"),
+    ('Use this when NEXT QUESTION is "none", or when the caller asks which schemes there are.',
+     'Use this only when NEXT QUESTION is "none". While many schemes fit (SCHEMES says how many), do not use it.'),
+    ('2. The need is clear -> "show_scheme": name one',
+     '2. The need is clear and NEXT QUESTION is "none" -> "show_scheme": name one'),
+    ("1. Ask it and list no schemes.",
+     "1. Ask ONE of them and list no schemes: if many schemes fit, say how many there are, then ask."),
+    ("The CODE picks the box: never ask about another box here.",
+     "The CODE gives the boxes: never ask about a box that is not given here."),
+    ("Do not first say back what the caller told you.",
+     "Do not first say back what the caller told you, unless the NOTE says JUST HEARD."),
+)
+
+# N3 (TALK_ASK_FIRST): added to SYSTEM only on a turn whose SCHEMES hold such a line.
+NEAR_RULE = (
+    "\n\nNEAR, DOES NOT FIT lines: no scheme fits everything the caller told us. Say so plainly, then name the "
+    "nearest one (two at most) and say what is in the way, in simple words. If it can change (can change: yes), say "
+    "what would make it fit. If it can not (can change: no), say so kindly and promise nothing. Never say the "
+    "caller is eligible. Say only what the lines say is in the way."
+)
+MAY_FIT_RULE = (
+    "\n\nFITS SO FAR lines: the scheme fits what the caller told us, but it has conditions we did not ask about. "
+    'Say it as "it may fit, if ..." and give the conditions in your own simple words. Never say it fits for sure.'
+)
+
+# N5 (TALK_ASK_FIRST): added to SYSTEM only on a turn whose SCHEMES come best fit first (the asking is over, many fit).
+RANK_RULE = (
+    "\n\nSCHEMES come best fit first, and the line under them says how many schemes fit in all. Tell the best one "
+    "or two, say how many more also fit, and say the caller can ask for others. Do not list them all."
+)
+
+# What each box is about, in plain words, for the options the model picks from. Any other box shows its name.
+BOX_MEANING = {
+    "category": "the kind of help they want",
+    "occupation": "their work",
+    "age": "their age",
+    "gender": "man or woman",
+    "state": "the state they live in",
+    "social_category": "their social group (general, OBC, SC, ST)",
+    "income_band": "their family income",
+    "gives": "what they want the scheme to give",
+    "sub_kind": "which kind of help inside it",
+    "home_state": "the state they live in",
+}
+# N6: a yes / no fact is its own plain words ("has a BPL card"), never a code or a bare yes.
+BOX_MEANING.update({f"f_{name}": fact["yes"] for name, fact in vocab.FACTS.items()})
+
+# N2 (TALK_ASK_FIRST): the keys said after a question of the picker, by code. Fixed words per language like
+# KEYS_OFFER; the Hindi and Marathi are not checked by a speaker. Keys 6 and 9 keep their jobs: never handed out.
+KEY_HINT = {
+    "en": {"press": "Press {pairs}.", "pair": "{key} for {what}", "more": "7 for more", "zero": "0 if you do not know"},
+    "hi": {"press": "{pairs} दबाइए।", "pair": "{what} के लिए {key}", "more": "और के लिए 7", "zero": "पता न हो तो 0"},
+    "mr": {"press": "{pairs} दाबा.", "pair": "{what} साठी {key}", "more": "आणखी साठी 7", "zero": "माहीत नसल्यास 0"},
+}
+READ_BACK_HINT = {
+    "en": "Press 1 for yes, 2 to change.",
+    "hi": "हाँ के लिए 1, बदलने के लिए 2 दबाइए।",
+    "mr": "हो साठी 1, बदलण्यासाठी 2 दाबा.",
+}
+# Said only when the model twice fails to word the read-back itself.
+READ_BACK = {
+    "en": "So you told me: {facts}. Is that right?",
+    "hi": "आपने बताया: {facts}। क्या यह सही है?",
+    "mr": "तुम्ही सांगितले: {facts}. हे बरोबर आहे का?",
+}
+
 # The hello after the language pick. Said by live voice (cached on disk after the first time):
 # the opener_prompt clip cannot be used, on the phone it brings the key list with it.
 HELLO = {
@@ -158,7 +230,16 @@ QUESTION = {
     "social_category": {"en": "Which category are you in: general, OBC, SC or ST?",
                         "hi": "आप किस वर्ग से हैं: सामान्य, ओबीसी, एससी या एसटी?",
                         "mr": "तुम्ही कोणत्या प्रवर्गात आहात: सर्वसाधारण, ओबीसी, एससी की एसटी?"},
+    # N6: the talk-only boxes. The Hindi and Marathi are drafts, not checked by a speaker.
+    "gives": {"en": "What do you want from the scheme: money, a loan, insurance, a pension, training, or a house?",
+              "hi": "आप योजना से क्या चाहते हैं: पैसा, लोन, बीमा, पेंशन, प्रशिक्षण या घर?",
+              "mr": "तुम्हाला योजनेकडून काय हवे आहे: पैसे, कर्ज, विमा, पेन्शन, प्रशिक्षण की घर?"},
+    "sub_kind": {"en": "Which kind of help exactly do you need?",
+                 "hi": "आपको ठीक किस तरह की मदद चाहिए?",
+                 "mr": "तुम्हाला नेमकी कोणत्या प्रकारची मदत हवी आहे?"},
 }
+QUESTION["home_state"] = QUESTION["state"]
+QUESTION.update({f"f_{name}": fact["ask"] for name, fact in vocab.FACTS.items()})
 
 # 7.14 (B5): added to the prompt of a turn whose words were said while the agent was still talking.
 CUT_NOTE = ('The caller said the newest words WHILE you were still talking, and you stopped. If they are only '
@@ -343,6 +424,12 @@ FOLLOW = {
     "how_much": "The caller asks how much you said. Say only the sentence with the number, nothing else.",
     "recap": "First say back, in ONE short sentence, what the caller told you: {facts}. Then give the answer to "
              "their problem in the same reply. Do not ask \"is that right?\" and do not ask a new question in this reply.",
+    "read_back": 'READ BACK NOW: {facts}. This reply is the read-back and nothing else: say these facts in ONE short '
+                 'sentence, then ask "Is that right?". Use the action "answer". Name no scheme and do not say how many fit.',
+    "rb_wrong": "CALLER SAYS A FACT IS WRONG. Ask in one short question which one is wrong (action \"answer\"). "
+                "Name no scheme. When the caller gives the right fact, put it in facts.",
+    "rb_yes": "The caller answered the read-back. Do not read the facts back again: name the one or two best schemes from "
+              "SCHEMES, one short line each.",
     "distress": "The caller is in pain and a kind sentence was already said. Ask no list of questions. At most one "
                 "gentle question, or the schemes if the caller asked. Say no help-line number.",
 }
@@ -380,6 +467,37 @@ def kind_say(value: Any, lang: str) -> str:
     """The everyday words for a kind of help, in the caller's language."""
     label = (vocab.LABELS.get(value) or {}).get(lang) or (vocab.LABELS.get(value) or {}).get("en")
     return str(label or value)
+
+
+def say_value(box: str, value: str, lang: str) -> str:
+    """A value of any talk box in plain words for a fixed line. A yes / no fact is said in English words in every
+    language (the Hindi and Marathi fact phrases are not written yet)."""
+    return vocab.value_words(box, value) if vocab.fact_of(box) else kind_say(value, lang)
+
+
+def just_heard(items: Sequence[tuple[str, str, str]]) -> str:
+    """N2: the facts just taken, for the NOTE: (box, value, "key" or "voice"). The reply starts by saying them back."""
+    def heard(box: str, value: str, how: str) -> str:
+        if vocab.fact_of(box):        # N6: "has a BPL card (by key)", not "yes"
+            words = vocab.value_words(box, "yes") + ": the caller does not know" if value == "UNKNOWN" else vocab.value_words(box, value)
+            return f"{words} (by {how})"
+        return (f"{BOX_MEANING.get(box, box.replace('_', ' '))} = "
+                f"{'the caller does not know' if value == 'UNKNOWN' else kind_say(value, 'en')} (by {how})")
+
+    said = "; ".join(heard(box, value, how) for box, value, how in items)
+    return (f'JUST HEARD: {said}. Start your reply by saying it back in a few words ("Okay, a farmer."), '
+            "then go on with your next step.")
+
+
+def key_hint(labels: Sequence[str], more: bool, full: bool, lang: str) -> str:
+    """N2: "Press 1 for a, 2 for b, 0 if you do not know." The full hint has the "0" part; the short one only the pairs."""
+    words = KEY_HINT.get(lang, KEY_HINT["en"])
+    parts = [words["pair"].format(key=n, what=label) for n, label in enumerate(labels, 1)]
+    if more:
+        parts.append(words["more"])
+    if full:
+        parts.append(words["zero"])
+    return words["press"].format(pairs=", ".join(parts))
 
 
 def not_held_say(lang: str, kinds: list[str]) -> str:
@@ -420,20 +538,35 @@ def _named(value: Any, lang: str) -> str:
 def build(lang: str, log_text: str, known: Mapping[str, Any], boxes: Mapping[str, Sequence[str]],
           ask: str | None, order: Sequence[str], schemes: Sequence[tuple[str, str, str]],
           words: str, note: str = "", focus: str = "", told: Sequence[str] = (), first_call: str = "",
-          photo: str = "") -> list[dict[str, str]]:
+          photo: str = "", options: Sequence[tuple[str, int]] = (), fit: int = 0,
+          ask_first: bool = False, ranked: bool = False) -> list[dict[str, str]]:
     """schemes = (scheme id, mark, English card text), best first. `focus` = the scheme the talk
-    is about now, `told` = the PARTS of it already said in this call."""
+    is about now, `told` = the PARTS of it already said in this call.
+    N1: `options` = (box, most schemes left after any answer), best first; `fit` > 0: the list is long and
+    no scheme text is given, only how many fit; `ask_first`: the switch (SYSTEM is changed to match).
+    N5: `ranked`: the schemes come best fit first and `fit` is how many fit in all."""
     box_lines = "\n".join(
-        f"- {box}: " + ("a number of years" if box == "age" else ", ".join(_named(v, lang) for v in values))
+        f"- {box}" + (f" ({BOX_MEANING[box]})" if box in BOX_MEANING and box not in SEVEN_BOXES else "") + ": "
+        + ("a number of years" if box == "age" else ", ".join(_named(v, lang) for v in values))
         for box, values in boxes.items() if values
     )
     if ask:
         like = (QUESTION.get(ask) or {}).get(lang)
         nxt = f"{ask}" + (f'  (ask it like: "{like}")' if like else "") + (f"  (if the caller just told you that, ask the next of: {', '.join(order)})"
-                          if len(order) > 1 else "")
+                          if len(order) > 1 and not options else "")
+        if options:
+            nxt += ("\nOPTIONS (pick the ONE that fits what the caller said, and word it from their words; the number is "
+                    "the most schemes that can be left after any answer):\n"
+                    + "\n".join(f"- {box}: {BOX_MEANING.get(box, box.replace('_', ' '))}; at most {left} left"
+                                 for box, left in options))
     else:
         nxt = "none"
-    cards = "\n\n".join(f"{text}\nmark: {mark}" for _sid, mark, text in schemes) or "(none found)"
+    cards = "\n\n".join(f"{text}\nmark: {mark}" for _sid, mark, text in schemes) or ("(none shown)" if fit else "(none found)")
+    if fit and ranked:
+        cards += (f"\n\n{fit} schemes fit what we know so far, best fit first. After the best one or two you tell, "
+                  f"{fit - 2} more fit (or {fit - 1} if you tell only one).")
+    elif fit:
+        cards += f"\n\n{fit} schemes fit what we know so far. Name none of them: say how many fit, and ask."
     if focus:
         in_talk = (f"[{focus}]. TOLD: {', '.join(p for p in PARTS if p in told) or 'nothing'}. "
                    f"NOT TOLD YET: {', '.join(p for p in PARTS if p not in told) or 'nothing'}.")
@@ -454,7 +587,16 @@ def build(lang: str, log_text: str, known: Mapping[str, Any], boxes: Mapping[str
     if note:
         user += f"\nNOTE: {note}\n"
     user += "\nReply with the JSON object."
+    system = SYSTEM
+    for was, now in ASK_FIRST_EDITS if ask_first else ():
+        system = system.replace(was, now)
+    if ask_first and ranked:
+        system += RANK_RULE
+    if ask_first and "NEAR, DOES NOT FIT" in cards:
+        system += NEAR_RULE
+    if ask_first and "FITS SO FAR" in cards:
+        system += MAY_FIT_RULE
     return [
-        {"role": "system", "content": SYSTEM.replace("{lang}", LANG_NAMES.get(lang, lang))},
+        {"role": "system", "content": system.replace("{lang}", LANG_NAMES.get(lang, lang))},
         {"role": "user", "content": user},
     ]

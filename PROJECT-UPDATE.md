@@ -2026,3 +2026,131 @@ names another language is always worked in English, so the ask works in both mod
 
 ## 7 Oct: audit of door 0 and door 1, 19 fixes (on main, not committed)
 All 19 findings were real on main and are fixed with tests. A held photo now shows a loud banner in the terminal. Stuck "reading" cases are picked up again at start. Web and keypad photos with a stand-in read now wait for a person. Not fixed: half-joined P: photos lost on restart, /sms has no password, lock is one process only. 3479 tests pass.
+## 6 Oct, evening: a plan to make the agent ask before it lists (plan only, no code)
+- Asked: the agent lists every scheme of a kind. It should ask a few questions and cut the list down, say the nearest schemes when none fits, and confirm every answer by key and voice. Also: be ready for the team's new schemes.
+- Found why it lists. The questions have almost nothing to cut with: of the 17 schemes only the kind, the work and the age ever split the list. The real conditions (widow, BPL card, own land, disability) are written as free notes, so the picker can not ask about them. Also the agent stops asking once 2 are left, and nothing in the code stops the model from listing while a question is still open.
+- Found about the new schemes: 94 are written in the team's folder, not yet joined in. They have the same shape as today, so the same fault grows: 14 farming schemes, and 8 of them have no condition the picker can use.
+- Plan given to the owner: two new fixed fields per scheme ("what it gives" and a short list of yes/no facts), the same picker over them, a code rule that no scheme is listed while a question is open, keys for every question plus the answer said back, and "the nearest scheme and what stands in the way" when none fits.
+- Nothing was built. Four choices wait for the owner.
+
+## 6 Oct, night: tried software that keeps only the caller's voice (nothing wired in)
+- Tried Hush (free, open, runs on the Mac). It is fast: under 1 ms of work for each 20 ms of sound and 10 ms of added delay, so it does not slow a turn.
+- It works on a person talking from across the room: with a far voice 6 to 12 dB quieter than the caller, our ear stopped the agent 6 times of 6 without it and 0 of 6 with it.
+- It does not work on a person right next to the phone, or one as loud as the caller.
+- The cost: on real Hindi speakers it also made the caller's own voice 5 to 13 dB quieter, and one soft caller was no longer heard. So it is not put into the app yet.
+- Not tried: ai-coustics and Krisp (both need a key), and the owner's own voice (no real caller sound is saved).
+
+### 6 Oct, night: the "who pays for the photo" note was read; nothing built
+- The owner pasted a note on the cost of a photo case (Rs 3 to 5, paid by the department, the farmer pays nothing).
+- I gave a view only. No code and no plan was changed.
+- One fact from our own code: a photo by SMS is at most 1050 bytes (10 SMS of 105 bytes). It is not yet shown that a pest can be told from a picture that small.
+- The prices in the note (SMS rate, cost of a field visit, cost per transaction) are not checked against a source.
+- The project can do the same as before this entry.
+
+### 6 Oct, night: the right way for the photo case was worked out; nothing built
+- The owner asked for the right way to take a photo from a farmer, with every case thought through.
+- I checked the note's numbers on the web and our own keypad app. No code and no plan file was changed.
+- Found: a photo by SMS is at best 96 by 72 dots; the keypad app can only send SMS if the phone maker puts it on the phone; phones that can run it have data anyway.
+- My pick: the link by SMS opened on any smartphone in the house is the main road; a helper with the case number is the second; talk with no photo is the third. The SMS photo door stays a show.
+- Not checked: the price of an SMS the farmer sends to us for free, the cost of a field visit, and if a model can read a 96 by 72 photo.
+- The project can do the same as before this entry.
+
+### 6 Oct, night: a better way to shrink a photo into SMS was tried; nothing built in the app
+- The owner asked for the worst case: a keypad phone, no data, no browser, no smartphone near.
+- Tried on 3 real pest photos, outside the app. Found: of the 1000 bytes we send today, 623 are a fixed header that is the same on every photo. Only about 350 bytes are picture.
+- If the phone leaves that header out and the server puts it back, the same 10 SMS carry about 3 times more picture.
+- If the phone also sends only the middle of the photo (the sick spot), a worm's stripes and a blight patch can be seen. Today's SMS photo is only a blur.
+- Not known yet: how a real keypad phone camera does, and if the phone makes its JPEG the standard way.
+- The project can do the same as before this entry.
+
+## 6 Oct night: call-back catch (plan only)
+- Owner's idea: on the call-back, "press 1 to end, any other key to take the call". Not taken = the answer is sent as sound by SMS.
+- Nothing built. Plan told to the owner; waits for his OK and three answers.
+
+### 6 Oct, night: plan for the SMS photo door; nothing built
+- The owner said: do not build the keypad or SMS app now, only plan. No ID photos. Nothing stored. No check on each piece: the pieces come in a numbered row and are joined in order.
+- Found: one SMS holds 160 plain letters. A long SMS is cut by the phone into parts of 153 letters, and the phone itself numbers the parts (which part, of how many). So the phone's own long SMS is the numbered row.
+- Plan: the photo goes as one long SMS of 10 parts (about 1147 bytes, a little more than today's 1050). The app first asks the phone how it will cut the text, since phones differ. If a piece is missing after 2 minutes, all is dropped and the caller is asked to send again.
+- Not known: how many parts a real keypad phone lets through in one long SMS.
+- The project can do the same as before this entry.
+
+## 6 Oct, night: the agent now asks before it lists (branch narrow-ask, not committed)
+- The owner said yes to the plan: the answer is said back, one read-back at the end, up to 8 questions by the size of the list, the model stays in charge. The team's schemes come as PDFs; turning them into rows, parts and bits is the next step and waits for them.
+- Built, three steps:
+  1. The picker now gives the model its best 3 questions and how much each cuts. The model picks one and says it in its own words. While the list is long, the model is not given the schemes, so it can not list them; it says how many there are and asks. A reply may name 2 schemes at most.
+  2. Every question can be answered by a key or by voice ("press 1 for ..., 2 for ..., 0 if you do not know"). The next sentence says the answer back. Before the schemes are told, the facts are said back once: "Right? 1 yes, 2 change."
+  3. When no scheme fits, the agent gets the nearest one or two with what is in the way ("needs age 18 to 40, you said 41 to 79") and whether that can change. A scheme that fits but has more conditions is said as "may fit, if ...".
+- One switch turns all of it off: `TALK_ASK_FIRST=false`.
+- Checked: all tests, 3,362 passed (69 are new). The long scripted-call check was started and had not ended when this was written.
+- Not tried: a real model, a real call, a real key on the line. On today's 17 schemes there is still little to cut with; the full gain comes when the new schemes carry "what it gives" and the yes/no facts.
+
+### 6 Oct, night: the detailed plan for the photo by SMS is written; nothing built
+- Added: PLAN.md section 10. It says how a photo goes from a keypad phone by SMS, with an example, what stops each mistake, and the steps M1 to M7.
+- The rule for many photos: one case has 20 SMS parts. One photo gets all of them (about 150 by 110 dots). Two photos get half each (about 100 by 75). Three would be too small, so the cap is two.
+- Steps M1, M2, M3 and M5 need no phone and no money. The keypad app step is "not now". The trust test spends on the photo model and waits for the owner.
+- The project can do the same as before this entry.
+
+### 6 Oct, night: the photo by SMS plan was fixed on the owner's word; nothing built
+- Changed in PLAN.md section 10: the caller sees only one progress bar, no packets or numbers.
+- Changed: up to 3 photos. One photo is sent at the best quality; with 2 or 3 each one is pressed harder, but never below the size where a pest can still be told.
+- Added: four locks on the server so a wrongly joined picture can never be read. If any lock fails the photo is dropped and the caller is asked to send again.
+- The project can do the same as before this entry.
+
+### 6 Oct, night: the photo by SMS plan was narrowed to the back end; nothing built
+- The owner said: the screens stay as they are; any number of photos; work only on how a photo is cut into SMS, joined again, and given to the photo model.
+- PLAN.md section 10 is rewritten to that. The bar, the box and the say-back step are taken out.
+- The rule now: 1 photo gets 20 SMS parts, 2 get 12 each, 3 or more get 10 each. Each photo is joined by itself, so one lost photo does not lose the others.
+- The project can do the same as before this entry.
+
+### 6 Oct, night: the photo by SMS plan was stress-tested on paper; nothing built
+- Read how the SMS photo works today and set the new plan against it in PLAN.md section 10.
+- Today: a check on each piece only, no check on the whole photo, the whole JPEG header sent, any sender goes into the newest case, at most 6 photos, and a separate DONE message that can start the read too early.
+- The stress test found 10 holes in my own plan (for example: SMS can come out of order, so every packet now carries the photo's facts; late SMS, so the wait restarts on each packet; dual-SIM phones; the SIM's daily SMS cap, so a cap of 100 parts a case). All are fixed in the plan text.
+- The project can do the same as before this entry.
+
+### 6 Oct, night: human check and phone probe added to the photo by SMS plan; nothing built
+- The owner said: when the model is not sure, a person should check; the government pays for the SMS; a health centre can run the check of header and parts a phone allows.
+- Added to PLAN.md section 10: three bands (green, amber, red). When the model doubts itself, the two reads differ, the picture is small, or the kind is high-stakes (a spray dose, an insurance claim, a health sign), the case goes to a person. The caller hears "a person is checking, we will call you".
+- Each human answer is also a test of the model, so the line between "sure" and "ask a person" moves by real counts, with no paid test.
+- Added: a phone probe. At a health centre the app sends test packets in growing sizes; the server learns, per phone model, if the header can be left out and how many parts one SMS may have, and sends the setting back by SMS. A phone nobody tested tests itself on first use. If anything fails, it falls back to today's way.
+- Steps are now M1 to M7. None needs a phone or money.
+- The project can do the same as before this entry.
+
+### 6 Oct, night: the photo by SMS plan is final and ready for Muse; nothing built
+- The owner decided: the caller is never told "we could not do it"; when the model is not sure a person answers in the back end; 20 / 12 / 10 parts a photo; up to 5 photos a case; high-stakes kinds come later.
+- Written for Muse: `.agent/PROMPT-muse-sms-photo.md` with steps M1 to M7 (cut, join, share rule, hand-over, who answers, the person's queue, the phone probe). PLAN.md section 10 is the short version.
+- One thing I read as 5 and the owner may have meant 4: the photo cap.
+- The project can do the same as before this entry.
+- Built on a new branch `callback-catch` (folder ~/code/haqdaar-v2-callback), not committed. If the call-back is not picked up, is cut, or drops before the answer is said, the caller gets one SMS: the answer as text plus a link that plays it. A demo switch (PHOTO_BACK_ASK, off by default) makes the terminal ask 1 / 2 / 3 to play "picked up", "not picked up", "picked up but drops".
+- Tests: 3358 pass; 3 old faults fail with or without this work. Not tried on a real call yet.
+
+- 6 Oct night: cost model for 1,000 calls a second (5 min, English in the middle, 1 photo, SMS + voice on half the calls): about Rs 15 a call (Rs 8 without the translate step), against about Rs 88 for a person. Written in plain words in chat; notes in .agent/NOTES.md. Nothing built.
+- Call-back catch works on the owner's phone (SMS in the call's language + sound link). Merged into `v5-full`, not pushed. `make full` now asks 1 / 2 / 3 by itself. The main folder (branch narrow-ask) does not have it yet: run from ~/code/haqdaar-v2-callback.
+
+## 6 Oct, night: ready for 1,000 schemes in a kind and 5,000 in all (branch narrow-ask, not committed)
+- The owner said: a kind may hold 1,000 schemes, the whole set 5,000 or more, and the picker decides how many questions are asked.
+- Found first: the old picker could not do it. On a made-up kind of 1,000 it stopped with about 680 left, because today's seven questions (kind, state, man or woman, social group, age, income, work) do not tell such schemes apart. A turn also took about 5 seconds of code.
+- Built:
+  1. The picker decides the number of questions. It asks while a question still cuts at least a tenth of the list (first by the worst answer, else on average). 12 is only a guard.
+  2. What is left is ranked: a scheme made for this caller (for widows, for a widow) comes before a scheme for anyone. The best two are told, with "N more fit".
+  3. New things the talk can ask and filter on: what the scheme gives (money, loan, insurance, training, ...), the part inside a kind (farming: crops, animals, fish, ...), the home state (all states), and 20 yes/no facts (BPL card, widow, disability, own farm land, village, student, ...). The keys part keeps its seven and is not changed.
+  4. A scheme with no recorded voice clips can now be in the set for the talk (the talk speaks by the live voice). The keys part does not offer it.
+  5. Speed: a turn with 1,000 schemes of one kind now takes about 50 thousandths of a second of code.
+- On the made-up kind of 1,000 with the new fields filled: the worst answers go 1000 -> 182 -> 27 -> 14 -> ... -> 6 in 11 questions. This is made-up data, not the team's.
+- Checked: all tests, 3,404 passed. The long scripted-call check was run on the first three steps only (14 broken calls, the same old key-9 fault as before this work).
+- Not tried: a real model, a real call. Hindi and Marathi words for the new questions are drafts. Today's 17 schemes do not have the new fields yet, so on a call today little changes until the team's schemes are read in.
+- Waits for the owner: one sample PDF, and a yes on the cost of reading 5,000 schemes (about Rs 2,235 on Muse; the cap is Rs 60 in all).
+
+- 6 Oct night: COST-MODEL.md written: cost per call for each of the 11 languages (Rs 17 to 20, English Rs 12), servers and databases are only 0.2% of the bill, a person costs Rs 88. Fixes my earlier Rs 15 figure. Nothing built.
+
+- 6 Oct night: COST-SLIDES.md written: deck content for the cost slides (price against KCC, Kisan e-Mitra, CSC and a desk of people) and a step plan to get the government to try it (one district for 60 days, then the state, then plug into the national farm stack). Nothing built.
+
+- 6 Oct night: HAQDAAR-COST-ANALYSIS.md written (one file for the slide team): price against the desk, an upgraded desk, and government building its own on VoicERA; the cost of keeping schemes current; our price and profit; the plan for government. Result: buying from us costs about the same as government building it, so the pitch is speed, no upfront money and current schemes. Nothing built.
+
+## 7 Oct: the team's 34 schemes are in, in a separate set (branch narrow-ask), checked
+- The team's file (34 different schemes; 3 repeats left out, and crop insurance, the farm credit card and Atal Pension left out because they are already live with voice) was read in. Each scheme got what it gives, the part inside its kind, home state, the yes/no facts, and Hindi names. Every fact has a sentence copied from the scheme's own text, and the tool refuses a scheme if that sentence is not really there.
+- They sit in a separate set of 51 schemes (the live 17 plus the 34). The live set and the voice clips are not changed; the keys part gives the same answers as before (checked on 12 callers and a 300-caller stress run: no crash, no wrong answer).
+- Checked without a model: finding a scheme by its name, English and Hindi: 34 of 34 first each. By loose words ("the toilet scheme", "water tap at home in village"): 30 of 34 first, 33 of 34 in the top three. Looking inside a scheme for "what papers": the right scheme first 38 of 38. 72 question walks (9 kinds x 8 kinds of caller): no scheme wrongly cut, 2 to 3 questions on average (4 at most), a list of about 4 at the end.
+- Schemes for organisations (startups, firms, states) are kept out of what an ordinary caller is asked about; they open when the caller names them or says they are a company, startup or NGO.
+- Not done: a call or a real-model turn on the 51; the full long scripted-call check. Known: age limits are loose for the new schemes (the agent says the exact limit from the scheme's text); the first start needs the local search model (it was gone from the temp folder; it was downloaded again).
+- To try it on a call, from ~/code/haqdaar-v2-narrow: SNAPSHOTS_DIR=$PWD/data_cache/intake/snaps AUDIO_DIR=$PWD/data_cache/intake/audio make mac-call

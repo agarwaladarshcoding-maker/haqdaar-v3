@@ -45,6 +45,14 @@ TALK_SENTENCE_WORDS: int = int(os.environ.get("TALK_SENTENCE_WORDS", 24))   # a 
 TALK_LOG_CHARS: int = int(os.environ.get("TALK_LOG_CHARS", 1500))           # how much of the call log the model reads
 TALK_MAX_TURNS: int = int(os.environ.get("TALK_MAX_TURNS", 40))             # a talk call always ends
 TALK_MAX_QUESTIONS: int = int(os.environ.get("TALK_MAX_QUESTIONS", 3))   # 1.3a: at most 3 questions a talk call
+# N1 (PLAN 9): ask before listing. On: the model gets the picker's best boxes as options, the questions allowed for one
+# need are the ones the picker finds worth it (N5: no fixed number; TALK_ASK_MAX is only a guard), and no scheme
+# is listed while the list is long. Off: the talk as it was before this step.
+TALK_ASK_FIRST: bool = os.environ.get("TALK_ASK_FIRST", "true").strip().lower() in ("1", "true", "yes", "on")
+TALK_ASK_MAX: int = int(os.environ.get("TALK_ASK_MAX", 12))   # N5: a guard only: at most this many picker questions for one need
+TALK_MIN_CUT: float = float(os.environ.get("TALK_MIN_CUT", 0.10))   # N5: a question is worth asking when it cuts at least this share of the list (worst case, else on average)
+TALK_NEAR_K: int = int(os.environ.get("TALK_NEAR_K", 2))   # N3: when no scheme fits, this many near ones are named, at most
+TALK_MODEL_BOXES: int = int(os.environ.get("TALK_MODEL_BOXES", 5))   # N6: the model's BOXES block shows at most this many of the talk-only boxes (the ones that still cut the list best): the Groq minute limit is 8,000 tokens
 # 3.1 / 3.2 / 3.3 (Phase 3): keys and talk switch inside one call. In a talk call key KEYS_KEY goes to keys
 # with the answers so far; words in the keys part go back to talk. Off: key 6 is "keys are off" again.
 KEYS_IN_TALK: bool = os.environ.get("KEYS_IN_TALK", "true" if TALK_ONLY else "false").strip().lower() in ("1", "true", "yes", "on")

@@ -38,6 +38,18 @@ SEVEN_BOXES: tuple[BoxId, ...] = (
     "occupation",
 )
 
+# N6: the boxes the TALK can ask and filter on. The keys path keeps the seven (menus, clips, the planner's
+# defaults); the talk adds what the seven can not cut a big kind with: what the scheme gives, the kind inside the
+# kind, the whole list of states, and yes / no facts (a box named f_<fact>, values yes / no). A snapshot
+# that has not been built with a box simply does not hold it: the talk takes that as "nothing to ask".
+FACT_NAMES: tuple[str, ...] = (
+    "bpl_card", "ration_card", "widow", "disability", "owns_farm_land", "rural", "pregnant", "student",
+    "girl_child", "senior_alone", "minority", "income_tax_payer", "govt_employee", "bank_account", "aadhaar",
+    "shop_or_trade", "new_business", "kutcha_house", "breadwinner_died", "migrant_worker",
+)
+FACT_BOXES: tuple[BoxId, ...] = tuple(f"f_{n}" for n in FACT_NAMES)
+TALK_BOXES: tuple[BoxId, ...] = SEVEN_BOXES + ("gives", "sub_kind", "home_state") + FACT_BOXES
+
 HARD_BOXES: frozenset[BoxId] = frozenset({"state", "gender", "social_category"})
 # Widening order (T10 D6, amended 13 Sep): income_band -> age -> occupation.
 # `category` is a soft box but it is NOT widened. It is the subject the caller

@@ -31,6 +31,7 @@ from haqdaar.contracts.types import (
     HARD_BOXES,
     SCHEME_CHUNKS,
     SEVEN_BOXES,
+    TALK_BOXES,
     RenderKey,
     compute_render_key,
 )
@@ -110,7 +111,9 @@ class BuildGateError(Exception):
     pass
 
 
-def validate_readback_completeness(scheme: Mapping[str, Any]) -> tuple[bool, str | None]:
+def validate_readback_completeness(
+    scheme: Mapping[str, Any], langs: Sequence[str] = ("en", "hi", "mr"),
+) -> tuple[bool, str | None]:
     """Gate 3: Read-back completeness - all 6 chunks in 3 languages (T15, T17 §2).
 
     Returns (True, None) if all 6 chunks (name, summary, benefit_text,
@@ -123,7 +126,7 @@ def validate_readback_completeness(scheme: Mapping[str, Any]) -> tuple[bool, str
     if not isinstance(chunks, dict):
         return False, f"Scheme {scheme_id} missing 'chunks' dictionary"
 
-    for lang in ("en", "hi", "mr"):
+    for lang in langs:
         lang_chunks = chunks.get(lang)
         if not isinstance(lang_chunks, dict):
             return False, f"Scheme {scheme_id} missing chunks for language '{lang}'"
@@ -200,6 +203,19 @@ def _band_wholly_inside(band_lo: int, band_hi: int | None, scheme_lo: int | None
     return True
 
 
+def _band_overlaps(band_lo: int, band_hi: int | None, scheme_lo: int | None, scheme_hi: int | None) -> bool:
+    """True iff [band_lo, band_hi] and [scheme_lo, scheme_hi] share at least one number (None = open end).
+
+    Only a talk-only scheme is named by this rule: the talk says the exact limit from the card, so naming it
+    for a band that touches its range is safe, and the keys path never offers it.
+    """
+    if scheme_hi is not None and band_lo > scheme_hi:
+        return False
+    if scheme_lo is not None and band_hi is not None and band_hi < scheme_lo:
+        return False
+    return True
+
+
 def build_range_bands(
     schemes: list[dict[str, Any]],
     box: str,
@@ -253,6 +269,64 @@ def build_range_bands(
     return bands
 
 
+_RANGE_BOXES = ("age", "income_band")
+_SUB_KIND_CODE = re.compile(r"^[a-z0-9_]+$")
+
+
+def _box_value(scheme: Mapping[str, Any], box: str) -> Any:
+    """What a scheme row says for a box (top level, else under "facets"). N6: a fact box (f_<fact>) reads the
+    row's `facts` map: needs -> "yes" (the bit under yes only), bars -> "no" (under no only), not named -> ANY."""
+    if box.startswith("f_") and vocab.fact_of(box):
+        facts = scheme.get("facts")
+        if facts is None and "facets" in scheme:
+            facts = scheme["facets"].get("facts")
+        how = (facts or {}).get(box[2:])
+        return {"needs": "yes", "bars": "no"}.get(how, ANY)
+    val = scheme.get(box)
+    if val is None and "facets" in scheme:
+        val = scheme["facets"].get(box)
+    return val
+
+
+def _as_list(val: Any) -> Sequence[Any]:
+    return val if isinstance(val, (list, tuple, set)) else (val,)
+
+
+def _check_talk_fields(schemes: Sequence[Mapping[str, Any]]) -> set[str]:
+    """N6: the talk-only fields of the rows (`gives`, `sub_kind`, `home_state`, `facts`). An unknown code fails the
+    build and names the scheme and the value. Returns the talk-only boxes at least one row names (a box no row
+    names is not written: the snapshot stays as it was and the talk finds nothing to ask)."""
+    used: set[str] = set()
+    for s in schemes:
+        sid = s.get("scheme_id")
+        facts = s.get("facts")
+        if facts is None and "facets" in s:
+            facts = s["facets"].get("facts")
+        if facts is not None:
+            if not isinstance(facts, dict):
+                raise ValueError(f"{sid}: facts {facts!r} is not a map of fact -> needs / bars")
+            for name, how in facts.items():
+                if name not in vocab.FACTS:
+                    raise ValueError(f"{sid}: fact {name!r} not in vocab")
+                if how not in ("needs", "bars"):
+                    raise ValueError(f"{sid}: fact {name} value {how!r} is not needs or bars")
+                used.add(f"f_{name}")
+        for box in ("gives", "sub_kind", "home_state"):
+            val = _box_value(s, box)
+            if val is None or val == ANY or val == "ANY":
+                continue
+            for v in _as_list(val):
+                if v == ANY or v == "ANY":
+                    continue
+                if box == "sub_kind":
+                    if not isinstance(v, str) or not _SUB_KIND_CODE.match(v):
+                        raise ValueError(f"{sid}: {box} value {v!r} is not a short code (a-z, 0-9, _)")
+                elif str(v) not in vocab.box_values(box):
+                    raise ValueError(f"{sid}: {box} value {v!r} not in vocab")
+                used.add(box)
+    return used
+
+
 def scheme_has_all_clips(scheme: Mapping[str, Any], audio_path: Path) -> bool:
     """True when every one of a scheme's 18 chunks (6 chunks x 3 langs) has a .ulaw file."""
     sid = scheme.get("scheme_id", "")
@@ -280,6 +354,7 @@ def build_snapshot(
     render_stubs: bool = False,
     enforce_readback_gate: bool = False,
     only_with_audio: bool = False,
+    talk_only_rest: bool = False,
 ) -> str:
     """Build a complete snapshot adhering to 05-DATA-CONTRACT.md §2.
 
@@ -303,12 +378,21 @@ def build_snapshot(
     snap_dir.mkdir(parents=True, exist_ok=True)
     audio_path.mkdir(parents=True, exist_ok=True)
 
+    # N6: a talk-only scheme is held for the talk and never for the keys path: it has no recorded clips, so its chunk
+    # keys are not listed in the manifest (Corpus.load would look for the clips). A row can say `talk_only: true`
+    # itself; with `talk_only_rest` a scheme that misses clips is kept as talk-only instead of dropped.
     if only_with_audio:
-        schemes_data = [s for s in schemes_data if scheme_has_all_clips(s, audio_path)]
+        kept = []
+        for s in schemes_data:
+            if s.get("talk_only") is True or scheme_has_all_clips(s, audio_path):
+                kept.append(s)
+            elif talk_only_rest:
+                kept.append({**s, "talk_only": True})
+        schemes_data = kept
 
     if enforce_readback_gate:
         for s in schemes_data:
-            ok, reason = validate_readback_completeness(s)
+            ok, reason = validate_readback_completeness(s, ("en",) if s.get("talk_only") is True else ("en", "hi", "mr"))
             if not ok:
                 raise BuildGateError(f"Gate 3 rejected scheme {s.get('scheme_id')}: {reason}")
 
@@ -333,23 +417,32 @@ def build_snapshot(
             scheme["scheme_id"] = f"S{bit_idx + 1}"
 
     # 3. Discover closed vocabulary per box
-    # Allow-list only: boxes are exactly SEVEN_BOXES. A skip list here would let any
+    # Allow-list only: boxes are SEVEN_BOXES and the talk-only boxes of TALK_BOXES. A skip list here would let any
     # unlisted record key (evidence_quotes, a later priority field, ...) become a
-    # keypad box by accident.
-    boxes = list(SEVEN_BOXES)
+    # keypad box by accident. A talk-only box is written only when a row names it.
+    used_talk = _check_talk_fields(schemes)
+    boxes = list(SEVEN_BOXES) + [b for b in TALK_BOXES[len(SEVEN_BOXES):] if b in used_talk]
 
     vocab_boxes: dict[str, dict[str, Any]] = {}
     for box in boxes:
-        if box in vocab.KEYPAD_LISTS:
+        closed = vocab.KEYPAD_LISTS.get(box) or vocab.box_values(box)
+        if box == "sub_kind":
+            # No closed list: the codes the rows hold, in a fixed (sorted) order.
+            values_list = sorted({str(v) for s in schemes for v in _as_list(_box_value(s, box))
+                                  if v is not None and v != ANY and v != "ANY"})
+            vocab_boxes[box] = {
+                "values": values_list,
+                "code_map": {v: idx for idx, v in enumerate(values_list)},
+                "vocab_source": "authored",
+            }
+        elif closed:
             # Closed-list boxes (D6, step 1.5a): values = vocab.py's list, in vocab
             # order, every value, even ones no scheme on this snapshot holds. This is
             # what the keypad menu reads aloud, so the order must be fixed and known,
             # not "whatever happens to appear on schemes" (see plan step 1.5a).
-            values_list = list(vocab.KEYPAD_LISTS[box])
+            values_list = list(closed)
             for s in schemes:
-                val = s.get(box)
-                if val is None and "facets" in s:
-                    val = s["facets"].get(box)
+                val = _box_value(s, box)
                 if val is None or val == ANY or val == "ANY":
                     continue
                 candidates = val if isinstance(val, (list, tuple, set)) else (val,)
@@ -370,7 +463,10 @@ def build_snapshot(
         else:
             # age / income_band: range boxes. The keypad values ARE the band
             # codes (step 1.5b) — a caller picks a band, never a raw number.
-            bands = build_range_bands(schemes, box, max_bands=tunables.KEYPAD_CARDINALITY_MAX)
+            # Edges come from the schemes that have clips only: a talk-only scheme with a new range must not move
+            # the bands the keys path chips are named after.
+            bands = build_range_bands([s for s in schemes if s.get("talk_only") is not True], box,
+                                      max_bands=tunables.KEYPAD_CARDINALITY_MAX)
             values_list = [b["code"] for b in bands]
             code_map = {v: idx for idx, v in enumerate(values_list)}
             vocab_boxes[box] = {
@@ -392,7 +488,7 @@ def build_snapshot(
     masks_bin_data.extend(b"\x00" * header_size)
 
     for box in sorted(vocab_boxes.keys()):
-        is_range_box = box not in vocab.KEYPAD_LISTS
+        is_range_box = box in _RANGE_BOXES
         band_by_code = (
             {b["code"]: b for b in vocab_boxes[box]["bands"]} if is_range_box else {}
         )
@@ -411,13 +507,15 @@ def build_snapshot(
                     rng = _parse_range_value(scheme.get("scheme_id"), box, scheme_val)
                     if rng is None:
                         mask_word |= (1 << i)
+                    elif scheme.get("talk_only") is True:
+                        # Over-inclusive on purpose: the bands know nothing of this scheme's edges.
+                        if _band_overlaps(band["lo"], band["hi"], rng[0], rng[1]):
+                            mask_word |= (1 << i)
                     elif _band_wholly_inside(band["lo"], band["hi"], rng[0], rng[1]):
                         mask_word |= (1 << i)
             else:
                 for i, scheme in enumerate(schemes):
-                    scheme_val = scheme.get(box)
-                    if scheme_val is None and "facets" in scheme:
-                        scheme_val = scheme["facets"].get(box)
+                    scheme_val = _box_value(scheme, box)
 
                     # Hard constraint: ANY sets a scheme's bit in every mask for that column
                     if scheme_val == ANY or scheme_val == "ANY" or scheme_val is None:
@@ -516,6 +614,8 @@ def build_snapshot(
         templates[item.ref].setdefault(item.lang, item.key)
 
     for box, box_meta in vocab_boxes.items():
+        if box not in SEVEN_BOXES:      # N6: the talk-only boxes have no keypad menu and no clip
+            continue
         for val in box_meta["values"]:
             chip_id = f"chip_{box}_{val}"
             if chip_id not in templates:
@@ -544,6 +644,8 @@ def build_snapshot(
     # Chunks for each scheme: 6 chunks × 3 languages = 18 files per scheme
     for scheme in schemes:
         sid = scheme["scheme_id"]
+        if scheme.get("talk_only") is True:     # N6: no clips, no chunk keys in the manifest
+            continue
         scheme_chunks_map[sid] = {}
         for lang in ("en", "hi", "mr"):
             chunk_rks: list[str] = []
@@ -687,9 +789,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--all-schemes",
-        dest="only_with_audio",
-        action="store_false",
-        help="Include all schemes even if missing audio clips.",
+        dest="all_schemes",
+        action="store_true",
+        help="Keep schemes missing audio clips as talk-only: the talk tells about them, the keys path never offers them.",
     )
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
 
@@ -698,6 +800,7 @@ def main(argv: list[str] | None = None) -> int:
         schemes,
         enforce_readback_gate=True,
         only_with_audio=args.only_with_audio,
+        talk_only_rest=args.all_schemes,
     )
     manifest = json.loads(
         (Path(tunables.SNAPSHOTS_DIR) / snap / "manifest.json").read_text(encoding="utf-8")

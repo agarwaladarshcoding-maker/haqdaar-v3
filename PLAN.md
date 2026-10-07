@@ -517,6 +517,54 @@ What the agent then does (a step of its own, after Phase 1's gate):
 6. The line report of 1.0 is compared: laptop on a hotspot against the cloud server, five calls each.
 Until then: a phone hotspot or wired net, not the hall wifi.
 
+## 9. Ask before listing (owner, 6 Oct evening; branch `narrow-ask` off f1cdc95)
+Why: the talk lists a whole kind of scheme. Facts and line numbers: `.agent/NOTES.md`, "6 Oct evening: narrowing plan".
+Owner's rules: (a) the answer is said back in the next sentence, plus one full read-back before the result; no hard
+"press 1 if right" after every answer. (b) The number of questions follows the size of the list, 8 at most. (c) The
+model stays in charge of the talk: the picker and the bits are its tools. Code gives it the best questions and the
+facts; the model picks one, words it, and may answer a side question first. Code only holds two lines: no listing
+while the list is still long, and no more than 2 schemes named. (d) The schemes come from the team as PDFs; the
+intake (format, chunk, bits) is step N4 and waits for them.
+One switch for all of it: `TALK_ASK_FIRST` (on by default; off = the talk as it was at f1cdc95).
+
+### N1 The picker as the model's tool, a question budget, the listing gate
+- `talk_pick.narrow` also gives `options`: up to 3 boxes, best first by minimax, each with "at most N left after the
+  answer". `ask` stays the best one. The prompt shows the options; the model picks one and words it from what the
+  caller said. The "wrong box" check takes any box in `options`.
+- Budget: questions allowed for one need = min(8, ceil(log2(list size when the need was named)) + 1); 0 when the
+  list is 2 or fewer. It takes the place of the fixed 3. A new need starts a new budget.
+- Gate: while more than 2 are left AND an option stands AND the budget is not used up AND the caller did not say
+  "just tell me" AND did not name a scheme: the model gets no scheme texts (only "N schemes fit so far"), and a
+  `show_scheme` is sent back once, then the fixed question is said. A scheme in focus is still given, so a side
+  question about it is answered.
+- With `TALK_CHUNKS` on, the parts come only from the narrowed list (plus the focus and pinned schemes).
+- A reply that names more than 2 schemes is sent back once (names from `fixtures/scheme_short_names.json`).
+- The two prompt lines that say "show schemes when the caller asks which there are" / "the need is clear" are
+  brought in line: with a long list, say how many there are and ask.
+
+### N2 Keys and the voice for every question; the answer said back; one read-back
+- A question from the picker ends with its keys, built by code from the box's values still alive in the list:
+  yes / no = 1 / 2; a list = 1 to 5 (the values that hold the most schemes first), 7 = more; 0 = do not know.
+  Age is by voice. Keys 6 and 9 keep their jobs. A key while no question stands does what it does today.
+- The model is told what was just taken and how ("JUST HEARD: work = farmer, by key"); its next reply starts by
+  saying it back in a few words.
+- Once per need, before the first schemes are shown after a question was asked: the facts are said back in one
+  sentence, "Right? 1 yes, 2 change." On no: the model asks which one is wrong; the fact is set again and the list
+  is built again. The old rule "do not ask is that right" goes for this one place.
+
+### N3 None fits: the nearest, and what stands in the way
+- When nothing is left (or the scheme in focus does not fit): the schemes of the search that miss by 1 box, then
+  by 2 (`Filter.miss_set`), in search order, 2 at most. Each goes to the model with its blocker: the box, what the
+  scheme needs, what the caller said, and "can change: yes / no" (age, gender, social group: no).
+- The model says it in its own words. A scheme that fits on the known facts but has a condition in its notes is
+  said as "may fit, if ...".
+
+### N4 The team's schemes (waits for the PDFs)
+- Intake: PDF -> the row shape of today + `gives` + `facts` (closed list, each with a quote; doubt = any) ->
+  chunks -> bits. `gives` and each fact become boxes; N1 to N3 then work on them with no change.
+
+Checks after each step: the step's own tests, the full pytest, `py_compile`; `make talk-eval` and one call after N3.
+
 ## 10. Photo by SMS: cut, join, hand to the photo model, a person when unsure (owner, 6 Oct night; PLAN ONLY; build on "start M<n>")
 The full build instructions for Muse are in `.agent/PROMPT-muse-sms-photo.md` (tag format, files, checks). This is the short plan.
 Who it is for: a caller with a keypad phone, no data, no browser, no smartphone near. Screens and flow stay as today;

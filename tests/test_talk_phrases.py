@@ -47,7 +47,7 @@ def test_just_tell_me_stops_the_questions_and_shows_two(call):
     assert "NEXT QUESTION: none" in client.calls[1]      # asking stopped
     assert client.calls[1].count("mark: ") == 2          # the 2 best left are shown
     assert "NEXT QUESTION: none" in client.calls[2]      # still stopped on the next turn
-    assert audio.answers[1] == "Two schemes for you."
+    assert audio.answers[2] == "Two schemes for you."      # N2: answers[1] is the keys of the first question
 
 
 def test_dont_know_sets_unknown_at_once_not_after_twice(call):
